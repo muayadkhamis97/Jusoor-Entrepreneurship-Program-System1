@@ -9,6 +9,10 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
   role: text("role").notNull().default("staff"),
   status: text("status").notNull().default("invited"),
   calendlyBookingUrl: text("calendly_booking_url"),
+  calendlyWebhookTokenHash: text("calendly_webhook_token_hash").unique(),
+  calendlyWebhookTokenEncrypted: text("calendly_webhook_token_encrypted"),
+  calendlyWebhookSecretEncrypted: text("calendly_webhook_secret_encrypted"),
+  calendlyWebhookSubscriptionUri: text("calendly_webhook_subscription_uri"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

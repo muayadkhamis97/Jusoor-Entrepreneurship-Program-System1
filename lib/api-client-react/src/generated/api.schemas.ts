@@ -516,6 +516,25 @@ export interface ParticipantSupport {
   mentorBookingUrl: string | null;
 }
 
+export type ParticipantCalendlyMeetingStatus = typeof ParticipantCalendlyMeetingStatus[keyof typeof ParticipantCalendlyMeetingStatus];
+
+
+export const ParticipantCalendlyMeetingStatus = {
+  confirmed: 'confirmed',
+  rescheduled: 'rescheduled',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ParticipantCalendlyMeeting {
+  id: number;
+  eventName: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  timezone: string | null;
+  status: ParticipantCalendlyMeetingStatus;
+}
+
 /**
  * @nullable
  */
@@ -573,6 +592,7 @@ export interface ParticipantEnrollment {
   business: ParticipantBusiness | null;
   sessions: ParticipantSession[];
   support: ParticipantSupport[];
+  calendlyMeetings: ParticipantCalendlyMeeting[];
   assignments: ParticipantAssignment[];
   questions: ParticipantQuestion[];
 }
@@ -866,6 +886,22 @@ export interface CalendlyAuthorizationInput { [key: string]: unknown }
 
 export interface CalendlyAuthorization {
   authorizationUrl: string;
+}
+
+export type CalendlyWebhookEnvelopeEvent = typeof CalendlyWebhookEnvelopeEvent[keyof typeof CalendlyWebhookEnvelopeEvent];
+
+
+export const CalendlyWebhookEnvelopeEvent = {
+  inviteecreated: 'invitee.created',
+  inviteecanceled: 'invitee.canceled',
+} as const;
+
+export type CalendlyWebhookEnvelopePayload = { [key: string]: unknown };
+
+export interface CalendlyWebhookEnvelope {
+  event: CalendlyWebhookEnvelopeEvent;
+  created_at: string;
+  payload: CalendlyWebhookEnvelopePayload;
 }
 
 /**

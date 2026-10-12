@@ -40,8 +40,20 @@ type ApplicationFormValues = z.infer<typeof applicationSchema>;
 const dateText = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'To be announced';
 const word = (value?: string | null) => value ? value.replaceAll('_', ' ').replace(/\b\w/g, part => part.toUpperCase()) : '—';
 const statusWords: Record<string, string> = { submitted: 'Submitted', under_review: 'In review', accepted: 'Accepted', declined: 'Not selected' };
-const statusClass = (status: string) => ['accepted', 'completed'].includes(status) ? 'badge-good' : ['declined', 'cancelled'].includes(status) ? 'badge-bad' : ['submitted', 'under_review', 'scheduled', 'requested'].includes(status) ? 'badge-warm' : 'badge-neutral';
+const statusClass = (status: string) => ['accepted', 'completed', 'confirmed'].includes(status) ? 'badge-good' : ['declined', 'cancelled'].includes(status) ? 'badge-bad' : ['submitted', 'under_review', 'scheduled', 'requested', 'rescheduled'].includes(status) ? 'badge-warm' : 'badge-neutral';
 
+const meetingDateTime = (value: string, timezone?: string | null) => {
+  const date = new Date(value);
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      ...(timezone ? { timeZone: timezone } : {}),
+    }).format(date);
+  } catch {
+    return date.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  }
+};
 function IntakeBrand() {
   return <Link href="/" className="intake-brand" data-testid="link-jusoor-home"><span className="brand-mark">J</span><span><b>Jusoor</b><small>ENTREPRENEURSHIP PROGRAM</small></span></Link>;
 }
@@ -240,6 +252,10 @@ function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {
     <section className="participant-section"><div className="participant-section-head"><div><h2>What’s coming up</h2><p>Sessions planned for your cohort.</p></div><span className="badge badge-neutral">{scheduled.length} upcoming</span></div>
       <div className="participant-grid"><div className="participant-card"><h3>Sessions</h3><SessionCalendar sessions={enrollment.sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />{enrollment.sessions.length === 0 ? <p className="session-info">No sessions have been shared yet. Check back as your cohort schedule takes shape.</p> : !displayedSessions.length ? <p className="session-info">No sessions are scheduled for this date. Choose another day or show all dates.</p> : displayedSessions.map(session => <div className="participant-entry" key={session.id} data-testid={`session-participant-${session.id}`}><div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span></div><div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <a href={session.zoomUrl} target="_blank" rel="noreferrer"><Video size={12} /> Join session</a>}{session.recordingUrl && <a href={session.recordingUrl} target="_blank" rel="noreferrer"><ExternalLink size={12} /> Recording</a>}</div></div><span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span></div>)}</div>
        <div className="participant-card"><h3>Founder support</h3>{support.length === 0 ? <p className="session-info">No support engagements are linked yet. Your coordinator will update this space as support is arranged.</p> : support.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} with {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.type === 'mentor' && item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> Book mentoring session</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div></div>
+    </section>
+    <section className="participant-section" data-testid={`calendly-meetings-${enrollment.applicationId}`}>
+      <div className="participant-section-head"><div><h2>Mentoring appointments</h2><p>Bookings with your assigned mentor.</p></div></div>
+      <div className="participant-grid"><div className="participant-card"><h3>Calendly meetings</h3>{enrollment.calendlyMeetings.length === 0 ? <p className="session-info">Confirmed, rescheduled and cancelled meetings booked with your assigned mentor will appear here.</p> : enrollment.calendlyMeetings.map(meeting => <div className="participant-entry" key={meeting.id} data-testid={`meeting-participant-${meeting.id}`}><div className="calendar-icon"><CalendarDays size={16} /></div><div className="participant-entry-copy"><b>{meeting.eventName}</b><span>{meetingDateTime(meeting.startsAt, meeting.timezone)} – {meetingDateTime(meeting.endsAt, meeting.timezone)}</span>{meeting.timezone && <span>{meeting.timezone}</span>}</div><span className={`badge ${statusClass(meeting.status)}`}>{word(meeting.status)}</span></div>)}</div></div>
     </section>
     <ParticipantLearning enrollment={enrollment} />
   </article>;

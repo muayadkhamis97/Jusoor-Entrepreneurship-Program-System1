@@ -29,3 +29,4 @@ export * from "./pitch-judges";
 export * from "./courses";
 export * from "./zoom-connections";
 export * from "./announcements";
+export * from "./calendly-meetings";

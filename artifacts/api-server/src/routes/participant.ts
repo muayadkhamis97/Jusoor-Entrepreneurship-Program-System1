@@ -15,6 +15,7 @@ import {
   announcementReceiptsTable,
   applicationsTable,
   businessesTable,
+  calendlyMeetingsTable,
   courseMaterialsTable,
   courseModulesTable,
   db,
@@ -33,7 +34,7 @@ import { streamCourseMaterialFile } from "../lib/courseStorage";
 const router: IRouter = Router();
 
 router.get("/courses", async (_req, res): Promise<void> => {
-  const participant = res.locals.participant as ParticipantAccess | undefined;
+  const participant = res.locals.participant as ParticipantAccess;
   if (!participant) {
     res.status(403).json({ error: "Participant access is required." });
     return;
@@ -117,7 +118,7 @@ router.get("/courses", async (_req, res): Promise<void> => {
 });
 
 router.get("/courses/materials/:id/file", async (req, res): Promise<void> => {
-  const participant = res.locals.participant as ParticipantAccess | undefined;
+  const participant = res.locals.participant as ParticipantAccess;
   const params = GetParticipantCourseMaterialFileParams.safeParse(req.params);
   if (!participant) {
     res.status(403).json({ error: "Participant access is required." });
@@ -168,7 +169,7 @@ router.get("/courses/materials/:id/file", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
-  const participant = res.locals.participant as ParticipantAccess | undefined;
+  const participant = res.locals.participant as ParticipantAccess;
   if (!participant) {
     res.status(403).json({ error: "Participant access is required." });
     return;
@@ -243,6 +244,25 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       .orderBy(asc(supportTable.scheduledDate), asc(supportTable.id))
     : [];
 
+  const calendlyMeetings = businessIds.length
+    ? await db.selectDistinct({
+      id: calendlyMeetingsTable.id,
+      businessId: calendlyMeetingsTable.businessId,
+      eventName: calendlyMeetingsTable.eventName,
+      startsAt: calendlyMeetingsTable.startsAt,
+      endsAt: calendlyMeetingsTable.endsAt,
+      timezone: calendlyMeetingsTable.timezone,
+      status: calendlyMeetingsTable.status,
+    })
+      .from(calendlyMeetingsTable)
+      .innerJoin(supportTable, and(
+        eq(supportTable.businessId, calendlyMeetingsTable.businessId),
+        eq(supportTable.mentorStaffId, calendlyMeetingsTable.mentorStaffId),
+        eq(supportTable.type, "mentor"),
+      ))
+      .where(inArray(calendlyMeetingsTable.businessId, businessIds))
+      .orderBy(asc(calendlyMeetingsTable.startsAt))
+    : [];
   const assignments = programIds.length
     ? await db.select({
       id: trainingAssignmentsTable.id,
@@ -304,6 +324,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
         ...item,
         mentorBookingUrl: item.type === "mentor" ? calendlyBookingUrl : null,
       }))
+      : [],
+    calendlyMeetings: application.status === "accepted" && business
+      ? calendlyMeetings.filter((meeting) => meeting.businessId === business.id)
+        .map(({ businessId: _businessId, ...meeting }) => meeting)
       : [],
     assignments: application.status === "accepted" && business
       ? assignments.filter((assignment) => assignment.programId === application.programId).map((assignment) => {
@@ -453,7 +477,11 @@ router.post("/questions", async (req, res): Promise<void> => {
   }
   if (body.data.sessionId !== undefined && body.data.sessionId !== null) {
     const [session] = await db.select({ id: sessionsTable.id }).from(sessionsTable)
-      .where(and(eq(sessionsTable.id, body.data.sessionId), eq(sessionsTable.programId, body.data.programId))).limit(1);
+      .where(and(
+        eq(sessionsTable.id, body.data.sessionId),
+        eq(sessionsTable.programId, body.data.programId),
+      ))
+      .limit(1);
     if (!session) {
       res.status(400).json({ error: "That session does not belong to your cohort." });
       return;
@@ -461,7 +489,11 @@ router.post("/questions", async (req, res): Promise<void> => {
   }
   if (body.data.assignmentId !== undefined && body.data.assignmentId !== null) {
     const [assignment] = await db.select({ id: trainingAssignmentsTable.id }).from(trainingAssignmentsTable)
-      .where(and(eq(trainingAssignmentsTable.id, body.data.assignmentId), eq(trainingAssignmentsTable.programId, body.data.programId))).limit(1);
+      .where(and(
+        eq(trainingAssignmentsTable.id, body.data.assignmentId),
+        eq(trainingAssignmentsTable.programId, body.data.programId),
+      ))
+      .limit(1);
     if (!assignment) {
       res.status(400).json({ error: "That assignment does not belong to your cohort." });
       return;

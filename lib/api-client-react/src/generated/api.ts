@@ -33,6 +33,7 @@ import type {
   BusinessUpdate,
   CalendlyAuthorization,
   CalendlyAuthorizationInput,
+  CalendlyWebhookEnvelope,
   CompleteCalendlyConnectionParams,
   CompleteZoomConnectionParams,
   CourseManagement,
@@ -87,7 +88,6 @@ import type {
   TrainingQuestionInput,
   TrainingQuestionReply,
   TrainingSubmission,
-  ZoomAuthorization,
   ZoomConnectionInput,
   ZoomStatus
 } from './api.schemas';
@@ -3003,7 +3003,7 @@ export const getStartCalendlyConnectionUrl = () => {
 /**
  * @summary Start the signed-in mentor's Calendly authorization
  */
-export const startCalendlyConnection = async (calendlyAuthorizationInput: CalendlyAuthorizationInput, options?: Parameters<typeof customFetch>[1]): Promise<ZoomAuthorization> => {
+export const startCalendlyConnection = async (calendlyAuthorizationInput: CalendlyAuthorizationInput, options?: Parameters<typeof customFetch>[1]): Promise<CalendlyAuthorization> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -3019,7 +3019,7 @@ export const startCalendlyConnection = async (calendlyAuthorizationInput: Calend
     }
     return headers;
   };
-return customFetch<ZoomAuthorization>(getStartCalendlyConnectionUrl(),
+return customFetch<CalendlyAuthorization>(getStartCalendlyConnectionUrl(),
   {
     ...options,
     method: 'POST',
@@ -3163,6 +3163,95 @@ export function useCompleteCalendlyConnection<TData = Awaited<ReturnType<typeof 
 
 
 
+
+export const getReceiveCalendlyWebhookUrl = (token: string,) => {
+
+
+
+
+  return `/api/mentor/calendly/webhook/${token}`
+}
+
+/**
+ * @summary Receive signed Calendly booking updates
+ */
+export const receiveCalendlyWebhook = async (token: string,
+    calendlyWebhookEnvelope: CalendlyWebhookEnvelope, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReceiveCalendlyWebhookUrl(token),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(calendlyWebhookEnvelope)
+  }
+);}
+
+
+
+
+
+export const getReceiveCalendlyWebhookMutationKey = () => ['receiveCalendlyWebhook'] as const;
+
+export const getReceiveCalendlyWebhookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveCalendlyWebhook>>, TError,ReceiveCalendlyWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveCalendlyWebhook>>, TError,ReceiveCalendlyWebhookMutationVariables, TContext> => {
+
+const mutationKey = getReceiveCalendlyWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveCalendlyWebhook>>, ReceiveCalendlyWebhookMutationVariables> = (props) => {
+          const {token,data} = props ?? {};
+
+          return  receiveCalendlyWebhook(token,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveCalendlyWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof receiveCalendlyWebhook>>>
+    export type ReceiveCalendlyWebhookMutationBody = BodyType<CalendlyWebhookEnvelope>
+    export type ReceiveCalendlyWebhookMutationError = ErrorType<void>
+    export type ReceiveCalendlyWebhookMutationVariables = {token: string;data: BodyType<CalendlyWebhookEnvelope>}
+
+    /**
+ * @summary Receive signed Calendly booking updates
+ */
+export const useReceiveCalendlyWebhook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveCalendlyWebhook>>, TError,ReceiveCalendlyWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveCalendlyWebhook>>,
+        TError,
+        ReceiveCalendlyWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveCalendlyWebhookMutationOptions(options));
+    }
 
 export const getGetZoomStatusUrl = () => {
 

@@ -832,6 +832,14 @@ export const GetParticipantDashboardResponse = zod.object({
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
   "mentorBookingUrl": zod.string().url().nullable()
 })),
+  "calendlyMeetings": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventName": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "timezone": zod.string().nullable(),
+  "status": zod.enum(['confirmed', 'rescheduled', 'cancelled'])
+})),
   "assignments": zod.array(zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -1149,6 +1157,22 @@ export const CompleteCalendlyConnectionQueryParams = zod.object({
 })
 
 export const CompleteCalendlyConnectionResponse = zod.void()
+
+
+/**
+ * @summary Receive signed Calendly booking updates
+ */
+export const ReceiveCalendlyWebhookParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const ReceiveCalendlyWebhookBody = zod.object({
+  "event": zod.enum(['invitee.created', 'invitee.canceled']),
+  "created_at": zod.coerce.date(),
+  "payload": zod.record(zod.string(), zod.unknown())
+})
+
+export const ReceiveCalendlyWebhookResponse = zod.unknown()
 
 
 /**

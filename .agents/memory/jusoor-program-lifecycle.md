@@ -7,15 +7,15 @@ Jusoor cohorts begin with outreach and applications. The in-person bootcamp or h
 
 Role model: coordinator is the platform administrator; Program Staff, participant, trainer, mentor, and judge have distinct views. Trainers can see cohort assignments and participant answers and reply to participant questions; mentor and judge access is limited to assigned work.
 
-Mentor booking: each mentor authorizes their own Calendly account. The app keeps only the public scheduling link for founders and discards the temporary access token.
+Mentor booking: each mentor authorizes their own Calendly account. Keep Calendly access and refresh tokens ephemeral. Store only per-mentor webhook routing and signing material encrypted with `SESSION_SECRET`.
 
 **Why:** The program coordinator described this as the operating model for the Jusoor Entrepreneurship program.
 
 **How to apply:** Keep bootcamp or hackathon selection distinct from incubation, pitch-day qualification, and demo-day grant decisions. Preserve role-specific views and access when adding workflows.
 
-**Why:** The coordinator chose per-mentor booking accounts and left the platform choice open; Calendly was selected for direct founder scheduling.
+**Why:** The coordinator chose per-mentor booking accounts and Calendly for direct founder scheduling. Event sync needs to verify asynchronous bookings without ongoing API access to the mentor's Calendly account.
 
-**How to apply:** Preserve individual mentor ownership. Do not store mentor access tokens or replace the per-mentor setup with a shared workspace account unless the coordinator changes this decision.
+**How to apply:** Preserve individual mentor ownership; do not use a shared account or persist Calendly OAuth tokens. Store only per-mentor webhook routing and signing material encrypted with `SESSION_SECRET`, and reconnect Calendly if that secret rotates.
 
 Mentoring feedback includes participant ratings and comments. The assigned mentor and coordinator can see named feedback.
 

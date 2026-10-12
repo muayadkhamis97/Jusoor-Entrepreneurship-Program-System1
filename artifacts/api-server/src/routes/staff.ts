@@ -53,7 +53,6 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
     .values({ email, role: parsed.data.role, status: "invited" })
     .onConflictDoNothing({ target: staffMembersTable.email })
     .returning();
-
   if (!member) {
     res.status(409).json({ error: "This email already has staff access." });
     return;

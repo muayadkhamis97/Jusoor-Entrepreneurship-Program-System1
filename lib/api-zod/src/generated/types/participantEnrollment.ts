@@ -8,6 +8,7 @@
 import type { ApplicationStatus } from './applicationStatus';
 import type { ParticipantAssignment } from './participantAssignment';
 import type { ParticipantBusiness } from './participantBusiness';
+import type { ParticipantCalendlyMeeting } from './participantCalendlyMeeting';
 import type { ParticipantProgram } from './participantProgram';
 import type { ParticipantQuestion } from './participantQuestion';
 import type { ParticipantSession } from './participantSession';
@@ -21,6 +22,7 @@ export interface ParticipantEnrollment {
   business: ParticipantBusiness | null;
   sessions: ParticipantSession[];
   support: ParticipantSupport[];
+  calendlyMeetings: ParticipantCalendlyMeeting[];
   assignments: ParticipantAssignment[];
   questions: ParticipantQuestion[];
 }
