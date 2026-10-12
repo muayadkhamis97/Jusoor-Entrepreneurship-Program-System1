@@ -21,3 +21,8 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+JUSOOR_BOOTSTRAP_COORDINATOR_EMAIL = "muayad.khamis97@gmail.com"

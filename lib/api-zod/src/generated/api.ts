@@ -669,3 +669,75 @@ export const DeletePitchParams = zod.object({
 export const DeletePitchResponse = zod.void()
 
 
+/**
+ * @summary Get the current staff profile
+ */
+export const GetAuthMeResponse = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['coordinator', 'staff']),
+  "status": zod.enum(['invited', 'active']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List approved staff and pending invitations
+ */
+export const ListStaffResponseItem = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['coordinator', 'staff']),
+  "status": zod.enum(['invited', 'active']),
+  "createdAt": zod.coerce.date()
+})
+export const ListStaffResponse = zod.array(ListStaffResponseItem)
+
+
+/**
+ * @summary Approve a staff email and assign a role
+ */
+export const CreateStaffBody = zod.object({
+  "email": zod.string().email(),
+  "role": zod.enum(['coordinator', 'staff'])
+})
+
+export const CreateStaffResponse = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['coordinator', 'staff']),
+  "status": zod.enum(['invited', 'active']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Change a staff member's role
+ */
+export const UpdateStaffParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateStaffBody = zod.object({
+  "role": zod.enum(['coordinator', 'staff'])
+})
+
+export const UpdateStaffResponse = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['coordinator', 'staff']),
+  "status": zod.enum(['invited', 'active']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Revoke a staff member's access
+ */
+export const DeleteStaffParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteStaffResponse = zod.void()
+
+

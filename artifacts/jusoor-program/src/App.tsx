@@ -1,34 +1,47 @@
 import './workspace.css';
-import { type ChangeEvent, type ReactNode, useMemo, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
 import {
-  getGetBusinessQueryKey, getGetDashboardQueryKey, getListBusinessesQueryKey,
-  getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey,
+  getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getListBusinessesQueryKey,
+  getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
-  useCreateSession, useCreateSupport, useDeleteBusiness, useDeletePitch,
+  useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
-  useGetDashboard, useListBusinesses, useListPitches, useListPrograms,
-  useListSessions, useListSupport, useUpdateBusiness, useUpdatePitch,
+  useDeleteStaff, useGetAuthMe, useGetDashboard, useListBusinesses, useListPitches, useListPrograms,
+  useListSessions, useListStaff, useListSupport, useUpdateBusiness, useUpdatePitch,
   useUpdateProgram, useUpdateSession, useUpdateSupport,
+  useUpdateStaff,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, PitchInput,
   PitchRecord, PitchUpdate, Program, ProgramInput, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
-  SupportUpdate,
+  StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
   Activity, ArrowRight, ArrowUpRight, BriefcaseBusiness,
-  CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink,
-  FileText, Filter, Handshake, LayoutDashboard, MapPin, MoreHorizontal,
-  Pencil, Plus, Search, Sparkles, Trash2, Trophy, Users, Video, X,
+  CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut,
+  FileText, Filter, Handshake, LayoutDashboard, MapPin,
+  Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+
+if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY.');
+
+function stripBase(path: string): string {
+  return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
+}
 
 type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string };
 type Values = Record<string, string>;
@@ -77,15 +90,17 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
   </div>;
 }
 
-function ConfirmDialog({ item, onCancel, onConfirm, loading }: { item: string; onCancel: () => void; onConfirm: () => void; loading?: boolean }) {
+function ConfirmDialog({ item, onCancel, onConfirm, loading, error }: { item: string; onCancel: () => void; onConfirm: () => void; loading?: boolean; error?: string }) {
   return <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true">
     <div className="confirm-symbol"><Trash2 size={20} /></div><h2 className="app-title">Remove this record?</h2><p><strong>{item}</strong> will be permanently removed from the workspace. This cannot be undone.</p>
+    {error && <div className="form-error"><CircleAlert size={16} />{error}</div>}
     <div className="modal-actions"><button className="button button-quiet" onClick={onCancel} data-testid="button-keep-record">Keep record</button><button className="button button-danger" onClick={onConfirm} disabled={loading} data-testid="button-confirm-delete">{loading ? 'Removing…' : 'Remove record'}</button></div>
   </section></div>;
 }
 
-function Shell({ children }: { children: ReactNode }) {
+function Shell({ children, staff, displayName }: { children: ReactNode; staff: StaffMember; displayName: string }) {
   const [path] = useLocation();
+  const { signOut } = useClerk();
   const nav = [
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
@@ -93,8 +108,10 @@ function Shell({ children }: { children: ReactNode }) {
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     { href: '/support', label: 'Support', icon: Handshake },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
+    ...(staff.role === 'coordinator' ? [{ href: '/team', label: 'Team access', icon: Shield }] : []),
   ];
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
     <aside className="sidebar">
       <Link href="/" className="brand" data-testid="link-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></Link>
@@ -105,12 +122,12 @@ function Shell({ children }: { children: ReactNode }) {
       })}</nav>
       <div className="sidebar-bottom">
         <div className="sidebar-note"><Sparkles size={15} /><div><b>One journey, in view.</b><span>Move each founder forward.</span></div></div>
-        <div className="profile"><div className="profile-avatar">JP</div><div><b>Program team</b><small>Jusoor coordinator</small></div><MoreHorizontal size={17} className="profile-more" /></div>
+        <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.role === 'coordinator' ? 'Jusoor coordinator' : 'Program staff'}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label="Sign out"><LogOut size={15} /></button></div>
       </div>
     </aside>
     <main className="main-panel">
-      <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{label}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><div className="user-chip">JP</div></div></header>
-      <div className="mobile-nav">{nav.map(item => <Link href={item.href} key={item.href} className={path === item.href ? 'mobile-active' : ''} aria-label={item.label}><item.icon size={18} /></Link>)}</div>
+      <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{label}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.role === 'coordinator' ? 'COORDINATOR' : 'STAFF'}</span></div></header>
+      <div className="mobile-nav">{nav.map(item => <Link href={item.href} key={item.href} className={path === item.href ? 'mobile-active' : ''} aria-label={item.label}><item.icon size={18} /></Link>)}<button type="button" className="mobile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label="Sign out"><LogOut size={17} /></button></div>
       <div className="page-content page-enter">{children}</div>
       <footer className="footer"><span>JUSOOR ENTREPRENEURSHIP PROGRAM</span><span>PROGRAM OPERATIONS <i /> FIELD NOTES</span></footer>
     </main>
@@ -230,6 +247,14 @@ const pitchFields = (businesses: Business[]): Field[] => [
   { name: 'grantDecision', label: 'Grant decision', kind: 'select', options: ['pending', 'awarded', 'not_awarded'].map(v => ({ value: v, label: display(v) })) },
   { name: 'grantAmount', label: 'Grant amount (USD)', kind: 'number' },
   { name: 'feedback', label: 'Evaluation feedback', kind: 'textarea', wide: true },
+];
+const staffRoleOptions = [{ value: 'staff', label: 'Program staff' }, { value: 'coordinator', label: 'Coordinator' }];
+const staffInviteFields: Field[] = [
+  { name: 'email', label: 'Approved staff email', kind: 'email', required: true, wide: true },
+  { name: 'role', label: 'Access role', kind: 'select', required: true, options: staffRoleOptions },
+];
+const staffRoleFields: Field[] = [
+  { name: 'role', label: 'Access role', kind: 'select', required: true, options: staffRoleOptions },
 ];
 const valueOf = (value?: string | number | null) => value == null ? '' : String(value).slice(0, 10);
 
@@ -352,25 +377,222 @@ function PitchesPage() {
   </>;
 }
 
+function TeamPage() {
+  const query = useListStaff();
+  const staff = query.data || [];
+  const client = useQueryClient();
+  const create = useCreateStaff();
+  const update = useUpdateStaff();
+  const remove = useDeleteStaff();
+  const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
+  const [deleting, setDeleting] = useState<StaffMember | null>(null);
+  const save = (values: Values) => {
+    const role = (values.role || 'staff') as StaffInput['role'];
+    const done = () => {
+      invalidate(client, [getListStaffQueryKey()]);
+      setEditing(undefined);
+    };
+    if (editing) {
+      update.mutate({ id: editing.id, data: { role } as StaffUpdate }, { onSuccess: done });
+    } else {
+      create.mutate({ data: { email: values.email.trim().toLowerCase(), role } as StaffInput }, { onSuccess: done });
+    }
+  };
+  const revoke = () => deleting && remove.mutate({ id: deleting.id }, {
+    onSuccess: () => {
+      invalidate(client, [getListStaffQueryKey()]);
+      setDeleting(null);
+    },
+  });
+  const formError = (create.error || update.error) as { data?: { error?: string } } | undefined;
+  const deleteError = remove.error as { data?: { error?: string } } | null;
+
+  return <>
+    <PageHeading kicker="TEAM / ACCESS" title="Staff access" summary="Approve the people who can work with Jusoor program records." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> Add staff access</button>} />
+    <div className="team-callout"><Shield size={18} /><div><b>Access is tied to a verified email.</b><span>Adding an email approves that account; no email is sent automatically. Staff must create an account and verify the same address before they can open program records.</span></div></div>
+    {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add a coordinator or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
+      <section className="panel staff-panel">
+        <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only coordinators can change access</span></div>
+        <div className="table-wrap"><table><thead><tr><th>EMAIL</th><th>ROLE</th><th>ACCOUNT</th><th>ADDED</th><th className="align-right">ACTIONS</th></tr></thead><tbody>
+          {staff.map(member => <tr key={member.id} data-testid={`row-staff-${member.id}`}>
+            <td><div className="staff-email"><span className="staff-avatar">{member.email.slice(0, 1).toUpperCase()}</span><b>{member.email}</b></div></td>
+            <td><span className={`role-label ${member.role === 'coordinator' ? 'role-coordinator' : ''}`}>{member.role === 'coordinator' ? <Shield size={13} /> : <Users size={13} />}{display(member.role)}</span></td>
+            <td><Badge value={member.status} label={member.status === 'invited' ? 'Account not linked' : 'Active'} /></td>
+            <td>{dateLabel(member.createdAt)}</td>
+            <td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(member)} aria-label={`Change role for ${member.email}`} data-testid={`button-edit-staff-${member.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(member)} aria-label={`Revoke ${member.email}`} data-testid={`button-delete-staff-${member.id}`}><Trash2 size={15} /></button></div></td>
+          </tr>)}
+        </tbody></table></div>
+      </section>}
+    {editing !== undefined && <FormDialog title={editing ? 'Change staff role' : 'Approve staff access'} description={editing ? 'Choose the permissions this team member should have.' : 'The staff member must sign up with this exact, verified email address. This does not send an invitation email.'} fields={editing ? staffRoleFields : staffInviteFields} initial={editing ? { role: editing.role } : { role: 'staff' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
+    {deleting && <ConfirmDialog item={`staff access for ${deleting.email}`} onCancel={() => setDeleting(null)} onConfirm={revoke} loading={remove.isPending} error={deleteError ? deleteError.data?.error || 'The access could not be revoked.' : undefined} />}
+  </>;
+}
+
 function NotFoundPage() {
   return <div className="not-found"><div className="eyebrow">JUSOOR / 404</div><h1 className="app-title">That page isn't on the journey.</h1><p>Return to the program overview and find your way back.</p><Link className="button button-primary" href="/">Back to overview <ArrowRight size={16} /></Link></div>;
 }
 
-function Router() {
+function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><Shell><Switch>
+  return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>
     <Route path="/" component={Overview} />
     <Route path="/businesses" component={BusinessesPage} />
     <Route path="/programs" component={ProgramsPage} />
     <Route path="/sessions" component={SessionsPage} />
     <Route path="/support" component={SupportPage} />
     <Route path="/pitches" component={PitchesPage} />
+    <Route path="/team" component={staff.role === 'coordinator' ? TeamPage : NotFoundPage} />
     <Route component={NotFoundPage} />
   </Switch></Shell></ErrorBoundary>;
 }
 
+function AuthLanding() {
+  return <main className="auth-page">
+    <div className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></div>
+    <section className="auth-welcome">
+      <div className="eyebrow">JUSOOR ENTREPRENEURSHIP PROGRAM</div>
+      <h1 className="app-title">Good work,<br /><em>moving forward.</em></h1>
+      <p>A private workspace for the team supporting founders from outreach and incubation to pitch day and grants.</p>
+      <div className="auth-actions"><Link href="/sign-in" className="button button-primary">Staff sign in <ArrowRight size={16} /></Link><Link href="/sign-up" className="auth-secondary">Have approved staff access? Create an account</Link></div>
+      <div className="auth-foot"><Shield size={15} /><span>Staff access only. Accounts need a verified email approved by a Jusoor coordinator.</span></div>
+    </section>
+    <div className="auth-side-note"><span>01 — PROGRAM OPERATIONS</span><b>Every founder.<br />Every next step.</b><i>OUTREACH → INCUBATION → GRANTS</i></div>
+  </main>;
+}
+
+function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
+  const isSignIn = mode === 'sign-in';
+  return <main className="auth-page auth-form-page">
+    <Link href="/" className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></Link>
+    <div className="auth-form-content"><div className="eyebrow">{isSignIn ? 'STAFF ACCESS' : 'APPROVED STAFF ONLY'}</div><h1 className="app-title">{isSignIn ? 'Welcome back.' : 'Join your team.'}</h1><p>{isSignIn ? 'Sign in to continue to the program workspace.' : 'Use the exact verified email address approved by your coordinator.'}</p>
+      <div className="clerk-card">{isSignIn
+        ? <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+        : <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />}
+      </div>
+      <Link href="/" className="auth-back">← Back to Jusoor Program Hub</Link>
+    </div>
+    <div className="auth-form-note"><Shield size={15} /> Program records are available only to coordinator-approved staff.</div>
+  </main>;
+}
+
+function AuthLoading() {
+  return <main className="auth-status-page"><div className="brand-mark">J</div><p>Checking your staff access…</p></main>;
+}
+
+function AccessDenied({ retry }: { retry?: () => void }) {
+  const { signOut } = useClerk();
+  return <main className="auth-status-page"><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">STAFF ACCESS REQUIRED</div><h1 className="app-title">This account isn’t approved yet.</h1><p>Ask a Jusoor coordinator to approve your verified email address, then sign in again.</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>Check access again</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> Sign out</button></div></main>;
+}
+
+function AccessCheckFailed({ retry, sessionExpired = false }: { retry: () => void; sessionExpired?: boolean }) {
+  const { signOut } = useClerk();
+  return <main className="auth-status-page"><span className="denied-icon"><CircleAlert size={21} /></span><div className="eyebrow">ACCESS CHECK</div><h1 className="app-title">{sessionExpired ? 'Your sign-in needs refreshing.' : 'We couldn’t verify access.'}</h1><p>{sessionExpired ? 'Sign out, then sign in again to refresh your session.' : 'Your program data is still protected. Check your connection and try again.'}</p><div className="auth-actions"><button className="button button-outline" onClick={retry}>Try again</button><button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> Sign out</button></div></main>;
+}
+
+function AuthenticatedWorkspace() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user, isLoaded: userLoaded } = useUser();
+  const staffQuery = useGetAuthMe({
+    query: { queryKey: getGetAuthMeQueryKey(), enabled: isLoaded && isSignedIn === true, retry: false },
+  });
+  if (!isLoaded || (isSignedIn && (!userLoaded || staffQuery.isLoading))) return <AuthLoading />;
+  if (!isSignedIn) return <AuthLanding />;
+  if (staffQuery.isError || !staffQuery.data) {
+    const status = (staffQuery.error as { status?: number } | null)?.status;
+    if (status === 403) return <AccessDenied retry={() => void staffQuery.refetch()} />;
+    return <AccessCheckFailed sessionExpired={status === 401} retry={() => void staffQuery.refetch()} />;
+  }
+  const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || staffQuery.data.email;
+  return <Router staff={staffQuery.data} displayName={displayName} />;
+}
+
+function ClerkQueryClientCacheInvalidator() {
+  const { addListener } = useClerk();
+  const cache = useQueryClient();
+  const previousUserId = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const unsubscribe = addListener(({ user }) => {
+      const userId = user?.id ?? null;
+      if (previousUserId.current !== undefined && previousUserId.current !== userId) cache.clear();
+      previousUserId.current = userId;
+    });
+    return unsubscribe;
+  }, [addListener, cache]);
+  return null;
+}
+
+function ClerkApp() {
+  const [, setLocation] = useLocation();
+  const appearance = {
+    theme: shadcn,
+    cssLayerName: 'clerk',
+    options: {
+      logoPlacement: 'inside' as const,
+      logoLinkUrl: basePath || '/',
+      logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+      socialButtonsPlacement: 'bottom' as const,
+      socialButtonsVariant: 'blockButton' as const,
+    },
+    variables: {
+      colorPrimary: '#28665a',
+      colorForeground: '#203744',
+      colorMutedForeground: '#687c82',
+      colorDanger: '#b85042',
+      colorBackground: '#fcfaf5',
+      colorInput: '#ffffff',
+      colorInputForeground: '#203744',
+      colorNeutral: '#d8d0c1',
+      fontFamily: 'DM Sans, sans-serif',
+      borderRadius: '0.7rem',
+    },
+    elements: {
+      rootBox: 'w-full flex justify-center',
+      cardBox: 'bg-background rounded-2xl w-[440px] max-w-full overflow-hidden border border-border',
+      card: '!shadow-none !border-0 !bg-transparent !rounded-none',
+      footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
+      headerTitle: 'text-foreground font-semibold',
+      headerSubtitle: 'text-muted-foreground',
+      socialButtonsBlockButtonText: 'text-foreground font-medium',
+      formFieldLabel: 'text-foreground font-medium',
+      footerActionLink: 'text-primary font-semibold',
+      footerActionText: 'text-muted-foreground',
+      dividerText: 'text-muted-foreground',
+      formFieldInput: 'bg-white text-foreground border-border',
+      formButtonPrimary: 'bg-primary text-primary-foreground font-semibold',
+      main: 'text-foreground',
+    },
+  };
+
+  return <ClerkProvider
+    publishableKey={clerkPubKey}
+    proxyUrl={clerkProxyUrl}
+    appearance={appearance}
+    signInUrl={`${basePath}/sign-in`}
+    signUpUrl={`${basePath}/sign-up`}
+    localization={{
+      signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your Jusoor workspace' } },
+      signUp: { start: { title: 'Join the program team', subtitle: 'Use the email approved by your coordinator' } },
+    }}
+    routerPush={to => setLocation(stripBase(to))}
+    routerReplace={to => setLocation(stripBase(to), { replace: true })}
+  >
+    <QueryClientProvider client={queryClient}>
+      <ClerkQueryClientCacheInvalidator />
+      <AuthRouter />
+      <Toaster />
+    </QueryClientProvider>
+  </ClerkProvider>;
+}
+
+function AuthRouter() {
+  const [location] = useLocation();
+  if (location.startsWith('/sign-in')) return <AuthPage mode="sign-in" />;
+  if (location.startsWith('/sign-up')) return <AuthPage mode="sign-up" />;
+  return <AuthenticatedWorkspace />;
+}
+
 function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return <TooltipProvider><WouterRouter base={basePath}><ClerkApp /></WouterRouter></TooltipProvider>;
 }
 
 export default App;

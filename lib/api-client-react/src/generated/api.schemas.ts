@@ -9,6 +9,39 @@ export interface HealthStatus {
   status: string;
 }
 
+export type StaffRole = typeof StaffRole[keyof typeof StaffRole];
+
+
+export const StaffRole = {
+  coordinator: 'coordinator',
+  staff: 'staff',
+} as const;
+
+export type StaffStatus = typeof StaffStatus[keyof typeof StaffStatus];
+
+
+export const StaffStatus = {
+  invited: 'invited',
+  active: 'active',
+} as const;
+
+export interface StaffMember {
+  id: number;
+  email: string;
+  role: StaffRole;
+  status: StaffStatus;
+  createdAt: string;
+}
+
+export interface StaffInput {
+  email: string;
+  role: StaffRole;
+}
+
+export interface StaffUpdate {
+  role: StaffRole;
+}
+
 export type BusinessStage = typeof BusinessStage[keyof typeof BusinessStage];
 
 

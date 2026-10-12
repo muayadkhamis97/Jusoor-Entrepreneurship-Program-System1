@@ -22,3 +22,4 @@ export * from "./businesses";
 export * from "./sessions";
 export * from "./support";
 export * from "./pitches";
+export * from "./staff";

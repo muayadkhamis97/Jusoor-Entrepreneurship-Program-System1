@@ -22,6 +22,10 @@ tags:
     description: Pitch-day and grant decisions
   - name: dashboard
     description: Program overview
+  - name: auth
+    description: Staff identity and access
+  - name: staff
+    description: Coordinator-managed team access
 paths:
   /healthz:
     get:
@@ -423,6 +427,100 @@ paths:
           description: Pitch record deleted
         "404":
           description: Pitch record not found
+  /auth/me:
+    get:
+      operationId: getAuthMe
+      tags: [auth]
+      summary: Get the current staff profile
+      responses:
+        "200":
+          description: Current staff member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Account is not approved for staff access
+  /staff:
+    get:
+      operationId: listStaff
+      tags: [staff]
+      summary: List approved staff and pending invitations
+      responses:
+        "200":
+          description: Staff access records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffMember"
+        "403":
+          description: Coordinator role required
+    post:
+      operationId: createStaff
+      tags: [staff]
+      summary: Approve a staff email and assign a role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffInput"
+      responses:
+        "201":
+          description: Staff access approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        "409":
+          description: Email already has access
+        "403":
+          description: Coordinator role required
+  /staff/{id}:
+    patch:
+      operationId: updateStaff
+      tags: [staff]
+      summary: Change a staff member's role
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffUpdate"
+      responses:
+        "200":
+          description: Updated staff access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        "400":
+          description: Invalid role change
+        "404":
+          description: Staff member not found
+        "403":
+          description: Coordinator role required
+    delete:
+      operationId: deleteStaff
+      tags: [staff]
+      summary: Revoke a staff member's access
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Access revoked
+        "400":
+          description: Cannot revoke your own access or the last coordinator
+        "404":
+          description: Staff member not found
+        "403":
+          description: Coordinator role required
 components:
   parameters:
     Id:
@@ -439,6 +537,32 @@ components:
           type: string
       required:
         - status
+    StaffRole:
+      type: string
+      enum: [coordinator, staff]
+    StaffStatus:
+      type: string
+      enum: [invited, active]
+    StaffMember:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/StaffRole" }
+        status: { $ref: "#/components/schemas/StaffStatus" }
+        createdAt: { type: string, format: date-time }
+      required: [id, email, role, status, createdAt]
+    StaffInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/StaffRole" }
+      required: [email, role]
+    StaffUpdate:
+      type: object
+      properties:
+        role: { $ref: "#/components/schemas/StaffRole" }
+      required: [role]
     BusinessStage:
       type: string
       enum: [application, bootcamp, incubator, pitch, demo_day, grant_awarded, alumni, declined]
