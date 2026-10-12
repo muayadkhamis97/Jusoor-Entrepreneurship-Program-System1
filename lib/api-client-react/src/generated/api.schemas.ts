@@ -577,8 +577,82 @@ export interface ParticipantEnrollment {
   questions: ParticipantQuestion[];
 }
 
+export type AnnouncementKind = typeof AnnouncementKind[keyof typeof AnnouncementKind];
+
+
+export const AnnouncementKind = {
+  update: 'update',
+  reminder: 'reminder',
+} as const;
+
+export interface ParticipantAnnouncement {
+  id: number;
+  /** @nullable */
+  programId: number | null;
+  /** @nullable */
+  programName: string | null;
+  kind: AnnouncementKind;
+  title: string;
+  body: string;
+  scheduledFor: string;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+}
+
 export interface ParticipantDashboard {
   applications: ParticipantEnrollment[];
+  announcements: ParticipantAnnouncement[];
+}
+
+export type AnnouncementStatus = typeof AnnouncementStatus[keyof typeof AnnouncementStatus];
+
+
+export const AnnouncementStatus = {
+  scheduled: 'scheduled',
+  published: 'published',
+} as const;
+
+export interface Announcement {
+  id: number;
+  /** @nullable */
+  programId: number | null;
+  /** @nullable */
+  programName: string | null;
+  kind: AnnouncementKind;
+  title: string;
+  body: string;
+  scheduledFor: string;
+  createdAt: string;
+  status: AnnouncementStatus;
+}
+
+export interface AnnouncementInput {
+  /** @nullable */
+  programId?: number | null;
+  kind: AnnouncementKind;
+  /**
+     * @minLength 3
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @minLength 5
+     * @maxLength 5000
+     */
+  body: string;
+  scheduledFor?: string;
+}
+
+export type AnnouncementsList = Announcement[];
+
+export interface AnnouncementDeleteResult {
+  id: number;
+}
+
+export interface AnnouncementReadResult {
+  id: number;
+  readAt: string;
 }
 
 export interface TrainingAssignment {

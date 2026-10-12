@@ -503,6 +503,26 @@ paths:
           description: Sign in required
         "403":
           description: No application is linked to this account
+  /participant/announcements/{id}/read:
+    post:
+      operationId: markAnnouncementRead
+      tags: [participants]
+      summary: Mark a cohort announcement as read by the signed-in participant
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Read receipt saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementReadResult"
+        "401":
+          description: Sign in required
+        "403":
+          description: Announcement is not available to this participant
+        "404":
+          description: Announcement not found
   /participant/assignments/{id}/submission:
     post:
       operationId: submitTrainingAnswer
@@ -905,6 +925,59 @@ paths:
           description: Assignment removed
         "409":
           description: A submitted scorecard cannot be removed
+  /communications:
+    get:
+      operationId: listAnnouncements
+      tags: [communications]
+      summary: List program announcements for coordinators
+      responses:
+        "200":
+          description: Announcements ordered by scheduled publication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementsList"
+        "403":
+          description: Coordinator access required
+    post:
+      operationId: createAnnouncement
+      tags: [communications]
+      summary: Create a cohort update or reminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Announcement saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          description: Invalid input
+        "403":
+          description: Coordinator access required
+  /communications/{id}:
+    delete:
+      operationId: deleteAnnouncement
+      tags: [communications]
+      summary: Delete a scheduled or published announcement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Announcement deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementDeleteResult"
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Announcement not found
   /sessions:
     get:
       operationId: listSessions
@@ -1539,13 +1612,29 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ParticipantQuestion" }
       required: [applicationId, applicationStatus, submittedAt, program, business, sessions, support, assignments, questions]
+    ParticipantAnnouncement:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: ["integer", "null"] }
+        programName: { type: ["string", "null"] }
+        kind: { $ref: "#/components/schemas/AnnouncementKind" }
+        title: { type: string }
+        body: { type: string }
+        scheduledFor: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: ["string", "null"], format: date-time }
+      required: [id, programId, programName, kind, title, body, scheduledFor, createdAt, readAt]
     ParticipantDashboard:
       type: object
       properties:
         applications:
           type: array
           items: { $ref: "#/components/schemas/ParticipantEnrollment" }
-      required: [applications]
+        announcements:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantAnnouncement" }
+      required: [applications, announcements]
     ParticipantAssignment:
       type: object
       properties:
@@ -1572,6 +1661,45 @@ components:
         createdAt: { type: string, format: date-time }
         repliedAt: { type: ["string", "null"], format: date-time }
       required: [id, programId, sessionTitle, assignmentTitle, question, reply, createdAt, repliedAt]
+    AnnouncementKind:
+      type: string
+      enum: [update, reminder]
+    Announcement:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: ["integer", "null"] }
+        programName: { type: ["string", "null"] }
+        kind: { $ref: "#/components/schemas/AnnouncementKind" }
+        title: { type: string }
+        body: { type: string }
+        scheduledFor: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        status: { type: string, enum: [scheduled, published] }
+      required: [id, programId, programName, kind, title, body, scheduledFor, createdAt, status]
+    AnnouncementInput:
+      type: object
+      properties:
+        programId: { type: ["integer", "null"] }
+        kind: { $ref: "#/components/schemas/AnnouncementKind" }
+        title: { type: string, minLength: 3, maxLength: 180 }
+        body: { type: string, minLength: 5, maxLength: 5000 }
+        scheduledFor: { type: string, format: date-time }
+      required: [kind, title, body]
+    AnnouncementsList:
+      type: array
+      items: { $ref: "#/components/schemas/Announcement" }
+    AnnouncementDeleteResult:
+      type: object
+      properties:
+        id: { type: integer }
+      required: [id]
+    AnnouncementReadResult:
+      type: object
+      properties:
+        id: { type: integer }
+        readAt: { type: string, format: date-time }
+      required: [id, readAt]
     TrainingAssignment:
       type: object
       properties:

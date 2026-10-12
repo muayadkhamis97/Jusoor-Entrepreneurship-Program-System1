@@ -6,6 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './announcement';
+export * from './announcementDeleteResult';
+export * from './announcementInput';
+export * from './announcementKind';
+export * from './announcementReadResult';
+export * from './announcementsList';
+export * from './announcementStatus';
 export * from './applicationProgram';
 export * from './applicationProgramFormat';
 export * from './applicationReceipt';
@@ -49,6 +56,7 @@ export * from './mentorBookingStatus';
 export * from './mentorDashboard';
 export * from './mentorEngagement';
 export * from './mentorEngagementUpdate';
+export * from './participantAnnouncement';
 export * from './participantAssignment';
 export * from './participantAssignmentStatus';
 export * from './participantBusiness';

@@ -6,17 +6,20 @@ import {
   GetParticipantCourseMaterialFileParams,
   GetParticipantCoursesResponse,
   GetParticipantDashboardResponse,
+  MarkAnnouncementReadResponse,
   SubmitTrainingAnswerBody,
   SubmitTrainingAnswerParams,
   SubmitTrainingAnswerResponse,
 } from "@workspace/api-zod";
 import {
+  announcementReceiptsTable,
   applicationsTable,
   businessesTable,
   courseMaterialsTable,
   courseModulesTable,
   db,
   programsTable,
+  programAnnouncementsTable,
   sessionsTable,
   staffMembersTable,
   supportTable,
@@ -185,6 +188,23 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   const eligible = rows.filter(({ application, business }) => application.status === "accepted" && business);
   const programIds = [...new Set(eligible.map(({ application }) => application.programId))];
   const businessIds = eligible.flatMap(({ business }) => business ? [business.id] : []);
+  const announcementRows = programIds.length
+    ? await db.select({
+      announcement: programAnnouncementsTable,
+      programName: programsTable.name,
+      readAt: announcementReceiptsTable.readAt,
+    }).from(programAnnouncementsTable)
+      .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(announcementReceiptsTable, and(
+        eq(announcementReceiptsTable.announcementId, programAnnouncementsTable.id),
+        eq(announcementReceiptsTable.clerkUserId, participant.userId),
+      ))
+      .where(and(
+        lte(programAnnouncementsTable.scheduledFor, new Date()),
+        or(isNull(programAnnouncementsTable.programId), inArray(programAnnouncementsTable.programId, programIds)),
+      ))
+      .orderBy(desc(programAnnouncementsTable.scheduledFor))
+    : [];
 
   const sessions = programIds.length
     ? await db.select({
@@ -310,7 +330,61 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       : [],
   }));
 
-  res.json(GetParticipantDashboardResponse.parse({ applications: result }));
+  const announcements = announcementRows.map(({ announcement, programName, readAt }) => ({
+    id: announcement.id,
+    programId: announcement.programId,
+    programName,
+    kind: announcement.kind,
+    title: announcement.title,
+    body: announcement.body,
+    scheduledFor: announcement.scheduledFor,
+    createdAt: announcement.createdAt,
+    readAt,
+  }));
+
+  res.json(GetParticipantDashboardResponse.parse({ applications: result, announcements }));
+});
+
+router.post("/announcements/:id/read", async (req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess;
+  const announcementId = Number(req.params.id);
+  if (!Number.isInteger(announcementId) || announcementId < 1) {
+    res.status(400).json({ error: "Announcement ID must be a positive integer." });
+    return;
+  }
+  const [announcement] = await db.select().from(programAnnouncementsTable)
+    .where(eq(programAnnouncementsTable.id, announcementId)).limit(1);
+  if (!announcement) {
+    res.status(404).json({ error: "Announcement not found." });
+    return;
+  }
+  if (announcement.scheduledFor > new Date()) {
+    res.status(403).json({ error: "This announcement has not been published yet." });
+    return;
+  }
+  const acceptedPrograms = await db.select({ programId: applicationsTable.programId })
+    .from(applicationsTable)
+    .where(and(
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+      isNotNull(applicationsTable.businessId),
+    ));
+  const programIds = new Set(acceptedPrograms.map((item) => item.programId));
+  if (!programIds.size || (announcement.programId !== null && !programIds.has(announcement.programId))) {
+    res.status(403).json({ error: "This announcement is not available to this participant." });
+    return;
+  }
+  await db.insert(announcementReceiptsTable)
+    .values({ announcementId, clerkUserId: participant.userId })
+    .onConflictDoNothing();
+  const [receipt] = await db.select({ readAt: announcementReceiptsTable.readAt })
+    .from(announcementReceiptsTable)
+    .where(and(
+      eq(announcementReceiptsTable.announcementId, announcementId),
+      eq(announcementReceiptsTable.clerkUserId, participant.userId),
+    ))
+    .limit(1);
+  res.json(MarkAnnouncementReadResponse.parse({ id: announcementId, readAt: receipt?.readAt ?? new Date() }));
 });
 
 router.post("/assignments/:id/submission", async (req, res): Promise<void> => {

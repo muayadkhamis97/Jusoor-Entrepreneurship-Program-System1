@@ -854,7 +854,31 @@ export const GetParticipantDashboardResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "repliedAt": zod.coerce.date().nullable()
 }))
+})),
+  "announcements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullable(),
+  "programName": zod.string().nullable(),
+  "kind": zod.enum(['update', 'reminder']),
+  "title": zod.string(),
+  "body": zod.string(),
+  "scheduledFor": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
 }))
+})
+
+
+/**
+ * @summary Mark a cohort announcement as read by the signed-in participant
+ */
+export const MarkAnnouncementReadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkAnnouncementReadResponse = zod.object({
+  "id": zod.number().int(),
+  "readAt": zod.coerce.date()
 })
 
 
@@ -1385,6 +1409,67 @@ export const RemovePitchJudgeParams = zod.object({
 })
 
 export const RemovePitchJudgeResponse = zod.void()
+
+
+/**
+ * @summary List program announcements for coordinators
+ */
+export const ListAnnouncementsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullable(),
+  "programName": zod.string().nullable(),
+  "kind": zod.enum(['update', 'reminder']),
+  "title": zod.string(),
+  "body": zod.string(),
+  "scheduledFor": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'published'])
+})
+export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
+
+
+/**
+ * @summary Create a cohort update or reminder
+ */
+export const createAnnouncementBodyTitleMin = 3;
+export const createAnnouncementBodyTitleMax = 180;
+
+export const createAnnouncementBodyBodyMin = 5;
+export const createAnnouncementBodyBodyMax = 5000;
+
+
+
+export const CreateAnnouncementBody = zod.object({
+  "programId": zod.number().int().nullish(),
+  "kind": zod.enum(['update', 'reminder']),
+  "title": zod.string().min(createAnnouncementBodyTitleMin).max(createAnnouncementBodyTitleMax),
+  "body": zod.string().min(createAnnouncementBodyBodyMin).max(createAnnouncementBodyBodyMax),
+  "scheduledFor": zod.coerce.date().optional()
+})
+
+export const CreateAnnouncementResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullable(),
+  "programName": zod.string().nullable(),
+  "kind": zod.enum(['update', 'reminder']),
+  "title": zod.string(),
+  "body": zod.string(),
+  "scheduledFor": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'published'])
+})
+
+
+/**
+ * @summary Delete a scheduled or published announcement
+ */
+export const DeleteAnnouncementParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteAnnouncementResponse = zod.object({
+  "id": zod.number().int()
+})
 
 
 /**

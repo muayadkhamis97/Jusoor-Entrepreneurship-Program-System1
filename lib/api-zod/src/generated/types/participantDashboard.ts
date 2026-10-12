@@ -5,8 +5,10 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { ParticipantAnnouncement } from './participantAnnouncement';
 import type { ParticipantEnrollment } from './participantEnrollment';
 
 export interface ParticipantDashboard {
   applications: ParticipantEnrollment[];
+  announcements: ParticipantAnnouncement[];
 }

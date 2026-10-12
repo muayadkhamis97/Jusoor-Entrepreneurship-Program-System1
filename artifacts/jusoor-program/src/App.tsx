@@ -37,6 +37,8 @@ import { ApplicationsReviewPage, ApplyPage, ParticipantDashboardPage } from './i
 import { CourseManagementPage } from './course-surfaces';
 import { JudgeDashboardPage, MentorDashboardPage, RoleFrame, RoleNotFound, TrainerDashboardPage } from './role-surfaces';
 import { RoleAccessPage } from './role-access';
+import { SessionCalendar } from './session-calendar';
+import { CommunicationsPage } from './communications-surfaces';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -119,6 +121,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
     { href: '/programs', label: 'Programs', icon: Activity },
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
+    ...(staff.role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
     { href: '/support', label: 'Support', icon: Handshake },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
     ...(staff.role === 'coordinator' ? [{ href: '/courses', label: 'Learning', icon: BookOpen }, { href: '/applications', label: 'Applications', icon: FileText }, { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck }, { href: '/team', label: 'Team access', icon: Shield }, { href: '/access', label: 'Role access', icon: Shield }] : []),
@@ -331,16 +334,18 @@ function BusinessesPage() {
 
 function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   const [type, setType] = useState('');
+  const [calendarDate, setCalendarDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<Session | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<Session | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [zoomActionMessage, setZoomActionMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
   const [zoomCallbackResult] = useState(() => new URLSearchParams(window.location.search).get('zoom'));
   const params = useMemo(() => type ? { type: type as Session['type'] } : undefined, [type]);
-  const query = useListSessions(params);
-  const programsQuery = useListPrograms();
+  const query = useListSessions(params, { query: { queryKey: getListSessionsQueryKey(params) } });
+  const programsQuery = useListPrograms({ query: { queryKey: getListProgramsQueryKey() } });
   const programs = programsQuery.data || [];
   const sessions = query.data || [];
+  const displayedSessions = calendarDate ? sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate) : sessions;
   const client = useQueryClient();
   const zoomStatus = useGetZoomStatus({ query: { queryKey: getGetZoomStatusQueryKey(), enabled: coordinator } });
   const connectZoom = useStartZoomConnection();
@@ -461,9 +466,11 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
       </div>
     </section>}
     <div className="calendar-summary"><div className="calendar-icon"><CalendarDays size={20} /></div><div><b>Make each moment count.</b><span>Keep joining details and recordings close to the agenda.</span></div><span className="calendar-endnote"><Video size={15} /> LIVE + ON-DEMAND</span></div>
-    <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label="Filter sessions by type" onChange={e => setType(e.target.value)} data-testid="select-session-type"><option value="">All session types</option>{['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{sessions.length}</b> sessions</div></div>
+    <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label="Filter sessions by type" onChange={e => { setType(e.target.value); setCalendarDate(null); }} data-testid="select-session-type"><option value="">All session types</option>{['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{sessions.length}</b> sessions</div></div>
+    <SessionCalendar sessions={sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />
+    {calendarDate && <div className="calendar-date-results" role="status"><span>Showing sessions for <b>{dateLabel(calendarDate)}</b></span><span>{displayedSessions.length} scheduled</span></div>}
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : sessions.length === 0 ? <EmptyState title="No sessions scheduled." body="Add the next bootcamp, hackathon, online training or pitch event to get the cohort together." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Schedule a session</button>} /> :
-    <div className="session-list">{sessions.map((session, i) => {
+    <div className="session-list">{displayedSessions.length === 0 ? <EmptyState title="No sessions on this date." body="Choose another day or clear the calendar selection to see the full schedule." action={<button className="button button-outline" onClick={() => setCalendarDate(null)}>Show all sessions</button>} /> : displayedSessions.map((session, i) => {
       const meetingPending = createZoomMeeting.isPending && createZoomMeeting.variables?.id === session.id;
       const recordingPending = syncZoomRecording.isPending && syncZoomRecording.variables?.id === session.id;
       return <article className="session-card" key={session.id} data-testid={`card-session-${session.id}`}>
@@ -692,6 +699,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/programs" component={ProgramsPage} />
     <Route path="/courses" component={CourseManagementPage} />
     <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} />}</Route>
+    <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />
     <Route path="/support">{() => <SupportPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/applications" component={staff.role === 'coordinator' ? ApplicationsReviewPage : NotFoundPage} />
@@ -758,7 +766,7 @@ function AuthenticatedWorkspace() {
     if (staff.role === 'mentor' || staff.role === 'judge') return path === roleHome(staff.role);
     if (path === '/trainer' || path === '/mentor' || path === '/judge' || path === '/participant') return false;
     if (staff.role !== 'coordinator' && (path === '/applications' || path === '/mentor-booking' || path === '/team' || path === '/access')) return false;
-    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/courses', '/applications', '/mentor-booking', '/team', '/access'] : [])].includes(path);
+    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/communications', '/courses', '/applications', '/mentor-booking', '/team', '/access'] : [])].includes(path);
   };
   const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {
