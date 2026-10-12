@@ -444,7 +444,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
         {zoomStatus.isError && <span className="zoom-status-error">Zoom connection status could not be loaded.</span>}
         {!zoomStatus.data?.clientConfigured && <span>Before connecting, add the Zoom OAuth Client ID and Client Secret to Replit Secrets as <code>ZOOM_CLIENT_ID</code> and <code>ZOOM_CLIENT_SECRET</code>.</span>}
         {zoomStatus.data?.callbackUrl && <span>Register this exact OAuth redirect URL in the Zoom app: <code className="zoom-callback-url">{zoomStatus.data.callbackUrl}</code></span>}
-        <span>Enable these Zoom OAuth scopes: <code>meeting:write:meeting</code> and <code>cloud_recording:read:list_recording_files</code>. New meetings are 60 minutes and use the connected Zoom account’s time zone.</span>
+        <span>Enable the Zoom OAuth scope <code>meeting:write:meeting</code>. Session recordings are added separately by staff as Google Drive links; Zoom recording sync is disabled. New meetings are 60 minutes and use the connected Zoom account’s time zone.</span>
         {zoomStatus.data?.connected && <span>Connected by {zoomStatus.data.connectedBy || 'a coordinator'}{zoomStatus.data.connectedAt ? ` on ${dateLabel(zoomStatus.data.connectedAt)}` : ''}.</span>}
         {confirmDisconnect && <span className="zoom-disconnect-confirm">Disconnect Zoom? Existing meeting links and session recordings remain available. Creating or updating Zoom meetings stops until it is reconnected.</span>}
       </div>

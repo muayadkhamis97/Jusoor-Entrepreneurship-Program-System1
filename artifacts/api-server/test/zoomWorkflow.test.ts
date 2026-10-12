@@ -335,8 +335,8 @@ test("rotates encrypted refresh tokens and creates then updates Zoom meetings", 
   }
 });
 
-test("syncs recordings and reports not-ready and permission failures without provider details", async () => {
-  const { saveZoomConnection, syncZoomRecording, createOrUpdateZoomMeeting, ZoomIntegrationError } =
+test("reports Zoom meeting permission failures without provider details", async () => {
+  const { saveZoomConnection, createOrUpdateZoomMeeting, ZoomIntegrationError } =
     await import("../src/lib/zoom");
   let connection: Record<string, unknown> | null = null;
   const session = {
@@ -351,9 +351,7 @@ test("syncs recordings and reports not-ready and permission failures without pro
     zoomUrl: "https://zoom.us/j/9302",
     recordingUrl: null as string | null,
   };
-  let zoomResponse: Response = responseJson({
-    share_url: "https://us02web.zoom.us/rec/share/ready-recording",
-  });
+  let zoomResponse: Response = responseJson({ code: 4711, message: "private scope diagnostics" }, 403);
   const restoreInsert = replaceDbMethod("insert", (() => ({
     values(values: Record<string, unknown>) {
       connection = {
@@ -404,22 +402,6 @@ test("syncs recordings and reports not-ready and permission failures without pro
       { accessToken, refreshToken, expiresIn: 3600 },
       71,
     );
-    const synced = await syncZoomRecording(session as never);
-    assert.equal(synced.recordingUrl, "https://us02web.zoom.us/rec/share/ready-recording");
-
-    zoomResponse = responseJson({ code: 3301, message: "Recording is not ready" }, 404);
-    await assert.rejects(
-      syncZoomRecording(session as never),
-      (error: unknown) => {
-        assert.ok(error instanceof ZoomIntegrationError);
-        assert.equal(error.statusCode, 404);
-        assert.equal(error.message, "Zoom could not find this meeting or recording.");
-        assert.doesNotMatch(error.message, /not ready|3301/);
-        return true;
-      },
-    );
-
-    zoomResponse = responseJson({ code: 4711, message: "private scope diagnostics" }, 403);
     await assert.rejects(
       createOrUpdateZoomMeeting({
         ...session,

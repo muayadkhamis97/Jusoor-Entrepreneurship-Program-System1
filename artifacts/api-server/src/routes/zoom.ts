@@ -13,8 +13,6 @@ import {
   GetZoomStatusResponse,
   StartZoomConnectionBody,
   StartZoomConnectionResponse,
-  SyncZoomRecordingParams,
-  SyncZoomRecordingResponse,
 } from "@workspace/api-zod";
 import {
   db,
@@ -32,8 +30,6 @@ import {
   hasZoomOAuthConfiguration,
   removeZoomConnection,
   saveZoomConnection,
-  syncZoomRecordingForMeetingId,
-  syncZoomRecording,
   verifyZoomWebhookSignature,
   ZoomIntegrationError,
 } from "../lib/zoom";
@@ -234,32 +230,8 @@ router.post("/webhook", async (req, res): Promise<void> => {
     return;
   }
 
-  if (envelope.event !== "recording.completed") {
-    res.sendStatus(200);
-    return;
-  }
-
-  const payload = envelope.payload;
-  const zoomObject = isRecord(payload) ? payload.object : null;
-  const meetingId = isRecord(zoomObject) ? zoomObject.id : null;
-  if (
-    (typeof meetingId !== "string" && typeof meetingId !== "number") ||
-    String(meetingId).trim() === ""
-  ) {
-    res.status(400).json({ error: "Invalid Zoom recording event." });
-    return;
-  }
-
-  try {
-    await syncZoomRecordingForMeetingId(String(meetingId));
-    res.sendStatus(200);
-  } catch (error) {
-    req.log.error(
-      { errorName: error instanceof Error ? error.name : "UnknownError" },
-      "Zoom recording webhook sync failed",
-    );
-    res.status(500).json({ error: "Zoom recording could not be synced." });
-  }
+  // Acknowledge Zoom events, but keep session recordings staff-managed through Drive.
+  res.sendStatus(200);
 });
 
 router.get(
@@ -480,34 +452,6 @@ router.post(
     try {
       const updatedSession = await createOrUpdateZoomMeeting(session);
       res.json(CreateOrUpdateZoomMeetingResponse.parse(updatedSession));
-    } catch (error) {
-      sendZoomError(res, error);
-    }
-  },
-);
-
-router.post(
-  "/sessions/:id/recording",
-  requireStaff,
-  requireRole("coordinator"),
-  async (req, res): Promise<void> => {
-    const params = SyncZoomRecordingParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [session] = await db
-      .select()
-      .from(sessionsTable)
-      .where(eq(sessionsTable.id, params.data.id))
-      .limit(1);
-    if (!session) {
-      res.status(404).json({ error: "Session not found." });
-      return;
-    }
-    try {
-      const updatedSession = await syncZoomRecording(session);
-      res.json(SyncZoomRecordingResponse.parse(updatedSession));
     } catch (error) {
       sendZoomError(res, error);
     }

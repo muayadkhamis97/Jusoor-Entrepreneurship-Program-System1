@@ -39,10 +39,6 @@ type ZoomMeeting = {
   join_url?: unknown;
 };
 
-type ZoomRecordingResponse = {
-  share_url?: unknown;
-};
-
 export function hasZoomOAuthConfiguration(): boolean {
   return Boolean(
     process.env.ZOOM_CLIENT_ID &&
@@ -402,39 +398,4 @@ export async function createOrUpdateZoomMeeting(
     throw new ZoomIntegrationError("Session not found.", 404);
   }
   return updatedSession;
-}
-
-export async function syncZoomRecording(session: Session): Promise<Session> {
-  if (!session.zoomMeetingId) {
-    throw new ZoomIntegrationError(
-      "Create the Zoom meeting before syncing its recording.",
-      409,
-    );
-  }
-  const recording = await zoomRequest<ZoomRecordingResponse>(
-    `/meetings/${encodeURIComponent(session.zoomMeetingId)}/recordings`,
-  );
-  const recordingUrl = validateJoinUrl(recording.share_url);
-  const [updatedSession] = await db
-    .update(sessionsTable)
-    .set({ recordingUrl })
-    .where(eq(sessionsTable.id, session.id))
-    .returning();
-  if (!updatedSession) {
-    throw new ZoomIntegrationError("Session not found.", 404);
-  }
-  return updatedSession;
-}
-
-export async function syncZoomRecordingForMeetingId(
-  meetingId: string,
-): Promise<boolean> {
-  const [session] = await db
-    .select()
-    .from(sessionsTable)
-    .where(eq(sessionsTable.zoomMeetingId, meetingId))
-    .limit(1);
-  if (!session) return false;
-  await syncZoomRecording(session);
-  return true;
 }

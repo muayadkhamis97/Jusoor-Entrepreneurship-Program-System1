@@ -1298,39 +1298,6 @@ export const CreateOrUpdateZoomMeetingResponse = zod.object({
 
 
 /**
- * @summary Sync a completed Zoom cloud recording link to a program session
- */
-export const SyncZoomRecordingParams = zod.object({
-  "id": zod.coerce.number().int()
-})
-
-export const syncZoomRecordingResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
-export const syncZoomRecordingResponseDurationMinutesMin = 15;
-export const syncZoomRecordingResponseDurationMinutesMax = 480;
-
-
-
-export const SyncZoomRecordingResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
-  "title": zod.string(),
-  "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
-  "scheduledDate": zod.string().regex(syncZoomRecordingResponseScheduledDateRegExp),
-  "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(syncZoomRecordingResponseDurationMinutesMin).max(syncZoomRecordingResponseDurationMinutesMax),
-  "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
-  "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
-  "location": zod.string().nullish(),
-  "zoomUrl": zod.string().nullish(),
-  "zoomMeetingId": zod.string().nullable(),
-  "recordingUrl": zod.string().nullish(),
-  "status": zod.enum(['scheduled', 'completed', 'cancelled']),
-  "createdAt": zod.coerce.date()
-})
-
-
-/**
  * @summary Get pitch and demo-day events assigned to this judge
  */
 export const getJudgeDashboardResponsePitchesItemEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');

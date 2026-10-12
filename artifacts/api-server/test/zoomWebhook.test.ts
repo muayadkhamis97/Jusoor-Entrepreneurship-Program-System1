@@ -7,13 +7,8 @@ import express from "express";
 const secretToken = "test-zoom-webhook-secret";
 const nativeFetch = globalThis.fetch;
 let server: Server;
-let db: typeof import("@workspace/db").db;
-let sessionsTable: typeof import("@workspace/db").sessionsTable;
-let zoomConnectionsTable: typeof import("@workspace/db").zoomConnectionsTable;
-let saveZoomConnection: typeof import("../src/lib/zoom").saveZoomConnection;
 let verifyZoomWebhookSignature: typeof import("../src/lib/zoom").verifyZoomWebhookSignature;
 let createZoomWebhookValidationResponse: typeof import("../src/lib/zoom").createZoomWebhookValidationResponse;
-const logEntries: unknown[] = [];
 
 before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
@@ -23,13 +18,7 @@ before(async () => {
   process.env.ZOOM_WEBHOOK_SECRET_TOKEN = secretToken;
   process.env.NODE_ENV = "test";
 
-  const database = await import("@workspace/db");
-  db = database.db;
-  sessionsTable = database.sessionsTable;
-  zoomConnectionsTable = database.zoomConnectionsTable;
-
   const zoom = await import("../src/lib/zoom");
-  saveZoomConnection = zoom.saveZoomConnection;
   verifyZoomWebhookSignature = zoom.verifyZoomWebhookSignature;
   createZoomWebhookValidationResponse = zoom.createZoomWebhookValidationResponse;
   const { default: router } = await import("../src/routes/zoom");
@@ -38,7 +27,7 @@ before(async () => {
   app.use((req, _res, next) => {
     Object.assign(req, {
       log: {
-        error: (...args: unknown[]) => logEntries.push(args),
+        error: () => undefined,
       },
     });
     next();
@@ -130,104 +119,14 @@ test("acknowledges valid Zoom events that do not require recording sync", async 
   assert.equal(response.status, 200);
 });
 
-test("syncs completed recordings to the matching session and safely accepts a replay", async () => {
-  const session = {
-    id: 9301,
-    programId: null,
-    title: "Mentor training",
-    type: "training",
-    scheduledDate: "2026-10-12",
-    startTime: "10:00",
-    durationMinutes: 60,
-    facilitator: null,
-    trainerStaffId: null,
-    deliveryMode: "online",
-    location: null,
-    zoomUrl: "https://zoom.us/j/123456789",
-    zoomMeetingId: "123456789",
-    recordingUrl: null,
-    status: "scheduled",
-    createdAt: new Date(),
-  };
-  let connectionValues: Record<string, unknown> | null = null;
-  const savedUpdates: Array<{ sessionId: number; recordingUrl: unknown }> = [];
-  const originalSelect = Object.getOwnPropertyDescriptor(db, "select");
-  const originalInsert = Object.getOwnPropertyDescriptor(db, "insert");
-  const originalUpdate = Object.getOwnPropertyDescriptor(db, "update");
-
-  Object.defineProperty(db, "insert", {
-    configurable: true,
-    writable: true,
-    value: () => ({
-      values: (values: Record<string, unknown>) => {
-        connectionValues = values;
-        return { onConflictDoUpdate: async () => undefined };
-      },
-    }),
-  });
-  Object.defineProperty(db, "select", {
-    configurable: true,
-    writable: true,
-    value: () => {
-      let source: unknown;
-      const query = {
-        from(table: unknown) {
-          source = table;
-          return query;
-        },
-        where() {
-          return query;
-        },
-        async limit() {
-          if (source === sessionsTable) return [session];
-          if (source === zoomConnectionsTable && connectionValues) {
-            return [{
-              ...connectionValues,
-              id: 101,
-              accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-            }];
-          }
-          return [];
-        },
-      };
-      return query;
-    },
-  });
-  Object.defineProperty(db, "update", {
-    configurable: true,
-    writable: true,
-    value: () => {
-      let values: Record<string, unknown> = {};
-      const query = {
-        set(nextValues: Record<string, unknown>) {
-          values = nextValues;
-          return query;
-        },
-        where() {
-          return query;
-        },
-        async returning() {
-          Object.assign(session, values);
-          savedUpdates.push({ sessionId: session.id, recordingUrl: values.recordingUrl });
-          return [session];
-        },
-      };
-      return query;
-    },
-  });
+test("acknowledges Zoom recording events without syncing them into sessions", async () => {
+  let zoomApiCalls = 0;
+  globalThis.fetch = (async () => {
+    zoomApiCalls += 1;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
 
   try {
-    await saveZoomConnection(
-      { accessToken: "test-access-token", refreshToken: "test-refresh-token", expiresIn: 3600 },
-      71,
-    );
-    globalThis.fetch = (async () => new Response(JSON.stringify({
-      share_url: "https://us02web.zoom.us/rec/share/processed-recording",
-    }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    })) as typeof fetch;
-
     const body = JSON.stringify({
       event: "recording.completed",
       payload: { object: { id: 123456789 } },
@@ -235,23 +134,20 @@ test("syncs completed recordings to the matching session and safely accepts a re
     const firstResponse = await postWebhook(body);
     const replayResponse = await postWebhook(body);
 
-    assert.equal(firstResponse.status, 200, JSON.stringify(logEntries));
+    assert.equal(firstResponse.status, 200);
     assert.equal(replayResponse.status, 200);
-    assert.equal(
-      session.recordingUrl,
-      "https://us02web.zoom.us/rec/share/processed-recording",
-    );
-    assert.deepEqual(savedUpdates, [
-      { sessionId: 9301, recordingUrl: "https://us02web.zoom.us/rec/share/processed-recording" },
-      { sessionId: 9301, recordingUrl: "https://us02web.zoom.us/rec/share/processed-recording" },
-    ]);
+    assert.equal(zoomApiCalls, 0);
   } finally {
     globalThis.fetch = nativeFetch;
-    if (originalSelect) Object.defineProperty(db, "select", originalSelect);
-    else Reflect.deleteProperty(db, "select");
-    if (originalInsert) Object.defineProperty(db, "insert", originalInsert);
-    else Reflect.deleteProperty(db, "insert");
-    if (originalUpdate) Object.defineProperty(db, "update", originalUpdate);
-    else Reflect.deleteProperty(db, "update");
   }
+});
+
+test("does not expose the manual Zoom recording sync endpoint", async () => {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const response = await nativeFetch(
+    `http://127.0.0.1:${address.port}/api/zoom/sessions/9301/recording`,
+    { method: "POST" },
+  );
+  assert.equal(response.status, 404);
 });

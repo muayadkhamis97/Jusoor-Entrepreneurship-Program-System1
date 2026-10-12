@@ -889,26 +889,6 @@ paths:
           description: Session not found
         "409":
           description: Zoom authorization is required
-  /zoom/sessions/{id}/recording:
-    post:
-      operationId: syncZoomRecording
-      tags: [sessions]
-      summary: Sync a completed Zoom cloud recording link to a program session
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          description: Updated program session with its recording link
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Session"
-        "403":
-          description: Coordinator access required
-        "404":
-          description: Session or Zoom recording not found
-        "409":
-          description: Zoom authorization or recording is not ready
   /judge/dashboard:
     get:
       operationId: getJudgeDashboard
