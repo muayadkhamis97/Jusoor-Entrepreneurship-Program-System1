@@ -20,6 +20,7 @@ import {
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
+  useSyncZoomRecording,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
@@ -41,6 +42,7 @@ import { RoleAccessPage } from './role-access';
 import { SessionCalendar } from './session-calendar';
 import { CommunicationsPage } from './communications-surfaces';
 import { SessionRecordingPlayer } from './session-recording-player';
+import { trackEvent } from './lib/analytics';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -353,6 +355,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   const connectZoom = useStartZoomConnection();
   const disconnectZoom = useDisconnectZoom();
   const createZoomMeeting = useCreateOrUpdateZoomMeeting();
+  const syncZoomRecording = useSyncZoomRecording();
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
   const create = useCreateSession();
@@ -361,10 +364,13 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
 
   useEffect(() => {
     if (!zoomCallbackResult) return;
+    if (coordinator && zoomCallbackResult === 'connected') {
+      trackEvent('zoom_connection_success');
+    }
     const url = new URL(window.location.href);
     url.searchParams.delete('zoom');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-  }, [zoomCallbackResult]);
+  }, [coordinator, zoomCallbackResult]);
 
   const refreshZoomViews = () => {
     invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey(), getGetZoomStatusQueryKey()]);
@@ -415,12 +421,25 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   });
   const manageMeeting = (session: Session) => {
     setZoomActionMessage(null);
+    const action = session.zoomMeetingId ? 'updated' : 'created';
     createZoomMeeting.mutate({ id: session.id }, {
       onSuccess: updated => {
+        trackEvent('zoom_meeting_save_success', { action });
         setZoomActionMessage({ tone: 'good', text: `Zoom meeting saved for “${updated.title}”. Trainers and participants can now use its session link.` });
         refreshZoomViews();
       },
       onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, `Could not create a Zoom meeting for “${session.title}”.`) }),
+    });
+  };
+  const syncRecording = (session: Session) => {
+    setZoomActionMessage(null);
+    syncZoomRecording.mutate({ id: session.id }, {
+      onSuccess: () => {
+        trackEvent('zoom_recording_sync_success');
+        setZoomActionMessage({ tone: 'good', text: 'Zoom recording synced to this session.' });
+        refreshZoomViews();
+      },
+      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not sync the Zoom recording.') }),
     });
   };
   const zoomNotice = zoomCallbackResult === 'connected'
@@ -473,6 +492,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
            <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />
           {coordinator && session.deliveryMode !== 'in_person' && <div className="session-admin-actions">
             <button className="button button-quiet" onClick={() => manageMeeting(session)} disabled={!zoomStatus.data?.connected || createZoomMeeting.isPending} data-testid={`button-zoom-meeting-${session.id}`}><Video size={14} />{meetingPending ? 'Saving…' : session.zoomMeetingId ? 'Update Zoom meeting' : 'Create Zoom meeting'}</button>
+            {session.zoomMeetingId && <button className="button button-quiet" onClick={() => syncRecording(session)} disabled={!zoomStatus.data?.connected || syncZoomRecording.isPending} data-testid={`button-sync-zoom-recording-${session.id}`}><RefreshCw size={14} />{syncZoomRecording.isPending ? 'Syncing…' : 'Sync Zoom recording'}</button>}
           </div>}
         </div>
         <div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div>
