@@ -14,6 +14,10 @@ tags:
     description: Program projects and cohorts
   - name: businesses
     description: Applicants and businesses through the program pipeline
+  - name: applications
+    description: Public intake, coordinator review, and founder progress
+  - name: participants
+    description: Founder self-service access to application and program progress
   - name: sessions
     description: Training and event sessions
   - name: support
@@ -208,6 +212,101 @@ paths:
           description: Business deleted
         "404":
           description: Business not found
+  /public/application-programs:
+    get:
+      operationId: listApplicationPrograms
+      tags: [applications]
+      summary: List programs currently accepting applications
+      responses:
+        "200":
+          description: Open programs with public application details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationProgram"
+  /applications:
+    get:
+      operationId: listApplications
+      tags: [applications]
+      summary: List submitted applications for coordinator review
+      responses:
+        "200":
+          description: Applications with coordinator-only review notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntrepreneurApplication"
+        "403":
+          description: Staff access required
+    post:
+      operationId: submitApplication
+      tags: [applications]
+      summary: Submit a public program application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntrepreneurApplicationInput"
+      responses:
+        "201":
+          description: Application received
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationReceipt"
+        "400":
+          description: Invalid application
+        "409":
+          description: The email already has an application for this program
+  /applications/{id}:
+    patch:
+      operationId: reviewApplication
+      tags: [applications]
+      summary: Record a coordinator decision on an application
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationReviewUpdate"
+      responses:
+        "200":
+          description: Updated application review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntrepreneurApplication"
+        "400":
+          description: Invalid review decision
+        "404":
+          description: Application not found
+        "409":
+          description: A final decision has already been recorded
+        "403":
+          description: Coordinator access required
+  /participant/dashboard:
+    get:
+      operationId: getParticipantDashboard
+      tags: [participants]
+      summary: Get the signed-in participant's applications and program progress
+      responses:
+        "200":
+          description: Applications, approved-program sessions, and assigned support
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantDashboard"
+        "401":
+          description: Sign in required
+        "403":
+          description: No application is linked to this account
   /sessions:
     get:
       operationId: listSessions
@@ -537,6 +636,131 @@ components:
           type: string
       required:
         - status
+    ApplicationStatus:
+      type: string
+      enum: [submitted, under_review, accepted, declined]
+    ApplicationReviewStatus:
+      type: string
+      enum: [under_review, accepted, declined]
+    ApplicationProgram:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        format: { type: string, enum: [bootcamp, hackathon] }
+        description: { type: ["string", "null"] }
+        applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+      required: [id, name, format]
+    EntrepreneurApplication:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        founderName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: ["string", "null"] }
+        businessName: { type: string }
+        industry: { type: ["string", "null"] }
+        website: { type: ["string", "null"], format: uri }
+        summary: { type: string }
+        supportNeeds: { type: string }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        reviewNotes: { type: ["string", "null"] }
+        businessId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, programId, programName, founderName, email, phone, businessName, industry, website, summary, supportNeeds, status, reviewNotes, businessId, createdAt]
+    EntrepreneurApplicationInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        founderName: { type: string, minLength: 2, maxLength: 160 }
+        email: { type: string, format: email, maxLength: 320 }
+        phone: { type: ["string", "null"], maxLength: 50 }
+        businessName: { type: string, minLength: 2, maxLength: 180 }
+        industry: { type: ["string", "null"], maxLength: 120 }
+        website: { type: ["string", "null"], format: uri, maxLength: 500 }
+        summary: { type: string, minLength: 30, maxLength: 3000 }
+        supportNeeds: { type: string, minLength: 10, maxLength: 1500 }
+      required: [programId, founderName, email, businessName, summary, supportNeeds]
+    ApplicationReceipt:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        createdAt: { type: string, format: date-time }
+      required: [id, status, createdAt]
+    ApplicationReviewUpdate:
+      type: object
+      properties:
+        status: { $ref: "#/components/schemas/ApplicationReviewStatus" }
+        reviewNotes: { type: ["string", "null"], maxLength: 3000 }
+      required: [status]
+    ParticipantBusiness:
+      type: object
+      properties:
+        id: { type: integer }
+        businessName: { type: string }
+        industry: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+      required: [id, businessName, industry, stage]
+    ParticipantProgram:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        format: { type: string, enum: [bootcamp, hackathon] }
+        description: { type: ["string", "null"] }
+        startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+      required: [id, name, format, description, startDate, endDate]
+    ParticipantSession:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        type: { $ref: "#/components/schemas/SessionType" }
+        scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        startTime: { type: ["string", "null"] }
+        facilitator: { type: ["string", "null"] }
+        deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
+        location: { type: ["string", "null"] }
+        zoomUrl: { type: ["string", "null"], format: uri }
+        recordingUrl: { type: ["string", "null"], format: uri }
+        status: { type: string, enum: [scheduled, completed, cancelled] }
+      required: [id, title, type, scheduledDate, startTime, facilitator, deliveryMode, location, zoomUrl, recordingUrl, status]
+    ParticipantSupport:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { $ref: "#/components/schemas/SupportType" }
+        provider: { type: string }
+        topic: { type: string }
+        scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { $ref: "#/components/schemas/SupportStatus" }
+      required: [id, type, provider, topic, scheduledDate, status]
+    ParticipantEnrollment:
+      type: object
+      properties:
+        applicationId: { type: integer }
+        applicationStatus: { $ref: "#/components/schemas/ApplicationStatus" }
+        submittedAt: { type: string, format: date-time }
+        program: { $ref: "#/components/schemas/ParticipantProgram" }
+        business: { anyOf: [{ $ref: "#/components/schemas/ParticipantBusiness" }, { type: "null" }] }
+        sessions:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantSession" }
+        support:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantSupport" }
+      required: [applicationId, applicationStatus, submittedAt, program, business, sessions, support]
+    ParticipantDashboard:
+      type: object
+      properties:
+        applications:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantEnrollment" }
+      required: [applications]
     StaffRole:
       type: string
       enum: [coordinator, staff]

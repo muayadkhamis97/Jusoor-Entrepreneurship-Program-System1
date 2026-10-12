@@ -23,3 +23,4 @@ export * from "./sessions";
 export * from "./support";
 export * from "./pitches";
 export * from "./staff";
+export * from "./applications";

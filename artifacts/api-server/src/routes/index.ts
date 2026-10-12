@@ -6,10 +6,12 @@ import sessionsRouter from "./sessions";
 import supportRouter from "./support";
 import pitchesRouter from "./pitches";
 import staffRouter from "./staff";
+import applicationsRouter from "./applications";
 
 const router: IRouter = Router();
 
 router.use(staffRouter);
+router.use(applicationsRouter);
 router.use(dashboardRouter);
 router.use(programsRouter);
 router.use(businessesRouter);

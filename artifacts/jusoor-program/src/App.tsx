@@ -31,6 +31,7 @@ import {
   Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { ApplicationsReviewPage, ApplyPage, ParticipantDashboardPage } from './intake-surfaces';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -108,7 +109,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     { href: '/support', label: 'Support', icon: Handshake },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
-    ...(staff.role === 'coordinator' ? [{ href: '/team', label: 'Team access', icon: Shield }] : []),
+    ...(staff.role === 'coordinator' ? [{ href: '/applications', label: 'Applications', icon: FileText }, { href: '/team', label: 'Team access', icon: Shield }] : []),
   ];
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
@@ -441,6 +442,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/sessions" component={SessionsPage} />
     <Route path="/support" component={SupportPage} />
     <Route path="/pitches" component={PitchesPage} />
+    <Route path="/applications" component={staff.role === 'coordinator' ? ApplicationsReviewPage : NotFoundPage} />
     <Route path="/team" component={staff.role === 'coordinator' ? TeamPage : NotFoundPage} />
     <Route component={NotFoundPage} />
   </Switch></Shell></ErrorBoundary>;
@@ -453,25 +455,25 @@ function AuthLanding() {
       <div className="eyebrow">JUSOOR ENTREPRENEURSHIP PROGRAM</div>
       <h1 className="app-title">Good work,<br /><em>moving forward.</em></h1>
       <p>A private workspace for the team supporting founders from outreach and incubation to pitch day and grants.</p>
-      <div className="auth-actions"><Link href="/sign-in" className="button button-primary">Staff sign in <ArrowRight size={16} /></Link><Link href="/sign-up" className="auth-secondary">Have approved staff access? Create an account</Link></div>
-      <div className="auth-foot"><Shield size={15} /><span>Staff access only. Accounts need a verified email approved by a Jusoor coordinator.</span></div>
+      <div className="auth-actions"><Link href="/apply" className="button button-primary">Apply to a program <ArrowRight size={16} /></Link><Link href="/participant" className="auth-secondary">Already applied? Sign in to track progress</Link><Link href="/sign-in" className="auth-secondary">Program team sign in</Link></div>
+      <div className="auth-foot"><Shield size={15} /><span>Founder progress is private to the applicant. Staff workspace access requires coordinator approval.</span></div>
     </section>
     <div className="auth-side-note"><span>01 — PROGRAM OPERATIONS</span><b>Every founder.<br />Every next step.</b><i>OUTREACH → INCUBATION → GRANTS</i></div>
   </main>;
 }
 
-function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {
+function AuthPage({ mode, participantRedirect = false }: { mode: 'sign-in' | 'sign-up'; participantRedirect?: boolean }) {
   const isSignIn = mode === 'sign-in';
   return <main className="auth-page auth-form-page">
     <Link href="/" className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></Link>
-    <div className="auth-form-content"><div className="eyebrow">{isSignIn ? 'STAFF ACCESS' : 'APPROVED STAFF ONLY'}</div><h1 className="app-title">{isSignIn ? 'Welcome back.' : 'Join your team.'}</h1><p>{isSignIn ? 'Sign in to continue to the program workspace.' : 'Use the exact verified email address approved by your coordinator.'}</p>
+    <div className="auth-form-content"><div className="eyebrow">{isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT'}</div><h1 className="app-title">{isSignIn ? 'Welcome back.' : 'Your journey, in view.'}</h1><p>{isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require coordinator approval.'}</p>
       <div className="clerk-card">{isSignIn
-        ? <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-        : <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />}
+        ? <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={participantRedirect ? `${basePath}/participant` : undefined} />
+        : <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={`${basePath}/participant`} />}
       </div>
       <Link href="/" className="auth-back">← Back to Jusoor Program Hub</Link>
     </div>
-    <div className="auth-form-note"><Shield size={15} /> Program records are available only to coordinator-approved staff.</div>
+    <div className="auth-form-note"><Shield size={15} /> Founder progress is private to the signed-in applicant. Staff workspace access remains coordinator-approved.</div>
   </main>;
 }
 
@@ -490,15 +492,21 @@ function AccessCheckFailed({ retry, sessionExpired = false }: { retry: () => voi
 }
 
 function AuthenticatedWorkspace() {
+  const [location, setLocation] = useLocation();
   const { isLoaded, isSignedIn } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const staffQuery = useGetAuthMe({
     query: { queryKey: getGetAuthMeQueryKey(), enabled: isLoaded && isSignedIn === true, retry: false },
   });
+  useEffect(() => {
+    if (staffQuery.data && location === '/participant') setLocation('/');
+  }, [staffQuery.data, location, setLocation]);
   if (!isLoaded || (isSignedIn && (!userLoaded || staffQuery.isLoading))) return <AuthLoading />;
   if (!isSignedIn) return <AuthLanding />;
+  if (staffQuery.data && location === '/participant') return <AuthLoading />;
   if (staffQuery.isError || !staffQuery.data) {
     const status = (staffQuery.error as { status?: number } | null)?.status;
+    if (location === '/participant' && status === 403) return <ParticipantDashboardPage />;
     if (status === 403) return <AccessDenied retry={() => void staffQuery.refetch()} />;
     return <AccessCheckFailed sessionExpired={status === 401} retry={() => void staffQuery.refetch()} />;
   }
@@ -571,7 +579,7 @@ function ClerkApp() {
     signUpUrl={`${basePath}/sign-up`}
     localization={{
       signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your Jusoor workspace' } },
-      signUp: { start: { title: 'Join the program team', subtitle: 'Use the email approved by your coordinator' } },
+      signUp: { start: { title: 'Create your Jusoor account', subtitle: 'Founders: use the email on your application' } },
     }}
     routerPush={to => setLocation(stripBase(to))}
     routerReplace={to => setLocation(stripBase(to), { replace: true })}
@@ -586,6 +594,9 @@ function ClerkApp() {
 
 function AuthRouter() {
   const [location] = useLocation();
+  const { isLoaded, isSignedIn } = useAuth();
+  if (location === '/apply') return <ApplyPage />;
+  if (location === '/participant' && isLoaded && !isSignedIn) return <AuthPage mode="sign-in" participantRedirect />;
   if (location.startsWith('/sign-in')) return <AuthPage mode="sign-in" />;
   if (location.startsWith('/sign-up')) return <AuthPage mode="sign-up" />;
   return <AuthenticatedWorkspace />;

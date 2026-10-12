@@ -20,15 +20,21 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApplicationProgram,
+  ApplicationReceipt,
+  ApplicationReviewUpdate,
   Business,
   BusinessInput,
   BusinessUpdate,
   Dashboard,
+  EntrepreneurApplication,
+  EntrepreneurApplicationInput,
   HealthStatus,
   ListBusinessesParams,
   ListPitchesParams,
   ListSessionsParams,
   ListSupportParams,
+  ParticipantDashboard,
   PitchInput,
   PitchRecord,
   PitchUpdate,
@@ -967,6 +973,414 @@ export const useDeleteBusiness = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteBusinessMutationOptions(options));
     }
+
+export const getListApplicationProgramsUrl = () => {
+
+
+
+
+  return `/api/public/application-programs`
+}
+
+/**
+ * @summary List programs currently accepting applications
+ */
+export const listApplicationPrograms = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicationProgram[]> => {
+
+  return customFetch<ApplicationProgram[]>(getListApplicationProgramsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicationProgramsQueryKey = () => {
+    return [
+    `/api/public/application-programs`
+    ] as const;
+    }
+
+
+export const getListApplicationProgramsQueryOptions = <TData = Awaited<ReturnType<typeof listApplicationPrograms>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicationPrograms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicationProgramsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicationPrograms>>> = ({ signal }) => listApplicationPrograms({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicationPrograms>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicationProgramsQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicationPrograms>>>
+export type ListApplicationProgramsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List programs currently accepting applications
+ */
+
+export function useListApplicationPrograms<TData = Awaited<ReturnType<typeof listApplicationPrograms>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicationPrograms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicationProgramsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListApplicationsUrl = () => {
+
+
+
+
+  return `/api/applications`
+}
+
+/**
+ * @summary List submitted applications for coordinator review
+ */
+export const listApplications = async ( options?: Parameters<typeof customFetch>[1]): Promise<EntrepreneurApplication[]> => {
+
+  return customFetch<EntrepreneurApplication[]>(getListApplicationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicationsQueryKey = () => {
+    return [
+    `/api/applications`
+    ] as const;
+    }
+
+
+export const getListApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof listApplications>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplications>>> = ({ signal }) => listApplications({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof listApplications>>>
+export type ListApplicationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List submitted applications for coordinator review
+ */
+
+export function useListApplications<TData = Awaited<ReturnType<typeof listApplications>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitApplicationUrl = () => {
+
+
+
+
+  return `/api/applications`
+}
+
+/**
+ * @summary Submit a public program application
+ */
+export const submitApplication = async (entrepreneurApplicationInput: EntrepreneurApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<ApplicationReceipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ApplicationReceipt>(getSubmitApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(entrepreneurApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitApplicationMutationKey = () => ['submitApplication'] as const;
+
+export const getSubmitApplicationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitApplication>>, TError,SubmitApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitApplication>>, TError,SubmitApplicationMutationVariables, TContext> => {
+
+const mutationKey = getSubmitApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitApplication>>, SubmitApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitApplication>>>
+    export type SubmitApplicationMutationBody = BodyType<EntrepreneurApplicationInput>
+    export type SubmitApplicationMutationError = ErrorType<void>
+    export type SubmitApplicationMutationVariables = {data: BodyType<EntrepreneurApplicationInput>}
+
+    /**
+ * @summary Submit a public program application
+ */
+export const useSubmitApplication = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitApplication>>, TError,SubmitApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitApplication>>,
+        TError,
+        SubmitApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitApplicationMutationOptions(options));
+    }
+
+export const getReviewApplicationUrl = (id: number,) => {
+
+
+
+
+  return `/api/applications/${id}`
+}
+
+/**
+ * @summary Record a coordinator decision on an application
+ */
+export const reviewApplication = async (id: number,
+    applicationReviewUpdate: ApplicationReviewUpdate, options?: Parameters<typeof customFetch>[1]): Promise<EntrepreneurApplication> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EntrepreneurApplication>(getReviewApplicationUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(applicationReviewUpdate)
+  }
+);}
+
+
+
+
+
+export const getReviewApplicationMutationKey = () => ['reviewApplication'] as const;
+
+export const getReviewApplicationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewApplication>>, TError,ReviewApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewApplication>>, TError,ReviewApplicationMutationVariables, TContext> => {
+
+const mutationKey = getReviewApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewApplication>>, ReviewApplicationMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewApplication(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof reviewApplication>>>
+    export type ReviewApplicationMutationBody = BodyType<ApplicationReviewUpdate>
+    export type ReviewApplicationMutationError = ErrorType<void>
+    export type ReviewApplicationMutationVariables = {id: number;data: BodyType<ApplicationReviewUpdate>}
+
+    /**
+ * @summary Record a coordinator decision on an application
+ */
+export const useReviewApplication = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewApplication>>, TError,ReviewApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewApplication>>,
+        TError,
+        ReviewApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewApplicationMutationOptions(options));
+    }
+
+export const getGetParticipantDashboardUrl = () => {
+
+
+
+
+  return `/api/participant/dashboard`
+}
+
+/**
+ * @summary Get the signed-in participant's applications and program progress
+ */
+export const getParticipantDashboard = async ( options?: Parameters<typeof customFetch>[1]): Promise<ParticipantDashboard> => {
+
+  return customFetch<ParticipantDashboard>(getGetParticipantDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantDashboardQueryKey = () => {
+    return [
+    `/api/participant/dashboard`
+    ] as const;
+    }
+
+
+export const getGetParticipantDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantDashboard>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantDashboard>>> = ({ signal }) => getParticipantDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantDashboard>>>
+export type GetParticipantDashboardQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the signed-in participant's applications and program progress
+ */
+
+export function useGetParticipantDashboard<TData = Awaited<ReturnType<typeof getParticipantDashboard>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSessionsUrl = (params?: ListSessionsParams,) => {
   const normalizedParams = new URLSearchParams();

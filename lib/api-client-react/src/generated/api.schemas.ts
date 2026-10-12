@@ -9,6 +9,270 @@ export interface HealthStatus {
   status: string;
 }
 
+export type ApplicationStatus = typeof ApplicationStatus[keyof typeof ApplicationStatus];
+
+
+export const ApplicationStatus = {
+  submitted: 'submitted',
+  under_review: 'under_review',
+  accepted: 'accepted',
+  declined: 'declined',
+} as const;
+
+export type ApplicationReviewStatus = typeof ApplicationReviewStatus[keyof typeof ApplicationReviewStatus];
+
+
+export const ApplicationReviewStatus = {
+  under_review: 'under_review',
+  accepted: 'accepted',
+  declined: 'declined',
+} as const;
+
+export type ApplicationProgramFormat = typeof ApplicationProgramFormat[keyof typeof ApplicationProgramFormat];
+
+
+export const ApplicationProgramFormat = {
+  bootcamp: 'bootcamp',
+  hackathon: 'hackathon',
+} as const;
+
+export interface ApplicationProgram {
+  id: number;
+  name: string;
+  format: ApplicationProgramFormat;
+  /** @nullable */
+  description?: string | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  applicationDeadline?: string | null;
+}
+
+export interface EntrepreneurApplication {
+  id: number;
+  programId: number;
+  programName: string;
+  founderName: string;
+  email: string;
+  /** @nullable */
+  phone: string | null;
+  businessName: string;
+  /** @nullable */
+  industry: string | null;
+  /** @nullable */
+  website: string | null;
+  summary: string;
+  supportNeeds: string;
+  status: ApplicationStatus;
+  /** @nullable */
+  reviewNotes: string | null;
+  /** @nullable */
+  businessId: number | null;
+  createdAt: string;
+}
+
+export interface EntrepreneurApplicationInput {
+  programId: number;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  founderName: string;
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @maxLength 50
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  businessName: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  industry?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  website?: string | null;
+  /**
+     * @minLength 30
+     * @maxLength 3000
+     */
+  summary: string;
+  /**
+     * @minLength 10
+     * @maxLength 1500
+     */
+  supportNeeds: string;
+}
+
+export interface ApplicationReceipt {
+  id: number;
+  status: ApplicationStatus;
+  createdAt: string;
+}
+
+export interface ApplicationReviewUpdate {
+  status: ApplicationReviewStatus;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  reviewNotes?: string | null;
+}
+
+export type BusinessStage = typeof BusinessStage[keyof typeof BusinessStage];
+
+
+export const BusinessStage = {
+  application: 'application',
+  bootcamp: 'bootcamp',
+  incubator: 'incubator',
+  pitch: 'pitch',
+  demo_day: 'demo_day',
+  grant_awarded: 'grant_awarded',
+  alumni: 'alumni',
+  declined: 'declined',
+} as const;
+
+export interface ParticipantBusiness {
+  id: number;
+  businessName: string;
+  /** @nullable */
+  industry: string | null;
+  stage: BusinessStage;
+}
+
+export type ParticipantProgramFormat = typeof ParticipantProgramFormat[keyof typeof ParticipantProgramFormat];
+
+
+export const ParticipantProgramFormat = {
+  bootcamp: 'bootcamp',
+  hackathon: 'hackathon',
+} as const;
+
+export interface ParticipantProgram {
+  id: number;
+  name: string;
+  format: ParticipantProgramFormat;
+  /** @nullable */
+  description: string | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  startDate: string | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  endDate: string | null;
+}
+
+export type ParticipantSessionStatus = typeof ParticipantSessionStatus[keyof typeof ParticipantSessionStatus];
+
+
+export const ParticipantSessionStatus = {
+  scheduled: 'scheduled',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export type SessionType = typeof SessionType[keyof typeof SessionType];
+
+
+export const SessionType = {
+  bootcamp: 'bootcamp',
+  hackathon: 'hackathon',
+  training: 'training',
+  pitch_day: 'pitch_day',
+  demo_day: 'demo_day',
+  other: 'other',
+} as const;
+
+export type DeliveryMode = typeof DeliveryMode[keyof typeof DeliveryMode];
+
+
+export const DeliveryMode = {
+  online: 'online',
+  in_person: 'in_person',
+  hybrid: 'hybrid',
+} as const;
+
+export interface ParticipantSession {
+  id: number;
+  title: string;
+  type: SessionType;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  scheduledDate: string;
+  /** @nullable */
+  startTime: string | null;
+  /** @nullable */
+  facilitator: string | null;
+  deliveryMode: DeliveryMode;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  zoomUrl: string | null;
+  /** @nullable */
+  recordingUrl: string | null;
+  status: ParticipantSessionStatus;
+}
+
+export type SupportType = typeof SupportType[keyof typeof SupportType];
+
+
+export const SupportType = {
+  mentor: 'mentor',
+  subject_expert: 'subject_expert',
+  branding: 'branding',
+  technical: 'technical',
+} as const;
+
+export type SupportStatus = typeof SupportStatus[keyof typeof SupportStatus];
+
+
+export const SupportStatus = {
+  requested: 'requested',
+  matched: 'matched',
+  scheduled: 'scheduled',
+  completed: 'completed',
+} as const;
+
+export interface ParticipantSupport {
+  id: number;
+  type: SupportType;
+  provider: string;
+  topic: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  scheduledDate: string | null;
+  status: SupportStatus;
+}
+
+export interface ParticipantEnrollment {
+  applicationId: number;
+  applicationStatus: ApplicationStatus;
+  submittedAt: string;
+  program: ParticipantProgram;
+  business: ParticipantBusiness | null;
+  sessions: ParticipantSession[];
+  support: ParticipantSupport[];
+}
+
+export interface ParticipantDashboard {
+  applications: ParticipantEnrollment[];
+}
+
 export type StaffRole = typeof StaffRole[keyof typeof StaffRole];
 
 
@@ -41,61 +305,6 @@ export interface StaffInput {
 export interface StaffUpdate {
   role: StaffRole;
 }
-
-export type BusinessStage = typeof BusinessStage[keyof typeof BusinessStage];
-
-
-export const BusinessStage = {
-  application: 'application',
-  bootcamp: 'bootcamp',
-  incubator: 'incubator',
-  pitch: 'pitch',
-  demo_day: 'demo_day',
-  grant_awarded: 'grant_awarded',
-  alumni: 'alumni',
-  declined: 'declined',
-} as const;
-
-export type SessionType = typeof SessionType[keyof typeof SessionType];
-
-
-export const SessionType = {
-  bootcamp: 'bootcamp',
-  hackathon: 'hackathon',
-  training: 'training',
-  pitch_day: 'pitch_day',
-  demo_day: 'demo_day',
-  other: 'other',
-} as const;
-
-export type DeliveryMode = typeof DeliveryMode[keyof typeof DeliveryMode];
-
-
-export const DeliveryMode = {
-  online: 'online',
-  in_person: 'in_person',
-  hybrid: 'hybrid',
-} as const;
-
-export type SupportType = typeof SupportType[keyof typeof SupportType];
-
-
-export const SupportType = {
-  mentor: 'mentor',
-  subject_expert: 'subject_expert',
-  branding: 'branding',
-  technical: 'technical',
-} as const;
-
-export type SupportStatus = typeof SupportStatus[keyof typeof SupportStatus];
-
-
-export const SupportStatus = {
-  requested: 'requested',
-  matched: 'matched',
-  scheduled: 'scheduled',
-  completed: 'completed',
-} as const;
 
 export type PitchEventType = typeof PitchEventType[keyof typeof PitchEventType];
 

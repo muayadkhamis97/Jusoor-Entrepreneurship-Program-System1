@@ -323,6 +323,177 @@ export const DeleteBusinessResponse = zod.void()
 
 
 /**
+ * @summary List programs currently accepting applications
+ */
+export const listApplicationProgramsResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListApplicationProgramsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "format": zod.enum(['bootcamp', 'hackathon']),
+  "description": zod.string().nullish(),
+  "applicationDeadline": zod.string().regex(listApplicationProgramsResponseApplicationDeadlineRegExp).nullish()
+})
+export const ListApplicationProgramsResponse = zod.array(ListApplicationProgramsResponseItem)
+
+
+/**
+ * @summary List submitted applications for coordinator review
+ */
+export const ListApplicationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "founderName": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string().nullable(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "website": zod.string().url().nullable(),
+  "summary": zod.string(),
+  "supportNeeds": zod.string(),
+  "status": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
+  "reviewNotes": zod.string().nullable(),
+  "businessId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListApplicationsResponse = zod.array(ListApplicationsResponseItem)
+
+
+/**
+ * @summary Submit a public program application
+ */
+export const submitApplicationBodyFounderNameMin = 2;
+export const submitApplicationBodyFounderNameMax = 160;
+
+export const submitApplicationBodyEmailMax = 320;
+
+export const submitApplicationBodyPhoneMax = 50;
+
+export const submitApplicationBodyBusinessNameMin = 2;
+export const submitApplicationBodyBusinessNameMax = 180;
+
+export const submitApplicationBodyIndustryMax = 120;
+
+export const submitApplicationBodyWebsiteMax = 500;
+
+export const submitApplicationBodySummaryMin = 30;
+export const submitApplicationBodySummaryMax = 3000;
+
+export const submitApplicationBodySupportNeedsMin = 10;
+export const submitApplicationBodySupportNeedsMax = 1500;
+
+
+
+export const SubmitApplicationBody = zod.object({
+  "programId": zod.number().int(),
+  "founderName": zod.string().min(submitApplicationBodyFounderNameMin).max(submitApplicationBodyFounderNameMax),
+  "email": zod.string().email().max(submitApplicationBodyEmailMax),
+  "phone": zod.string().max(submitApplicationBodyPhoneMax).nullish(),
+  "businessName": zod.string().min(submitApplicationBodyBusinessNameMin).max(submitApplicationBodyBusinessNameMax),
+  "industry": zod.string().max(submitApplicationBodyIndustryMax).nullish(),
+  "website": zod.string().url().max(submitApplicationBodyWebsiteMax).nullish(),
+  "summary": zod.string().min(submitApplicationBodySummaryMin).max(submitApplicationBodySummaryMax),
+  "supportNeeds": zod.string().min(submitApplicationBodySupportNeedsMin).max(submitApplicationBodySupportNeedsMax)
+})
+
+export const SubmitApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Record a coordinator decision on an application
+ */
+export const ReviewApplicationParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const reviewApplicationBodyReviewNotesMax = 3000;
+
+
+
+export const ReviewApplicationBody = zod.object({
+  "status": zod.enum(['under_review', 'accepted', 'declined']),
+  "reviewNotes": zod.string().max(reviewApplicationBodyReviewNotesMax).nullish()
+})
+
+export const ReviewApplicationResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "founderName": zod.string(),
+  "email": zod.string().email(),
+  "phone": zod.string().nullable(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "website": zod.string().url().nullable(),
+  "summary": zod.string(),
+  "supportNeeds": zod.string(),
+  "status": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
+  "reviewNotes": zod.string().nullable(),
+  "businessId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get the signed-in participant's applications and program progress
+ */
+export const getParticipantDashboardResponseApplicationsItemProgramStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getParticipantDashboardResponseApplicationsItemProgramEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetParticipantDashboardResponse = zod.object({
+  "applications": zod.array(zod.object({
+  "applicationId": zod.number().int(),
+  "applicationStatus": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
+  "submittedAt": zod.coerce.date(),
+  "program": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "format": zod.enum(['bootcamp', 'hackathon']),
+  "description": zod.string().nullable(),
+  "startDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemProgramStartDateRegExp).nullable(),
+  "endDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemProgramEndDateRegExp).nullable()
+}),
+  "business": zod.union([zod.object({
+  "id": zod.number().int(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'])
+}),zod.null()]),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
+  "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp),
+  "startTime": zod.string().nullable(),
+  "facilitator": zod.string().nullable(),
+  "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
+  "location": zod.string().nullable(),
+  "zoomUrl": zod.string().url().nullable(),
+  "recordingUrl": zod.string().url().nullable(),
+  "status": zod.enum(['scheduled', 'completed', 'cancelled'])
+})),
+  "support": zod.array(zod.object({
+  "id": zod.number().int(),
+  "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
+  "provider": zod.string(),
+  "topic": zod.string(),
+  "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp).nullable(),
+  "status": zod.enum(['requested', 'matched', 'scheduled', 'completed'])
+}))
+}))
+})
+
+
+/**
  * @summary List training sessions and program events
  */
 export const ListSessionsQueryParams = zod.object({

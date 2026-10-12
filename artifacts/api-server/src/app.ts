@@ -5,12 +5,15 @@ import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import router from "./routes";
 import healthRouter from "./routes/health";
+import publicApplicationsRouter from "./routes/publicApplications";
+import participantRouter from "./routes/participant";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
 import { requireStaff } from "./middlewares/staffAccess";
+import { requireParticipant } from "./middlewares/participantAccess";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -49,6 +52,8 @@ app.use(
 );
 
 app.use("/api", healthRouter);
+app.use("/api", publicApplicationsRouter);
+app.use("/api/participant", requireParticipant, participantRouter);
 app.use("/api", requireStaff);
 app.use("/api", router);
 

@@ -1,0 +1,1 @@
+- [Jusoor program lifecycle](jusoor-program-lifecycle.md) — Cohort intake leads through in-person bootcamp/hackathon, online incubation support, pitch-day selection, and demo-day grants.
