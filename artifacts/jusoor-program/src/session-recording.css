@@ -1,0 +1,51 @@
+.session-recording-player {
+  width: min(100%, 760px);
+  margin-top: 12px;
+}
+
+.session-recording-player iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 8px;
+  background: #101820;
+}
+
+.session-recording-player > a,
+.session-recording-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  color: hsl(var(--primary));
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.session-recording-player > a:hover,
+.session-recording-link:hover {
+  text-decoration: underline;
+}
+
+.field-hint {
+  color: hsl(var(--muted-foreground));
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.session-card .session-recording-player {
+  width: min(100%, 560px);
+}
+
+.role-row-copy .session-recording-player {
+  width: min(100%, 520px);
+}
+
+@media (max-width: 680px) {
+  .session-recording-player {
+    width: 100%;
+  }
+}

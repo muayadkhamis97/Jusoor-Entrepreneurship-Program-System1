@@ -15,6 +15,7 @@ import type {
   MentorBookingProvider, MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, LogOut, MessageCircle, Video } from 'lucide-react';
+import { SessionRecordingPlayer } from './session-recording-player';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
@@ -91,7 +92,7 @@ export function TrainerDashboardPage({ name }: { name: string }) {
         <article className="role-note"><ClipboardList size={18} /><div><b>{dashboard.submissions.length} participant responses</b><span>Read every answer. Leave a score and useful next-step feedback.</span></div></article>
       </section>
       <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">TEACHING CALENDAR</div><h2>Assigned sessions</h2></div></div>
-        {sessions.length === 0 ? <div className="empty-panel"><h3>No sessions assigned.</h3><p>Your coordinator will attach you to a cohort session.</p></div> : <div className="role-list">{sessions.map(session => <article className="role-row" key={session.id} data-testid={`trainer-session-${session.id}`}><span className="role-date"><CalendarDays size={17} /></span><div className="role-row-copy"><b>{session.title}</b><span>{dateText(session.scheduledDate)} · {word(session.type)} · {session.startTime || 'Time TBD'}</span></div><span className={`badge badge-${session.status === 'scheduled' ? 'good' : 'neutral'}`}><span />{word(session.status)}</span>{session.zoomUrl && <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link">Join <ArrowRight size={13} /></a>}</article>)}</div>}
+         {sessions.length === 0 ? <div className="empty-panel"><h3>No sessions assigned.</h3><p>Your coordinator will attach you to a cohort session.</p></div> : <div className="role-list">{sessions.map(session => <article className="role-row" key={session.id} data-testid={`trainer-session-${session.id}`}><span className="role-date"><CalendarDays size={17} /></span><div className="role-row-copy"><b>{session.title}</b><span>{dateText(session.scheduledDate)} · {word(session.type)} · {session.startTime || 'Time TBD'}</span>{session.recordingUrl && <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />}</div><span className={`badge badge-${session.status === 'scheduled' ? 'good' : 'neutral'}`}><span />{word(session.status)}</span>{session.zoomUrl && <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link">Join <ArrowRight size={13} /></a>}</article>)}</div>}
       </section>
       <section className="role-section role-assignment-section"><div className="role-section-title"><div><div className="eyebrow">MAKE THE LEARNING PRACTICAL</div><h2>Create a cohort assignment</h2></div></div>
         {programs.length === 0 ? <div className="role-inline-note">Assignments become available after a session is assigned to your trainer account.</div> : <form className="role-form-grid" onSubmit={submitAssignment}>

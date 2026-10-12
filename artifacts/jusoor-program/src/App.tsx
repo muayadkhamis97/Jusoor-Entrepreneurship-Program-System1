@@ -1,6 +1,7 @@
 import './workspace.css';
 import './role-workspace.css';
 import './role-access.css';
+import './session-recording.css';
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -17,7 +18,7 @@ import {
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
-  useStartZoomConnection, useSyncZoomRecording, useUpdateProgram, useUpdateSession, useUpdateSupport,
+  useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
 } from '@workspace/api-client-react';
 import type {
@@ -39,6 +40,7 @@ import { JudgeDashboardPage, MentorDashboardPage, RoleFrame, RoleNotFound, Train
 import { RoleAccessPage } from './role-access';
 import { SessionCalendar } from './session-calendar';
 import { CommunicationsPage } from './communications-surfaces';
+import { SessionRecordingPlayer } from './session-recording-player';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -51,7 +53,7 @@ function stripBase(path: string): string {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
 }
 
-type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string; min?: number; max?: number; step?: number };
+type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string; hint?: string; min?: number; max?: number; step?: number };
 type Values = Record<string, string>;
 
 const stageNames: Record<string, string> = {
@@ -97,7 +99,7 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
     <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
       <div className="modal-head"><div><div className="eyebrow">PROGRAM HUB / RECORD</div><h2 id="dialog-title" className="app-title">{title}</h2>{description && <p>{description}</p>}</div><button className="icon-button" aria-label="Close dialog" onClick={onClose} data-testid="button-close-dialog"><X size={18} /></button></div>
       <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
-        <div className="form-grid">{fields.map(field => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{field.label}{field.required && <i> *</i>}</span><FieldControl field={field} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} /></label>)}</div>
+        <div className="form-grid">{fields.map(field => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{field.label}{field.required && <i> *</i>}</span><FieldControl field={field} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{field.hint}</small>}</label>)}</div>
         {error && <div className="form-error"><CircleAlert size={16} />{error}</div>}
         <div className="modal-actions"><button type="button" className="button button-quiet" onClick={onClose} data-testid="button-cancel">Cancel</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? 'Saving…' : <><Check size={16} /> Save record</>}</button></div>
       </form>
@@ -245,7 +247,7 @@ const sessionFields = (programs: Program[], trainers: StaffMember[] = [], includ
   ...(includeTrainer ? [{ name: 'trainerStaffId', label: 'Assigned trainer', kind: 'select' as const, options: trainers.map(person => ({ value: String(person.id), label: person.email })) }] : []),
   { name: 'location', label: 'Location', wide: true, placeholder: 'Venue, room or meeting space' },
   { name: 'zoomUrl', label: 'Zoom meeting link', kind: 'url', wide: true, placeholder: 'https://…' },
-  { name: 'recordingUrl', label: 'Recording link', kind: 'url', wide: true, placeholder: 'https://…' },
+  { name: 'recordingUrl', label: 'Google Drive recording link', kind: 'url', wide: true, placeholder: 'https://drive.google.com/file/d/…/view', hint: 'After uploading the video to Drive, paste its share link here. Make sure the intended cohort can view the file; Drive permission settings control playback.' },
 ];
 const supportFields = (businesses: Business[], mentors: StaffMember[] = [], includeMentor = false): Field[] => [
   { name: 'businessId', label: 'Business', kind: 'select', required: true, options: businesses.map(b => ({ value: String(b.id), label: `${b.businessName} — ${b.founderName}` })) },
@@ -351,7 +353,6 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   const connectZoom = useStartZoomConnection();
   const disconnectZoom = useDisconnectZoom();
   const createZoomMeeting = useCreateOrUpdateZoomMeeting();
-  const syncZoomRecording = useSyncZoomRecording();
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
   const create = useCreateSession();
@@ -422,16 +423,6 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
       onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, `Could not create a Zoom meeting for “${session.title}”.`) }),
     });
   };
-  const updateRecording = (session: Session) => {
-    setZoomActionMessage(null);
-    syncZoomRecording.mutate({ id: session.id }, {
-      onSuccess: updated => {
-        setZoomActionMessage({ tone: 'good', text: `Recording link saved for “${updated.title}”. It is now available with the session.` });
-        refreshZoomViews();
-      },
-      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, `Could not sync the recording for “${session.title}”.`) }),
-    });
-  };
   const zoomNotice = zoomCallbackResult === 'connected'
     ? 'Zoom authorization is complete.'
     : zoomCallbackResult === 'cancelled'
@@ -447,16 +438,15 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
       <Video size={18} />
       <div className="zoom-connect-copy">
         <b>{zoomStatus.isLoading ? 'Checking Zoom setup…' : zoomStatus.data?.connected ? 'Zoom account connected' : 'Connect Zoom for online sessions'}</b>
-        <span>Coordinators can create and update Zoom meetings here. Trainers and participants will see the join link and any synced recording in their session views.</span>
+        <span>Coordinators can create and update Zoom meetings here. After staff upload a recording to Google Drive, add its share link to the session; trainers and participants will see an embedded player.</span>
         {zoomCallbackResult && zoomNotice && <span className={zoomCallbackResult === 'error' ? 'zoom-status-error' : 'zoom-status-success'}>{zoomNotice}</span>}
         {zoomActionMessage && <span className={zoomActionMessage.tone === 'bad' ? 'zoom-status-error' : 'zoom-status-success'} role={zoomActionMessage.tone === 'bad' ? 'alert' : 'status'}>{zoomActionMessage.text}</span>}
         {zoomStatus.isError && <span className="zoom-status-error">Zoom connection status could not be loaded.</span>}
         {!zoomStatus.data?.clientConfigured && <span>Before connecting, add the Zoom OAuth Client ID and Client Secret to Replit Secrets as <code>ZOOM_CLIENT_ID</code> and <code>ZOOM_CLIENT_SECRET</code>.</span>}
         {zoomStatus.data?.callbackUrl && <span>Register this exact OAuth redirect URL in the Zoom app: <code className="zoom-callback-url">{zoomStatus.data.callbackUrl}</code></span>}
-        {zoomStatus.data?.callbackUrl && <span>For automatic recordings, register <code className="zoom-callback-url">{new URL('/api/zoom/webhook', zoomStatus.data.callbackUrl).toString()}</code> as a Zoom event notification endpoint, subscribe to <code>recording.completed</code>, and save the app’s Secret Token in Replit Secrets as <code>ZOOM_WEBHOOK_SECRET_TOKEN</code>.</span>}
         <span>Enable these Zoom OAuth scopes: <code>meeting:write:meeting</code> and <code>cloud_recording:read:list_recording_files</code>. New meetings are 60 minutes and use the connected Zoom account’s time zone.</span>
         {zoomStatus.data?.connected && <span>Connected by {zoomStatus.data.connectedBy || 'a coordinator'}{zoomStatus.data.connectedAt ? ` on ${dateLabel(zoomStatus.data.connectedAt)}` : ''}.</span>}
-        {confirmDisconnect && <span className="zoom-disconnect-confirm">Disconnect Zoom? Existing session links and recordings remain, but meeting and recording sync will stop until it is reconnected.</span>}
+        {confirmDisconnect && <span className="zoom-disconnect-confirm">Disconnect Zoom? Existing meeting links and session recordings remain available. Creating or updating Zoom meetings stops until it is reconnected.</span>}
       </div>
       <div className="zoom-connect-actions">
         {zoomStatus.isError ? <button className="button button-quiet" onClick={() => void zoomStatus.refetch()} data-testid="button-retry-zoom-status">Retry</button> : <>
@@ -473,17 +463,16 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : sessions.length === 0 ? <EmptyState title="No sessions scheduled." body="Add the next bootcamp, hackathon, online training or pitch event to get the cohort together." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Schedule a session</button>} /> :
     <div className="session-list">{displayedSessions.length === 0 ? <EmptyState title="No sessions on this date." body="Choose another day or clear the calendar selection to see the full schedule." action={<button className="button button-outline" onClick={() => setCalendarDate(null)}>Show all sessions</button>} /> : displayedSessions.map((session, i) => {
       const meetingPending = createZoomMeeting.isPending && createZoomMeeting.variables?.id === session.id;
-      const recordingPending = syncZoomRecording.isPending && syncZoomRecording.variables?.id === session.id;
       return <article className="session-card" key={session.id} data-testid={`card-session-${session.id}`}>
         <div className="session-date"><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><small>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { weekday: 'short' })}</small></div>
         <div className="session-card-main">
           <div className="session-label-row"><Badge value={session.type} /><Badge value={session.status} /><span className={`delivery-pill delivery-${session.deliveryMode}`}>{display(session.deliveryMode)}</span></div>
           <h2 className="app-title">{session.title}</h2>
           <p>{programs.find(p => p.id === session.programId)?.name || (session.programId ? `Program ${session.programId}` : 'All cohorts')}<span>·</span>{session.startTime || 'Time not set'}<span>·</span>{session.durationMinutes} min<span>·</span>{session.facilitator || 'Facilitator TBD'}</p>
-          <div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || 'Location not set'}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> Join Zoom <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? 'In-person session' : 'No meeting link'}</span>}{session.recordingUrl && <a href={session.recordingUrl} target="_blank" rel="noreferrer" className="text-link"><ExternalLink size={13} /> Recording</a>}</div>
+           <div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || 'Location not set'}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> Join Zoom <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? 'In-person session' : 'No meeting link'}</span>}</div>
+           <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />
           {coordinator && session.deliveryMode !== 'in_person' && <div className="session-admin-actions">
             <button className="button button-quiet" onClick={() => manageMeeting(session)} disabled={!zoomStatus.data?.connected || createZoomMeeting.isPending} data-testid={`button-zoom-meeting-${session.id}`}><Video size={14} />{meetingPending ? 'Saving…' : session.zoomMeetingId ? 'Update Zoom meeting' : 'Create Zoom meeting'}</button>
-            {session.zoomMeetingId && <button className="button button-quiet" onClick={() => updateRecording(session)} disabled={!zoomStatus.data?.connected || syncZoomRecording.isPending} data-testid={`button-sync-zoom-recording-${session.id}`}><RefreshCw size={14} />{recordingPending ? 'Syncing…' : 'Sync recording'}</button>}
           </div>}
         </div>
         <div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div>
@@ -492,7 +481,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
     })}</div>}
     {editing !== undefined && <FormDialog
       title={editing ? 'Edit session' : 'Schedule a session'}
-      description="Use the Zoom controls on a session to create or update its meeting and sync a cloud recording. You can also paste a link manually."
+       description="Create or update the Zoom meeting here. After staff upload the recording to Drive, paste its share link below to make it available as an in-page player."
       fields={sessionFields(programs, trainers, coordinator)}
       initial={editing ? {
         title: editing.title,
