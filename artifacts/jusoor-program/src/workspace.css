@@ -341,6 +341,14 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 .zoom-status-error { color: hsl(var(--destructive)) !important; }
 .zoom-status-success { color: hsl(var(--primary)) !important; }
 .zoom-disconnect-confirm { padding-top: 3px; font-weight: 600; }
+.recording-ready-panel { align-items: flex-start; }
+.recording-ready-copy { flex: 1 1 420px; min-width: 0; }
+.recording-ready-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 10px; padding: 10px 12px; border: 1px solid hsl(var(--primary) / .12); border-radius: 7px; background: hsl(var(--background) / .58); }
+.recording-ready-session,.recording-ready-email { min-width: 0; }
+.recording-ready-session b { font-size: 10px; }
+.recording-ready-session span,.recording-ready-email span { overflow-wrap: anywhere; }
+.recording-ready-email { display: flex; align-items: flex-end; flex-direction: column; gap: 4px; text-align: right; }
+.recording-ready-email .button { min-height: 26px; padding: 0 9px; font-size: 9px; }
 .team-error { margin-bottom: 14px; }
 .staff-panel { padding: 19px 21px 5px; }
 .staff-panel .panel-heading { margin-bottom: 12px; }

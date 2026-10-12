@@ -15,4 +15,6 @@ export interface ZoomStatus {
   connectedBy: string | null;
   /** @nullable */
   callbackUrl: string | null;
+  /** @nullable */
+  webhookUrl: string | null;
 }

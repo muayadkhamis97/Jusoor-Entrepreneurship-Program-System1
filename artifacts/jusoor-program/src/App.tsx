@@ -13,6 +13,7 @@ import { shadcn } from '@clerk/themes';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
+  getListZoomRecordingAlertsQueryKey,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
@@ -20,7 +21,7 @@ import {
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
-  useSyncZoomRecording,
+  useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
@@ -352,10 +353,11 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   const displayedSessions = calendarDate ? sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate) : sessions;
   const client = useQueryClient();
   const zoomStatus = useGetZoomStatus({ query: { queryKey: getGetZoomStatusQueryKey(), enabled: coordinator } });
+  const recordingAlertsQuery = useListZoomRecordingAlerts({ query: { queryKey: getListZoomRecordingAlertsQueryKey(), enabled: coordinator, refetchInterval: coordinator ? 30_000 : false, refetchOnWindowFocus: true } });
   const connectZoom = useStartZoomConnection();
   const disconnectZoom = useDisconnectZoom();
   const createZoomMeeting = useCreateOrUpdateZoomMeeting();
-  const syncZoomRecording = useSyncZoomRecording();
+  const retryRecordingEmailMutation = useRetryZoomRecordingAlertEmail();
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
   const create = useCreateSession();
@@ -373,7 +375,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   }, [coordinator, zoomCallbackResult]);
 
   const refreshZoomViews = () => {
-    invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey(), getGetZoomStatusQueryKey()]);
+    invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey(), getGetZoomStatusQueryKey(), getListZoomRecordingAlertsQueryKey()]);
   };
   const save = (v: Values) => {
     const data: SessionInput = {
@@ -392,7 +394,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
       status: (v.status || 'scheduled') as SessionInput['status'],
     };
     const done = () => {
-      invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]);
+      invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey(), getListZoomRecordingAlertsQueryKey()]);
       setEditing(undefined);
     };
     if (editing) update.mutate({ id: editing.id, data: data as SessionUpdate }, { onSuccess: done });
@@ -431,17 +433,9 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
       onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, `Could not create a Zoom meeting for “${session.title}”.`) }),
     });
   };
-  const syncRecording = (session: Session) => {
-    setZoomActionMessage(null);
-    syncZoomRecording.mutate({ id: session.id }, {
-      onSuccess: () => {
-        trackEvent('zoom_recording_sync_success');
-        setZoomActionMessage({ tone: 'good', text: 'Zoom recording synced to this session.' });
-        refreshZoomViews();
-      },
-      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not sync the Zoom recording.') }),
-    });
-  };
+  const retryRecordingAlertEmail = (id: number) => retryRecordingEmailMutation.mutate({ id }, {
+    onSuccess: () => void recordingAlertsQuery.refetch(),
+  });
   const zoomNotice = zoomCallbackResult === 'connected'
     ? 'Zoom authorization is complete.'
     : zoomCallbackResult === 'cancelled'
@@ -463,7 +457,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
         {zoomStatus.isError && <span className="zoom-status-error">Zoom connection status could not be loaded.</span>}
         {!zoomStatus.data?.clientConfigured && <span>Before connecting, add the Zoom OAuth Client ID and Client Secret to Replit Secrets as <code>ZOOM_CLIENT_ID</code> and <code>ZOOM_CLIENT_SECRET</code>.</span>}
         {zoomStatus.data?.callbackUrl && <span>Register this exact OAuth redirect URL in the Zoom app: <code className="zoom-callback-url">{zoomStatus.data.callbackUrl}</code></span>}
-        <span>Enable the Zoom OAuth scope <code>meeting:write:meeting</code>. Session recordings are added separately by staff as Google Drive links; Zoom recording sync is disabled. New meetings are 60 minutes and use the connected Zoom account’s time zone.</span>
+        <span>Enable the Zoom OAuth scope <code>meeting:write:meeting</code>. For recording-ready alerts, subscribe to <code>recording.completed</code> at this webhook URL: <code className="zoom-callback-url">{zoomStatus.data?.webhookUrl || 'Unavailable until this app has a registered URL'}</code>. Add recordings separately as Google Drive links; Zoom recording sync is disabled.</span>
         {zoomStatus.data?.connected && <span>Connected by {zoomStatus.data.connectedBy || 'a coordinator'}{zoomStatus.data.connectedAt ? ` on ${dateLabel(zoomStatus.data.connectedAt)}` : ''}.</span>}
         {confirmDisconnect && <span className="zoom-disconnect-confirm">Disconnect Zoom? Existing meeting links and session recordings remain available. Creating or updating Zoom meetings stops until it is reconnected.</span>}
       </div>
@@ -473,6 +467,30 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
           {confirmDisconnect && <button className="button button-outline" onClick={disconnectZoomAccount} disabled={disconnectZoom.isPending} data-testid="button-confirm-disconnect-zoom">{disconnectZoom.isPending ? 'Disconnecting…' : 'Confirm disconnect'}</button>}
           <button className="button button-primary" onClick={startZoomConnect} disabled={!zoomStatus.data?.clientConfigured || connectZoom.isPending} data-testid="button-connect-zoom">{connectZoom.isPending ? 'Opening Zoom…' : zoomStatus.data?.connected ? 'Reconnect Zoom' : 'Connect Zoom'}</button>
         </>}
+      </div>
+    </section>}
+    {coordinator && <section className="team-callout recording-ready-panel" data-testid="recording-ready-alerts" aria-live="polite">
+      <CircleAlert size={18} />
+      <div className="recording-ready-copy">
+        <b>Zoom recordings ready for Drive upload</b>
+        {recordingAlertsQuery.isLoading && <span>Checking for recordings waiting on staff…</span>}
+        {recordingAlertsQuery.isError && <span className="zoom-status-error">Recording alerts could not be loaded.</span>}
+        {!recordingAlertsQuery.isError && !recordingAlertsQuery.isLoading && (recordingAlertsQuery.data || []).length === 0 && <span>No recordings are waiting for a Google Drive upload.</span>}
+        {(recordingAlertsQuery.data || []).map(alert => <div className="recording-ready-row" key={alert.id} data-testid={`recording-alert-${alert.id}`}>
+          <div className="recording-ready-session">
+            <b>{alert.title}</b>
+            <span>{dateLabel(alert.scheduledDate)} · Ready to upload to Drive</span>
+          </div>
+          <div className="recording-ready-email">
+            <span className={alert.emailStatus === 'sent' ? 'zoom-status-success' : alert.emailStatus === 'failed' ? 'zoom-status-error' : ''}>
+              {alert.emailStatus === 'sent' ? 'Email sent' : alert.emailStatus === 'failed' ? 'Email needs attention' : alert.emailStatus === 'sending' ? 'Email sending…' : 'Email pending'}
+            </span>
+            {alert.emailError && <span className="zoom-status-error" role="alert">{alert.emailError}</span>}
+            {alert.canRetryEmail && <button className="button button-quiet" onClick={() => retryRecordingAlertEmail(alert.id)} disabled={retryRecordingEmailMutation.isPending} data-testid={`button-retry-recording-email-${alert.id}`}>{retryRecordingEmailMutation.isPending ? 'Retrying…' : 'Retry email'}</button>}
+          </div>
+        </div>)}
+        {recordingAlertsQuery.isError && <button className="button button-quiet" onClick={() => void recordingAlertsQuery.refetch()}>Retry loading alerts</button>}
+        <span>When staff add the session’s Google Drive link, this alert clears and participants get the recording through the embedded player.</span>
       </div>
     </section>}
     <div className="calendar-summary"><div className="calendar-icon"><CalendarDays size={20} /></div><div><b>Make each moment count.</b><span>Keep joining details and recordings close to the agenda.</span></div><span className="calendar-endnote"><Video size={15} /> LIVE + ON-DEMAND</span></div>
@@ -492,7 +510,6 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
            <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />
           {coordinator && session.deliveryMode !== 'in_person' && <div className="session-admin-actions">
             <button className="button button-quiet" onClick={() => manageMeeting(session)} disabled={!zoomStatus.data?.connected || createZoomMeeting.isPending} data-testid={`button-zoom-meeting-${session.id}`}><Video size={14} />{meetingPending ? 'Saving…' : session.zoomMeetingId ? 'Update Zoom meeting' : 'Create Zoom meeting'}</button>
-            {session.zoomMeetingId && <button className="button button-quiet" onClick={() => syncRecording(session)} disabled={!zoomStatus.data?.connected || syncZoomRecording.isPending} data-testid={`button-sync-zoom-recording-${session.id}`}><RefreshCw size={14} />{syncZoomRecording.isPending ? 'Syncing…' : 'Sync Zoom recording'}</button>}
           </div>}
         </div>
         <div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div>

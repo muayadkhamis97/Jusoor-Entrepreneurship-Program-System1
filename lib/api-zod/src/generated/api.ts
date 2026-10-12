@@ -1226,7 +1226,8 @@ export const GetZoomStatusResponse = zod.object({
   "connected": zod.boolean(),
   "connectedAt": zod.coerce.date().nullable(),
   "connectedBy": zod.string().nullable(),
-  "callbackUrl": zod.string().url().nullable()
+  "callbackUrl": zod.string().url().nullable(),
+  "webhookUrl": zod.string().url().nullable()
 })
 
 
@@ -1294,6 +1295,49 @@ export const CreateOrUpdateZoomMeetingResponse = zod.object({
   "recordingUrl": zod.string().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List Zoom recordings waiting for staff to upload them to Drive
+ */
+export const listZoomRecordingAlertsResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListZoomRecordingAlertsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(listZoomRecordingAlertsResponseScheduledDateRegExp),
+  "readyAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
+  "emailAttempts": zod.number().int(),
+  "emailError": zod.string().nullable(),
+  "canRetryEmail": zod.boolean()
+})
+export const ListZoomRecordingAlertsResponse = zod.array(ListZoomRecordingAlertsResponseItem)
+
+
+/**
+ * @summary Retry the email for a Zoom recording-ready alert
+ */
+export const RetryZoomRecordingAlertEmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const retryZoomRecordingAlertEmailResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const RetryZoomRecordingAlertEmailResponse = zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(retryZoomRecordingAlertEmailResponseScheduledDateRegExp),
+  "readyAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
+  "emailAttempts": zod.number().int(),
+  "emailError": zod.string().nullable(),
+  "canRetryEmail": zod.boolean()
 })
 
 

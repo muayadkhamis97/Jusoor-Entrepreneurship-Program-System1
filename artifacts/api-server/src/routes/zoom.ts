@@ -5,8 +5,11 @@ import {
   randomBytes,
 } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import {
+  ListZoomRecordingAlertsResponse,
+  RetryZoomRecordingAlertEmailParams,
+  RetryZoomRecordingAlertEmailResponse,
   CreateOrUpdateZoomMeetingParams,
   CreateOrUpdateZoomMeetingResponse,
   DisconnectZoomBody,
@@ -18,6 +21,7 @@ import {
   db,
   sessionsTable,
   staffMembersTable,
+  zoomRecordingAlertsTable,
   zoomConnectionsTable,
 } from "@workspace/db";
 import { requireStaff } from "../middlewares/staffAccess";
@@ -33,6 +37,12 @@ import {
   verifyZoomWebhookSignature,
   ZoomIntegrationError,
 } from "../lib/zoom";
+import {
+  canRetryZoomRecordingAlertEmail,
+  isGoogleDriveRecordingUrl,
+  parseZoomRecordingReadyEvent,
+  retryZoomRecordingAlertEmail,
+} from "../lib/zoom-recording-alerts";
 
 const router: IRouter = Router();
 const cookieName = "jusoor_zoom_oauth";
@@ -230,9 +240,163 @@ router.post("/webhook", async (req, res): Promise<void> => {
     return;
   }
 
-  // Acknowledge Zoom events, but keep session recordings staff-managed through Drive.
+  if (envelope.event === "recording.completed") {
+    const recordingEvent = parseZoomRecordingReadyEvent(envelope);
+    if (!recordingEvent) {
+      res.status(400).json({ error: "Invalid Zoom recording event." });
+      return;
+    }
+
+    const [session] = await db
+      .select({
+        id: sessionsTable.id,
+        recordingUrl: sessionsTable.recordingUrl,
+      })
+      .from(sessionsTable)
+      .where(eq(sessionsTable.zoomMeetingId, recordingEvent.meetingId))
+      .limit(1);
+
+    if (session) {
+      const alreadyOnDrive = isGoogleDriveRecordingUrl(session.recordingUrl);
+      const [inserted] = await db
+        .insert(zoomRecordingAlertsTable)
+        .values({
+          sessionId: session.id,
+          eventKey: recordingEvent.eventKey,
+          ...(alreadyOnDrive ? { resolvedAt: new Date() } : {}),
+        })
+        .onConflictDoNothing({
+          target: zoomRecordingAlertsTable.eventKey,
+        })
+        .returning({ id: zoomRecordingAlertsTable.id });
+
+      const [alert] = await db
+        .select({
+          id: zoomRecordingAlertsTable.id,
+          resolvedAt: zoomRecordingAlertsTable.resolvedAt,
+        })
+        .from(zoomRecordingAlertsTable)
+        .where(eq(zoomRecordingAlertsTable.eventKey, recordingEvent.eventKey))
+        .limit(1);
+
+      if (alert && !alert.resolvedAt) {
+        await retryZoomRecordingAlertEmail(alert.id);
+      }
+      if (!inserted && !alert) {
+        req.log.warn(
+          { sessionId: session.id },
+          "Zoom recording event could not be loaded after insertion",
+        );
+        res.status(500).json({ error: "Could not save recording readiness." });
+        return;
+      }
+    }
+  }
+
+  // The event is only a readiness signal; playback stays staff-managed through Drive.
   res.sendStatus(200);
 });
+
+router.get(
+  "/recording-alerts",
+  requireStaff,
+  requireRole("coordinator"),
+  async (_req, res): Promise<void> => {
+    const rows = await db
+      .select({
+        id: zoomRecordingAlertsTable.id,
+        sessionId: sessionsTable.id,
+        title: sessionsTable.title,
+        scheduledDate: sessionsTable.scheduledDate,
+        readyAt: zoomRecordingAlertsTable.readyAt,
+        emailStatus: zoomRecordingAlertsTable.emailStatus,
+        emailAttempts: zoomRecordingAlertsTable.emailAttempts,
+        emailLastAttemptAt: zoomRecordingAlertsTable.emailLastAttemptAt,
+        emailError: zoomRecordingAlertsTable.emailError,
+      })
+      .from(zoomRecordingAlertsTable)
+      .innerJoin(
+        sessionsTable,
+        eq(zoomRecordingAlertsTable.sessionId, sessionsTable.id),
+      )
+      .where(isNull(zoomRecordingAlertsTable.resolvedAt))
+      .orderBy(asc(zoomRecordingAlertsTable.readyAt));
+
+    const now = new Date();
+    res.json(
+      ListZoomRecordingAlertsResponse.parse(
+        rows.map((row) => ({
+          ...row,
+          canRetryEmail: canRetryZoomRecordingAlertEmail(
+            row.emailStatus,
+            row.emailLastAttemptAt,
+            now,
+          ),
+        })),
+      ),
+    );
+  },
+);
+
+router.post(
+  "/recording-alerts/:id/retry-email",
+  requireStaff,
+  requireRole("coordinator"),
+  async (req, res): Promise<void> => {
+    const params = RetryZoomRecordingAlertEmailParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const status = await retryZoomRecordingAlertEmail(params.data.id);
+    if (!status) {
+      res.status(404).json({ error: "Recording alert not found." });
+      return;
+    }
+    const [row] = await db
+      .select({
+        id: zoomRecordingAlertsTable.id,
+        sessionId: sessionsTable.id,
+        title: sessionsTable.title,
+        scheduledDate: sessionsTable.scheduledDate,
+        readyAt: zoomRecordingAlertsTable.readyAt,
+        emailStatus: zoomRecordingAlertsTable.emailStatus,
+        emailAttempts: zoomRecordingAlertsTable.emailAttempts,
+        emailLastAttemptAt: zoomRecordingAlertsTable.emailLastAttemptAt,
+        emailError: zoomRecordingAlertsTable.emailError,
+        resolvedAt: zoomRecordingAlertsTable.resolvedAt,
+      })
+      .from(zoomRecordingAlertsTable)
+      .innerJoin(
+        sessionsTable,
+        eq(zoomRecordingAlertsTable.sessionId, sessionsTable.id),
+      )
+      .where(eq(zoomRecordingAlertsTable.id, params.data.id))
+      .limit(1);
+
+    if (!row || row.resolvedAt) {
+      res.status(404).json({ error: "Recording alert not found." });
+      return;
+    }
+    res.json(
+      RetryZoomRecordingAlertEmailResponse.parse({
+        id: row.id,
+        sessionId: row.sessionId,
+        title: row.title,
+        scheduledDate: row.scheduledDate,
+        readyAt: row.readyAt,
+        emailStatus: row.emailStatus,
+        emailAttempts: row.emailAttempts,
+        emailError: row.emailError,
+        canRetryEmail: canRetryZoomRecordingAlertEmail(
+          row.emailStatus,
+          row.emailLastAttemptAt,
+        ),
+      }),
+    );
+  },
+);
 
 router.get(
   "/status",
@@ -257,6 +421,7 @@ router.get(
         connectedAt: connection?.connectedAt ?? null,
         connectedBy,
         callbackUrl: origin ? `${origin}${callbackPath}` : null,
+        webhookUrl: origin ? `${origin}/api/zoom/webhook` : null,
       }),
     );
   },

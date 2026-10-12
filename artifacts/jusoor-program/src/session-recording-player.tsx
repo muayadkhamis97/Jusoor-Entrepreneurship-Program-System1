@@ -1,4 +1,4 @@
-import { ExternalLink, Video } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 function safeHttpUrl(value: string): URL | null {
   try {
@@ -23,12 +23,7 @@ export function SessionRecordingPlayer({ url, title }: { url: string | null | un
   if (!url) return null;
 
   const previewUrl = getGoogleDrivePreviewUrl(url);
-  if (!previewUrl) {
-    const safeUrl = safeHttpUrl(url);
-    return safeUrl ? <a className="session-recording-link" href={safeUrl.toString()} target="_blank" rel="noreferrer">
-      <Video size={14} /> Open session recording <ExternalLink size={12} />
-    </a> : null;
-  }
+  if (!previewUrl) return null;
 
   return <div className="session-recording-player" data-testid="session-recording-player">
     <iframe

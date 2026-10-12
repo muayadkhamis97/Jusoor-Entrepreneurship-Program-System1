@@ -30,3 +30,4 @@ export * from "./courses";
 export * from "./zoom-connections";
 export * from "./announcements";
 export * from "./calendly-meetings";
+export * from "./zoom-recording-alerts";

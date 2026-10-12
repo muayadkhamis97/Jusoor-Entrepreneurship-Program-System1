@@ -954,7 +954,35 @@ export interface ZoomStatus {
   connectedBy: string | null;
   /** @nullable */
   callbackUrl: string | null;
+  /** @nullable */
+  webhookUrl: string | null;
 }
+
+export type ZoomRecordingEmailStatus = typeof ZoomRecordingEmailStatus[keyof typeof ZoomRecordingEmailStatus];
+
+
+export const ZoomRecordingEmailStatus = {
+  pending: 'pending',
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface ZoomRecordingAlert {
+  id: number;
+  sessionId: number;
+  title: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  scheduledDate: string;
+  readyAt: string;
+  emailStatus: ZoomRecordingEmailStatus;
+  emailAttempts: number;
+  /** @nullable */
+  emailError: string | null;
+  canRetryEmail: boolean;
+}
+
+export type ZoomRecordingAlertList = ZoomRecordingAlert[];
 
 export type PitchEventType = typeof PitchEventType[keyof typeof PitchEventType];
 

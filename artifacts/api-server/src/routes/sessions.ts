@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import {
   CreateSessionBody,
   CreateSessionResponse,
@@ -10,7 +10,13 @@ import {
   UpdateSessionParams,
   UpdateSessionResponse,
 } from "@workspace/api-zod";
-import { db, sessionsTable, staffMembersTable } from "@workspace/db";
+import {
+  db,
+  sessionsTable,
+  staffMembersTable,
+  zoomRecordingAlertsTable,
+} from "@workspace/db";
+import { isGoogleDriveRecordingUrl } from "../lib/zoom-recording-alerts";
 
 const router: IRouter = Router();
 
@@ -67,6 +73,17 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
   if (!session) {
     res.status(404).json({ error: "Session not found" });
     return;
+  }
+  if (isGoogleDriveRecordingUrl(body.data.recordingUrl)) {
+    await db
+      .update(zoomRecordingAlertsTable)
+      .set({ resolvedAt: new Date() })
+      .where(
+        and(
+          eq(zoomRecordingAlertsTable.sessionId, session.id),
+          isNull(zoomRecordingAlertsTable.resolvedAt),
+        ),
+      );
   }
   res.json(UpdateSessionResponse.parse(session));
 });

@@ -7,8 +7,26 @@ import express from "express";
 const secretToken = "test-zoom-webhook-secret";
 const nativeFetch = globalThis.fetch;
 let server: Server;
+let db: typeof import("@workspace/db").db;
+let sessionsTable: typeof import("@workspace/db").sessionsTable;
 let verifyZoomWebhookSignature: typeof import("../src/lib/zoom").verifyZoomWebhookSignature;
 let createZoomWebhookValidationResponse: typeof import("../src/lib/zoom").createZoomWebhookValidationResponse;
+
+function replaceDbMethod(
+  name: "select",
+  replacement: (...args: never[]) => unknown,
+): () => void {
+  const original = Object.getOwnPropertyDescriptor(db, name);
+  Object.defineProperty(db, name, {
+    configurable: true,
+    writable: true,
+    value: replacement,
+  });
+  return () => {
+    if (original) Object.defineProperty(db, name, original);
+    else Reflect.deleteProperty(db, name);
+  };
+}
 
 before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
@@ -18,6 +36,9 @@ before(async () => {
   process.env.ZOOM_WEBHOOK_SECRET_TOKEN = secretToken;
   process.env.NODE_ENV = "test";
 
+  const database = await import("@workspace/db");
+  db = database.db;
+  sessionsTable = database.sessionsTable;
   const zoom = await import("../src/lib/zoom");
   verifyZoomWebhookSignature = zoom.verifyZoomWebhookSignature;
   createZoomWebhookValidationResponse = zoom.createZoomWebhookValidationResponse;
@@ -119,7 +140,24 @@ test("acknowledges valid Zoom events that do not require recording sync", async 
   assert.equal(response.status, 200);
 });
 
-test("acknowledges Zoom recording events without syncing them into sessions", async () => {
+test("acknowledges signed recording-ready events without calling Zoom recording APIs", async () => {
+  const restoreSelect = replaceDbMethod("select", (() => {
+    let selectedTable: unknown;
+    const query = {
+      from(table: unknown) {
+        selectedTable = table;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async limit() {
+        assert.equal(selectedTable, sessionsTable);
+        return [];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
   let zoomApiCalls = 0;
   globalThis.fetch = (async () => {
     zoomApiCalls += 1;
@@ -129,7 +167,16 @@ test("acknowledges Zoom recording events without syncing them into sessions", as
   try {
     const body = JSON.stringify({
       event: "recording.completed",
-      payload: { object: { id: 123456789 } },
+      event_ts: 1_797_000_000_000,
+      payload: {
+        object: {
+          id: 123456789,
+          uuid: "meeting-uuid",
+          recording_files: [
+            { download_url: "https://zoom.example/private-recording" },
+          ],
+        },
+      },
     });
     const firstResponse = await postWebhook(body);
     const replayResponse = await postWebhook(body);
@@ -139,6 +186,7 @@ test("acknowledges Zoom recording events without syncing them into sessions", as
     assert.equal(zoomApiCalls, 0);
   } finally {
     globalThis.fetch = nativeFetch;
+    restoreSelect();
   }
 });
 

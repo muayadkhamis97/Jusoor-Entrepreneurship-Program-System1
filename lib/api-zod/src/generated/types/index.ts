@@ -129,4 +129,7 @@ export * from './trainingSubmission';
 export * from './trainingSubmissionStatus';
 export * from './zoomAuthorization';
 export * from './zoomConnectionInput';
+export * from './zoomRecordingAlert';
+export * from './zoomRecordingAlertList';
+export * from './zoomRecordingEmailStatus';
 export * from './zoomStatus';

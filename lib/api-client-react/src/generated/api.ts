@@ -94,6 +94,8 @@ import type {
   TrainingQuestionReply,
   TrainingSubmission,
   ZoomConnectionInput,
+  ZoomRecordingAlert,
+  ZoomRecordingAlertList,
   ZoomStatus
 } from './api.schemas';
 
@@ -3927,6 +3929,157 @@ export const useCreateOrUpdateZoomMeeting = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateOrUpdateZoomMeetingMutationOptions(options));
+    }
+
+export const getListZoomRecordingAlertsUrl = () => {
+
+
+
+
+  return `/api/zoom/recording-alerts`
+}
+
+/**
+ * @summary List Zoom recordings waiting for staff to upload them to Drive
+ */
+export const listZoomRecordingAlerts = async ( options?: Parameters<typeof customFetch>[1]): Promise<ZoomRecordingAlertList> => {
+
+  return customFetch<ZoomRecordingAlertList>(getListZoomRecordingAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListZoomRecordingAlertsQueryKey = () => {
+    return [
+    `/api/zoom/recording-alerts`
+    ] as const;
+    }
+
+
+export const getListZoomRecordingAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listZoomRecordingAlerts>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listZoomRecordingAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListZoomRecordingAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listZoomRecordingAlerts>>> = ({ signal }) => listZoomRecordingAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listZoomRecordingAlerts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListZoomRecordingAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listZoomRecordingAlerts>>>
+export type ListZoomRecordingAlertsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List Zoom recordings waiting for staff to upload them to Drive
+ */
+
+export function useListZoomRecordingAlerts<TData = Awaited<ReturnType<typeof listZoomRecordingAlerts>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listZoomRecordingAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListZoomRecordingAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRetryZoomRecordingAlertEmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/zoom/recording-alerts/${id}/retry-email`
+}
+
+/**
+ * @summary Retry the email for a Zoom recording-ready alert
+ */
+export const retryZoomRecordingAlertEmail = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ZoomRecordingAlert> => {
+
+  return customFetch<ZoomRecordingAlert>(getRetryZoomRecordingAlertEmailUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryZoomRecordingAlertEmailMutationKey = () => ['retryZoomRecordingAlertEmail'] as const;
+
+export const getRetryZoomRecordingAlertEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryZoomRecordingAlertEmail>>, TError,RetryZoomRecordingAlertEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryZoomRecordingAlertEmail>>, TError,RetryZoomRecordingAlertEmailMutationVariables, TContext> => {
+
+const mutationKey = getRetryZoomRecordingAlertEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryZoomRecordingAlertEmail>>, RetryZoomRecordingAlertEmailMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryZoomRecordingAlertEmail(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryZoomRecordingAlertEmailMutationResult = NonNullable<Awaited<ReturnType<typeof retryZoomRecordingAlertEmail>>>
+
+    export type RetryZoomRecordingAlertEmailMutationError = ErrorType<void>
+    export type RetryZoomRecordingAlertEmailMutationVariables = {id: number}
+
+    /**
+ * @summary Retry the email for a Zoom recording-ready alert
+ */
+export const useRetryZoomRecordingAlertEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryZoomRecordingAlertEmail>>, TError,RetryZoomRecordingAlertEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryZoomRecordingAlertEmail>>,
+        TError,
+        RetryZoomRecordingAlertEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryZoomRecordingAlertEmailMutationOptions(options));
     }
 
 export const getGetJudgeDashboardUrl = () => {
