@@ -66,6 +66,9 @@ const stageNames: Record<string, string> = {
 };
 const businessStages: BusinessStage[] = ['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'];
 const dateLabel = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+type MentorFollowUpStatus = 'overdue' | 'upcoming' | 'undated';
+const localCalendarDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const mentorFollowUpStatus = (date: string | null, today: string): MentorFollowUpStatus => !date ? 'undated' : date < today ? 'overdue' : 'upcoming';
 const money = (value?: number | null) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 const display = (v?: string | null) => v ? v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
 const statusTone = (status: string) => {
@@ -616,6 +619,7 @@ function PitchJudgeControl({ pitchId, pitchLabel, judges, client }: { pitchId: n
 
 function MentorBookingStatusPage() {
   const [followUpFilter, setFollowUpFilter] = useState('all');
+  const today = localCalendarDateKey();
   const query = useGetMentorBookingStatus({
     query: { queryKey: getGetMentorBookingStatusQueryKey(), refetchOnWindowFocus: true },
   });
@@ -623,8 +627,7 @@ function MentorBookingStatusPage() {
   const visibleMentors = mentors.filter(mentor => {
     if (followUpFilter === 'all') return true;
     if (mentor.calendlyConnected) return false;
-    const hasFollowUp = Boolean(mentor.calendlyFollowUpDate || mentor.calendlyFollowUpNote);
-    return followUpFilter === 'recorded' ? hasFollowUp : !hasFollowUp;
+    return mentorFollowUpStatus(mentor.calendlyFollowUpDate, today) === followUpFilter;
   });
   const calendlyConnectedCount = mentors.filter(mentor => mentor.calendlyConnected).length;
   const pendingCount = mentors.length - calendlyConnectedCount;
@@ -652,7 +655,7 @@ function MentorBookingStatusPage() {
             <span className="section-meta">{pendingCount} still need Calendly</span>
           </div>
           <div className="mentor-booking-toolbar">
-            <label className="filter-select"><Filter size={15} /><select aria-label="Filter mentors by follow-up status" value={followUpFilter} onChange={event => setFollowUpFilter(event.target.value)} data-testid="select-mentor-follow-up-filter"><option value="all">All mentors</option><option value="recorded">Follow-up recorded</option><option value="not_recorded">Needs follow-up</option></select><ChevronDown size={13} /></label>
+            <label className="filter-select"><Filter size={15} /><select aria-label="Filter mentors by follow-up status" value={followUpFilter} onChange={event => setFollowUpFilter(event.target.value)} data-testid="select-mentor-follow-up-filter"><option value="all">All mentors</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option><option value="undated">Undated</option></select><ChevronDown size={13} /></label>
             <span className="toolbar-count"><b>{visibleMentors.length}</b> mentors</span>
           </div>
           <div className="table-wrap"><table>
@@ -663,7 +666,7 @@ function MentorBookingStatusPage() {
               <td><b>{mentor.bookingProvider === 'google_calendar' ? 'Google Calendar' : 'Calendly'}</b></td>
               <td><span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}><span />{mentor.calendlyConnected ? 'Connected' : 'Not connected'}</span></td>
               <td><span className={`badge ${mentor.googleCalendarConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-google-calendar-${mentor.staffId}`}><span />{mentor.googleCalendarConnected ? 'Connected' : 'Not connected'}</span>{!mentor.googleCalendarConnected && mentor.status === 'invited' && <small className="mentor-booking-note">Waiting for account sign-in</small>}</td>
-              <td><MentorFollowUpEditor mentor={mentor} onSaved={() => void query.refetch()} /></td>
+              <td><MentorFollowUpEditor mentor={mentor} today={today} onSaved={() => void query.refetch()} /></td>
             </tr>)}</tbody>
           </table></div>
           {visibleMentors.length === 0 && <div className="mentor-follow-up-empty">No mentors match this follow-up filter.</div>}
@@ -673,11 +676,12 @@ function MentorBookingStatusPage() {
   </>;
 }
 
-function MentorFollowUpEditor({ mentor, onSaved }: { mentor: MentorBookingStatus; onSaved: () => void }) {
+function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookingStatus; today: string; onSaved: () => void }) {
   const [followUpDate, setFollowUpDate] = useState(mentor.calendlyFollowUpDate || '');
   const [followUpNote, setFollowUpNote] = useState(mentor.calendlyFollowUpNote || '');
   const update = useUpdateMentorBookingFollowUp();
   const hasFollowUp = Boolean(mentor.calendlyFollowUpDate || mentor.calendlyFollowUpNote);
+  const followUpStatus = mentorFollowUpStatus(mentor.calendlyFollowUpDate, today);
   const unchanged = followUpDate === (mentor.calendlyFollowUpDate || '') && followUpNote === (mentor.calendlyFollowUpNote || '');
   useEffect(() => {
     setFollowUpDate(mentor.calendlyFollowUpDate || '');
@@ -692,9 +696,9 @@ function MentorFollowUpEditor({ mentor, onSaved }: { mentor: MentorBookingStatus
     return <span className="mentor-follow-up-connected">Not needed</span>;
   }
   return <div className="mentor-follow-up-editor" data-testid={`mentor-follow-up-${mentor.staffId}`}>
-    <span className={`mentor-follow-up-state ${hasFollowUp ? 'is-recorded' : ''}`} data-testid={`mentor-follow-up-state-${mentor.staffId}`}>
-      {hasFollowUp ? 'Recorded' : 'Not recorded'}
-      {mentor.calendlyFollowUpDate && <small>Due {mentor.calendlyFollowUpDate}</small>}
+    <span className={`mentor-follow-up-state ${hasFollowUp ? 'is-recorded' : ''} ${followUpStatus === 'overdue' ? 'is-overdue' : ''}`} data-testid={`mentor-follow-up-state-${mentor.staffId}`}>
+      {followUpStatus === 'overdue' ? 'Overdue' : followUpStatus === 'upcoming' ? (mentor.calendlyFollowUpDate === today ? 'Due today' : 'Upcoming') : hasFollowUp ? 'Recorded · no date' : 'Not recorded'}
+      {mentor.calendlyFollowUpDate && <small>{followUpStatus === 'overdue' ? 'Was due' : 'Due'} {mentor.calendlyFollowUpDate}</small>}
       {mentor.calendlyFollowUpNote && <small className="mentor-follow-up-saved-note">{mentor.calendlyFollowUpNote}</small>}
     </span>
     <label className="sr-only" htmlFor={`mentor-follow-up-date-${mentor.staffId}`}>Follow-up date for {mentor.email}</label>
