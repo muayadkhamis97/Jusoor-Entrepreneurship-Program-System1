@@ -39,6 +39,14 @@ type ZoomMeeting = {
   join_url?: unknown;
 };
 
+type PendingZoomMeeting = {
+  id: string;
+  joinUrl?: string;
+};
+
+const pendingZoomMeetings = new Map<number, PendingZoomMeeting>();
+const zoomMeetingLocks = new Map<number, Promise<void>>();
+
 export function hasZoomOAuthConfiguration(): boolean {
   return Boolean(
     process.env.ZOOM_CLIENT_ID &&
@@ -346,6 +354,46 @@ function meetingStartTime(session: Session): string {
 export async function createOrUpdateZoomMeeting(
   session: Session,
 ): Promise<Session> {
+  const previousOperation = zoomMeetingLocks.get(session.id);
+  let releaseOperation!: () => void;
+  const currentOperation = new Promise<void>((resolve) => {
+    releaseOperation = resolve;
+  });
+  zoomMeetingLocks.set(session.id, currentOperation);
+  await previousOperation;
+
+  try {
+    let currentSession = session;
+    if (
+      !session.zoomMeetingId &&
+      !pendingZoomMeetings.has(session.id)
+    ) {
+      try {
+        const [storedSession] = await db
+          .select()
+          .from(sessionsTable)
+          .where(eq(sessionsTable.id, session.id))
+          .limit(1);
+        if (storedSession) currentSession = storedSession;
+      } catch {
+        throw new ZoomIntegrationError(
+          "Jusoor could not check whether this session already has a Zoom meeting. Retry shortly; no new meeting was created.",
+          503,
+        );
+      }
+    }
+    return await createOrUpdateZoomMeetingLocked(currentSession);
+  } finally {
+    if (zoomMeetingLocks.get(session.id) === currentOperation) {
+      zoomMeetingLocks.delete(session.id);
+    }
+    releaseOperation();
+  }
+}
+
+async function createOrUpdateZoomMeetingLocked(
+  session: Session,
+): Promise<Session> {
   if (session.deliveryMode === "in_person") {
     throw new ZoomIntegrationError(
       "Only online or hybrid sessions can have a Zoom meeting.",
@@ -366,36 +414,77 @@ export async function createOrUpdateZoomMeeting(
     duration: session.durationMinutes,
   };
   let meeting: ZoomMeeting;
+  let meetingId: string;
   if (session.zoomMeetingId) {
-    const meetingId = encodeURIComponent(session.zoomMeetingId);
+    meetingId = session.zoomMeetingId;
+    meetingId = encodeURIComponent(meetingId);
     await zoomRequest<unknown>(`/meetings/${meetingId}`, {
       method: "PATCH",
       body: meetingBody,
     });
     meeting = await zoomRequest<ZoomMeeting>(`/meetings/${meetingId}`);
   } else {
-    meeting = await zoomRequest<ZoomMeeting>("/users/me/meetings", {
-      method: "POST",
-      body: meetingBody,
-    });
+    const pendingMeeting = pendingZoomMeetings.get(session.id);
+    if (pendingMeeting) {
+      meetingId = pendingMeeting.id;
+      meeting = pendingMeeting.joinUrl
+        ? { id: meetingId, join_url: pendingMeeting.joinUrl }
+        : await zoomRequest<ZoomMeeting>(
+            `/meetings/${encodeURIComponent(meetingId)}`,
+          );
+    } else {
+      meeting = await zoomRequest<ZoomMeeting>("/users/me/meetings", {
+        method: "POST",
+        body: meetingBody,
+      });
+      if (meeting.id === undefined || meeting.id === null) {
+        throw new ZoomIntegrationError(
+          "Zoom may have created the meeting but did not return its ID. Ask an administrator to check Zoom before retrying, to avoid creating a duplicate.",
+          502,
+        );
+      }
+      meetingId = String(meeting.id);
+      pendingZoomMeetings.set(session.id, { id: meetingId });
+    }
   }
 
   if (meeting.id === undefined || meeting.id === null) {
     throw new ZoomIntegrationError(
-      "Zoom created the meeting but returned no meeting ID.",
+      "Zoom may have created the meeting but did not return its ID. Ask an administrator to check Zoom before retrying, to avoid creating a duplicate.",
       502,
     );
   }
-  const [updatedSession] = await db
-    .update(sessionsTable)
-    .set({
-      zoomMeetingId: String(meeting.id),
-      zoomUrl: validateJoinUrl(meeting.join_url),
-    })
-    .where(eq(sessionsTable.id, session.id))
-    .returning();
+  meetingId = String(meeting.id);
+  const joinUrl = validateJoinUrl(meeting.join_url);
+  if (!session.zoomMeetingId) {
+    pendingZoomMeetings.set(session.id, { id: meetingId, joinUrl });
+  }
+
+  let updatedSession: Session | undefined;
+  try {
+    [updatedSession] = await db
+      .update(sessionsTable)
+      .set({
+        zoomMeetingId: meetingId,
+        zoomUrl: joinUrl,
+      })
+      .where(eq(sessionsTable.id, session.id))
+      .returning();
+  } catch {
+    if (!session.zoomMeetingId) {
+      throw new ZoomIntegrationError(
+        "Zoom created the meeting, but Jusoor could not save it to this session. Retry the Zoom action; Jusoor will reuse the same meeting. If saving still fails, contact an administrator and do not create another meeting.",
+        503,
+      );
+    }
+    throw new ZoomIntegrationError(
+      "Zoom updated the meeting, but Jusoor could not save the changes. Retry the update or contact an administrator.",
+      503,
+    );
+  }
   if (!updatedSession) {
     throw new ZoomIntegrationError("Session not found.", 404);
   }
+  if (!session.zoomMeetingId) pendingZoomMeetings.delete(session.id);
   return updatedSession;
 }

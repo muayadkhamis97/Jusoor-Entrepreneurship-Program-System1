@@ -335,6 +335,113 @@ test("rotates encrypted refresh tokens and creates then updates Zoom meetings", 
   }
 });
 
+test("reuses a Zoom meeting after session persistence fails and the coordinator retries", async () => {
+  const { saveZoomConnection, createOrUpdateZoomMeeting, ZoomIntegrationError } =
+    await import("../src/lib/zoom");
+  let connection: Record<string, unknown> | null = null;
+  let persistenceAttempts = 0;
+  const session = {
+    id: 9304,
+    title: "Mentor training",
+    scheduledDate: "2026-10-12",
+    startTime: "10:00",
+    durationMinutes: 60,
+    deliveryMode: "online",
+    status: "scheduled",
+    zoomMeetingId: null as string | null,
+    zoomUrl: null as string | null,
+    recordingUrl: null as string | null,
+  };
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const restoreInsert = replaceDbMethod("insert", (() => ({
+    values(values: Record<string, unknown>) {
+      connection = {
+        ...values,
+        id: 104,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      };
+      return { onConflictDoUpdate: async () => undefined };
+    },
+  })) as (...args: never[]) => unknown);
+  const restoreSelect = replaceDbMethod("select", (() => {
+    let table: unknown;
+    const query = {
+      from(value: unknown) {
+        table = value;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async limit() {
+        return table === zoomConnectionsTable && connection ? [connection] : [];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  const restoreUpdate = replaceDbMethod("update", (() => {
+    let values: Record<string, unknown> = {};
+    const query = {
+      set(next: Record<string, unknown>) {
+        values = next;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async returning() {
+        persistenceAttempts += 1;
+        if (persistenceAttempts === 1) {
+          throw new Error("simulated local session persistence failure");
+        }
+        Object.assign(session, values);
+        return [session];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    calls.push({ url, init });
+    if (url === "https://api.zoom.us/v2/users/me/meetings") {
+      return responseJson({ id: "created-once-9304", join_url: "https://zoom.us/j/9304" });
+    }
+    throw new Error(`Unexpected Zoom request: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    await saveZoomConnection(
+      { accessToken, refreshToken, expiresIn: 3600 },
+      71,
+    );
+
+    await assert.rejects(
+      createOrUpdateZoomMeeting(session as never),
+      (error: unknown) => {
+        assert.ok(error instanceof ZoomIntegrationError);
+        assert.equal(error.statusCode, 503);
+        assert.match(error.message, /Retry the Zoom action; Jusoor will reuse the same meeting/);
+        return true;
+      },
+    );
+    assert.equal(session.zoomMeetingId, null);
+
+    const retried = await createOrUpdateZoomMeeting(session as never);
+    assert.equal(retried.zoomMeetingId, "created-once-9304");
+    assert.equal(retried.zoomUrl, "https://zoom.us/j/9304");
+    assert.equal(persistenceAttempts, 2);
+    assert.equal(
+      calls.filter((call) => call.url === "https://api.zoom.us/v2/users/me/meetings").length,
+      1,
+    );
+  } finally {
+    restoreUpdate();
+    restoreSelect();
+    restoreInsert();
+    globalThis.fetch = nativeFetch;
+  }
+});
+
 test("reports Zoom meeting permission failures without provider details", async () => {
   const { saveZoomConnection, createOrUpdateZoomMeeting, ZoomIntegrationError } =
     await import("../src/lib/zoom");
@@ -426,7 +533,28 @@ test("reports Zoom meeting permission failures without provider details", async 
 test("Zoom routes are coordinator-only and return sanitized provider failures", async () => {
   let role: "coordinator" | "staff" = "staff";
   let fetchCalls = 0;
+  let createCalls = 0;
+  let failSessionSave = false;
+  let zoomResponse: Response = responseJson({ code: 4711, message: "private provider detail" }, 403);
   let connection: Record<string, unknown> | null = null;
+  const session = {
+    id: 9303,
+    programId: null,
+    title: "Mentor training",
+    type: "training",
+    scheduledDate: "2026-10-12",
+    startTime: "10:00",
+    durationMinutes: 60,
+    facilitator: null,
+    trainerStaffId: null,
+    deliveryMode: "online",
+    location: null,
+    status: "scheduled",
+    zoomMeetingId: null as string | null,
+    zoomUrl: null as string | null,
+    recordingUrl: null,
+    createdAt: new Date(),
+  };
   const { saveZoomConnection } = await import("../src/lib/zoom");
   const restoreInsert = replaceDbMethod("insert", (() => ({
     values(values: Record<string, unknown>) {
@@ -468,16 +596,7 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
           }];
         }
         if (table === sessionsTable) {
-          return [{
-            id: 9303,
-            title: "Mentor training",
-            scheduledDate: "2026-10-12",
-            startTime: "10:00",
-            durationMinutes: 60,
-            deliveryMode: "online",
-            status: "scheduled",
-            zoomMeetingId: null,
-          }];
+          return [session];
         }
         if (table === zoomConnectionsTable && connection) return [connection];
         return [];
@@ -485,9 +604,30 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
     };
     return query;
   }) as (...args: never[]) => unknown);
-  globalThis.fetch = (async () => {
+  const restoreUpdate = replaceDbMethod("update", (() => {
+    let values: Record<string, unknown> = {};
+    const query = {
+      set(next: Record<string, unknown>) {
+        values = next;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async returning() {
+        if (failSessionSave) throw new Error("private database diagnostics");
+        Object.assign(session, values);
+        return [session];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
     fetchCalls += 1;
-    return responseJson({ code: 4711, message: "private provider detail" }, 403);
+    if (String(input) === "https://api.zoom.us/v2/users/me/meetings") {
+      createCalls += 1;
+    }
+    return zoomResponse;
   }) as typeof fetch;
 
   try {
@@ -515,7 +655,31 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
     assert.match(body, /Zoom is missing a permission/);
     assert.doesNotMatch(body, /private provider detail|4711|plaintext-zoom/);
     assert.equal(fetchCalls, 1);
+
+    createCalls = 0;
+    zoomResponse = responseJson({ id: "route-created-once", join_url: "https://zoom.us/j/9303" });
+    failSessionSave = true;
+    const persistenceFailure = await request("/api/zoom/sessions/9303/meeting", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const persistenceError = await persistenceFailure.text();
+    assert.equal(persistenceFailure.status, 503);
+    assert.match(persistenceError, /Retry the Zoom action; Jusoor will reuse the same meeting/);
+    assert.doesNotMatch(persistenceError, /private database diagnostics|route-created-once/);
+
+    failSessionSave = false;
+    const retried = await request("/api/zoom/sessions/9303/meeting", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    assert.equal(retried.status, 200);
+    assert.equal((await retried.json() as { zoomMeetingId: string }).zoomMeetingId, "route-created-once");
+    assert.equal(createCalls, 1);
   } finally {
+    restoreUpdate();
     restoreSelect();
     restoreInsert();
     globalThis.fetch = nativeFetch;
