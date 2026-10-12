@@ -23,11 +23,11 @@ Google Calendar booking: each mentor authorizes their own Google account with id
 
 **How to apply:** Keep Google OAuth scopes limited to account verification and do not persist or expose Google access tokens or account email. Add event sync only with an explicit product requirement and a separate privacy review.
 
-Session recordings are uploaded by program staff to Google Drive. Staff then add the Drive share link to the session, and participants and trainers watch it in an embedded player. Drive permissions control playback access. Zoom recording sync is disabled; Zoom is for live meeting management.
+Session recordings are uploaded by program staff to Google Drive. Staff then add the Drive share link to the session, and the platform notifies accepted participants in that session's cohort that the recording is available. Participants and trainers watch it in an embedded player. Drive permissions control playback access. Zoom recording sync is disabled; Zoom is for live meeting management.
 
-**Why:** The coordinator chose Google Drive as the only session-recording source instead of relying on Zoom cloud recordings.
+**Why:** The coordinator chose Google Drive as the only session-recording source instead of relying on Zoom cloud recordings, and asked that participants be notified when a recording is available on the platform.
 
-**How to apply:** Keep Zoom for live meeting creation and updates, but do not sync or expose Zoom recordings. Treat the Drive share link as the participant-facing recording and ensure the intended cohort and trainers can access it.
+**How to apply:** Keep Zoom for live meeting creation and updates, but do not sync or expose Zoom recordings. Trigger cohort-scoped participant notices only when staff adds a Drive link; treat that link as the participant-facing recording and ensure the intended cohort and trainers can access it.
 
 Mentoring feedback includes participant ratings and comments. The assigned mentor and coordinator can see named feedback.
 
