@@ -30,6 +30,7 @@ import {
 } from "@workspace/db";
 import type { ParticipantAccess } from "../middlewares/participantAccess";
 import { streamCourseMaterialFile } from "../lib/courseStorage";
+import { getParticipantSupportForBusiness } from "../lib/participantBookingAccess";
 
 const router: IRouter = Router();
 
@@ -320,10 +321,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       ? sessions.filter((session) => session.programId === application.programId).map(({ programId: _programId, ...session }) => session)
       : [],
     support: application.status === "accepted" && business
-      ? support.filter((item) => item.businessId === business.id).map(({ businessId: _businessId, calendlyBookingUrl, ...item }) => ({
-        ...item,
-        mentorBookingUrl: item.type === "mentor" ? calendlyBookingUrl : null,
-      }))
+      ? getParticipantSupportForBusiness(support, business.id)
       : [],
     calendlyMeetings: application.status === "accepted" && business
       ? calendlyMeetings.filter((meeting) => meeting.businessId === business.id)

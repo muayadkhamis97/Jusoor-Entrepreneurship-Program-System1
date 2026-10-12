@@ -22,21 +22,18 @@ import {
 import { requireStaff } from "../middlewares/staffAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { requireRole } from "../middlewares/requireRole";
+import {
+  isCalendlyOAuthStateValid,
+  openCalendlyOAuthState,
+  sealCalendlyOAuthState,
+  type CalendlyOAuthState,
+} from "../lib/calendlyOAuthState";
 
 const router: IRouter = Router();
 const cookieName = "jusoor_calendly_oauth";
 const callbackPath = "/api/mentor/calendly/callback";
 const stateLifetimeMs = 10 * 60 * 1000;
 const webhookTimestampToleranceMs = 3 * 60 * 1000;
-
-type OAuthState = {
-  staffId: number;
-  state: string;
-  codeVerifier: string;
-  origin: string;
-  redirectUri: string;
-  expiresAt: number;
-};
 
 function encryptionKey(): Buffer | null {
   const secret = process.env.SESSION_SECRET;
@@ -71,54 +68,6 @@ function openSecret(value: string | null | undefined): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function sealState(value: OAuthState): string {
-  const key = encryptionKey();
-  if (!key) throw new Error("SESSION_SECRET is not configured.");
-
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(JSON.stringify(value), "utf8"),
-    cipher.final(),
-  ]);
-  return [
-    iv.toString("base64url"),
-    cipher.getAuthTag().toString("base64url"),
-    encrypted.toString("base64url"),
-  ].join(".");
-}
-
-function openState(value: string | undefined): OAuthState | null {
-  const key = encryptionKey();
-  if (!key || !value) return null;
-  try {
-    const [ivPart, tagPart, encryptedPart] = value.split(".");
-    if (!ivPart || !tagPart || !encryptedPart) return null;
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
-      key,
-      Buffer.from(ivPart, "base64url"),
-    );
-    decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(encryptedPart, "base64url")),
-      decipher.final(),
-    ]).toString("utf8");
-    const parsed = JSON.parse(decrypted) as Partial<OAuthState>;
-    if (
-      typeof parsed.staffId !== "number" ||
-      typeof parsed.state !== "string" ||
-      typeof parsed.codeVerifier !== "string" ||
-      typeof parsed.origin !== "string" ||
-      typeof parsed.redirectUri !== "string" ||
-      typeof parsed.expiresAt !== "number"
-    ) return null;
-    return parsed as OAuthState;
-  } catch {
-    return null;
-  }
 }
 
 function cookieValue(header: string | undefined, name: string): string | undefined {
@@ -211,7 +160,8 @@ router.post("/connect", requireStaff, requireRole("mentor"), (req, res): void =>
   }
 
   const clientId = process.env.CALENDLY_CLIENT_ID;
-  const key = encryptionKey();
+  const secret = process.env.SESSION_SECRET;
+  const key = secret ? createHash("sha256").update(secret).digest() : null;
   const origin = allowedOrigin(req);
   if (!clientId || !process.env.CALENDLY_CLIENT_SECRET || !key) {
     res.status(503).json({ error: "Calendly OAuth is not configured." });
@@ -227,7 +177,7 @@ router.post("/connect", requireStaff, requireRole("mentor"), (req, res): void =>
   const codeVerifier = randomBytes(32).toString("base64url");
   const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
   const state = randomBytes(32).toString("base64url");
-  const payload: OAuthState = {
+  const payload: CalendlyOAuthState = {
     staffId: staff.id,
     state,
     codeVerifier,
@@ -245,7 +195,7 @@ router.post("/connect", requireStaff, requireRole("mentor"), (req, res): void =>
   authorizationUrl.searchParams.set("code_challenge", codeChallenge);
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
 
-  res.cookie(cookieName, sealState(payload), {
+  res.cookie(cookieName, sealCalendlyOAuthState(payload), {
     httpOnly: true,
     secure: origin.startsWith("https:"),
     sameSite: "lax",
@@ -259,8 +209,8 @@ router.post("/connect", requireStaff, requireRole("mentor"), (req, res): void =>
 
 router.get("/callback", async (req, res): Promise<void> => {
   const state = typeof req.query.state === "string" ? req.query.state : undefined;
-  const payload = openState(cookieValue(req.get("cookie"), cookieName));
-  if (!payload || !state || payload.state !== state || payload.expiresAt < Date.now()) {
+  const payload = openCalendlyOAuthState(cookieValue(req.get("cookie"), cookieName));
+  if (!isCalendlyOAuthStateValid(payload, state)) {
     clearStateCookie(res, req.secure);
     res.status(400).send("Calendly authorization expired or could not be verified. Return to Jusoor and try again.");
     return;
