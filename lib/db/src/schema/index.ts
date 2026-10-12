@@ -24,3 +24,6 @@ export * from "./support";
 export * from "./pitches";
 export * from "./staff";
 export * from "./applications";
+export * from "./training";
+export * from "./pitch-judges";
+export * from "./courses";

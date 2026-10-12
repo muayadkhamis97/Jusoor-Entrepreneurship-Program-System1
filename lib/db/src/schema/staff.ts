@@ -8,6 +8,7 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
   clerkUserId: text("clerk_user_id").unique(),
   role: text("role").notNull().default("staff"),
   status: text("status").notNull().default("invited"),
+  calendlyBookingUrl: text("calendly_booking_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

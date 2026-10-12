@@ -2,6 +2,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { date, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { programsTable } from "./programs";
+import { staffMembersTable } from "./staff";
 
 export const sessionsTable = pgTable("jusoor_sessions", {
   id: serial("id").primaryKey(),
@@ -11,6 +12,7 @@ export const sessionsTable = pgTable("jusoor_sessions", {
   scheduledDate: date("scheduled_date", { mode: "string" }).notNull(),
   startTime: text("start_time"),
   facilitator: text("facilitator"),
+  trainerStaffId: integer("trainer_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
   deliveryMode: text("delivery_mode").notNull().default("online"),
   location: text("location"),
   zoomUrl: text("zoom_url"),

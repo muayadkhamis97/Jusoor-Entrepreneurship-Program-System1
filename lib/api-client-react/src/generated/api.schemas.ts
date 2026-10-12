@@ -128,6 +128,256 @@ export interface ApplicationReviewUpdate {
   reviewNotes?: string | null;
 }
 
+export type CourseMaterialRole = typeof CourseMaterialRole[keyof typeof CourseMaterialRole];
+
+
+export const CourseMaterialRole = {
+  participant: 'participant',
+  trainer: 'trainer',
+  coordinator: 'coordinator',
+} as const;
+
+export type CourseMaterialKind = typeof CourseMaterialKind[keyof typeof CourseMaterialKind];
+
+
+export const CourseMaterialKind = {
+  video: 'video',
+  document: 'document',
+  slides: 'slides',
+  audio: 'audio',
+  link: 'link',
+} as const;
+
+export interface CourseModuleInput {
+  programId: number;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  description?: string | null;
+  /** @minimum 0 */
+  position?: number;
+  /** @nullable */
+  releaseAt?: string | null;
+  isPublished?: boolean;
+}
+
+export interface CourseModuleUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title?: string;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  description?: string | null;
+  /** @minimum 0 */
+  position?: number;
+  /** @nullable */
+  releaseAt?: string | null;
+  isPublished?: boolean;
+}
+
+export interface CourseMaterialInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  description?: string | null;
+  kind: CourseMaterialKind;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  externalUrl?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  objectPath?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  fileName?: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  contentType?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 262144000
+     * @nullable
+     */
+  fileSize?: number | null;
+  /** @minItems 1 */
+  allowedRoles: CourseMaterialRole[];
+  /** @minimum 0 */
+  position?: number;
+}
+
+export interface CourseMaterialUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title?: string;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  description?: string | null;
+  kind?: CourseMaterialKind;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  externalUrl?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  objectPath?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  fileName?: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  contentType?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 262144000
+     * @nullable
+     */
+  fileSize?: number | null;
+  /** @minItems 1 */
+  allowedRoles?: CourseMaterialRole[];
+  /** @minimum 0 */
+  position?: number;
+}
+
+export interface CourseMaterial {
+  id: number;
+  moduleId: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  kind: CourseMaterialKind;
+  /** @nullable */
+  externalUrl: string | null;
+  /** @nullable */
+  objectPath: string | null;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  contentType: string | null;
+  /** @nullable */
+  fileSize: number | null;
+  allowedRoles: CourseMaterialRole[];
+  position: number;
+}
+
+export interface CourseModule {
+  id: number;
+  programId: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  position: number;
+  /** @nullable */
+  releaseAt: string | null;
+  isPublished: boolean;
+  materials: CourseMaterial[];
+}
+
+export interface CourseProgram {
+  id: number;
+  name: string;
+  modules: CourseModule[];
+}
+
+export interface CourseManagement {
+  programs: CourseProgram[];
+}
+
+export interface CourseUploadInput {
+  programId: number;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 262144000
+     */
+  size: number;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  contentType: string;
+}
+
+export interface CourseUploadUrl {
+  uploadUrl: string;
+  objectPath: string;
+}
+
+export interface ParticipantCourseMaterial {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  kind: CourseMaterialKind;
+  /** @nullable */
+  externalUrl: string | null;
+  /** @nullable */
+  fileName: string | null;
+  /** @nullable */
+  contentType: string | null;
+  /** @nullable */
+  fileSize: number | null;
+}
+
+export interface ParticipantCourseModule {
+  id: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  position: number;
+  /** @nullable */
+  releaseAt: string | null;
+  materials: ParticipantCourseMaterial[];
+}
+
+export interface ParticipantCourseProgram {
+  programId: number;
+  programName: string;
+  modules: ParticipantCourseModule[];
+}
+
+export interface ParticipantCourses {
+  programs: ParticipantCourseProgram[];
+}
+
 export type BusinessStage = typeof BusinessStage[keyof typeof BusinessStage];
 
 
@@ -257,6 +507,57 @@ export interface ParticipantSupport {
      */
   scheduledDate: string | null;
   status: SupportStatus;
+  /** @nullable */
+  mentorBookingUrl: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type ParticipantAssignmentStatus = typeof ParticipantAssignmentStatus[keyof typeof ParticipantAssignmentStatus] | null;
+
+
+export const ParticipantAssignmentStatus = {
+  submitted: 'submitted',
+  reviewed: 'reviewed',
+} as const;
+
+export interface ParticipantAssignment {
+  id: number;
+  title: string;
+  instructions: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  dueDate: string | null;
+  /** @nullable */
+  sessionTitle: string | null;
+  /** @nullable */
+  answer: string | null;
+  /** @nullable */
+  status: ParticipantAssignmentStatus;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  feedback: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+}
+
+export interface ParticipantQuestion {
+  id: number;
+  programId: number;
+  /** @nullable */
+  sessionTitle: string | null;
+  /** @nullable */
+  assignmentTitle: string | null;
+  question: string;
+  /** @nullable */
+  reply: string | null;
+  createdAt: string;
+  /** @nullable */
+  repliedAt: string | null;
 }
 
 export interface ParticipantEnrollment {
@@ -267,10 +568,279 @@ export interface ParticipantEnrollment {
   business: ParticipantBusiness | null;
   sessions: ParticipantSession[];
   support: ParticipantSupport[];
+  assignments: ParticipantAssignment[];
+  questions: ParticipantQuestion[];
 }
 
 export interface ParticipantDashboard {
   applications: ParticipantEnrollment[];
+}
+
+export interface TrainingAssignment {
+  id: number;
+  programId: number;
+  title: string;
+  instructions: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  dueDate: string | null;
+  /** @nullable */
+  sessionId: number | null;
+  /** @nullable */
+  sessionTitle: string | null;
+  createdAt: string;
+}
+
+export interface TrainingAssignmentInput {
+  programId: number;
+  /**
+     * @minLength 2
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @minLength 10
+     * @maxLength 5000
+     */
+  instructions: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  dueDate?: string | null;
+  /** @nullable */
+  sessionId?: number | null;
+}
+
+export interface TrainingAnswerInput {
+  /**
+     * @minLength 1
+     * @maxLength 12000
+     */
+  answer: string;
+}
+
+export interface TrainingAnswerReview {
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  score: number | null;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  feedback: string | null;
+}
+
+export type TrainingSubmissionStatus = typeof TrainingSubmissionStatus[keyof typeof TrainingSubmissionStatus];
+
+
+export const TrainingSubmissionStatus = {
+  submitted: 'submitted',
+  reviewed: 'reviewed',
+} as const;
+
+export interface TrainingSubmission {
+  id: number;
+  assignmentId: number;
+  businessId: number;
+  answer: string;
+  status: TrainingSubmissionStatus;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  feedback: string | null;
+  submittedAt: string;
+  /** @nullable */
+  reviewedAt: string | null;
+}
+
+export interface TrainingQuestionInput {
+  programId: number;
+  /** @nullable */
+  sessionId?: number | null;
+  /** @nullable */
+  assignmentId?: number | null;
+  /**
+     * @minLength 5
+     * @maxLength 3000
+     */
+  question: string;
+}
+
+export interface TrainingQuestionReply {
+  /**
+     * @minLength 1
+     * @maxLength 3000
+     */
+  reply: string;
+}
+
+export type TrainerSubmission = TrainingSubmission & {
+  assignmentTitle: string;
+  businessName: string;
+  founderName: string;
+  programName: string;
+};
+
+export type TrainerQuestion = ParticipantQuestion & {
+  businessName: string;
+  founderName: string;
+  programName: string;
+};
+
+export type SessionStatus = typeof SessionStatus[keyof typeof SessionStatus];
+
+
+export const SessionStatus = {
+  scheduled: 'scheduled',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Session {
+  id: number;
+  /** @nullable */
+  programId?: number | null;
+  title: string;
+  type: SessionType;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  scheduledDate: string;
+  /** @nullable */
+  startTime?: string | null;
+  /** @nullable */
+  facilitator?: string | null;
+  /** @nullable */
+  trainerStaffId: number | null;
+  deliveryMode: DeliveryMode;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  zoomUrl?: string | null;
+  /** @nullable */
+  recordingUrl?: string | null;
+  status: SessionStatus;
+  createdAt: string;
+}
+
+export interface TrainerDashboard {
+  sessions: Session[];
+  assignments: TrainingAssignment[];
+  submissions: TrainerSubmission[];
+  questions: TrainerQuestion[];
+}
+
+export interface MentorEngagement {
+  id: number;
+  businessId: number;
+  businessName: string;
+  founderName: string;
+  programName: string;
+  type: SupportType;
+  provider: string;
+  topic: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  scheduledDate: string | null;
+  status: SupportStatus;
+  /** @nullable */
+  notes: string | null;
+}
+
+export interface MentorEngagementUpdate {
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  scheduledDate?: string | null;
+  status: SupportStatus;
+  /**
+     * @maxLength 3000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export interface MentorDashboard {
+  engagements: MentorEngagement[];
+  /** @nullable */
+  calendlyBookingUrl: string | null;
+}
+
+/**
+ * Empty request body used to begin the mentor's Calendly OAuth flow.
+ */
+export interface CalendlyAuthorizationInput { [key: string]: unknown }
+
+export interface CalendlyAuthorization {
+  authorizationUrl: string;
+}
+
+export type PitchEventType = typeof PitchEventType[keyof typeof PitchEventType];
+
+
+export const PitchEventType = {
+  pitch_day: 'pitch_day',
+  demo_day: 'demo_day',
+} as const;
+
+export interface JudgePitch {
+  assignmentId: number;
+  pitchId: number;
+  businessId: number;
+  businessName: string;
+  /** @nullable */
+  industry: string | null;
+  eventType: PitchEventType;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  eventDate: string;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  feedback: string | null;
+  /** @nullable */
+  submittedAt: string | null;
+}
+
+export interface JudgeDashboard {
+  pitches: JudgePitch[];
+}
+
+export interface JudgeScorecardInput {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  score: number;
+  /**
+     * @minLength 3
+     * @maxLength 3000
+     */
+  feedback: string;
+}
+
+export interface PitchJudgeInput {
+  judgeStaffId: number;
+}
+
+export interface PitchJudgeAssignment {
+  id: number;
+  pitchId: number;
+  judgeStaffId: number;
+  judgeEmail: string;
+  judgeName: string;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  feedback: string | null;
+  /** @nullable */
+  submittedAt: string | null;
 }
 
 export type StaffRole = typeof StaffRole[keyof typeof StaffRole];
@@ -279,6 +849,9 @@ export type StaffRole = typeof StaffRole[keyof typeof StaffRole];
 export const StaffRole = {
   coordinator: 'coordinator',
   staff: 'staff',
+  trainer: 'trainer',
+  mentor: 'mentor',
+  judge: 'judge',
 } as const;
 
 export type StaffStatus = typeof StaffStatus[keyof typeof StaffStatus];
@@ -297,6 +870,13 @@ export interface StaffMember {
   createdAt: string;
 }
 
+export interface MentorBookingStatus {
+  staffId: number;
+  email: string;
+  status: StaffStatus;
+  calendlyConnected: boolean;
+}
+
 export interface StaffInput {
   email: string;
   role: StaffRole;
@@ -305,14 +885,6 @@ export interface StaffInput {
 export interface StaffUpdate {
   role: StaffRole;
 }
-
-export type PitchEventType = typeof PitchEventType[keyof typeof PitchEventType];
-
-
-export const PitchEventType = {
-  pitch_day: 'pitch_day',
-  demo_day: 'demo_day',
-} as const;
 
 export type GrantDecision = typeof GrantDecision[keyof typeof GrantDecision];
 
@@ -507,38 +1079,6 @@ export interface BusinessUpdate {
   notes?: string | null;
 }
 
-export type SessionStatus = typeof SessionStatus[keyof typeof SessionStatus];
-
-
-export const SessionStatus = {
-  scheduled: 'scheduled',
-  completed: 'completed',
-  cancelled: 'cancelled',
-} as const;
-
-export interface Session {
-  id: number;
-  /** @nullable */
-  programId?: number | null;
-  title: string;
-  type: SessionType;
-  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
-  scheduledDate: string;
-  /** @nullable */
-  startTime?: string | null;
-  /** @nullable */
-  facilitator?: string | null;
-  deliveryMode: DeliveryMode;
-  /** @nullable */
-  location?: string | null;
-  /** @nullable */
-  zoomUrl?: string | null;
-  /** @nullable */
-  recordingUrl?: string | null;
-  status: SessionStatus;
-  createdAt: string;
-}
-
 export type SessionInputStatus = typeof SessionInputStatus[keyof typeof SessionInputStatus];
 
 
@@ -560,6 +1100,8 @@ export interface SessionInput {
   startTime?: string | null;
   /** @nullable */
   facilitator?: string | null;
+  /** @nullable */
+  trainerStaffId?: number | null;
   deliveryMode?: DeliveryMode;
   /** @nullable */
   location?: string | null;
@@ -591,6 +1133,8 @@ export interface SessionUpdate {
   startTime?: string | null;
   /** @nullable */
   facilitator?: string | null;
+  /** @nullable */
+  trainerStaffId?: number | null;
   deliveryMode?: DeliveryMode;
   /** @nullable */
   location?: string | null;
@@ -606,6 +1150,8 @@ export interface SupportEngagement {
   businessId: number;
   type: SupportType;
   provider: string;
+  /** @nullable */
+  mentorStaffId: number | null;
   topic: string;
   /**
      * @nullable
@@ -623,6 +1169,8 @@ export interface SupportInput {
   type: SupportType;
   /** @minLength 1 */
   provider: string;
+  /** @nullable */
+  mentorStaffId?: number | null;
   /** @minLength 1 */
   topic: string;
   /**
@@ -640,6 +1188,8 @@ export interface SupportUpdate {
   type?: SupportType;
   /** @minLength 1 */
   provider?: string;
+  /** @nullable */
+  mentorStaffId?: number | null;
   /** @minLength 1 */
   topic?: string;
   /** @nullable */
@@ -732,6 +1282,12 @@ export type ListBusinessesParams = {
 search?: string;
 stage?: BusinessStage;
 programId?: number;
+};
+
+export type CompleteCalendlyConnectionParams = {
+code?: string;
+state?: string;
+error?: string;
 };
 
 export type ListSessionsParams = {

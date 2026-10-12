@@ -43,6 +43,7 @@ export const GetDashboardResponse = zod.object({
   "scheduledDate": zod.string().regex(getDashboardResponseUpcomingSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullish(),
   "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -441,12 +442,344 @@ export const ReviewApplicationResponse = zod.object({
 
 
 /**
+ * @summary Get course modules and materials for programs the signed-in coordinator or trainer can manage
+ */
+export const GetCourseManagementResponse = zod.object({
+  "programs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "modules": zod.array(zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "position": zod.number().int(),
+  "releaseAt": zod.coerce.date().nullable(),
+  "isPublished": zod.boolean(),
+  "materials": zod.array(zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().nullable(),
+  "objectPath": zod.string().nullable(),
+  "fileName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
+  "position": zod.number().int()
+}))
+}))
+}))
+})
+
+
+/**
+ * @summary Create a course module for a manageable program
+ */
+export const createCourseModuleBodyTitleMax = 180;
+
+export const createCourseModuleBodyDescriptionMax = 3000;
+
+export const createCourseModuleBodyPositionDefault = 0;
+export const createCourseModuleBodyPositionMin = 0;
+
+export const createCourseModuleBodyIsPublishedDefault = false;
+
+export const CreateCourseModuleBody = zod.object({
+  "programId": zod.number().int(),
+  "title": zod.string().min(1).max(createCourseModuleBodyTitleMax),
+  "description": zod.string().max(createCourseModuleBodyDescriptionMax).nullish(),
+  "position": zod.number().int().min(createCourseModuleBodyPositionMin).default(createCourseModuleBodyPositionDefault),
+  "releaseAt": zod.coerce.date().nullish(),
+  "isPublished": zod.boolean().default(createCourseModuleBodyIsPublishedDefault)
+})
+
+export const CreateCourseModuleResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "position": zod.number().int(),
+  "releaseAt": zod.coerce.date().nullable(),
+  "isPublished": zod.boolean(),
+  "materials": zod.array(zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().nullable(),
+  "objectPath": zod.string().nullable(),
+  "fileName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
+  "position": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Update module details, publication status, or release time
+ */
+export const UpdateCourseModuleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateCourseModuleBodyTitleMax = 180;
+
+export const updateCourseModuleBodyDescriptionMax = 3000;
+
+export const updateCourseModuleBodyPositionMin = 0;
+
+
+
+export const UpdateCourseModuleBody = zod.object({
+  "title": zod.string().min(1).max(updateCourseModuleBodyTitleMax).optional(),
+  "description": zod.string().max(updateCourseModuleBodyDescriptionMax).nullish(),
+  "position": zod.number().int().min(updateCourseModuleBodyPositionMin).optional(),
+  "releaseAt": zod.coerce.date().nullish(),
+  "isPublished": zod.boolean().optional()
+})
+
+export const UpdateCourseModuleResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "position": zod.number().int(),
+  "releaseAt": zod.coerce.date().nullable(),
+  "isPublished": zod.boolean(),
+  "materials": zod.array(zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().nullable(),
+  "objectPath": zod.string().nullable(),
+  "fileName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
+  "position": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Delete a module and its materials
+ */
+export const DeleteCourseModuleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteCourseModuleResponse = zod.void()
+
+
+/**
+ * @summary Add a private upload or external resource to a course module
+ */
+export const CreateCourseMaterialParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const createCourseMaterialBodyTitleMax = 180;
+
+export const createCourseMaterialBodyDescriptionMax = 3000;
+
+export const createCourseMaterialBodyExternalUrlMax = 2000;
+
+export const createCourseMaterialBodyObjectPathMax = 500;
+
+export const createCourseMaterialBodyFileNameMax = 500;
+
+export const createCourseMaterialBodyContentTypeMax = 200;
+
+export const createCourseMaterialBodyFileSizeMax = 262144000;
+
+
+export const createCourseMaterialBodyPositionDefault = 0;
+export const createCourseMaterialBodyPositionMin = 0;
+
+
+
+export const CreateCourseMaterialBody = zod.object({
+  "title": zod.string().min(1).max(createCourseMaterialBodyTitleMax),
+  "description": zod.string().max(createCourseMaterialBodyDescriptionMax).nullish(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().max(createCourseMaterialBodyExternalUrlMax).nullish(),
+  "objectPath": zod.string().max(createCourseMaterialBodyObjectPathMax).nullish(),
+  "fileName": zod.string().max(createCourseMaterialBodyFileNameMax).nullish(),
+  "contentType": zod.string().max(createCourseMaterialBodyContentTypeMax).nullish(),
+  "fileSize": zod.number().int().min(1).max(createCourseMaterialBodyFileSizeMax).nullish(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])).min(1),
+  "position": zod.number().int().min(createCourseMaterialBodyPositionMin).default(createCourseMaterialBodyPositionDefault)
+})
+
+export const CreateCourseMaterialResponse = zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().nullable(),
+  "objectPath": zod.string().nullable(),
+  "fileName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
+  "position": zod.number().int()
+})
+
+
+/**
+ * @summary Update material details or its role access
+ */
+export const UpdateCourseMaterialParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateCourseMaterialBodyTitleMax = 180;
+
+export const updateCourseMaterialBodyDescriptionMax = 3000;
+
+export const updateCourseMaterialBodyExternalUrlMax = 2000;
+
+export const updateCourseMaterialBodyObjectPathMax = 500;
+
+export const updateCourseMaterialBodyFileNameMax = 500;
+
+export const updateCourseMaterialBodyContentTypeMax = 200;
+
+export const updateCourseMaterialBodyFileSizeMax = 262144000;
+
+
+export const updateCourseMaterialBodyPositionMin = 0;
+
+
+
+export const UpdateCourseMaterialBody = zod.object({
+  "title": zod.string().min(1).max(updateCourseMaterialBodyTitleMax).optional(),
+  "description": zod.string().max(updateCourseMaterialBodyDescriptionMax).nullish(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']).optional(),
+  "externalUrl": zod.string().url().max(updateCourseMaterialBodyExternalUrlMax).nullish(),
+  "objectPath": zod.string().max(updateCourseMaterialBodyObjectPathMax).nullish(),
+  "fileName": zod.string().max(updateCourseMaterialBodyFileNameMax).nullish(),
+  "contentType": zod.string().max(updateCourseMaterialBodyContentTypeMax).nullish(),
+  "fileSize": zod.number().int().min(1).max(updateCourseMaterialBodyFileSizeMax).nullish(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])).min(1).optional(),
+  "position": zod.number().int().min(updateCourseMaterialBodyPositionMin).optional()
+})
+
+export const UpdateCourseMaterialResponse = zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().nullable(),
+  "objectPath": zod.string().nullable(),
+  "fileName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable(),
+  "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
+  "position": zod.number().int()
+})
+
+
+/**
+ * @summary Delete a course material
+ */
+export const DeleteCourseMaterialParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteCourseMaterialResponse = zod.void()
+
+
+/**
+ * @summary Request a short-lived upload URL for a private course file
+ */
+export const requestCourseUploadUrlBodyNameMax = 500;
+
+export const requestCourseUploadUrlBodySizeMax = 262144000;
+
+export const requestCourseUploadUrlBodyContentTypeMax = 200;
+
+
+
+export const RequestCourseUploadUrlBody = zod.object({
+  "programId": zod.number().int(),
+  "name": zod.string().min(1).max(requestCourseUploadUrlBodyNameMax),
+  "size": zod.number().int().min(1).max(requestCourseUploadUrlBodySizeMax),
+  "contentType": zod.string().min(1).max(requestCourseUploadUrlBodyContentTypeMax)
+})
+
+export const RequestCourseUploadUrlResponse = zod.object({
+  "uploadUrl": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Stream a private course file to an authorized staff member
+ */
+export const GetCourseMaterialFileParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetCourseMaterialFileResponse = zod.unknown()
+
+
+/**
+ * @summary Get published course modules for the signed-in participant's accepted programs
+ */
+export const GetParticipantCoursesResponse = zod.object({
+  "programs": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "modules": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "position": zod.number().int(),
+  "releaseAt": zod.coerce.date().nullable(),
+  "materials": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "externalUrl": zod.string().url().nullable(),
+  "fileName": zod.string().nullable(),
+  "contentType": zod.string().nullable(),
+  "fileSize": zod.number().int().nullable()
+}))
+}))
+}))
+})
+
+
+/**
+ * @summary Stream a private course file after checking enrollment, release, and role access
+ */
+export const GetParticipantCourseMaterialFileParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetParticipantCourseMaterialFileResponse = zod.unknown()
+
+
+/**
  * @summary Get the signed-in participant's applications and program progress
  */
 export const getParticipantDashboardResponseApplicationsItemProgramStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemProgramEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getParticipantDashboardResponseApplicationsItemAssignmentsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const GetParticipantDashboardResponse = zod.object({
@@ -487,10 +820,445 @@ export const GetParticipantDashboardResponse = zod.object({
   "provider": zod.string(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp).nullable(),
-  "status": zod.enum(['requested', 'matched', 'scheduled', 'completed'])
+  "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
+  "mentorBookingUrl": zod.string().url().nullable()
+})),
+  "assignments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "instructions": zod.string(),
+  "dueDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemAssignmentsItemDueDateRegExp).nullable(),
+  "sessionTitle": zod.string().nullable(),
+  "answer": zod.string().nullable(),
+  "status": zod.union([zod.literal('submitted'),zod.literal('reviewed'),zod.literal(null)]).nullable(),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable()
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "sessionTitle": zod.string().nullable(),
+  "assignmentTitle": zod.string().nullable(),
+  "question": zod.string(),
+  "reply": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "repliedAt": zod.coerce.date().nullable()
 }))
 }))
 })
+
+
+/**
+ * @summary Submit or update an answer to an assigned training activity
+ */
+export const SubmitTrainingAnswerParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const submitTrainingAnswerBodyAnswerMax = 12000;
+
+
+
+export const SubmitTrainingAnswerBody = zod.object({
+  "answer": zod.string().min(1).max(submitTrainingAnswerBodyAnswerMax)
+})
+
+export const SubmitTrainingAnswerResponse = zod.object({
+  "id": zod.number().int(),
+  "assignmentId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "answer": zod.string(),
+  "status": zod.enum(['submitted', 'reviewed']),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Ask a question about a cohort session or assignment
+ */
+export const askTrainingQuestionBodyQuestionMin = 5;
+export const askTrainingQuestionBodyQuestionMax = 3000;
+
+
+
+export const AskTrainingQuestionBody = zod.object({
+  "programId": zod.number().int(),
+  "sessionId": zod.number().int().nullish(),
+  "assignmentId": zod.number().int().nullish(),
+  "question": zod.string().min(askTrainingQuestionBodyQuestionMin).max(askTrainingQuestionBodyQuestionMax)
+})
+
+export const AskTrainingQuestionResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "sessionTitle": zod.string().nullable(),
+  "assignmentTitle": zod.string().nullable(),
+  "question": zod.string(),
+  "reply": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "repliedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Get assigned sessions, activities, participant answers, and questions
+ */
+export const getTrainerDashboardResponseSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getTrainerDashboardResponseAssignmentsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetTrainerDashboardResponse = zod.object({
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullish(),
+  "title": zod.string(),
+  "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
+  "scheduledDate": zod.string().regex(getTrainerDashboardResponseSessionsItemScheduledDateRegExp),
+  "startTime": zod.string().nullish(),
+  "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
+  "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
+  "location": zod.string().nullish(),
+  "zoomUrl": zod.string().nullish(),
+  "recordingUrl": zod.string().nullish(),
+  "status": zod.enum(['scheduled', 'completed', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})),
+  "assignments": zod.array(zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "title": zod.string(),
+  "instructions": zod.string(),
+  "dueDate": zod.string().regex(getTrainerDashboardResponseAssignmentsItemDueDateRegExp).nullable(),
+  "sessionId": zod.number().int().nullable(),
+  "sessionTitle": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "submissions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "assignmentId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "answer": zod.string(),
+  "status": zod.enum(['submitted', 'reviewed']),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "assignmentTitle": zod.string(),
+  "businessName": zod.string(),
+  "founderName": zod.string(),
+  "programName": zod.string()
+}))),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "sessionTitle": zod.string().nullable(),
+  "assignmentTitle": zod.string().nullable(),
+  "question": zod.string(),
+  "reply": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "repliedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "businessName": zod.string(),
+  "founderName": zod.string(),
+  "programName": zod.string()
+})))
+})
+
+
+/**
+ * @summary Create an activity for a cohort assigned to the trainer
+ */
+export const createTrainingAssignmentBodyTitleMin = 2;
+export const createTrainingAssignmentBodyTitleMax = 180;
+
+export const createTrainingAssignmentBodyInstructionsMin = 10;
+export const createTrainingAssignmentBodyInstructionsMax = 5000;
+
+export const createTrainingAssignmentBodyDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateTrainingAssignmentBody = zod.object({
+  "programId": zod.number().int(),
+  "title": zod.string().min(createTrainingAssignmentBodyTitleMin).max(createTrainingAssignmentBodyTitleMax),
+  "instructions": zod.string().min(createTrainingAssignmentBodyInstructionsMin).max(createTrainingAssignmentBodyInstructionsMax),
+  "dueDate": zod.string().regex(createTrainingAssignmentBodyDueDateRegExp).nullish(),
+  "sessionId": zod.number().int().nullish()
+})
+
+export const createTrainingAssignmentResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateTrainingAssignmentResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "title": zod.string(),
+  "instructions": zod.string(),
+  "dueDate": zod.string().regex(createTrainingAssignmentResponseDueDateRegExp).nullable(),
+  "sessionId": zod.number().int().nullable(),
+  "sessionTitle": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add a score and feedback to a participant's answer
+ */
+export const ReviewTrainingAnswerParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const reviewTrainingAnswerBodyScoreMin = 0;
+export const reviewTrainingAnswerBodyScoreMax = 100;
+
+export const reviewTrainingAnswerBodyFeedbackMax = 3000;
+
+
+
+export const ReviewTrainingAnswerBody = zod.object({
+  "score": zod.number().min(reviewTrainingAnswerBodyScoreMin).max(reviewTrainingAnswerBodyScoreMax).nullable(),
+  "feedback": zod.string().max(reviewTrainingAnswerBodyFeedbackMax).nullable()
+})
+
+export const ReviewTrainingAnswerResponse = zod.object({
+  "id": zod.number().int(),
+  "assignmentId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "answer": zod.string(),
+  "status": zod.enum(['submitted', 'reviewed']),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Reply to a participant's question
+ */
+export const ReplyTrainingQuestionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const replyTrainingQuestionBodyReplyMax = 3000;
+
+
+
+export const ReplyTrainingQuestionBody = zod.object({
+  "reply": zod.string().min(1).max(replyTrainingQuestionBodyReplyMax)
+})
+
+export const ReplyTrainingQuestionResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "sessionTitle": zod.string().nullable(),
+  "assignmentTitle": zod.string().nullable(),
+  "question": zod.string(),
+  "reply": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "repliedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Get the mentor's assigned business support
+ */
+export const getMentorDashboardResponseEngagementsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetMentorDashboardResponse = zod.object({
+  "engagements": zod.array(zod.object({
+  "id": zod.number().int(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "founderName": zod.string(),
+  "programName": zod.string(),
+  "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
+  "provider": zod.string(),
+  "topic": zod.string(),
+  "scheduledDate": zod.string().regex(getMentorDashboardResponseEngagementsItemScheduledDateRegExp).nullable(),
+  "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
+  "notes": zod.string().nullable()
+})),
+  "calendlyBookingUrl": zod.string().url().nullable()
+})
+
+
+/**
+ * @summary Start the signed-in mentor's Calendly authorization
+ */
+export const StartCalendlyConnectionBody = zod.object({
+
+}).passthrough().describe('Empty request body used to begin the mentor\'s Calendly OAuth flow.')
+
+export const StartCalendlyConnectionResponse = zod.object({
+  "authorizationUrl": zod.string().url()
+})
+
+
+/**
+ * @summary Complete a mentor's Calendly authorization
+ */
+export const CompleteCalendlyConnectionQueryParams = zod.object({
+  "code": zod.coerce.string().optional(),
+  "state": zod.coerce.string().optional(),
+  "error": zod.coerce.string().optional()
+})
+
+export const CompleteCalendlyConnectionResponse = zod.void()
+
+
+/**
+ * @summary Get pitch and demo-day events assigned to this judge
+ */
+export const getJudgeDashboardResponsePitchesItemEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetJudgeDashboardResponse = zod.object({
+  "pitches": zod.array(zod.object({
+  "assignmentId": zod.number().int(),
+  "pitchId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "eventType": zod.enum(['pitch_day', 'demo_day']),
+  "eventDate": zod.string().regex(getJudgeDashboardResponsePitchesItemEventDateRegExp),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Submit an individual score and feedback for an assigned pitch
+ */
+export const SubmitJudgeScorecardParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const submitJudgeScorecardBodyScoreMin = 0;
+export const submitJudgeScorecardBodyScoreMax = 100;
+
+export const submitJudgeScorecardBodyFeedbackMin = 3;
+export const submitJudgeScorecardBodyFeedbackMax = 3000;
+
+
+
+export const SubmitJudgeScorecardBody = zod.object({
+  "score": zod.number().min(submitJudgeScorecardBodyScoreMin).max(submitJudgeScorecardBodyScoreMax),
+  "feedback": zod.string().min(submitJudgeScorecardBodyFeedbackMin).max(submitJudgeScorecardBodyFeedbackMax)
+})
+
+export const submitJudgeScorecardResponseEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const SubmitJudgeScorecardResponse = zod.object({
+  "assignmentId": zod.number().int(),
+  "pitchId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "eventType": zod.enum(['pitch_day', 'demo_day']),
+  "eventDate": zod.string().regex(submitJudgeScorecardResponseEventDateRegExp),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Update the status, schedule, or notes for assigned mentoring
+ */
+export const UpdateAssignedMentoringParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateAssignedMentoringBodyScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateAssignedMentoringBodyNotesMax = 3000;
+
+
+
+export const UpdateAssignedMentoringBody = zod.object({
+  "scheduledDate": zod.string().regex(updateAssignedMentoringBodyScheduledDateRegExp).nullish(),
+  "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
+  "notes": zod.string().max(updateAssignedMentoringBodyNotesMax).nullish()
+})
+
+export const updateAssignedMentoringResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpdateAssignedMentoringResponse = zod.object({
+  "id": zod.number().int(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "founderName": zod.string(),
+  "programName": zod.string(),
+  "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
+  "provider": zod.string(),
+  "topic": zod.string(),
+  "scheduledDate": zod.string().regex(updateAssignedMentoringResponseScheduledDateRegExp).nullable(),
+  "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
+  "notes": zod.string().nullable()
+})
+
+
+/**
+ * @summary List judges assigned to a pitch or demo-day event
+ */
+export const ListPitchJudgesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListPitchJudgesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "pitchId": zod.number().int(),
+  "judgeStaffId": zod.number().int(),
+  "judgeEmail": zod.string().email(),
+  "judgeName": zod.string(),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable()
+})
+export const ListPitchJudgesResponse = zod.array(ListPitchJudgesResponseItem)
+
+
+/**
+ * @summary Assign a judge to an event
+ */
+export const AssignPitchJudgeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AssignPitchJudgeBody = zod.object({
+  "judgeStaffId": zod.number().int()
+})
+
+export const AssignPitchJudgeResponse = zod.object({
+  "id": zod.number().int(),
+  "pitchId": zod.number().int(),
+  "judgeStaffId": zod.number().int(),
+  "judgeEmail": zod.string().email(),
+  "judgeName": zod.string(),
+  "score": zod.number().nullable(),
+  "feedback": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Remove a judge assignment that has not been submitted
+ */
+export const RemovePitchJudgeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RemovePitchJudgeResponse = zod.void()
 
 
 /**
@@ -512,6 +1280,7 @@ export const ListSessionsResponseItem = zod.object({
   "scheduledDate": zod.string().regex(listSessionsResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
   "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -536,6 +1305,7 @@ export const CreateSessionBody = zod.object({
   "scheduledDate": zod.string().regex(createSessionBodyScheduledDateRegExp),
   "startTime": zod.string().nullish(),
   "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullish(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']).optional(),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().url().nullish(),
@@ -554,6 +1324,7 @@ export const CreateSessionResponse = zod.object({
   "scheduledDate": zod.string().regex(createSessionResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
   "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -581,6 +1352,7 @@ export const UpdateSessionBody = zod.object({
   "scheduledDate": zod.string().regex(updateSessionBodyScheduledDateRegExp).optional(),
   "startTime": zod.string().nullish(),
   "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullish(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']).optional(),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().url().nullish(),
@@ -599,6 +1371,7 @@ export const UpdateSessionResponse = zod.object({
   "scheduledDate": zod.string().regex(updateSessionResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
   "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -634,6 +1407,7 @@ export const ListSupportResponseItem = zod.object({
   "businessId": zod.number().int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
+  "mentorStaffId": zod.number().int().nullable(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(listSupportResponseScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
@@ -655,6 +1429,7 @@ export const CreateSupportBody = zod.object({
   "businessId": zod.number().int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string().min(1),
+  "mentorStaffId": zod.number().int().nullish(),
   "topic": zod.string().min(1),
   "scheduledDate": zod.string().regex(createSupportBodyScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']).optional(),
@@ -669,6 +1444,7 @@ export const CreateSupportResponse = zod.object({
   "businessId": zod.number().int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
+  "mentorStaffId": zod.number().int().nullable(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(createSupportResponseScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
@@ -692,6 +1468,7 @@ export const UpdateSupportBody = zod.object({
   "businessId": zod.number().int().optional(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']).optional(),
   "provider": zod.string().min(1).optional(),
+  "mentorStaffId": zod.number().int().nullish(),
   "topic": zod.string().min(1).optional(),
   "scheduledDate": zod.coerce.date().nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']).optional(),
@@ -706,6 +1483,7 @@ export const UpdateSupportResponse = zod.object({
   "businessId": zod.number().int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
+  "mentorStaffId": zod.number().int().nullable(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(updateSupportResponseScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
@@ -846,10 +1624,22 @@ export const DeletePitchResponse = zod.void()
 export const GetAuthMeResponse = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
-  "role": zod.enum(['coordinator', 'staff']),
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "createdAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary List mentor Calendly connection status for coordinators
+ */
+export const GetMentorBookingStatusResponseItem = zod.object({
+  "staffId": zod.number().int(),
+  "email": zod.string().email(),
+  "status": zod.enum(['invited', 'active']),
+  "calendlyConnected": zod.boolean()
+})
+export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusResponseItem)
 
 
 /**
@@ -858,7 +1648,7 @@ export const GetAuthMeResponse = zod.object({
 export const ListStaffResponseItem = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
-  "role": zod.enum(['coordinator', 'staff']),
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "createdAt": zod.coerce.date()
 })
@@ -870,13 +1660,13 @@ export const ListStaffResponse = zod.array(ListStaffResponseItem)
  */
 export const CreateStaffBody = zod.object({
   "email": zod.string().email(),
-  "role": zod.enum(['coordinator', 'staff'])
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge'])
 })
 
 export const CreateStaffResponse = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
-  "role": zod.enum(['coordinator', 'staff']),
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "createdAt": zod.coerce.date()
 })
@@ -890,13 +1680,13 @@ export const UpdateStaffParams = zod.object({
 })
 
 export const UpdateStaffBody = zod.object({
-  "role": zod.enum(['coordinator', 'staff'])
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge'])
 })
 
 export const UpdateStaffResponse = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
-  "role": zod.enum(['coordinator', 'staff']),
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "createdAt": zod.coerce.date()
 })

@@ -10,7 +10,7 @@ import {
   UpdateSupportParams,
   UpdateSupportResponse,
 } from "@workspace/api-zod";
-import { db, supportTable } from "@workspace/db";
+import { db, staffMembersTable, supportTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -35,6 +35,14 @@ router.post("/support", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.mentorStaffId !== undefined && parsed.data.mentorStaffId !== null) {
+    const [mentor] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
+      .where(and(eq(staffMembersTable.id, parsed.data.mentorStaffId), eq(staffMembersTable.role, "mentor"))).limit(1);
+    if (!mentor) {
+      res.status(400).json({ error: "Select an account with the Mentor role." });
+      return;
+    }
+  }
   const [engagement] = await db.insert(supportTable).values(parsed.data).returning();
   res.status(201).json(CreateSupportResponse.parse(engagement));
 });
@@ -45,6 +53,14 @@ router.patch("/support/:id", async (req, res): Promise<void> => {
   if (!params.success || !body.success) {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
+  }
+  if (body.data.mentorStaffId !== undefined && body.data.mentorStaffId !== null) {
+    const [mentor] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
+      .where(and(eq(staffMembersTable.id, body.data.mentorStaffId), eq(staffMembersTable.role, "mentor"))).limit(1);
+    if (!mentor) {
+      res.status(400).json({ error: "Select an account with the Mentor role." });
+      return;
+    }
   }
   const values = {
     ...body.data,

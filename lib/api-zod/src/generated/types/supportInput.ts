@@ -13,6 +13,8 @@ export interface SupportInput {
   type: SupportType;
   /** @minLength 1 */
   provider: string;
+  /** @nullable */
+  mentorStaffId?: number | null;
   /** @minLength 1 */
   topic: string;
   /**

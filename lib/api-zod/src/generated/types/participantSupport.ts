@@ -19,4 +19,6 @@ export interface ParticipantSupport {
      */
   scheduledDate: string | null;
   status: SupportStatus;
+  /** @nullable */
+  mentorBookingUrl: string | null;
 }

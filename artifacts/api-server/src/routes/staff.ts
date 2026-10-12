@@ -5,13 +5,14 @@ import {
   CreateStaffResponse,
   DeleteStaffParams,
   GetAuthMeResponse,
+  GetMentorBookingStatusResponse,
   ListStaffResponse,
   UpdateStaffBody,
   UpdateStaffParams,
   UpdateStaffResponse,
 } from "@workspace/api-zod";
 import { db, staffMembersTable } from "@workspace/db";
-import { requireCoordinator } from "../middlewares/staffAccess";
+import { requireCoordinator, requireOperationsStaff } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
 
@@ -19,9 +20,25 @@ router.get("/auth/me", (_req, res): void => {
   res.json(GetAuthMeResponse.parse(res.locals.staff));
 });
 
-router.get("/staff", requireCoordinator, async (_req, res): Promise<void> => {
+router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> => {
   const members = await db.select().from(staffMembersTable).orderBy(asc(staffMembersTable.email));
   res.json(ListStaffResponse.parse(members));
+});
+
+router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res): Promise<void> => {
+  const mentors = await db.select({
+    staffId: staffMembersTable.id,
+    email: staffMembersTable.email,
+    status: staffMembersTable.status,
+    calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+  }).from(staffMembersTable)
+    .where(eq(staffMembersTable.role, "mentor"))
+    .orderBy(asc(staffMembersTable.email));
+
+  res.json(GetMentorBookingStatusResponse.parse(mentors.map(({ calendlyBookingUrl, ...mentor }) => ({
+    ...mentor,
+    calendlyConnected: Boolean(calendlyBookingUrl),
+  }))));
 });
 
 router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {

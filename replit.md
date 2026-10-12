@@ -1,6 +1,6 @@
-# [Project name]
+# Jusoor Entrepreneurship Program Hub
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An operations and learning platform for Jusoor entrepreneurship cohorts, from application intake through incubation, mentoring, pitch day, and demo-day grants.
 
 ## Run & Operate
 
@@ -22,7 +22,11 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- Product feature reference: `attached_assets/Features_for_Entrepreneurship_Program_System___ENT_(Dec_2024)_1791802478905.docx`
+- API contract: `lib/api-spec/openapi.yaml`
+- Database schema: `lib/db/src/schema`
+- Program web app: `artifacts/jusoor-program`
+- API server: `artifacts/api-server`
 
 ## Architecture decisions
 
@@ -30,7 +34,13 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The platform supports program applications, participant and staff role-specific views, cohort sessions and recordings, training assignments and questions, mentor and expert support, and pitch-day/demo-day grant decisions.
+
+## Feature reference and scope
+
+Use the attached December 2024 feature specification as the reference for future platform features. It covers program operations, mentoring, analytics and reporting, grants, integrations, accessibility, and LMS capabilities.
+
+Skip requirements in the document's Security and Compliance sections, except for role-based permissions that restrict access to course materials according to a user's role.
 
 ## User preferences
 

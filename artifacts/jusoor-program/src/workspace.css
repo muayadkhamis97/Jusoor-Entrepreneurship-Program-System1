@@ -392,3 +392,10 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
   .staff-panel { padding: 15px 13px 5px; }
   .section-meta { font-size: 9px; }
 }
+
+.mentor-booking-note { display: block; margin-top: 5px; color: hsl(var(--muted-foreground)); font-size: 9px; }
+.mentor-booking-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) {
+  .mentor-booking-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mentor-booking-metrics .metric-card:last-child { grid-column: 1 / -1; }
+}

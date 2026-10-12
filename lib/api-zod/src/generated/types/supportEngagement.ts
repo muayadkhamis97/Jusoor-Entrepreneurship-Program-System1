@@ -13,6 +13,8 @@ export interface SupportEngagement {
   businessId: number;
   type: SupportType;
   provider: string;
+  /** @nullable */
+  mentorStaffId: number | null;
   topic: string;
   /**
      * @nullable

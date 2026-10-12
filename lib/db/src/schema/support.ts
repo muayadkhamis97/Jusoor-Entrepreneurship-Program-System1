@@ -2,12 +2,14 @@ import { createInsertSchema } from "drizzle-zod";
 import { date, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { businessesTable } from "./businesses";
+import { staffMembersTable } from "./staff";
 
 export const supportTable = pgTable("jusoor_support", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull().references(() => businessesTable.id, { onDelete: "cascade" }),
   type: text("type").notNull().default("mentor"),
   provider: text("provider").notNull(),
+  mentorStaffId: integer("mentor_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
   topic: text("topic").notNull(),
   scheduledDate: date("scheduled_date", { mode: "string" }),
   status: text("status").notNull().default("requested"),

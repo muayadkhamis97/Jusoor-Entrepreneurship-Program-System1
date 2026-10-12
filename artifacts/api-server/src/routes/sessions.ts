@@ -10,7 +10,7 @@ import {
   UpdateSessionParams,
   UpdateSessionResponse,
 } from "@workspace/api-zod";
-import { db, sessionsTable } from "@workspace/db";
+import { db, sessionsTable, staffMembersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -35,6 +35,14 @@ router.post("/sessions", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.trainerStaffId !== undefined && parsed.data.trainerStaffId !== null) {
+    const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
+      .where(and(eq(staffMembersTable.id, parsed.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
+    if (!trainer) {
+      res.status(400).json({ error: "Select an account with the Trainer role." });
+      return;
+    }
+  }
   const [session] = await db.insert(sessionsTable).values(parsed.data).returning();
   res.status(201).json(CreateSessionResponse.parse(session));
 });
@@ -45,6 +53,14 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
   if (!params.success || !body.success) {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
+  }
+  if (body.data.trainerStaffId !== undefined && body.data.trainerStaffId !== null) {
+    const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
+      .where(and(eq(staffMembersTable.id, body.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
+    if (!trainer) {
+      res.status(400).json({ error: "Select an account with the Trainer role." });
+      return;
+    }
   }
   const [session] = await db.update(sessionsTable).set(body.data)
     .where(eq(sessionsTable.id, params.data.id)).returning();

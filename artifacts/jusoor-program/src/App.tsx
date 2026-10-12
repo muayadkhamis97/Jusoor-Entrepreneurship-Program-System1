@@ -1,4 +1,6 @@
 import './workspace.css';
+import './role-workspace.css';
+import './role-access.css';
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -8,15 +10,15 @@ import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@cler
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import {
-  getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getListBusinessesQueryKey,
-  getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey,
+  getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getListBusinessesQueryKey,
+  getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useGetAuthMe, useGetDashboard, useListBusinesses, useListPitches, useListPrograms,
-  useListSessions, useListStaff, useListSupport, useUpdateBusiness, useUpdatePitch,
+  useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdatePitch,
   useUpdateProgram, useUpdateSession, useUpdateSupport,
-  useUpdateStaff,
+  useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, PitchInput,
@@ -25,13 +27,16 @@ import type {
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
-  Activity, ArrowRight, ArrowUpRight, BriefcaseBusiness,
-  CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut,
+  Activity, ArrowRight, ArrowUpRight, BookOpen, BriefcaseBusiness,
+  CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
   FileText, Filter, Handshake, LayoutDashboard, MapPin,
   Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { ApplicationsReviewPage, ApplyPage, ParticipantDashboardPage } from './intake-surfaces';
+import { CourseManagementPage } from './course-surfaces';
+import { JudgeDashboardPage, MentorDashboardPage, RoleFrame, RoleNotFound, TrainerDashboardPage } from './role-surfaces';
+import { RoleAccessPage } from './role-access';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -109,7 +114,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     { href: '/support', label: 'Support', icon: Handshake },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
-    ...(staff.role === 'coordinator' ? [{ href: '/applications', label: 'Applications', icon: FileText }, { href: '/team', label: 'Team access', icon: Shield }] : []),
+    ...(staff.role === 'coordinator' ? [{ href: '/courses', label: 'Learning', icon: BookOpen }, { href: '/applications', label: 'Applications', icon: FileText }, { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck }, { href: '/team', label: 'Team access', icon: Shield }, { href: '/access', label: 'Role access', icon: Shield }] : []),
   ];
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
@@ -217,7 +222,7 @@ const businessFields = (programs: Program[]): Field[] => [
   { name: 'needs', label: 'Support needs', kind: 'textarea', wide: true, placeholder: 'What would help this business progress?' },
   { name: 'notes', label: 'Coordinator notes', kind: 'textarea', wide: true },
 ];
-const sessionFields = (programs: Program[]): Field[] => [
+const sessionFields = (programs: Program[], trainers: StaffMember[] = [], includeTrainer = false): Field[] => [
   { name: 'title', label: 'Session title', required: true, wide: true },
   { name: 'type', label: 'Session type', kind: 'select', required: true, options: ['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => ({ value: v, label: display(v) })) },
   { name: 'deliveryMode', label: 'Delivery mode', kind: 'select', required: true, options: [{ value: 'online', label: 'Online' }, { value: 'in_person', label: 'In person' }, { value: 'hybrid', label: 'Hybrid' }] },
@@ -226,14 +231,16 @@ const sessionFields = (programs: Program[]): Field[] => [
   { name: 'scheduledDate', label: 'Date', kind: 'date', required: true },
   { name: 'startTime', label: 'Start time', kind: 'time' },
   { name: 'facilitator', label: 'Facilitator' },
+  ...(includeTrainer ? [{ name: 'trainerStaffId', label: 'Assigned trainer', kind: 'select' as const, options: trainers.map(person => ({ value: String(person.id), label: person.email })) }] : []),
   { name: 'location', label: 'Location', wide: true, placeholder: 'Venue, room or meeting space' },
   { name: 'zoomUrl', label: 'Zoom meeting link', kind: 'url', wide: true, placeholder: 'https://…' },
   { name: 'recordingUrl', label: 'Recording link', kind: 'url', wide: true, placeholder: 'https://…' },
 ];
-const supportFields = (businesses: Business[]): Field[] => [
+const supportFields = (businesses: Business[], mentors: StaffMember[] = [], includeMentor = false): Field[] => [
   { name: 'businessId', label: 'Business', kind: 'select', required: true, options: businesses.map(b => ({ value: String(b.id), label: `${b.businessName} — ${b.founderName}` })) },
   { name: 'type', label: 'Engagement type', kind: 'select', required: true, options: ['mentor', 'subject_expert', 'branding', 'technical'].map(v => ({ value: v, label: display(v) })) },
   { name: 'provider', label: 'Provider / specialist', required: true },
+  ...(includeMentor ? [{ name: 'mentorStaffId', label: 'Assigned mentor', kind: 'select' as const, options: mentors.map(person => ({ value: String(person.id), label: person.email })) }] : []),
   { name: 'topic', label: 'Topic', required: true },
   { name: 'status', label: 'Status', kind: 'select', options: ['requested', 'matched', 'scheduled', 'completed'].map(v => ({ value: v, label: display(v) })) },
   { name: 'scheduledDate', label: 'Scheduled date', kind: 'date' },
@@ -249,7 +256,13 @@ const pitchFields = (businesses: Business[]): Field[] => [
   { name: 'grantAmount', label: 'Grant amount (USD)', kind: 'number' },
   { name: 'feedback', label: 'Evaluation feedback', kind: 'textarea', wide: true },
 ];
-const staffRoleOptions = [{ value: 'staff', label: 'Program staff' }, { value: 'coordinator', label: 'Coordinator' }];
+const staffRoleOptions = [
+  { value: 'staff', label: 'Program staff' },
+  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'trainer', label: 'Trainer' },
+  { value: 'mentor', label: 'Mentor' },
+  { value: 'judge', label: 'Judge' },
+];
 const staffInviteFields: Field[] = [
   { name: 'email', label: 'Approved staff email', kind: 'email', required: true, wide: true },
   { name: 'role', label: 'Access role', kind: 'select', required: true, options: staffRoleOptions },
@@ -308,54 +321,62 @@ function BusinessesPage() {
   </>;
 }
 
-function SessionsPage() {
+function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
   const [type, setType] = useState(''); const [editing, setEditing] = useState<Session | null | undefined>(undefined); const [deleting, setDeleting] = useState<Session | null>(null);
   const params = useMemo(() => type ? { type: type as Session['type'] } : undefined, [type]);
   const query = useListSessions(params); const programsQuery = useListPrograms(); const programs = programsQuery.data || []; const sessions = query.data || []; const client = useQueryClient();
+  const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
+  const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
   const create = useCreateSession(); const update = useUpdateSession(); const remove = useDeleteSession();
   const save = (v: Values) => {
-    const data: SessionInput = { title: v.title.trim(), type: (v.type || 'training') as SessionInput['type'], programId: v.programId ? Number(v.programId) : null, scheduledDate: v.scheduledDate, startTime: v.startTime || null, facilitator: v.facilitator || null, deliveryMode: (v.deliveryMode || 'online') as SessionInput['deliveryMode'], location: v.location || null, zoomUrl: v.zoomUrl || null, recordingUrl: v.recordingUrl || null, status: (v.status || 'scheduled') as SessionInput['status'] };
+    const data: SessionInput = { title: v.title.trim(), type: (v.type || 'training') as SessionInput['type'], programId: v.programId ? Number(v.programId) : null, scheduledDate: v.scheduledDate, startTime: v.startTime || null, facilitator: v.facilitator || null, ...(coordinator ? { trainerStaffId: v.trainerStaffId ? Number(v.trainerStaffId) : null } : {}), deliveryMode: (v.deliveryMode || 'online') as SessionInput['deliveryMode'], location: v.location || null, zoomUrl: v.zoomUrl || null, recordingUrl: v.recordingUrl || null, status: (v.status || 'scheduled') as SessionInput['status'] };
     const done = () => { invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]); setEditing(undefined); };
     if (editing) update.mutate({ id: editing.id, data: data as SessionUpdate }, { onSuccess: done }); else create.mutate({ data }, { onSuccess: done });
   };
   const removeRecord = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
     <PageHeading kicker="PROGRAM DELIVERY / SESSIONS" title="Sessions" summary="Bootcamps, hackathons and online moments that move the cohort forward." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-session"><Plus size={16} /> Schedule session</button>} />
+    {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Trainer assignments are temporarily unavailable.</b><span>Reload the page to retry team access records before assigning a trainer.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-trainers">Retry</button></div>}
     <div className="calendar-summary"><div className="calendar-icon"><CalendarDays size={20} /></div><div><b>Make each moment count.</b><span>Keep joining details and recordings close to the agenda.</span></div><span className="calendar-endnote"><Video size={15} /> LIVE + ON-DEMAND</span></div>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label="Filter sessions by type" onChange={e => setType(e.target.value)} data-testid="select-session-type"><option value="">All session types</option>{['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{sessions.length}</b> sessions</div></div>
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : sessions.length === 0 ? <EmptyState title="No sessions scheduled." body="Add the next bootcamp, hackathon, online training or pitch event to get the cohort together." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Schedule a session</button>} /> :
     <div className="session-list">{sessions.map((session, i) => <article className="session-card" key={session.id} data-testid={`card-session-${session.id}`}><div className="session-date"><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><small>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { weekday: 'short' })}</small></div><div className="session-card-main"><div className="session-label-row"><Badge value={session.type} /><Badge value={session.status} /><span className={`delivery-pill delivery-${session.deliveryMode}`}>{display(session.deliveryMode)}</span></div><h2 className="app-title">{session.title}</h2><p>{programs.find(p => p.id === session.programId)?.name || (session.programId ? `Program ${session.programId}` : 'All cohorts')}<span>·</span>{session.startTime || 'Time not set'}<span>·</span>{session.facilitator || 'Facilitator TBD'}</p><div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || 'Location not set'}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> Join Zoom <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? 'In-person session' : 'No meeting link'}</span>}{session.recordingUrl && <a href={session.recordingUrl} target="_blank" rel="noreferrer" className="text-link"><ExternalLink size={13} /> Recording</a>}</div></div><div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div><span className={`session-index mono session-index-${i % 2}`}>SESSION / {String(i + 1).padStart(2, '0')}</span></article>)}</div>}
-    {editing !== undefined && <FormDialog title={editing ? 'Edit session' : 'Schedule a session'} description="Set the agenda, delivery format and follow-up links." fields={sessionFields(programs)} initial={editing ? { title: editing.title, type: editing.type, programId: editing.programId ? String(editing.programId) : '', scheduledDate: valueOf(editing.scheduledDate), startTime: editing.startTime || '', facilitator: editing.facilitator || '', deliveryMode: editing.deliveryMode, location: editing.location || '', zoomUrl: editing.zoomUrl || '', recordingUrl: editing.recordingUrl || '', status: editing.status } : { type: 'training', deliveryMode: 'online', status: 'scheduled' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this session. Check required details.' : undefined} />}
+    {editing !== undefined && <FormDialog title={editing ? 'Edit session' : 'Schedule a session'} description="Create the meeting in Zoom, then paste its join link here. Assigned trainers and participants will see it in their workspaces; add the recording link after the session." fields={sessionFields(programs, trainers, coordinator)} initial={editing ? { title: editing.title, type: editing.type, programId: editing.programId ? String(editing.programId) : '', scheduledDate: valueOf(editing.scheduledDate), startTime: editing.startTime || '', facilitator: editing.facilitator || '', trainerStaffId: editing.trainerStaffId ? String(editing.trainerStaffId) : '', deliveryMode: editing.deliveryMode, location: editing.location || '', zoomUrl: editing.zoomUrl || '', recordingUrl: editing.recordingUrl || '', status: editing.status } : { type: 'training', deliveryMode: 'online', status: 'scheduled' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this session. Check required details.' : undefined} />}
     {deleting && <ConfirmDialog item={deleting.title} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}
   </>;
 }
 
-function SupportPage() {
+function SupportPage({ coordinator = false }: { coordinator?: boolean }) {
   const [type, setType] = useState(''); const [editing, setEditing] = useState<SupportEngagement | null | undefined>(undefined); const [deleting, setDeleting] = useState<SupportEngagement | null>(null);
   const params = useMemo(() => type ? { type: type as SupportEngagement['type'] } : undefined, [type]);
   const query = useListSupport(params); const businessQuery = useListBusinesses(); const businesses = businessQuery.data || []; const engagements = query.data || []; const client = useQueryClient();
+  const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
+  const mentors = coordinator ? (staffQuery.data || []).filter(person => person.role === 'mentor' && person.status === 'active') : [];
   const create = useCreateSupport(); const update = useUpdateSupport(); const remove = useDeleteSupport();
   const save = (v: Values) => {
-    const data: SupportInput = { businessId: Number(v.businessId), type: (v.type || 'mentor') as SupportInput['type'], provider: v.provider.trim(), topic: v.topic.trim(), scheduledDate: v.scheduledDate || null, status: (v.status || 'requested') as SupportInput['status'], notes: v.notes || null };
+    const data: SupportInput = { businessId: Number(v.businessId), type: (v.type || 'mentor') as SupportInput['type'], provider: v.provider.trim(), ...(coordinator ? { mentorStaffId: v.mentorStaffId ? Number(v.mentorStaffId) : null } : {}), topic: v.topic.trim(), scheduledDate: v.scheduledDate || null, status: (v.status || 'requested') as SupportInput['status'], notes: v.notes || null };
     const done = () => { invalidate(client, [getListSupportQueryKey(), getGetDashboardQueryKey()]); setEditing(undefined); };
     if (editing) update.mutate({ id: editing.id, data: data as SupportUpdate }, { onSuccess: done }); else create.mutate({ data }, { onSuccess: done });
   };
   const removeRecord = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListSupportQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
     <PageHeading kicker="FOUNDER ENABLEMENT / ENGAGEMENTS" title="Support" summary="The right mentor, specialist or agency at the moment it matters." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-support"><Plus size={16} /> Log engagement</button>} />
+    {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Mentor assignments are temporarily unavailable.</b><span>Retry team access records before assigning an engagement.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-mentors">Retry</button></div>}
     <div className="support-callout"><div className="support-callout-icon"><Handshake size={20} /></div><div><div className="eyebrow">SUPPORT THAT MOVES THE NEEDLE</div><b>Match practical expertise to a founder's next milestone.</b><span>Mentoring · subject expertise · branding · technical agency</span></div><div className="support-total"><b>{engagements.filter(e => e.status !== 'completed').length}</b><span>IN MOTION</span></div></div>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label="Filter support by type" onChange={e => setType(e.target.value)} data-testid="select-support-type"><option value="">All support types</option>{['mentor', 'subject_expert', 'branding', 'technical'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{engagements.length}</b> engagements</div></div>
     {query.isLoading || businessQuery.isLoading ? <LoadingState /> : query.isError || businessQuery.isError ? <ErrorState retry={() => { void query.refetch(); void businessQuery.refetch(); }} /> : engagements.length === 0 ? <EmptyState title="Support begins with a conversation." body="Log a mentoring match, a specialist session or agency support against a business." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Add an engagement</button>} /> :
     <section className="panel engagement-panel"><div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>SUPPORT</th><th>PROVIDER / TOPIC</th><th>DATE</th><th>STATUS</th><th className="align-right">ACTIONS</th></tr></thead><tbody>{engagements.map(item => { const business = businesses.find(b => b.id === item.businessId); return <tr key={item.id} data-testid={`row-support-${item.id}`}><td><div className="company-cell"><span className="company-monogram monogram-teal">{business?.businessName?.slice(0, 1).toUpperCase() || 'B'}</span><span><b>{business?.businessName || `Business ${item.businessId}`}</b><small>{business?.founderName || 'Founder record'}</small></span></div></td><td><span className="type-mark">{display(item.type)}</span></td><td><div className="provider-cell"><b>{item.provider}</b><small>{item.topic}</small></div></td><td>{dateLabel(item.scheduledDate)}</td><td><Badge value={item.status} /></td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(item)} aria-label={`Edit ${item.topic}`} data-testid={`button-edit-support-${item.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(item)} aria-label={`Delete ${item.topic}`} data-testid={`button-delete-support-${item.id}`}><Trash2 size={15} /></button></div></td></tr>; })}</tbody></table></div></section>}
-    {editing !== undefined && <FormDialog title={editing ? 'Edit engagement' : 'Log an engagement'} description="Tie every support moment to a business and a clear outcome." fields={supportFields(businesses)} initial={editing ? { businessId: String(editing.businessId), type: editing.type, provider: editing.provider, topic: editing.topic, scheduledDate: valueOf(editing.scheduledDate), status: editing.status, notes: editing.notes || '' } : { type: 'mentor', status: 'requested', ...(businesses[0] ? { businessId: String(businesses[0].id) } : {}) }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this engagement. Check the required fields.' : undefined} />}
+    {editing !== undefined && <FormDialog title={editing ? 'Edit engagement' : 'Log an engagement'} description="Tie every support moment to a business and a clear outcome." fields={supportFields(businesses, mentors, coordinator)} initial={editing ? { businessId: String(editing.businessId), type: editing.type, provider: editing.provider, mentorStaffId: editing.mentorStaffId ? String(editing.mentorStaffId) : '', topic: editing.topic, scheduledDate: valueOf(editing.scheduledDate), status: editing.status, notes: editing.notes || '' } : { type: 'mentor', status: 'requested', ...(businesses[0] ? { businessId: String(businesses[0].id) } : {}) }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this engagement. Check the required fields.' : undefined} />}
     {deleting && <ConfirmDialog item={`${deleting.type.replaceAll('_', ' ')} · ${deleting.topic}`} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}
   </>;
 }
 
-function PitchesPage() {
+function PitchesPage({ coordinator = false }: { coordinator?: boolean }) {
   const [eventType, setEventType] = useState(''); const [editing, setEditing] = useState<PitchRecord | null | undefined>(undefined); const [deleting, setDeleting] = useState<PitchRecord | null>(null);
   const params = useMemo(() => eventType ? { eventType: eventType as PitchRecord['eventType'] } : undefined, [eventType]);
   const query = useListPitches(params); const businessQuery = useListBusinesses(); const businesses = businessQuery.data || []; const pitches = query.data || []; const client = useQueryClient();
+  const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
+  const judges = coordinator ? (staffQuery.data || []).filter(person => person.role === 'judge' && person.status === 'active') : [];
   const create = useCreatePitch(); const update = useUpdatePitch(); const remove = useDeletePitch();
   const save = (v: Values) => {
     const data: PitchInput = { businessId: Number(v.businessId), eventType: (v.eventType || 'pitch_day') as PitchInput['eventType'], eventDate: v.eventDate, judges: v.judges || null, score: v.score === '' ? null : Number(v.score), grantDecision: (v.grantDecision || 'pending') as PitchInput['grantDecision'], grantAmount: v.grantAmount === '' ? null : Number(v.grantAmount), feedback: v.feedback || null };
@@ -367,14 +388,77 @@ function PitchesPage() {
   const awardedTotal = awarded.reduce((sum, pitch) => sum + (pitch.grantAmount || 0), 0);
   return <>
     <PageHeading kicker="PITCH DAY / DECISIONS" title="Pitch & grants" summary="Keep evaluations, judge feedback and funding decisions connected." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-pitch"><Plus size={16} /> Add evaluation</button>} />
+    {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Judge assignments are temporarily unavailable.</b><span>Retry team access records before assigning scorecards.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-judges">Retry</button></div>}
     <section className="grant-summary"><div className="grant-emblem"><Trophy size={21} /></div><div className="grant-copy"><div className="eyebrow">FROM THE STAGE TO THE NEXT CHAPTER</div><b>Make each decision legible and grounded.</b><span>Scores, feedback and grant outcomes stay with the founder record.</span></div><div className="grant-stat"><b>{awarded.length}</b><span>GRANTS AWARDED</span></div><div className="grant-stat grant-amount"><b>{money(awardedTotal)}</b><span>TRACKED HERE</span></div></section>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={eventType} aria-label="Filter pitch evaluations by event" onChange={e => setEventType(e.target.value)} data-testid="select-pitch-event"><option value="">Pitch + demo day</option><option value="pitch_day">Pitch day</option><option value="demo_day">Demo day</option></select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{pitches.length}</b> evaluations</div></div>
     {query.isLoading || businessQuery.isLoading ? <LoadingState /> : query.isError || businessQuery.isError ? <ErrorState retry={() => { void query.refetch(); void businessQuery.refetch(); }} /> : pitches.length === 0 ? <EmptyState title="The stage is set for your first evaluation." body="Record a pitch or demo day score, capture judge notes and track the grant decision." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Add an evaluation</button>} /> :
     <section className="panel pitch-panel"><div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>EVENT</th><th>JUDGES</th><th>SCORE</th><th>GRANT DECISION</th><th>AMOUNT</th><th className="align-right">ACTIONS</th></tr></thead><tbody>{pitches.map(pitch => { const business = businesses.find(b => b.id === pitch.businessId); return <tr key={pitch.id} data-testid={`row-pitch-${pitch.id}`}><td><div className="company-cell"><span className="company-monogram monogram-coral">{business?.businessName?.slice(0, 1).toUpperCase() || 'B'}</span><span><b>{business?.businessName || `Business ${pitch.businessId}`}</b><small>{dateLabel(pitch.eventDate)}</small></span></div></td><td><span className="event-chip">{display(pitch.eventType)}</span></td><td><div className="judge-text">{pitch.judges || '—'}</div></td><td><span className="score-value">{pitch.score ?? '—'}{pitch.score !== null && pitch.score !== undefined && <small>/100</small>}</span></td><td><Badge value={pitch.grantDecision} /></td><td className="grant-value">{pitch.grantDecision === 'awarded' ? money(pitch.grantAmount) : '—'}</td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(pitch)} aria-label={`Edit ${business?.businessName || 'pitch evaluation'}`} data-testid={`button-edit-pitch-${pitch.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(pitch)} aria-label="Delete pitch evaluation" data-testid={`button-delete-pitch-${pitch.id}`}><Trash2 size={15} /></button></div></td></tr>; })}</tbody></table></div>
+      {coordinator && pitches.length > 0 && <div className="pitch-judge-controls"><div className="eyebrow">INDIVIDUAL JUDGE ASSIGNMENTS</div>{pitches.map(pitch => <PitchJudgeControl key={pitch.id} pitchId={pitch.id} pitchLabel={`${businesses.find(b => b.id === pitch.businessId)?.businessName || `Business ${pitch.businessId}`} · ${display(pitch.eventType)}`} judges={judges} client={client} />)}</div>}
       <div className="pitch-feedback">{pitches.filter(p => p.feedback).slice(0, 2).map(p => <div className="feedback-note" key={p.id}><span className="quote-mark">“</span><div><b>{businesses.find(b => b.id === p.businessId)?.businessName || `Business ${p.businessId}`}</b><p>{p.feedback}</p></div></div>)}</div>
     </section>}
     {editing !== undefined && <FormDialog title={editing ? 'Edit evaluation' : 'Record an evaluation'} description="Capture the room's view and the decision that follows." fields={pitchFields(businesses)} initial={editing ? { businessId: String(editing.businessId), eventType: editing.eventType, eventDate: valueOf(editing.eventDate), judges: editing.judges || '', score: valueOf(editing.score), grantDecision: editing.grantDecision, grantAmount: valueOf(editing.grantAmount), feedback: editing.feedback || '' } : { eventType: 'pitch_day', grantDecision: 'pending', ...(businesses[0] ? { businessId: String(businesses[0].id) } : {}) }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this evaluation. Check the required fields.' : undefined} />}
     {deleting && <ConfirmDialog item={`${display(deleting.eventType)} evaluation`} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}
+  </>;
+}
+
+function PitchJudgeControl({ pitchId, pitchLabel, judges, client }: { pitchId: number; pitchLabel: string; judges: StaffMember[]; client: ReturnType<typeof useQueryClient> }) {
+  const query = useListPitchJudges(pitchId, { query: { queryKey: getListPitchJudgesQueryKey(pitchId) } });
+  const assign = useAssignPitchJudge();
+  const remove = useRemovePitchJudge();
+  const [judgeId, setJudgeId] = useState('');
+  const assignments = query.data || [];
+  const assignedIds = new Set(assignments.map(item => item.judgeStaffId));
+  const add = () => {
+    if (!judgeId) return;
+    assign.mutate({ id: pitchId, data: { judgeStaffId: Number(judgeId) } }, { onSuccess: () => { invalidate(client, [getListPitchJudgesQueryKey(pitchId)]); setJudgeId(''); } });
+  };
+  const removeAssignment = (assignmentId: number) => remove.mutate({ id: assignmentId }, { onSuccess: () => invalidate(client, [getListPitchJudgesQueryKey(pitchId)]) });
+  return <article className="judge-assignment-row" data-testid={`pitch-judge-assignment-${pitchId}`}><div><b>{pitchLabel}</b><span>{query.isLoading ? 'Loading judge assignments…' : assignments.length ? assignments.map(item => `${item.judgeName}${item.submittedAt ? ' · scored' : ''}`).join(' / ') : 'No individual judges assigned'}</span></div><div className="judge-assignment-actions"><label className="sr-only" htmlFor={`assign-judge-${pitchId}`}>Choose judge for {pitchLabel}</label><select id={`assign-judge-${pitchId}`} className="form-control" value={judgeId} onChange={event => setJudgeId(event.target.value)} data-testid={`select-judge-${pitchId}`}><option value="">Choose judge</option>{judges.filter(person => !assignedIds.has(person.id)).map(person => <option key={person.id} value={person.id}>{person.email}</option>)}</select><button className="button button-outline" onClick={add} disabled={!judgeId || assign.isPending} data-testid={`button-assign-judge-${pitchId}`}>{assign.isPending ? 'Assigning…' : 'Assign'}</button></div>{assignments.filter(item => !item.submittedAt).map(item => <button className="judge-remove" key={item.id} onClick={() => removeAssignment(item.id)} disabled={remove.isPending} aria-label={`Remove ${item.judgeName} from ${pitchLabel}`} data-testid={`button-remove-judge-${item.id}`}>Remove {item.judgeName}</button>)}{(assign.isError || remove.isError || query.isError) && <span className="form-error">Judge assignment could not be updated.</span>}</article>;
+}
+
+function MentorBookingStatusPage() {
+  const query = useGetMentorBookingStatus({
+    query: { queryKey: getGetMentorBookingStatusQueryKey(), refetchOnWindowFocus: true },
+  });
+  const mentors = query.data || [];
+  const connectedCount = mentors.filter(mentor => mentor.calendlyConnected).length;
+  const pendingCount = mentors.length - connectedCount;
+
+  return <>
+    <PageHeading
+      kicker="MENTOR OPERATIONS / SESSION BOOKING"
+      title="Mentor booking status"
+      summary="See which mentors have connected Calendly so founders can book mentoring sessions."
+      action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? 'Refreshing…' : <><RefreshCw size={14} /> Refresh status</>}</button>}
+    />
+    {query.isLoading ? <LoadingState label="Loading mentor booking status" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : <>
+      <section className="metric-grid mentor-booking-metrics">
+        <Metric label="Mentors" value={mentors.length} hint="Invited and active accounts" icon={Users} />
+        <Metric label="Connected" value={connectedCount} hint="Calendly booking is ready" icon={CalendarCheck} />
+        <Metric label="Needs follow-up" value={pendingCount} hint="Not connected to Calendly" icon={CircleAlert} accent="metric-sand" />
+      </section>
+      {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after a coordinator adds them under Team access." /> :
+        <section className="panel staff-panel">
+          <div className="panel-heading">
+            <div><div className="eyebrow">BOOKING READINESS</div><h2 className="app-title">Mentor accounts</h2></div>
+            <span className="section-meta">{pendingCount} need{pendingCount === 1 ? 's' : ''} follow-up</span>
+          </div>
+          <div className="table-wrap"><table>
+            <thead><tr><th>MENTOR</th><th>JUSOOR ACCOUNT</th><th>CALENDLY</th></tr></thead>
+            <tbody>{mentors.map(mentor => <tr key={mentor.staffId} data-testid={`row-mentor-booking-${mentor.staffId}`}>
+              <td><div className="staff-email"><span className="staff-avatar">{mentor.email.slice(0, 1).toUpperCase()}</span><b>{mentor.email}</b></div></td>
+              <td><Badge value={mentor.status} label={mentor.status === 'active' ? 'Active' : 'Invitation pending'} /></td>
+              <td>
+                <span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}>
+                  <span />{mentor.calendlyConnected ? 'Connected' : 'Not connected'}
+                </span>
+                {!mentor.calendlyConnected && mentor.status === 'invited' && <small className="mentor-booking-note">Waiting for account sign-in</small>}
+              </td>
+            </tr>)}</tbody>
+          </table></div>
+        </section>}
+      <div className="dashboard-note"><span className="note-mark"><CalendarDays size={13} /></span><span><b>Connection status only.</b> This page does not display or change a mentor’s Calendly account.</span></div>
+    </>}
   </>;
 }
 
@@ -409,8 +493,8 @@ function TeamPage() {
   const deleteError = remove.error as { data?: { error?: string } } | null;
 
   return <>
-    <PageHeading kicker="TEAM / ACCESS" title="Staff access" summary="Approve the people who can work with Jusoor program records." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> Add staff access</button>} />
-    <div className="team-callout"><Shield size={18} /><div><b>Access is tied to a verified email.</b><span>Adding an email approves that account; no email is sent automatically. Staff must create an account and verify the same address before they can open program records.</span></div></div>
+    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> Invite team member</button>} />
+    <div className="team-callout"><Shield size={18} /><div><b>Every role is tied to a verified email.</b><span>Choose coordinator, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.</span></div></div>
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add a coordinator or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
       <section className="panel staff-panel">
         <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only coordinators can change access</span></div>
@@ -424,7 +508,7 @@ function TeamPage() {
           </tr>)}
         </tbody></table></div>
       </section>}
-    {editing !== undefined && <FormDialog title={editing ? 'Change staff role' : 'Approve staff access'} description={editing ? 'Choose the permissions this team member should have.' : 'The staff member must sign up with this exact, verified email address. This does not send an invitation email.'} fields={editing ? staffRoleFields : staffInviteFields} initial={editing ? { role: editing.role } : { role: 'staff' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
+    {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions this team member should have.' : 'Approve this verified email for the role selected. The person can sign in with this same address.'} fields={editing ? staffRoleFields : staffInviteFields} initial={editing ? { role: editing.role } : { role: 'staff' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
     {deleting && <ConfirmDialog item={`staff access for ${deleting.email}`} onCancel={() => setDeleting(null)} onConfirm={revoke} loading={remove.isPending} error={deleteError ? deleteError.data?.error || 'The access could not be revoked.' : undefined} />}
   </>;
 }
@@ -435,15 +519,21 @@ function NotFoundPage() {
 
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
   const [location] = useLocation();
+  if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage /></RoleFrame> : <RoleNotFound role={staff.role} />;
+  if (staff.role === 'mentor') return location === '/mentor' ? <MentorDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
+  if (staff.role === 'judge') return location === '/judge' ? <JudgeDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
   return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>
     <Route path="/" component={Overview} />
     <Route path="/businesses" component={BusinessesPage} />
     <Route path="/programs" component={ProgramsPage} />
-    <Route path="/sessions" component={SessionsPage} />
-    <Route path="/support" component={SupportPage} />
-    <Route path="/pitches" component={PitchesPage} />
+    <Route path="/courses" component={CourseManagementPage} />
+    <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} />}</Route>
+    <Route path="/support">{() => <SupportPage coordinator={staff.role === 'coordinator'} />}</Route>
+    <Route path="/pitches">{() => <PitchesPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/applications" component={staff.role === 'coordinator' ? ApplicationsReviewPage : NotFoundPage} />
+    <Route path="/mentor-booking" component={staff.role === 'coordinator' ? MentorBookingStatusPage : NotFoundPage} />
     <Route path="/team" component={staff.role === 'coordinator' ? TeamPage : NotFoundPage} />
+    <Route path="/access" component={staff.role === 'coordinator' ? RoleAccessPage : NotFoundPage} />
     <Route component={NotFoundPage} />
   </Switch></Shell></ErrorBoundary>;
 }
@@ -498,12 +588,22 @@ function AuthenticatedWorkspace() {
   const staffQuery = useGetAuthMe({
     query: { queryKey: getGetAuthMeQueryKey(), enabled: isLoaded && isSignedIn === true, retry: false },
   });
+  const roleHome = (role: StaffMember['role']) => role === 'trainer' ? '/trainer' : role === 'mentor' ? '/mentor' : role === 'judge' ? '/judge' : '/';
+  const permitted = (staff: StaffMember, path: string) => {
+    if (staff.role === 'trainer') return path === '/trainer' || path === '/courses';
+    if (staff.role === 'mentor' || staff.role === 'judge') return path === roleHome(staff.role);
+    if (path === '/trainer' || path === '/mentor' || path === '/judge' || path === '/participant') return false;
+    if (staff.role !== 'coordinator' && (path === '/applications' || path === '/mentor-booking' || path === '/team' || path === '/access')) return false;
+    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/courses', '/applications', '/mentor-booking', '/team', '/access'] : [])].includes(path);
+  };
+  const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {
-    if (staffQuery.data && location === '/participant') setLocation('/');
-  }, [staffQuery.data, location, setLocation]);
+    if (staffQuery.data && !permitted(staffQuery.data, location)) setLocation(roleHome(staffQuery.data.role));
+    if (staffQuery.isError && accessStatus === 403 && location !== '/participant') setLocation('/participant');
+  }, [staffQuery.data, staffQuery.isError, accessStatus, location, setLocation]);
   if (!isLoaded || (isSignedIn && (!userLoaded || staffQuery.isLoading))) return <AuthLoading />;
   if (!isSignedIn) return <AuthLanding />;
-  if (staffQuery.data && location === '/participant') return <AuthLoading />;
+  if (staffQuery.data && !permitted(staffQuery.data, location)) return <AuthLoading />;
   if (staffQuery.isError || !staffQuery.data) {
     const status = (staffQuery.error as { status?: number } | null)?.status;
     if (location === '/participant' && status === 403) return <ParticipantDashboardPage />;

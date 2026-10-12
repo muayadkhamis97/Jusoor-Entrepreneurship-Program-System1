@@ -7,10 +7,12 @@ import supportRouter from "./support";
 import pitchesRouter from "./pitches";
 import staffRouter from "./staff";
 import applicationsRouter from "./applications";
+import { requireOperationsStaff } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
 
 router.use(staffRouter);
+router.use(requireOperationsStaff);
 router.use(applicationsRouter);
 router.use(dashboardRouter);
 router.use(programsRouter);

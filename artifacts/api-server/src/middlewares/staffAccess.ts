@@ -6,8 +6,9 @@ import { db, staffMembersTable } from "@workspace/db";
 type StaffAccess = {
   id: number;
   email: string;
-  role: "coordinator" | "staff";
+  role: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
   status: "invited" | "active";
+  calendlyBookingUrl: string | null;
   createdAt: Date;
 };
 
@@ -96,6 +97,7 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
       email: member.email,
       role: member.role as StaffAccess["role"],
       status: member.status as StaffAccess["status"],
+      calendlyBookingUrl: member.calendlyBookingUrl,
       createdAt: member.createdAt,
     } satisfies StaffAccess;
     next();
@@ -109,6 +111,15 @@ export const requireCoordinator: RequestHandler = (_req, res, next): void => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (staff?.role !== "coordinator") {
     res.status(403).json({ error: "Coordinator access is required for this action." });
+    return;
+  }
+  next();
+};
+
+export const requireOperationsStaff: RequestHandler = (_req, res, next): void => {
+  const staff = res.locals.staff as StaffAccess | undefined;
+  if (!staff || (staff.role !== "coordinator" && staff.role !== "staff")) {
+    res.status(403).json({ error: "Program staff access is required for this area." });
     return;
   }
   next();

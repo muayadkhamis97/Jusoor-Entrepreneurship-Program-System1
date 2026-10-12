@@ -21,6 +21,8 @@ export interface SessionInput {
   startTime?: string | null;
   /** @nullable */
   facilitator?: string | null;
+  /** @nullable */
+  trainerStaffId?: number | null;
   deliveryMode?: DeliveryMode;
   /** @nullable */
   location?: string | null;

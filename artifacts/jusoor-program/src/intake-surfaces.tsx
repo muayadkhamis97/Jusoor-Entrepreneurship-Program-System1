@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetParticipantDashboardQueryKey, getListApplicationsQueryKey,
+  getGetParticipantCoursesQueryKey, useGetParticipantCourses,
   getListApplicationProgramsQueryKey, useGetParticipantDashboard,
   useListApplications, useListApplicationPrograms, useReviewApplication,
-  useSubmitApplication,
+  useSubmitApplication, useSubmitTrainingAnswer, useAskTrainingQuestion,
 } from '@workspace/api-client-react';
-import type { ApplicationProgram, EntrepreneurApplication, EntrepreneurApplicationInput, ParticipantEnrollment } from '@workspace/api-client-react';
+import type { ApplicationProgram, EntrepreneurApplication, EntrepreneurApplicationInput, ParticipantEnrollment, ParticipantAssignment, ParticipantQuestion, TrainingAnswerInput, TrainingQuestionInput } from '@workspace/api-client-react';
 import { useUser } from '@clerk/react';
 import { Link } from 'wouter';
 import {
   ArrowRight, CalendarDays, Check, CircleAlert, Clock3, ExternalLink,
-  FileText, Handshake, MapPin, ShieldCheck, Video,
+  FileText, Handshake, MapPin, ShieldCheck, Video, BookOpen, Download, ExternalLink as ExternalLinkIcon,
 } from 'lucide-react';
+import './course-learning.css';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
@@ -194,9 +196,32 @@ export function ParticipantDashboardPage() {
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
       : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>Your progress view isn’t available just yet.</h3><p>Check that you’re signed in with the same email used on your application. Your records remain private.</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">Retry connection</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">Sign in again</Link></div></div>
       : enrollments.length === 0 ? <div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">PRIVATE FOUNDER VIEW</div><h1>No applications linked yet.</h1><p>This account does not have an application associated with it. Sign in using the same verified email you entered on your application, or start an application to a current cohort.</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">Explore open programs <ArrowRight size={15} /></Link></div>
-      : <>{enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}</>}
+      : <>{enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}<ParticipantProgramLearning /></>}
     </main><footer className="intake-footer"><span>JUSOOR ENTREPRENEURSHIP PROGRAM</span><span>YOUR PROGRESS IS PRIVATE TO YOU</span></footer>
   </div>;
+}
+
+const participantBasePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+function ParticipantProgramLearning() {
+  const query = useGetParticipantCourses({ query: { queryKey: getGetParticipantCoursesQueryKey(), refetchOnWindowFocus: true } });
+  const now = Date.now();
+  if (query.isLoading) return <section className="participant-section participant-course-section" data-testid="participant-courses-loading"><div className="participant-section-head"><div><h2>Program learning</h2><p>Loading your released learning path.</p></div></div><div className="loading-panel"><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div></section>;
+  if (query.isError) return <section className="participant-section participant-course-section"><div className="participant-section-head"><div><h2>Program learning</h2><p>Your accepted cohort learning materials.</p></div></div><div className="empty-panel error-panel" data-testid="error-participant-courses"><span className="empty-icon"><CircleAlert size={20} /></span><h3>Your learning path couldn’t load.</h3><p>Try reconnecting. Your cohort progress and materials remain private.</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant-courses">Retry learning</button></div></section>;
+  const programs = query.data?.programs || [];
+  if (!programs.length) return <section className="participant-section participant-course-section" data-testid="empty-participant-courses"><div className="participant-section-head"><div><h2>Program learning</h2><p>Your accepted cohort learning materials.</p></div></div><div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h3>Your learning path is being prepared.</h3><p>Once released by your program team, modules and resources for your accepted cohort will appear here.</p></div></section>;
+  return <section className="participant-section participant-course-section" data-testid="participant-course-learning">
+    <div className="participant-section-head"><div><h2>Program learning</h2><p>A guided sequence of released modules and useful materials.</p></div><span className="badge badge-neutral">{programs.reduce((total, program) => total + program.modules.length, 0)} released modules</span></div>
+    {programs.map(program => {
+      const modules = program.modules.filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now).sort((a, b) => a.position - b.position);
+      return <article className="participant-course-program" key={program.programId} data-testid={`participant-course-program-${program.programId}`}>
+        <header className="participant-course-banner"><span className="participant-course-icon"><BookOpen size={17} /></span><div><h3>{program.programName}</h3><span>{modules.length} learning {modules.length === 1 ? 'module' : 'modules'} available</span></div></header>
+        {!modules.length ? <div className="empty-panel"><p>Your next module will appear here when your cohort releases it.</p></div> : modules.map((module, index) => <section className="participant-course-module" key={module.id} data-testid={`participant-course-module-${module.id}`}><span className="participant-course-number">{String(index + 1).padStart(2, '0')}</span><div><h4>{module.title}</h4>{module.description && <p>{module.description}</p>}<div className="participant-course-items">{module.materials.map(material => {
+          const href = material.kind === 'link' ? material.externalUrl || undefined : `${participantBasePath}/api/participant/courses/materials/${material.id}/file`;
+          return href ? <a className="participant-course-item" key={material.id} href={href} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-participant-course-material-${material.id}`}>{material.kind === 'link' ? <ExternalLinkIcon size={13} /> : <Download size={13} />}{material.title}</a> : <span className="participant-course-item" key={material.id} data-testid={`text-participant-course-material-${material.id}`}><BookOpen size={13} />{material.title}</span>;
+        })}</div></div></section>)}
+      </article>;
+    })}
+  </section>;
 }
 
 function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {
@@ -208,7 +233,53 @@ function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {
     </section>
     <section className="participant-section"><div className="participant-section-head"><div><h2>What’s coming up</h2><p>Sessions planned for your cohort.</p></div><span className="badge badge-neutral">{scheduled.length} upcoming</span></div>
       <div className="participant-grid"><div className="participant-card"><h3>Sessions</h3>{enrollment.sessions.length === 0 ? <p className="session-info">No sessions have been shared yet. Check back as your cohort schedule takes shape.</p> : enrollment.sessions.map(session => <div className="participant-entry" key={session.id} data-testid={`session-participant-${session.id}`}><div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span></div><div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <a href={session.zoomUrl} target="_blank" rel="noreferrer"><Video size={12} /> Join session</a>}{session.recordingUrl && <a href={session.recordingUrl} target="_blank" rel="noreferrer"><ExternalLink size={12} /> Recording</a>}</div></div><span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span></div>)}</div>
-      <div className="participant-card"><h3>Founder support</h3>{support.length === 0 ? <p className="session-info">No support engagements are linked yet. Your coordinator will update this space as support is arranged.</p> : support.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} with {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span></div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div></div>
+       <div className="participant-card"><h3>Founder support</h3>{support.length === 0 ? <p className="session-info">No support engagements are linked yet. Your coordinator will update this space as support is arranged.</p> : support.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} with {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.type === 'mentor' && item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> Book mentoring session</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div></div>
     </section>
+    <ParticipantLearning enrollment={enrollment} />
   </article>;
+}
+
+function ParticipantLearning({ enrollment }: { enrollment: ParticipantEnrollment }) {
+  const queryClient = useQueryClient();
+  const submit = useSubmitTrainingAnswer();
+  const ask = useAskTrainingQuestion();
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [question, setQuestion] = useState('');
+  const [context, setContext] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: getGetParticipantDashboardQueryKey() });
+  const submitAnswer = (event: FormEvent<HTMLFormElement>, assignment: ParticipantAssignment) => {
+    event.preventDefault();
+    const answer = (answers[assignment.id] || '').trim();
+    if (!answer) return;
+    const data: TrainingAnswerInput = { answer };
+    submit.mutate({ id: assignment.id, data }, { onSuccess: () => { invalidate(); setAnswers(old => ({ ...old, [assignment.id]: '' })); } });
+  };
+  const askQuestion = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const [kind, rawId] = context.split(':');
+    const data: TrainingQuestionInput = {
+      programId: enrollment.program.id,
+      question: question.trim(),
+      ...(kind === 'assignment' && rawId ? { assignmentId: Number(rawId) } : {}),
+      ...(kind === 'session' && rawId ? { sessionId: Number(rawId) } : {}),
+    };
+    ask.mutate({ data }, { onSuccess: () => { invalidate(); setQuestion(''); setFeedback('Your question has been sent to the training team.'); } });
+  };
+  return <section className="participant-section" data-testid={`participant-learning-${enrollment.applicationId}`}>
+    <div className="participant-section-head"><div><h2>Learning & questions</h2><p>Your assignment work and a direct channel to your trainer.</p></div><span className="badge badge-neutral">{enrollment.assignments.length} assignments</span></div>
+    <div className="participant-grid">
+      <div className="participant-card"><h3>Assignments</h3>{enrollment.assignments.length === 0 ? <p className="session-info">No text assignments have been shared yet. Your trainer will post them here.</p> : enrollment.assignments.map(assignment => <article className="participant-assignment" key={assignment.id} data-testid={`assignment-participant-${assignment.id}`}>
+        <div className="assignment-heading"><div><b>{assignment.title}</b><span>{assignment.sessionTitle || 'Cohort work'} · Due {dateText(assignment.dueDate)}</span></div><span className={`badge ${statusClass(assignment.status || 'requested')}`}><span />{word(assignment.status || 'not_started')}</span></div>
+        <p>{assignment.instructions}</p>
+        {assignment.answer && <div className="assignment-feedback"><b>Your submitted answer</b><p>{assignment.answer}</p></div>}
+        {assignment.feedback && <div className="assignment-feedback trainer-feedback"><b>Trainer feedback{assignment.score !== null ? ` · ${assignment.score}/100` : ''}</b><p>{assignment.feedback}</p></div>}
+        <form onSubmit={event => submitAnswer(event, assignment)} className="participant-answer-form"><label htmlFor={`answer-${assignment.id}`}>{assignment.answer ? 'Update your answer' : 'Your answer'}</label><textarea id={`answer-${assignment.id}`} value={answers[assignment.id] ?? ''} onChange={event => setAnswers(old => ({ ...old, [assignment.id]: event.target.value }))} required maxLength={12000} rows={4} placeholder="Write your response here. Text only." data-testid={`input-participant-answer-${assignment.id}`} /><button className="button button-primary" disabled={submit.isPending} data-testid={`button-submit-answer-${assignment.id}`}>{submit.isPending ? 'Submitting…' : assignment.answer ? 'Update submission' : 'Submit answer'}</button>{submit.isError && <span className="form-error" role="alert">Your answer was not saved. Try again.</span>}</form>
+      </article>)}</div>
+      <div className="participant-card"><h3>Ask your trainer</h3>{enrollment.questions.length === 0 ? <p className="session-info">Ask about an assignment or session. Replies from your trainer will stay with your cohort here.</p> : <div className="participant-questions">{enrollment.questions.map((item: ParticipantQuestion) => <article key={item.id} className="participant-question" data-testid={`question-participant-${item.id}`}><span className="question-context">{item.assignmentTitle || item.sessionTitle || 'Cohort question'}</span><p>{item.question}</p>{item.reply ? <div className="question-reply"><b>Trainer reply</b><p>{item.reply}</p></div> : <span className="badge badge-warm"><span />Awaiting reply</span>}</article>)}</div>}
+        <form className="participant-question-form" onSubmit={askQuestion}><label htmlFor={`question-context-${enrollment.applicationId}`}>Related to</label><select id={`question-context-${enrollment.applicationId}`} value={context} onChange={event => setContext(event.target.value)} data-testid={`select-question-context-${enrollment.applicationId}`}><option value="">General cohort question</option>{enrollment.sessions.map(session => <option key={`session-${session.id}`} value={`session:${session.id}`}>{session.title}</option>)}{enrollment.assignments.map(item => <option key={`assignment-${item.id}`} value={`assignment:${item.id}`}>{item.title}</option>)}</select><label htmlFor={`question-text-${enrollment.applicationId}`}>Your question</label><textarea id={`question-text-${enrollment.applicationId}`} value={question} onChange={event => setQuestion(event.target.value)} minLength={5} maxLength={3000} required rows={3} placeholder="What would you like your trainer to clarify?" data-testid={`input-participant-question-${enrollment.applicationId}`} /><button className="button button-primary" disabled={ask.isPending} data-testid={`button-ask-trainer-${enrollment.applicationId}`}>{ask.isPending ? 'Sending…' : 'Send question'}</button>{feedback && <span className="role-success" role="status">{feedback}</span>}{ask.isError && <span className="form-error" role="alert">Your question was not sent. Please try again.</span>}</form>
+      </div>
+    </div>
+    <div className="participant-support-note"><Handshake size={15} /><span><b>Need program support?</b> Your cohort support engagements and provider updates appear in Founder support above. Contact the Jusoor team if you need help outside a session.</span></div>
+  </section>;
 }

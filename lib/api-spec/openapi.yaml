@@ -291,6 +291,202 @@ paths:
           description: A final decision has already been recorded
         "403":
           description: Coordinator access required
+  /courses/management:
+    get:
+      operationId: getCourseManagement
+      tags: [courses]
+      summary: Get course modules and materials for programs the signed-in coordinator or trainer can manage
+      responses:
+        "200":
+          description: Manageable programs and their course content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseManagement"
+        "403":
+          description: Coordinator or assigned trainer access required
+  /courses/modules:
+    post:
+      operationId: createCourseModule
+      tags: [courses]
+      summary: Create a course module for a manageable program
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseModuleInput"
+      responses:
+        "201":
+          description: Created course module
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseModule"
+        "403":
+          description: Program is not assigned to this trainer
+  /courses/modules/{id}:
+    patch:
+      operationId: updateCourseModule
+      tags: [courses]
+      summary: Update module details, publication status, or release time
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseModuleUpdate"
+      responses:
+        "200":
+          description: Updated course module
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseModule"
+        "404":
+          description: Module not found in a manageable program
+    delete:
+      operationId: deleteCourseModule
+      tags: [courses]
+      summary: Delete a module and its materials
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Module deleted
+        "404":
+          description: Module not found in a manageable program
+  /courses/modules/{id}/materials:
+    post:
+      operationId: createCourseMaterial
+      tags: [courses]
+      summary: Add a private upload or external resource to a course module
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseMaterialInput"
+      responses:
+        "201":
+          description: Created course material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseMaterial"
+        "403":
+          description: Module is not in a manageable program
+  /courses/materials/{id}:
+    patch:
+      operationId: updateCourseMaterial
+      tags: [courses]
+      summary: Update material details or its role access
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseMaterialUpdate"
+      responses:
+        "200":
+          description: Updated course material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseMaterial"
+        "404":
+          description: Material not found in a manageable program
+    delete:
+      operationId: deleteCourseMaterial
+      tags: [courses]
+      summary: Delete a course material
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Material deleted
+        "404":
+          description: Material not found in a manageable program
+  /courses/uploads/request-url:
+    post:
+      operationId: requestCourseUploadUrl
+      tags: [courses]
+      summary: Request a short-lived upload URL for a private course file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseUploadInput"
+      responses:
+        "200":
+          description: Presigned upload URL and private object path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseUploadUrl"
+        "400":
+          description: Unsupported file type or size
+        "403":
+          description: Program is not manageable by this account
+  /courses/materials/{id}/file:
+    get:
+      operationId: getCourseMaterialFile
+      tags: [courses]
+      summary: Stream a private course file to an authorized staff member
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Private course file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Role is not allowed to access this material
+        "404":
+          description: File not found
+  /participant/courses:
+    get:
+      operationId: getParticipantCourses
+      tags: [courses]
+      summary: Get published course modules for the signed-in participant's accepted programs
+      responses:
+        "200":
+          description: Published and released learning materials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantCourses"
+        "403":
+          description: No application is linked to this account
+  /participant/courses/materials/{id}/file:
+    get:
+      operationId: getParticipantCourseMaterialFile
+      tags: [courses]
+      summary: Stream a private course file after checking enrollment, release, and role access
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Private course file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Participant is not enrolled or the material is restricted
+        "404":
+          description: File not found
   /participant/dashboard:
     get:
       operationId: getParticipantDashboard
@@ -307,6 +503,291 @@ paths:
           description: Sign in required
         "403":
           description: No application is linked to this account
+  /participant/assignments/{id}/submission:
+    post:
+      operationId: submitTrainingAnswer
+      tags: [participants]
+      summary: Submit or update an answer to an assigned training activity
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingAnswerInput"
+      responses:
+        "200":
+          description: Saved participant answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingSubmission"
+        "403":
+          description: Assignment is not part of this participant's cohort
+  /participant/questions:
+    post:
+      operationId: askTrainingQuestion
+      tags: [participants]
+      summary: Ask a question about a cohort session or assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingQuestionInput"
+      responses:
+        "201":
+          description: Question sent to the assigned trainer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantQuestion"
+        "403":
+          description: Program is not part of this participant's enrollment
+  /trainer/dashboard:
+    get:
+      operationId: getTrainerDashboard
+      tags: [sessions]
+      summary: Get assigned sessions, activities, participant answers, and questions
+      responses:
+        "200":
+          description: Trainer's assigned cohort work
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainerDashboard"
+        "403":
+          description: Trainer access required
+  /trainer/assignments:
+    post:
+      operationId: createTrainingAssignment
+      tags: [sessions]
+      summary: Create an activity for a cohort assigned to the trainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingAssignmentInput"
+      responses:
+        "201":
+          description: Training assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingAssignment"
+        "403":
+          description: Trainer is not assigned to this cohort
+  /trainer/submissions/{id}:
+    patch:
+      operationId: reviewTrainingAnswer
+      tags: [sessions]
+      summary: Add a score and feedback to a participant's answer
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingAnswerReview"
+      responses:
+        "200":
+          description: Reviewed answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainingSubmission"
+        "404":
+          description: Answer not found in the trainer's assigned cohort
+  /trainer/questions/{id}:
+    patch:
+      operationId: replyTrainingQuestion
+      tags: [sessions]
+      summary: Reply to a participant's question
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingQuestionReply"
+      responses:
+        "200":
+          description: Question with trainer reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantQuestion"
+        "404":
+          description: Question not found in the trainer's assigned cohort
+  /mentor/dashboard:
+    get:
+      operationId: getMentorDashboard
+      tags: [support]
+      summary: Get the mentor's assigned business support
+      responses:
+        "200":
+          description: Assigned mentoring engagements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorDashboard"
+        "403":
+          description: Mentor access required
+  /mentor/calendly/connect:
+    post:
+      operationId: startCalendlyConnection
+      tags: [support]
+      summary: Start the signed-in mentor's Calendly authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalendlyAuthorizationInput"
+      responses:
+        "200":
+          description: Calendly authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendlyAuthorization"
+        "403":
+          description: Mentor access required
+        "503":
+          description: Calendly OAuth is not configured
+  /mentor/calendly/callback:
+    get:
+      operationId: completeCalendlyConnection
+      tags: [support]
+      summary: Complete a mentor's Calendly authorization
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the mentor workspace with the connection result
+        "400":
+          description: Authorization state is missing or invalid
+  /judge/dashboard:
+    get:
+      operationId: getJudgeDashboard
+      tags: [pitches]
+      summary: Get pitch and demo-day events assigned to this judge
+      responses:
+        "200":
+          description: Assigned pitch events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JudgeDashboard"
+        "403":
+          description: Judge access required
+  /judge/scorecards/{id}:
+    patch:
+      operationId: submitJudgeScorecard
+      tags: [pitches]
+      summary: Submit an individual score and feedback for an assigned pitch
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JudgeScorecardInput"
+      responses:
+        "200":
+          description: Saved judge scorecard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JudgePitch"
+        "404":
+          description: Pitch is not assigned to this judge
+  /mentor/support/{id}:
+    patch:
+      operationId: updateAssignedMentoring
+      tags: [support]
+      summary: Update the status, schedule, or notes for assigned mentoring
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MentorEngagementUpdate"
+      responses:
+        "200":
+          description: Updated assigned mentoring engagement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorEngagement"
+        "404":
+          description: Engagement not assigned to this mentor
+  /pitches/{id}/judges:
+    get:
+      operationId: listPitchJudges
+      tags: [pitches]
+      summary: List judges assigned to a pitch or demo-day event
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Assigned judges and scorecard status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PitchJudgeAssignment" }
+    post:
+      operationId: assignPitchJudge
+      tags: [pitches]
+      summary: Assign a judge to an event
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PitchJudgeInput"
+      responses:
+        "201":
+          description: Judge assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PitchJudgeAssignment"
+        "409":
+          description: Judge is already assigned
+  /pitch-judge-assignments/{id}:
+    delete:
+      operationId: removePitchJudge
+      tags: [pitches]
+      summary: Remove a judge assignment that has not been submitted
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Assignment removed
+        "409":
+          description: A submitted scorecard cannot be removed
   /sessions:
     get:
       operationId: listSessions
@@ -542,6 +1023,22 @@ paths:
           description: Sign-in required
         "403":
           description: Account is not approved for staff access
+  /staff/mentor-booking-status:
+    get:
+      operationId: getMentorBookingStatus
+      tags: [staff]
+      summary: List mentor Calendly connection status for coordinators
+      responses:
+        "200":
+          description: Mentor accounts and whether a Calendly booking link is connected
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MentorBookingStatus"
+        "403":
+          description: Coordinator role required
   /staff:
     get:
       operationId: listStaff
@@ -696,6 +1193,169 @@ components:
         status: { $ref: "#/components/schemas/ApplicationReviewStatus" }
         reviewNotes: { type: ["string", "null"], maxLength: 3000 }
       required: [status]
+    CourseMaterialRole:
+      type: string
+      enum: [participant, trainer, coordinator]
+    CourseMaterialKind:
+      type: string
+      enum: [video, document, slides, audio, link]
+    CourseModuleInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 3000 }
+        position: { type: integer, minimum: 0, default: 0 }
+        releaseAt: { type: ["string", "null"], format: date-time }
+        isPublished: { type: boolean, default: false }
+      required: [programId, title]
+    CourseModuleUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 3000 }
+        position: { type: integer, minimum: 0 }
+        releaseAt: { type: ["string", "null"], format: date-time }
+        isPublished: { type: boolean }
+    CourseMaterialInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 3000 }
+        kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        externalUrl: { type: ["string", "null"], format: uri, maxLength: 2000 }
+        objectPath: { type: ["string", "null"], maxLength: 500 }
+        fileName: { type: ["string", "null"], maxLength: 500 }
+        contentType: { type: ["string", "null"], maxLength: 200 }
+        fileSize: { type: ["integer", "null"], minimum: 1, maximum: 262144000 }
+        allowedRoles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/CourseMaterialRole" }
+        position: { type: integer, minimum: 0, default: 0 }
+      required: [title, kind, allowedRoles]
+    CourseMaterialUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 3000 }
+        kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        externalUrl: { type: ["string", "null"], format: uri, maxLength: 2000 }
+        objectPath: { type: ["string", "null"], maxLength: 500 }
+        fileName: { type: ["string", "null"], maxLength: 500 }
+        contentType: { type: ["string", "null"], maxLength: 200 }
+        fileSize: { type: ["integer", "null"], minimum: 1, maximum: 262144000 }
+        allowedRoles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/CourseMaterialRole" }
+        position: { type: integer, minimum: 0 }
+    CourseMaterial:
+      type: object
+      properties:
+        id: { type: integer }
+        moduleId: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        externalUrl: { type: ["string", "null"], format: uri }
+        objectPath: { type: ["string", "null"] }
+        fileName: { type: ["string", "null"] }
+        contentType: { type: ["string", "null"] }
+        fileSize: { type: ["integer", "null"] }
+        allowedRoles:
+          type: array
+          items: { $ref: "#/components/schemas/CourseMaterialRole" }
+        position: { type: integer }
+      required: [id, moduleId, title, description, kind, externalUrl, objectPath, fileName, contentType, fileSize, allowedRoles, position]
+    CourseModule:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        position: { type: integer }
+        releaseAt: { type: ["string", "null"], format: date-time }
+        isPublished: { type: boolean }
+        materials:
+          type: array
+          items: { $ref: "#/components/schemas/CourseMaterial" }
+      required: [id, programId, title, description, position, releaseAt, isPublished, materials]
+    CourseProgram:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        modules:
+          type: array
+          items: { $ref: "#/components/schemas/CourseModule" }
+      required: [id, name, modules]
+    CourseManagement:
+      type: object
+      properties:
+        programs:
+          type: array
+          items: { $ref: "#/components/schemas/CourseProgram" }
+      required: [programs]
+    CourseUploadInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        name: { type: string, minLength: 1, maxLength: 500 }
+        size: { type: integer, minimum: 1, maximum: 262144000 }
+        contentType: { type: string, minLength: 1, maxLength: 200 }
+      required: [programId, name, size, contentType]
+    CourseUploadUrl:
+      type: object
+      properties:
+        uploadUrl: { type: string, format: uri }
+        objectPath: { type: string }
+      required: [uploadUrl, objectPath]
+    ParticipantCourseMaterial:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        externalUrl: { type: ["string", "null"], format: uri }
+        fileName: { type: ["string", "null"] }
+        contentType: { type: ["string", "null"] }
+        fileSize: { type: ["integer", "null"] }
+      required: [id, title, description, kind, externalUrl, fileName, contentType, fileSize]
+    ParticipantCourseModule:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        position: { type: integer }
+        releaseAt: { type: ["string", "null"], format: date-time }
+        materials:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantCourseMaterial" }
+      required: [id, title, description, position, releaseAt, materials]
+    ParticipantCourseProgram:
+      type: object
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        modules:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantCourseModule" }
+      required: [programId, programName, modules]
+    ParticipantCourses:
+      type: object
+      properties:
+        programs:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantCourseProgram" }
+      required: [programs]
     ParticipantBusiness:
       type: object
       properties:
@@ -738,7 +1398,8 @@ components:
         topic: { type: string }
         scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         status: { $ref: "#/components/schemas/SupportStatus" }
-      required: [id, type, provider, topic, scheduledDate, status]
+        mentorBookingUrl: { type: ["string", "null"], format: uri }
+      required: [id, type, provider, topic, scheduledDate, status, mentorBookingUrl]
     ParticipantEnrollment:
       type: object
       properties:
@@ -753,7 +1414,13 @@ components:
         support:
           type: array
           items: { $ref: "#/components/schemas/ParticipantSupport" }
-      required: [applicationId, applicationStatus, submittedAt, program, business, sessions, support]
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantAssignment" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantQuestion" }
+      required: [applicationId, applicationStatus, submittedAt, program, business, sessions, support, assignments, questions]
     ParticipantDashboard:
       type: object
       properties:
@@ -761,9 +1428,210 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ParticipantEnrollment" }
       required: [applications]
+    ParticipantAssignment:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        instructions: { type: string }
+        dueDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        sessionTitle: { type: ["string", "null"] }
+        answer: { type: ["string", "null"] }
+        status: { type: ["string", "null"], enum: [submitted, reviewed, null] }
+        score: { type: ["number", "null"] }
+        feedback: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+      required: [id, title, instructions, dueDate, sessionTitle, answer, status, score, feedback, submittedAt]
+    ParticipantQuestion:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        sessionTitle: { type: ["string", "null"] }
+        assignmentTitle: { type: ["string", "null"] }
+        question: { type: string }
+        reply: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        repliedAt: { type: ["string", "null"], format: date-time }
+      required: [id, programId, sessionTitle, assignmentTitle, question, reply, createdAt, repliedAt]
+    TrainingAssignment:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        title: { type: string }
+        instructions: { type: string }
+        dueDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        sessionId: { type: ["integer", "null"] }
+        sessionTitle: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, programId, title, instructions, dueDate, sessionId, sessionTitle, createdAt]
+    TrainingAssignmentInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        title: { type: string, minLength: 2, maxLength: 180 }
+        instructions: { type: string, minLength: 10, maxLength: 5000 }
+        dueDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        sessionId: { type: ["integer", "null"] }
+      required: [programId, title, instructions]
+    TrainingAnswerInput:
+      type: object
+      properties:
+        answer: { type: string, minLength: 1, maxLength: 12000 }
+      required: [answer]
+    TrainingAnswerReview:
+      type: object
+      properties:
+        score: { type: ["number", "null"], minimum: 0, maximum: 100 }
+        feedback: { type: ["string", "null"], maxLength: 3000 }
+      required: [score, feedback]
+    TrainingSubmission:
+      type: object
+      properties:
+        id: { type: integer }
+        assignmentId: { type: integer }
+        businessId: { type: integer }
+        answer: { type: string }
+        status: { type: string, enum: [submitted, reviewed] }
+        score: { type: ["number", "null"] }
+        feedback: { type: ["string", "null"] }
+        submittedAt: { type: string, format: date-time }
+        reviewedAt: { type: ["string", "null"], format: date-time }
+      required: [id, assignmentId, businessId, answer, status, score, feedback, submittedAt, reviewedAt]
+    TrainingQuestionInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        sessionId: { type: ["integer", "null"] }
+        assignmentId: { type: ["integer", "null"] }
+        question: { type: string, minLength: 5, maxLength: 3000 }
+      required: [programId, question]
+    TrainingQuestionReply:
+      type: object
+      properties:
+        reply: { type: string, minLength: 1, maxLength: 3000 }
+      required: [reply]
+    TrainerSubmission:
+      allOf:
+        - $ref: "#/components/schemas/TrainingSubmission"
+        - type: object
+          properties:
+            assignmentTitle: { type: string }
+            businessName: { type: string }
+            founderName: { type: string }
+            programName: { type: string }
+          required: [assignmentTitle, businessName, founderName, programName]
+    TrainerQuestion:
+      allOf:
+        - $ref: "#/components/schemas/ParticipantQuestion"
+        - type: object
+          properties:
+            businessName: { type: string }
+            founderName: { type: string }
+            programName: { type: string }
+          required: [businessName, founderName, programName]
+    TrainerDashboard:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items: { $ref: "#/components/schemas/Session" }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/TrainingAssignment" }
+        submissions:
+          type: array
+          items: { $ref: "#/components/schemas/TrainerSubmission" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/TrainerQuestion" }
+      required: [sessions, assignments, submissions, questions]
+    MentorEngagement:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        businessName: { type: string }
+        founderName: { type: string }
+        programName: { type: string }
+        type: { $ref: "#/components/schemas/SupportType" }
+        provider: { type: string }
+        topic: { type: string }
+        scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { $ref: "#/components/schemas/SupportStatus" }
+        notes: { type: ["string", "null"] }
+      required: [id, businessId, businessName, founderName, programName, type, provider, topic, scheduledDate, status, notes]
+    MentorEngagementUpdate:
+      type: object
+      properties:
+        scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { $ref: "#/components/schemas/SupportStatus" }
+        notes: { type: ["string", "null"], maxLength: 3000 }
+      required: [status]
+    MentorDashboard:
+      type: object
+      properties:
+        engagements:
+          type: array
+          items: { $ref: "#/components/schemas/MentorEngagement" }
+        calendlyBookingUrl: { type: ["string", "null"], format: uri }
+      required: [engagements, calendlyBookingUrl]
+    CalendlyAuthorizationInput:
+      type: object
+      description: Empty request body used to begin the mentor's Calendly OAuth flow.
+    CalendlyAuthorization:
+      type: object
+      properties:
+        authorizationUrl: { type: string, format: uri }
+      required: [authorizationUrl]
+    JudgePitch:
+      type: object
+      properties:
+        assignmentId: { type: integer }
+        pitchId: { type: integer }
+        businessId: { type: integer }
+        businessName: { type: string }
+        industry: { type: ["string", "null"] }
+        eventType: { $ref: "#/components/schemas/PitchEventType" }
+        eventDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        score: { type: ["number", "null"] }
+        feedback: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+      required: [assignmentId, pitchId, businessId, businessName, industry, eventType, eventDate, score, feedback, submittedAt]
+    JudgeDashboard:
+      type: object
+      properties:
+        pitches:
+          type: array
+          items: { $ref: "#/components/schemas/JudgePitch" }
+      required: [pitches]
+    JudgeScorecardInput:
+      type: object
+      properties:
+        score: { type: number, minimum: 0, maximum: 100 }
+        feedback: { type: string, minLength: 3, maxLength: 3000 }
+      required: [score, feedback]
+    PitchJudgeInput:
+      type: object
+      properties:
+        judgeStaffId: { type: integer }
+      required: [judgeStaffId]
+    PitchJudgeAssignment:
+      type: object
+      properties:
+        id: { type: integer }
+        pitchId: { type: integer }
+        judgeStaffId: { type: integer }
+        judgeEmail: { type: string, format: email }
+        judgeName: { type: string }
+        score: { type: ["number", "null"] }
+        feedback: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"], format: date-time }
+      required: [id, pitchId, judgeStaffId, judgeEmail, judgeName, score, feedback, submittedAt]
     StaffRole:
       type: string
-      enum: [coordinator, staff]
+      enum: [coordinator, staff, trainer, mentor, judge]
     StaffStatus:
       type: string
       enum: [invited, active]
@@ -776,6 +1644,14 @@ components:
         status: { $ref: "#/components/schemas/StaffStatus" }
         createdAt: { type: string, format: date-time }
       required: [id, email, role, status, createdAt]
+    MentorBookingStatus:
+      type: object
+      properties:
+        staffId: { type: integer }
+        email: { type: string, format: email }
+        status: { $ref: "#/components/schemas/StaffStatus" }
+        calendlyConnected: { type: boolean }
+      required: [staffId, email, status, calendlyConnected]
     StaffInput:
       type: object
       properties:
@@ -895,13 +1771,14 @@ components:
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
         facilitator: { type: ["string", "null"] }
+        trainerStaffId: { type: ["integer", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
         location: { type: ["string", "null"] }
         zoomUrl: { type: ["string", "null"] }
         recordingUrl: { type: ["string", "null"] }
         status: { type: string, enum: [scheduled, completed, cancelled] }
         createdAt: { type: string, format: date-time }
-      required: [id, title, type, scheduledDate, deliveryMode, status, createdAt]
+      required: [id, title, type, scheduledDate, deliveryMode, status, trainerStaffId, createdAt]
     SessionInput:
       type: object
       properties:
@@ -911,6 +1788,7 @@ components:
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
         facilitator: { type: ["string", "null"] }
+        trainerStaffId: { type: ["integer", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
         location: { type: ["string", "null"] }
         zoomUrl: { type: ["string", "null"], format: uri }
@@ -926,6 +1804,7 @@ components:
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
         facilitator: { type: ["string", "null"] }
+        trainerStaffId: { type: ["integer", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
         location: { type: ["string", "null"] }
         zoomUrl: { type: ["string", "null"], format: uri }
@@ -938,18 +1817,20 @@ components:
         businessId: { type: integer }
         type: { $ref: "#/components/schemas/SupportType" }
         provider: { type: string }
+        mentorStaffId: { type: ["integer", "null"] }
         topic: { type: string }
         scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         status: { $ref: "#/components/schemas/SupportStatus" }
         notes: { type: ["string", "null"] }
         createdAt: { type: string, format: date-time }
-      required: [id, businessId, type, provider, topic, status, createdAt]
+      required: [id, businessId, type, provider, topic, status, mentorStaffId, createdAt]
     SupportInput:
       type: object
       properties:
         businessId: { type: integer }
         type: { $ref: "#/components/schemas/SupportType" }
         provider: { type: string, minLength: 1 }
+        mentorStaffId: { type: ["integer", "null"] }
         topic: { type: string, minLength: 1 }
         scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         status: { $ref: "#/components/schemas/SupportStatus" }
@@ -961,6 +1842,7 @@ components:
         businessId: { type: integer }
         type: { $ref: "#/components/schemas/SupportType" }
         provider: { type: string, minLength: 1 }
+        mentorStaffId: { type: ["integer", "null"] }
         topic: { type: string, minLength: 1 }
         scheduledDate: { type: ["string", "null"], format: date }
         status: { $ref: "#/components/schemas/SupportStatus" }
