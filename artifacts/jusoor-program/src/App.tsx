@@ -10,14 +10,14 @@ import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@cler
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import {
-  getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getListBusinessesQueryKey,
+  getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
-  useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
+  useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
-  useDeleteStaff, useGetAuthMe, useGetDashboard, useListBusinesses, useListPitches, useListPrograms,
+  useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdatePitch,
-  useUpdateProgram, useUpdateSession, useUpdateSupport,
+  useStartZoomConnection, useSyncZoomRecording, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
 } from '@workspace/api-client-react';
 import type {
@@ -49,7 +49,7 @@ function stripBase(path: string): string {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
 }
 
-type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string };
+type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string; min?: number; max?: number; step?: number };
 type Values = Record<string, string>;
 
 const stageNames: Record<string, string> = {
@@ -72,11 +72,18 @@ function invalidate(queryClient: ReturnType<typeof useQueryClient>, keys: readon
   keys.forEach(queryKey => { void queryClient.invalidateQueries({ queryKey }); });
 }
 
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object' || !('data' in error)) return fallback;
+  const data = error.data;
+  if (data && typeof data === 'object' && 'error' in data && typeof data.error === 'string') return data.error;
+  return fallback;
+}
+
 function FieldControl({ field, value, onChange }: { field: Field; value: string; onChange: (value: string) => void }) {
   const common = { value, onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), required: field.required, placeholder: field.placeholder, 'data-testid': `input-${field.name}` };
   if (field.kind === 'textarea') return <textarea {...common} rows={3} className="form-control resize-y" />;
   if (field.kind === 'select') return <select {...common} className="form-control"><option value="">Choose…</option>{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
-  return <input {...common} type={field.kind || 'text'} min={field.kind === 'number' ? '0' : undefined} className="form-control" />;
+  return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
 
 function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error }: {
@@ -230,6 +237,7 @@ const sessionFields = (programs: Program[], trainers: StaffMember[] = [], includ
   { name: 'status', label: 'Status', kind: 'select', options: ['scheduled', 'completed', 'cancelled'].map(v => ({ value: v, label: display(v) })) },
   { name: 'scheduledDate', label: 'Date', kind: 'date', required: true },
   { name: 'startTime', label: 'Start time', kind: 'time' },
+  { name: 'durationMinutes', label: 'Duration (minutes)', kind: 'number', min: 15, max: 480, step: 15, required: true },
   { name: 'facilitator', label: 'Facilitator' },
   ...(includeTrainer ? [{ name: 'trainerStaffId', label: 'Assigned trainer', kind: 'select' as const, options: trainers.map(person => ({ value: String(person.id), label: person.email })) }] : []),
   { name: 'location', label: 'Location', wide: true, placeholder: 'Venue, room or meeting space' },
@@ -322,26 +330,182 @@ function BusinessesPage() {
 }
 
 function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
-  const [type, setType] = useState(''); const [editing, setEditing] = useState<Session | null | undefined>(undefined); const [deleting, setDeleting] = useState<Session | null>(null);
+  const [type, setType] = useState('');
+  const [editing, setEditing] = useState<Session | null | undefined>(undefined);
+  const [deleting, setDeleting] = useState<Session | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [zoomActionMessage, setZoomActionMessage] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const [zoomCallbackResult] = useState(() => new URLSearchParams(window.location.search).get('zoom'));
   const params = useMemo(() => type ? { type: type as Session['type'] } : undefined, [type]);
-  const query = useListSessions(params); const programsQuery = useListPrograms(); const programs = programsQuery.data || []; const sessions = query.data || []; const client = useQueryClient();
+  const query = useListSessions(params);
+  const programsQuery = useListPrograms();
+  const programs = programsQuery.data || [];
+  const sessions = query.data || [];
+  const client = useQueryClient();
+  const zoomStatus = useGetZoomStatus({ query: { queryKey: getGetZoomStatusQueryKey(), enabled: coordinator } });
+  const connectZoom = useStartZoomConnection();
+  const disconnectZoom = useDisconnectZoom();
+  const createZoomMeeting = useCreateOrUpdateZoomMeeting();
+  const syncZoomRecording = useSyncZoomRecording();
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
-  const create = useCreateSession(); const update = useUpdateSession(); const remove = useDeleteSession();
-  const save = (v: Values) => {
-    const data: SessionInput = { title: v.title.trim(), type: (v.type || 'training') as SessionInput['type'], programId: v.programId ? Number(v.programId) : null, scheduledDate: v.scheduledDate, startTime: v.startTime || null, facilitator: v.facilitator || null, ...(coordinator ? { trainerStaffId: v.trainerStaffId ? Number(v.trainerStaffId) : null } : {}), deliveryMode: (v.deliveryMode || 'online') as SessionInput['deliveryMode'], location: v.location || null, zoomUrl: v.zoomUrl || null, recordingUrl: v.recordingUrl || null, status: (v.status || 'scheduled') as SessionInput['status'] };
-    const done = () => { invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]); setEditing(undefined); };
-    if (editing) update.mutate({ id: editing.id, data: data as SessionUpdate }, { onSuccess: done }); else create.mutate({ data }, { onSuccess: done });
+  const create = useCreateSession();
+  const update = useUpdateSession();
+  const remove = useDeleteSession();
+
+  useEffect(() => {
+    if (!zoomCallbackResult) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('zoom');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [zoomCallbackResult]);
+
+  const refreshZoomViews = () => {
+    invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey(), getGetZoomStatusQueryKey()]);
   };
-  const removeRecord = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
+  const save = (v: Values) => {
+    const data: SessionInput = {
+      title: v.title.trim(),
+      type: (v.type || 'training') as SessionInput['type'],
+      programId: v.programId ? Number(v.programId) : null,
+      scheduledDate: v.scheduledDate,
+      startTime: v.startTime || null,
+      durationMinutes: Number(v.durationMinutes || 60),
+      facilitator: v.facilitator || null,
+      ...(coordinator ? { trainerStaffId: v.trainerStaffId ? Number(v.trainerStaffId) : null } : {}),
+      deliveryMode: (v.deliveryMode || 'online') as SessionInput['deliveryMode'],
+      location: v.location || null,
+      zoomUrl: v.zoomUrl || null,
+      recordingUrl: v.recordingUrl || null,
+      status: (v.status || 'scheduled') as SessionInput['status'],
+    };
+    const done = () => {
+      invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]);
+      setEditing(undefined);
+    };
+    if (editing) update.mutate({ id: editing.id, data: data as SessionUpdate }, { onSuccess: done });
+    else create.mutate({ data }, { onSuccess: done });
+  };
+  const removeRecord = () => deleting && remove.mutate({ id: deleting.id }, {
+    onSuccess: () => {
+      invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]);
+      setDeleting(null);
+    },
+  });
+  const startZoomConnect = () => {
+    setZoomActionMessage(null);
+    connectZoom.mutate({ data: {} }, {
+      onSuccess: response => window.location.assign(response.authorizationUrl),
+      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not start Zoom authorization.') }),
+    });
+  };
+  const disconnectZoomAccount = () => disconnectZoom.mutate({ data: {} }, {
+    onSuccess: () => {
+      setConfirmDisconnect(false);
+      setZoomActionMessage({ tone: 'good', text: 'Zoom was disconnected. Existing session links and recordings remain available.' });
+      refreshZoomViews();
+    },
+    onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not disconnect Zoom.') }),
+  });
+  const manageMeeting = (session: Session) => {
+    setZoomActionMessage(null);
+    createZoomMeeting.mutate({ id: session.id }, {
+      onSuccess: updated => {
+        setZoomActionMessage({ tone: 'good', text: `Zoom meeting saved for “${updated.title}”. Trainers and participants can now use its session link.` });
+        refreshZoomViews();
+      },
+      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, `Could not create a Zoom meeting for “${session.title}”.`) }),
+    });
+  };
+  const updateRecording = (session: Session) => {
+    setZoomActionMessage(null);
+    syncZoomRecording.mutate({ id: session.id }, {
+      onSuccess: updated => {
+        setZoomActionMessage({ tone: 'good', text: `Recording link saved for “${updated.title}”. It is now available with the session.` });
+        refreshZoomViews();
+      },
+      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, `Could not sync the recording for “${session.title}”.`) }),
+    });
+  };
+  const zoomNotice = zoomCallbackResult === 'connected'
+    ? 'Zoom authorization is complete.'
+    : zoomCallbackResult === 'cancelled'
+      ? 'Zoom authorization was cancelled.'
+      : zoomCallbackResult === 'error'
+        ? 'Zoom could not be connected. Check the Zoom app settings and try again.'
+        : null;
+
   return <>
     <PageHeading kicker="PROGRAM DELIVERY / SESSIONS" title="Sessions" summary="Bootcamps, hackathons and online moments that move the cohort forward." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-session"><Plus size={16} /> Schedule session</button>} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Trainer assignments are temporarily unavailable.</b><span>Reload the page to retry team access records before assigning a trainer.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-trainers">Retry</button></div>}
+    {coordinator && <section className="team-callout zoom-connect-panel" data-testid="zoom-connection-panel" aria-live="polite">
+      <Video size={18} />
+      <div className="zoom-connect-copy">
+        <b>{zoomStatus.isLoading ? 'Checking Zoom setup…' : zoomStatus.data?.connected ? 'Zoom account connected' : 'Connect Zoom for online sessions'}</b>
+        <span>Coordinators can create and update Zoom meetings here. Trainers and participants will see the join link and any synced recording in their session views.</span>
+        {zoomCallbackResult && zoomNotice && <span className={zoomCallbackResult === 'error' ? 'zoom-status-error' : 'zoom-status-success'}>{zoomNotice}</span>}
+        {zoomActionMessage && <span className={zoomActionMessage.tone === 'bad' ? 'zoom-status-error' : 'zoom-status-success'} role={zoomActionMessage.tone === 'bad' ? 'alert' : 'status'}>{zoomActionMessage.text}</span>}
+        {zoomStatus.isError && <span className="zoom-status-error">Zoom connection status could not be loaded.</span>}
+        {!zoomStatus.data?.clientConfigured && <span>Before connecting, add the Zoom OAuth Client ID and Client Secret to Replit Secrets as <code>ZOOM_CLIENT_ID</code> and <code>ZOOM_CLIENT_SECRET</code>.</span>}
+        {zoomStatus.data?.callbackUrl && <span>Register this exact OAuth redirect URL in the Zoom app: <code className="zoom-callback-url">{zoomStatus.data.callbackUrl}</code></span>}
+        <span>Enable these Zoom OAuth scopes: <code>meeting:write:meeting</code> and <code>cloud_recording:read:list_recording_files</code>. New meetings are 60 minutes and use the connected Zoom account’s time zone.</span>
+        {zoomStatus.data?.connected && <span>Connected by {zoomStatus.data.connectedBy || 'a coordinator'}{zoomStatus.data.connectedAt ? ` on ${dateLabel(zoomStatus.data.connectedAt)}` : ''}.</span>}
+        {confirmDisconnect && <span className="zoom-disconnect-confirm">Disconnect Zoom? Existing session links and recordings remain, but meeting and recording sync will stop until it is reconnected.</span>}
+      </div>
+      <div className="zoom-connect-actions">
+        {zoomStatus.isError ? <button className="button button-quiet" onClick={() => void zoomStatus.refetch()} data-testid="button-retry-zoom-status">Retry</button> : <>
+          {zoomStatus.data?.connected && <button className="button button-quiet" onClick={() => setConfirmDisconnect(value => !value)} data-testid="button-disconnect-zoom">{confirmDisconnect ? 'Cancel' : 'Disconnect'}</button>}
+          {confirmDisconnect && <button className="button button-outline" onClick={disconnectZoomAccount} disabled={disconnectZoom.isPending} data-testid="button-confirm-disconnect-zoom">{disconnectZoom.isPending ? 'Disconnecting…' : 'Confirm disconnect'}</button>}
+          <button className="button button-primary" onClick={startZoomConnect} disabled={!zoomStatus.data?.clientConfigured || connectZoom.isPending} data-testid="button-connect-zoom">{connectZoom.isPending ? 'Opening Zoom…' : zoomStatus.data?.connected ? 'Reconnect Zoom' : 'Connect Zoom'}</button>
+        </>}
+      </div>
+    </section>}
     <div className="calendar-summary"><div className="calendar-icon"><CalendarDays size={20} /></div><div><b>Make each moment count.</b><span>Keep joining details and recordings close to the agenda.</span></div><span className="calendar-endnote"><Video size={15} /> LIVE + ON-DEMAND</span></div>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label="Filter sessions by type" onChange={e => setType(e.target.value)} data-testid="select-session-type"><option value="">All session types</option>{['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{sessions.length}</b> sessions</div></div>
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : sessions.length === 0 ? <EmptyState title="No sessions scheduled." body="Add the next bootcamp, hackathon, online training or pitch event to get the cohort together." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Schedule a session</button>} /> :
-    <div className="session-list">{sessions.map((session, i) => <article className="session-card" key={session.id} data-testid={`card-session-${session.id}`}><div className="session-date"><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><small>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { weekday: 'short' })}</small></div><div className="session-card-main"><div className="session-label-row"><Badge value={session.type} /><Badge value={session.status} /><span className={`delivery-pill delivery-${session.deliveryMode}`}>{display(session.deliveryMode)}</span></div><h2 className="app-title">{session.title}</h2><p>{programs.find(p => p.id === session.programId)?.name || (session.programId ? `Program ${session.programId}` : 'All cohorts')}<span>·</span>{session.startTime || 'Time not set'}<span>·</span>{session.facilitator || 'Facilitator TBD'}</p><div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || 'Location not set'}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> Join Zoom <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? 'In-person session' : 'No meeting link'}</span>}{session.recordingUrl && <a href={session.recordingUrl} target="_blank" rel="noreferrer" className="text-link"><ExternalLink size={13} /> Recording</a>}</div></div><div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div><span className={`session-index mono session-index-${i % 2}`}>SESSION / {String(i + 1).padStart(2, '0')}</span></article>)}</div>}
-    {editing !== undefined && <FormDialog title={editing ? 'Edit session' : 'Schedule a session'} description="Create the meeting in Zoom, then paste its join link here. Assigned trainers and participants will see it in their workspaces; add the recording link after the session." fields={sessionFields(programs, trainers, coordinator)} initial={editing ? { title: editing.title, type: editing.type, programId: editing.programId ? String(editing.programId) : '', scheduledDate: valueOf(editing.scheduledDate), startTime: editing.startTime || '', facilitator: editing.facilitator || '', trainerStaffId: editing.trainerStaffId ? String(editing.trainerStaffId) : '', deliveryMode: editing.deliveryMode, location: editing.location || '', zoomUrl: editing.zoomUrl || '', recordingUrl: editing.recordingUrl || '', status: editing.status } : { type: 'training', deliveryMode: 'online', status: 'scheduled' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this session. Check required details.' : undefined} />}
+    <div className="session-list">{sessions.map((session, i) => {
+      const meetingPending = createZoomMeeting.isPending && createZoomMeeting.variables?.id === session.id;
+      const recordingPending = syncZoomRecording.isPending && syncZoomRecording.variables?.id === session.id;
+      return <article className="session-card" key={session.id} data-testid={`card-session-${session.id}`}>
+        <div className="session-date"><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><small>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { weekday: 'short' })}</small></div>
+        <div className="session-card-main">
+          <div className="session-label-row"><Badge value={session.type} /><Badge value={session.status} /><span className={`delivery-pill delivery-${session.deliveryMode}`}>{display(session.deliveryMode)}</span></div>
+          <h2 className="app-title">{session.title}</h2>
+          <p>{programs.find(p => p.id === session.programId)?.name || (session.programId ? `Program ${session.programId}` : 'All cohorts')}<span>·</span>{session.startTime || 'Time not set'}<span>·</span>{session.durationMinutes} min<span>·</span>{session.facilitator || 'Facilitator TBD'}</p>
+          <div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || 'Location not set'}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> Join Zoom <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? 'In-person session' : 'No meeting link'}</span>}{session.recordingUrl && <a href={session.recordingUrl} target="_blank" rel="noreferrer" className="text-link"><ExternalLink size={13} /> Recording</a>}</div>
+          {coordinator && session.deliveryMode !== 'in_person' && <div className="session-admin-actions">
+            <button className="button button-quiet" onClick={() => manageMeeting(session)} disabled={!zoomStatus.data?.connected || createZoomMeeting.isPending} data-testid={`button-zoom-meeting-${session.id}`}><Video size={14} />{meetingPending ? 'Saving…' : session.zoomMeetingId ? 'Update Zoom meeting' : 'Create Zoom meeting'}</button>
+            {session.zoomMeetingId && <button className="button button-quiet" onClick={() => updateRecording(session)} disabled={!zoomStatus.data?.connected || syncZoomRecording.isPending} data-testid={`button-sync-zoom-recording-${session.id}`}><RefreshCw size={14} />{recordingPending ? 'Syncing…' : 'Sync recording'}</button>}
+          </div>}
+        </div>
+        <div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div>
+        <span className={`session-index mono session-index-${i % 2}`}>SESSION / {String(i + 1).padStart(2, '0')}</span>
+      </article>;
+    })}</div>}
+    {editing !== undefined && <FormDialog
+      title={editing ? 'Edit session' : 'Schedule a session'}
+      description="Use the Zoom controls on a session to create or update its meeting and sync a cloud recording. You can also paste a link manually."
+      fields={sessionFields(programs, trainers, coordinator)}
+      initial={editing ? {
+        title: editing.title,
+        type: editing.type,
+        programId: editing.programId ? String(editing.programId) : '',
+        scheduledDate: valueOf(editing.scheduledDate),
+        startTime: editing.startTime || '',
+        durationMinutes: String(editing.durationMinutes || 60),
+        facilitator: editing.facilitator || '',
+        trainerStaffId: editing.trainerStaffId ? String(editing.trainerStaffId) : '',
+        deliveryMode: editing.deliveryMode,
+        location: editing.location || '',
+        zoomUrl: editing.zoomUrl || '',
+        recordingUrl: editing.recordingUrl || '',
+        status: editing.status,
+      } : { type: 'training', deliveryMode: 'online', status: 'scheduled', durationMinutes: '60' }}
+      loading={create.isPending || update.isPending}
+      onClose={() => setEditing(undefined)}
+      onSubmit={save}
+      error={(create.error || update.error) ? 'Could not save this session. Check required details.' : undefined}
+    />}
     {deleting && <ConfirmDialog item={deleting.title} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}
   </>;
 }

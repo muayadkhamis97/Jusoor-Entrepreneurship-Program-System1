@@ -10,6 +10,7 @@ import participantRouter from "./routes/participant";
 import trainerRouter from "./routes/trainer";
 import mentorRouter from "./routes/mentor";
 import calendlyOAuthRouter from "./routes/calendlyOAuth";
+import zoomRouter from "./routes/zoom";
 import judgeRouter from "./routes/judge";
 import coursesRouter from "./routes/courses";
 import {
@@ -62,6 +63,7 @@ app.use("/api", publicApplicationsRouter);
 app.use("/api/participant", requireParticipant, participantRouter);
 app.use("/api/courses", requireStaff, coursesRouter);
 app.use("/api/mentor/calendly", calendlyOAuthRouter);
+app.use("/api/zoom", zoomRouter);
 app.use("/api/trainer", requireStaff, requireRole("trainer"), trainerRouter);
 app.use("/api/mentor", requireStaff, requireRole("mentor"), mentorRouter);
 app.use("/api/judge", requireStaff, requireRole("judge"), judgeRouter);

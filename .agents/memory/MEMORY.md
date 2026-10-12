@@ -1,1 +1,2 @@
 - [Jusoor program lifecycle](jusoor-program-lifecycle.md) — Cohort intake leads through in-person bootcamp/hackathon, online incubation support, pitch-day selection, and demo-day grants.
+- [Zoom authorization](zoom-authorization.md) — Coordinators connect Zoom from the live Jusoor platform; account authorization should not happen through chat.

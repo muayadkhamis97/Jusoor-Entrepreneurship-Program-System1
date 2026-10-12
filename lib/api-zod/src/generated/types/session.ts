@@ -19,6 +19,11 @@ export interface Session {
   scheduledDate: string;
   /** @nullable */
   startTime?: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes: number;
   /** @nullable */
   facilitator?: string | null;
   /** @nullable */
@@ -28,6 +33,8 @@ export interface Session {
   location?: string | null;
   /** @nullable */
   zoomUrl?: string | null;
+  /** @nullable */
+  zoomMeetingId: string | null;
   /** @nullable */
   recordingUrl?: string | null;
   status: SessionStatus;

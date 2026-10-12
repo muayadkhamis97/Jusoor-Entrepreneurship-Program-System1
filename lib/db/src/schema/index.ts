@@ -27,3 +27,4 @@ export * from "./applications";
 export * from "./training";
 export * from "./pitch-judges";
 export * from "./courses";
+export * from "./zoom-connections";

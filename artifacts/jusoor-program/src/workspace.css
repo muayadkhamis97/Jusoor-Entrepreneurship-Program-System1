@@ -183,6 +183,8 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 .session-card-main p span { color: hsl(var(--accent)); padding: 0 6px; }
 .session-links { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 15px; margin-top: 9px; }
 .session-links .text-link { font-size: 9px; }.disabled-link { display: inline-flex; align-items: center; gap: 5px; color: hsl(var(--muted-foreground) / .55); font-size: 9px; }
+.session-admin-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+.session-admin-actions .button { min-height: 29px; padding: 0 10px; font-size: 9px; }
 .location-detail { display: inline-flex; align-items: center; gap: 4px; color: hsl(var(--muted-foreground)); font-size: 9px; }
 .location-detail svg { color: hsl(var(--accent)); flex: 0 0 auto; }
 .session-card-actions { display: flex; flex-direction: column; }
@@ -331,6 +333,14 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 .team-callout b,.team-callout span { display: block; }
 .team-callout b { color: hsl(var(--foreground)); font-size: 11px; }
 .team-callout span { color: hsl(var(--muted-foreground)); margin-top: 4px; font-size: 10px; line-height: 1.55; }
+.zoom-connect-panel { align-items: flex-start; flex-wrap: wrap; }
+.zoom-connect-copy { flex: 1 1 420px; min-width: 0; }
+.zoom-connect-copy code { overflow-wrap: anywhere; border-radius: 3px; background: hsl(var(--foreground) / .055); padding: 1px 4px; color: hsl(var(--foreground)); font-size: 9px; }
+.zoom-callback-url { display: inline-block; }
+.zoom-connect-actions { display: flex; align-items: center; justify-content: flex-end; flex: 0 1 auto; flex-wrap: wrap; gap: 7px; }
+.zoom-status-error { color: hsl(var(--destructive)) !important; }
+.zoom-status-success { color: hsl(var(--primary)) !important; }
+.zoom-disconnect-confirm { padding-top: 3px; font-weight: 600; }
 .team-error { margin-bottom: 14px; }
 .staff-panel { padding: 19px 21px 5px; }
 .staff-panel .panel-heading { margin-bottom: 12px; }

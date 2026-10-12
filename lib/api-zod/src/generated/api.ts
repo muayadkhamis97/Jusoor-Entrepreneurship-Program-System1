@@ -21,6 +21,9 @@ export const HealthCheckResponse = zod.object({
  * @summary Get program dashboard overview
  */
 export const getDashboardResponseUpcomingSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getDashboardResponseUpcomingSessionsItemDurationMinutesMin = 15;
+export const getDashboardResponseUpcomingSessionsItemDurationMinutesMax = 480;
+
 export const getDashboardResponseRecentBusinessesItemApplicationDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
@@ -42,11 +45,13 @@ export const GetDashboardResponse = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getDashboardResponseUpcomingSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(getDashboardResponseUpcomingSessionsItemDurationMinutesMin).max(getDashboardResponseUpcomingSessionsItemDurationMinutesMax),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
   "recordingUrl": zod.string().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']),
   "createdAt": zod.coerce.date()
@@ -778,6 +783,9 @@ export const GetParticipantCourseMaterialFileResponse = zod.unknown()
 export const getParticipantDashboardResponseApplicationsItemProgramStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemProgramEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMin = 15;
+export const getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMax = 480;
+
 export const getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemAssignmentsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
@@ -807,6 +815,7 @@ export const GetParticipantDashboardResponse = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullable(),
+  "durationMinutes": zod.number().int().min(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMin).max(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMax).optional(),
   "facilitator": zod.string().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullable(),
@@ -908,6 +917,9 @@ export const AskTrainingQuestionResponse = zod.object({
  * @summary Get assigned sessions, activities, participant answers, and questions
  */
 export const getTrainerDashboardResponseSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getTrainerDashboardResponseSessionsItemDurationMinutesMin = 15;
+export const getTrainerDashboardResponseSessionsItemDurationMinutesMax = 480;
+
 export const getTrainerDashboardResponseAssignmentsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
@@ -919,11 +931,13 @@ export const GetTrainerDashboardResponse = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getTrainerDashboardResponseSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(getTrainerDashboardResponseSessionsItemDurationMinutesMin).max(getTrainerDashboardResponseSessionsItemDurationMinutesMax),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
   "recordingUrl": zod.string().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']),
   "createdAt": zod.coerce.date()
@@ -1114,6 +1128,118 @@ export const CompleteCalendlyConnectionResponse = zod.void()
 
 
 /**
+ * @summary Get the coordinator's Zoom connection status and OAuth callback URL
+ */
+export const GetZoomStatusResponse = zod.object({
+  "clientConfigured": zod.boolean(),
+  "connected": zod.boolean(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "connectedBy": zod.string().nullable(),
+  "callbackUrl": zod.string().url().nullable()
+})
+
+
+/**
+ * @summary Start coordinator authorization with Zoom
+ */
+export const StartZoomConnectionBody = zod.object({
+
+}).passthrough().describe('Empty request body used to begin or remove the coordinator\'s Zoom connection.')
+
+export const StartZoomConnectionResponse = zod.object({
+  "authorizationUrl": zod.string().url()
+})
+
+
+/**
+ * @summary Complete coordinator authorization with Zoom
+ */
+export const CompleteZoomConnectionQueryParams = zod.object({
+  "code": zod.coerce.string().optional(),
+  "state": zod.coerce.string().optional(),
+  "error": zod.coerce.string().optional()
+})
+
+export const CompleteZoomConnectionResponse = zod.void()
+
+
+/**
+ * @summary Remove the coordinator's Zoom authorization
+ */
+export const DisconnectZoomBody = zod.object({
+
+}).passthrough().describe('Empty request body used to begin or remove the coordinator\'s Zoom connection.')
+
+export const DisconnectZoomResponse = zod.void()
+
+
+/**
+ * @summary Create or update the Zoom meeting for a program session
+ */
+export const CreateOrUpdateZoomMeetingParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const createOrUpdateZoomMeetingResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createOrUpdateZoomMeetingResponseDurationMinutesMin = 15;
+export const createOrUpdateZoomMeetingResponseDurationMinutesMax = 480;
+
+
+
+export const CreateOrUpdateZoomMeetingResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullish(),
+  "title": zod.string(),
+  "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
+  "scheduledDate": zod.string().regex(createOrUpdateZoomMeetingResponseScheduledDateRegExp),
+  "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(createOrUpdateZoomMeetingResponseDurationMinutesMin).max(createOrUpdateZoomMeetingResponseDurationMinutesMax),
+  "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
+  "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
+  "location": zod.string().nullish(),
+  "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
+  "recordingUrl": zod.string().nullish(),
+  "status": zod.enum(['scheduled', 'completed', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Sync a completed Zoom cloud recording link to a program session
+ */
+export const SyncZoomRecordingParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const syncZoomRecordingResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const syncZoomRecordingResponseDurationMinutesMin = 15;
+export const syncZoomRecordingResponseDurationMinutesMax = 480;
+
+
+
+export const SyncZoomRecordingResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullish(),
+  "title": zod.string(),
+  "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
+  "scheduledDate": zod.string().regex(syncZoomRecordingResponseScheduledDateRegExp),
+  "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(syncZoomRecordingResponseDurationMinutesMin).max(syncZoomRecordingResponseDurationMinutesMax),
+  "facilitator": zod.string().nullish(),
+  "trainerStaffId": zod.number().int().nullable(),
+  "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
+  "location": zod.string().nullish(),
+  "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
+  "recordingUrl": zod.string().nullish(),
+  "status": zod.enum(['scheduled', 'completed', 'cancelled']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get pitch and demo-day events assigned to this judge
  */
 export const getJudgeDashboardResponsePitchesItemEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
@@ -1270,6 +1396,9 @@ export const ListSessionsQueryParams = zod.object({
 })
 
 export const listSessionsResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listSessionsResponseDurationMinutesMin = 15;
+export const listSessionsResponseDurationMinutesMax = 480;
+
 
 
 export const ListSessionsResponseItem = zod.object({
@@ -1279,11 +1408,13 @@ export const ListSessionsResponseItem = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(listSessionsResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(listSessionsResponseDurationMinutesMin).max(listSessionsResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
   "recordingUrl": zod.string().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']),
   "createdAt": zod.coerce.date()
@@ -1296,6 +1427,10 @@ export const ListSessionsResponse = zod.array(ListSessionsResponseItem)
  */
 
 export const createSessionBodyScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createSessionBodyDurationMinutesDefault = 60;
+export const createSessionBodyDurationMinutesMin = 15;
+export const createSessionBodyDurationMinutesMax = 480;
+
 
 
 export const CreateSessionBody = zod.object({
@@ -1304,6 +1439,7 @@ export const CreateSessionBody = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(createSessionBodyScheduledDateRegExp),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(createSessionBodyDurationMinutesMin).max(createSessionBodyDurationMinutesMax).default(createSessionBodyDurationMinutesDefault),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullish(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']).optional(),
@@ -1314,6 +1450,9 @@ export const CreateSessionBody = zod.object({
 })
 
 export const createSessionResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createSessionResponseDurationMinutesMin = 15;
+export const createSessionResponseDurationMinutesMax = 480;
+
 
 
 export const CreateSessionResponse = zod.object({
@@ -1323,11 +1462,13 @@ export const CreateSessionResponse = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(createSessionResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(createSessionResponseDurationMinutesMin).max(createSessionResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
   "recordingUrl": zod.string().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']),
   "createdAt": zod.coerce.date()
@@ -1343,6 +1484,9 @@ export const UpdateSessionParams = zod.object({
 
 
 export const updateSessionBodyScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateSessionBodyDurationMinutesMin = 15;
+export const updateSessionBodyDurationMinutesMax = 480;
+
 
 
 export const UpdateSessionBody = zod.object({
@@ -1351,6 +1495,7 @@ export const UpdateSessionBody = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']).optional(),
   "scheduledDate": zod.string().regex(updateSessionBodyScheduledDateRegExp).optional(),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(updateSessionBodyDurationMinutesMin).max(updateSessionBodyDurationMinutesMax).optional(),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullish(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']).optional(),
@@ -1361,6 +1506,9 @@ export const UpdateSessionBody = zod.object({
 })
 
 export const updateSessionResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateSessionResponseDurationMinutesMin = 15;
+export const updateSessionResponseDurationMinutesMax = 480;
+
 
 
 export const UpdateSessionResponse = zod.object({
@@ -1370,11 +1518,13 @@ export const UpdateSessionResponse = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(updateSessionResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
+  "durationMinutes": zod.number().int().min(updateSessionResponseDurationMinutesMin).max(updateSessionResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
   "trainerStaffId": zod.number().int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
+  "zoomMeetingId": zod.string().nullable(),
   "recordingUrl": zod.string().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']),
   "createdAt": zod.coerce.date()

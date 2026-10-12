@@ -29,6 +29,7 @@ import type {
   CalendlyAuthorization,
   CalendlyAuthorizationInput,
   CompleteCalendlyConnectionParams,
+  CompleteZoomConnectionParams,
   CourseManagement,
   CourseMaterial,
   CourseMaterialInput,
@@ -80,7 +81,10 @@ import type {
   TrainingAssignmentInput,
   TrainingQuestionInput,
   TrainingQuestionReply,
-  TrainingSubmission
+  TrainingSubmission,
+  ZoomAuthorization,
+  ZoomConnectionInput,
+  ZoomStatus
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2920,7 +2924,7 @@ export const getStartCalendlyConnectionUrl = () => {
 /**
  * @summary Start the signed-in mentor's Calendly authorization
  */
-export const startCalendlyConnection = async (calendlyAuthorizationInput: CalendlyAuthorizationInput, options?: Parameters<typeof customFetch>[1]): Promise<CalendlyAuthorization> => {
+export const startCalendlyConnection = async (calendlyAuthorizationInput: CalendlyAuthorizationInput, options?: Parameters<typeof customFetch>[1]): Promise<ZoomAuthorization> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -2936,7 +2940,7 @@ export const startCalendlyConnection = async (calendlyAuthorizationInput: Calend
     }
     return headers;
   };
-return customFetch<CalendlyAuthorization>(getStartCalendlyConnectionUrl(),
+return customFetch<ZoomAuthorization>(getStartCalendlyConnectionUrl(),
   {
     ...options,
     method: 'POST',
@@ -3080,6 +3084,491 @@ export function useCompleteCalendlyConnection<TData = Awaited<ReturnType<typeof 
 
 
 
+
+export const getGetZoomStatusUrl = () => {
+
+
+
+
+  return `/api/zoom/status`
+}
+
+/**
+ * @summary Get the coordinator's Zoom connection status and OAuth callback URL
+ */
+export const getZoomStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<ZoomStatus> => {
+
+  return customFetch<ZoomStatus>(getGetZoomStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetZoomStatusQueryKey = () => {
+    return [
+    `/api/zoom/status`
+    ] as const;
+    }
+
+
+export const getGetZoomStatusQueryOptions = <TData = Awaited<ReturnType<typeof getZoomStatus>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getZoomStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetZoomStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getZoomStatus>>> = ({ signal }) => getZoomStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getZoomStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetZoomStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getZoomStatus>>>
+export type GetZoomStatusQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the coordinator's Zoom connection status and OAuth callback URL
+ */
+
+export function useGetZoomStatus<TData = Awaited<ReturnType<typeof getZoomStatus>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getZoomStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetZoomStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartZoomConnectionUrl = () => {
+
+
+
+
+  return `/api/zoom/connect`
+}
+
+/**
+ * @summary Start coordinator authorization with Zoom
+ */
+export const startZoomConnection = async (zoomConnectionInput: ZoomConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<CalendlyAuthorization> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CalendlyAuthorization>(getStartZoomConnectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(zoomConnectionInput)
+  }
+);}
+
+
+
+
+
+export const getStartZoomConnectionMutationKey = () => ['startZoomConnection'] as const;
+
+export const getStartZoomConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startZoomConnection>>, TError,StartZoomConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startZoomConnection>>, TError,StartZoomConnectionMutationVariables, TContext> => {
+
+const mutationKey = getStartZoomConnectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startZoomConnection>>, StartZoomConnectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startZoomConnection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartZoomConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof startZoomConnection>>>
+    export type StartZoomConnectionMutationBody = BodyType<ZoomConnectionInput>
+    export type StartZoomConnectionMutationError = ErrorType<void>
+    export type StartZoomConnectionMutationVariables = {data: BodyType<ZoomConnectionInput>}
+
+    /**
+ * @summary Start coordinator authorization with Zoom
+ */
+export const useStartZoomConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startZoomConnection>>, TError,StartZoomConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startZoomConnection>>,
+        TError,
+        StartZoomConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartZoomConnectionMutationOptions(options));
+    }
+
+export const getCompleteZoomConnectionUrl = (params?: CompleteZoomConnectionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/zoom/callback?${stringifiedParams}` : `/api/zoom/callback`
+}
+
+/**
+ * @summary Complete coordinator authorization with Zoom
+ */
+export const completeZoomConnection = async (params?: CompleteZoomConnectionParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getCompleteZoomConnectionUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteZoomConnectionQueryKey = (params?: CompleteZoomConnectionParams,) => {
+    return [
+    `/api/zoom/callback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCompleteZoomConnectionQueryOptions = <TData = Awaited<ReturnType<typeof completeZoomConnection>>, TError = ErrorType<void>>(params?: CompleteZoomConnectionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeZoomConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCompleteZoomConnectionQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof completeZoomConnection>>> = ({ signal }) => completeZoomConnection(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof completeZoomConnection>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CompleteZoomConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof completeZoomConnection>>>
+export type CompleteZoomConnectionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Complete coordinator authorization with Zoom
+ */
+
+export function useCompleteZoomConnection<TData = Awaited<ReturnType<typeof completeZoomConnection>>, TError = ErrorType<void>>(
+ params?: CompleteZoomConnectionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeZoomConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCompleteZoomConnectionQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDisconnectZoomUrl = () => {
+
+
+
+
+  return `/api/zoom/disconnect`
+}
+
+/**
+ * @summary Remove the coordinator's Zoom authorization
+ */
+export const disconnectZoom = async (zoomConnectionInput: ZoomConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getDisconnectZoomUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(zoomConnectionInput)
+  }
+);}
+
+
+
+
+
+export const getDisconnectZoomMutationKey = () => ['disconnectZoom'] as const;
+
+export const getDisconnectZoomMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectZoom>>, TError,DisconnectZoomMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectZoom>>, TError,DisconnectZoomMutationVariables, TContext> => {
+
+const mutationKey = getDisconnectZoomMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectZoom>>, DisconnectZoomMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  disconnectZoom(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectZoomMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectZoom>>>
+    export type DisconnectZoomMutationBody = BodyType<ZoomConnectionInput>
+    export type DisconnectZoomMutationError = ErrorType<void>
+    export type DisconnectZoomMutationVariables = {data: BodyType<ZoomConnectionInput>}
+
+    /**
+ * @summary Remove the coordinator's Zoom authorization
+ */
+export const useDisconnectZoom = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectZoom>>, TError,DisconnectZoomMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectZoom>>,
+        TError,
+        DisconnectZoomMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisconnectZoomMutationOptions(options));
+    }
+
+export const getCreateOrUpdateZoomMeetingUrl = (id: number,) => {
+
+
+
+
+  return `/api/zoom/sessions/${id}/meeting`
+}
+
+/**
+ * @summary Create or update the Zoom meeting for a program session
+ */
+export const createOrUpdateZoomMeeting = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Session> => {
+
+  return customFetch<Session>(getCreateOrUpdateZoomMeetingUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateOrUpdateZoomMeetingMutationKey = () => ['createOrUpdateZoomMeeting'] as const;
+
+export const getCreateOrUpdateZoomMeetingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrUpdateZoomMeeting>>, TError,CreateOrUpdateZoomMeetingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrUpdateZoomMeeting>>, TError,CreateOrUpdateZoomMeetingMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrUpdateZoomMeetingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrUpdateZoomMeeting>>, CreateOrUpdateZoomMeetingMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  createOrUpdateZoomMeeting(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrUpdateZoomMeetingMutationResult = NonNullable<Awaited<ReturnType<typeof createOrUpdateZoomMeeting>>>
+
+    export type CreateOrUpdateZoomMeetingMutationError = ErrorType<void>
+    export type CreateOrUpdateZoomMeetingMutationVariables = {id: number}
+
+    /**
+ * @summary Create or update the Zoom meeting for a program session
+ */
+export const useCreateOrUpdateZoomMeeting = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrUpdateZoomMeeting>>, TError,CreateOrUpdateZoomMeetingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrUpdateZoomMeeting>>,
+        TError,
+        CreateOrUpdateZoomMeetingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrUpdateZoomMeetingMutationOptions(options));
+    }
+
+export const getSyncZoomRecordingUrl = (id: number,) => {
+
+
+
+
+  return `/api/zoom/sessions/${id}/recording`
+}
+
+/**
+ * @summary Sync a completed Zoom cloud recording link to a program session
+ */
+export const syncZoomRecording = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Session> => {
+
+  return customFetch<Session>(getSyncZoomRecordingUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSyncZoomRecordingMutationKey = () => ['syncZoomRecording'] as const;
+
+export const getSyncZoomRecordingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncZoomRecording>>, TError,SyncZoomRecordingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncZoomRecording>>, TError,SyncZoomRecordingMutationVariables, TContext> => {
+
+const mutationKey = getSyncZoomRecordingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncZoomRecording>>, SyncZoomRecordingMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  syncZoomRecording(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncZoomRecordingMutationResult = NonNullable<Awaited<ReturnType<typeof syncZoomRecording>>>
+
+    export type SyncZoomRecordingMutationError = ErrorType<void>
+    export type SyncZoomRecordingMutationVariables = {id: number}
+
+    /**
+ * @summary Sync a completed Zoom cloud recording link to a program session
+ */
+export const useSyncZoomRecording = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncZoomRecording>>, TError,SyncZoomRecordingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncZoomRecording>>,
+        TError,
+        SyncZoomRecordingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncZoomRecordingMutationOptions(options));
+    }
 
 export const getGetJudgeDashboardUrl = () => {
 

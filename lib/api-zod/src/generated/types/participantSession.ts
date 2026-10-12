@@ -17,6 +17,11 @@ export interface ParticipantSession {
   scheduledDate: string;
   /** @nullable */
   startTime: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes?: number;
   /** @nullable */
   facilitator: string | null;
   deliveryMode: DeliveryMode;

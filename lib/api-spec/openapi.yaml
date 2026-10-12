@@ -654,7 +654,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CalendlyAuthorization"
+                  $ref: "#/components/schemas/ZoomAuthorization"
         "403":
           description: Mentor access required
         "503":
@@ -682,6 +682,123 @@ paths:
           description: Redirect to the mentor workspace with the connection result
         "400":
           description: Authorization state is missing or invalid
+  /zoom/status:
+    get:
+      operationId: getZoomStatus
+      tags: [sessions]
+      summary: Get the coordinator's Zoom connection status and OAuth callback URL
+      responses:
+        "200":
+          description: Zoom app setup and account connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZoomStatus"
+        "403":
+          description: Coordinator access required
+  /zoom/connect:
+    post:
+      operationId: startZoomConnection
+      tags: [sessions]
+      summary: Start coordinator authorization with Zoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZoomConnectionInput"
+      responses:
+        "200":
+          description: Zoom authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendlyAuthorization"
+        "403":
+          description: Coordinator access required
+        "503":
+          description: Zoom OAuth app credentials are not configured
+  /zoom/callback:
+    get:
+      operationId: completeZoomConnection
+      tags: [sessions]
+      summary: Complete coordinator authorization with Zoom
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the Sessions admin view
+        "400":
+          description: Authorization state is missing or invalid
+  /zoom/disconnect:
+    post:
+      operationId: disconnectZoom
+      tags: [sessions]
+      summary: Remove the coordinator's Zoom authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZoomConnectionInput"
+      responses:
+        "204":
+          description: Zoom authorization removed
+        "403":
+          description: Coordinator access required
+  /zoom/sessions/{id}/meeting:
+    post:
+      operationId: createOrUpdateZoomMeeting
+      tags: [sessions]
+      summary: Create or update the Zoom meeting for a program session
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Updated program session with its Zoom join link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          description: Session cannot be scheduled as a Zoom meeting
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Session not found
+        "409":
+          description: Zoom authorization is required
+  /zoom/sessions/{id}/recording:
+    post:
+      operationId: syncZoomRecording
+      tags: [sessions]
+      summary: Sync a completed Zoom cloud recording link to a program session
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Updated program session with its recording link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Session or Zoom recording not found
+        "409":
+          description: Zoom authorization or recording is not ready
   /judge/dashboard:
     get:
       operationId: getJudgeDashboard
@@ -1382,6 +1499,7 @@ components:
         type: { $ref: "#/components/schemas/SessionType" }
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
+        durationMinutes: { type: integer, minimum: 15, maximum: 480 }
         facilitator: { type: ["string", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
         location: { type: ["string", "null"] }
@@ -1585,6 +1703,23 @@ components:
       properties:
         authorizationUrl: { type: string, format: uri }
       required: [authorizationUrl]
+    ZoomConnectionInput:
+      type: object
+      description: Empty request body used to begin or remove the coordinator's Zoom connection.
+    ZoomAuthorization:
+      type: object
+      properties:
+        authorizationUrl: { type: string, format: uri }
+      required: [authorizationUrl]
+    ZoomStatus:
+      type: object
+      properties:
+        clientConfigured: { type: boolean }
+        connected: { type: boolean }
+        connectedAt: { type: ["string", "null"], format: date-time }
+        connectedBy: { type: ["string", "null"] }
+        callbackUrl: { type: ["string", "null"], format: uri }
+      required: [clientConfigured, connected, connectedAt, connectedBy, callbackUrl]
     JudgePitch:
       type: object
       properties:
@@ -1770,15 +1905,17 @@ components:
         type: { $ref: "#/components/schemas/SessionType" }
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
+        durationMinutes: { type: integer, minimum: 15, maximum: 480 }
         facilitator: { type: ["string", "null"] }
         trainerStaffId: { type: ["integer", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
         location: { type: ["string", "null"] }
         zoomUrl: { type: ["string", "null"] }
+        zoomMeetingId: { type: ["string", "null"] }
         recordingUrl: { type: ["string", "null"] }
         status: { type: string, enum: [scheduled, completed, cancelled] }
         createdAt: { type: string, format: date-time }
-      required: [id, title, type, scheduledDate, deliveryMode, status, trainerStaffId, createdAt]
+      required: [id, title, type, scheduledDate, durationMinutes, deliveryMode, status, trainerStaffId, zoomMeetingId, createdAt]
     SessionInput:
       type: object
       properties:
@@ -1787,6 +1924,7 @@ components:
         type: { $ref: "#/components/schemas/SessionType" }
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
+        durationMinutes: { type: integer, minimum: 15, maximum: 480, default: 60 }
         facilitator: { type: ["string", "null"] }
         trainerStaffId: { type: ["integer", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
@@ -1803,6 +1941,7 @@ components:
         type: { $ref: "#/components/schemas/SessionType" }
         scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         startTime: { type: ["string", "null"] }
+        durationMinutes: { type: integer, minimum: 15, maximum: 480 }
         facilitator: { type: ["string", "null"] }
         trainerStaffId: { type: ["integer", "null"] }
         deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }

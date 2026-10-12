@@ -464,6 +464,11 @@ export interface ParticipantSession {
   scheduledDate: string;
   /** @nullable */
   startTime: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes?: number;
   /** @nullable */
   facilitator: string | null;
   deliveryMode: DeliveryMode;
@@ -712,6 +717,11 @@ export interface Session {
   scheduledDate: string;
   /** @nullable */
   startTime?: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes: number;
   /** @nullable */
   facilitator?: string | null;
   /** @nullable */
@@ -721,6 +731,8 @@ export interface Session {
   location?: string | null;
   /** @nullable */
   zoomUrl?: string | null;
+  /** @nullable */
+  zoomMeetingId: string | null;
   /** @nullable */
   recordingUrl?: string | null;
   status: SessionStatus;
@@ -780,6 +792,26 @@ export interface CalendlyAuthorizationInput { [key: string]: unknown }
 
 export interface CalendlyAuthorization {
   authorizationUrl: string;
+}
+
+/**
+ * Empty request body used to begin or remove the coordinator's Zoom connection.
+ */
+export interface ZoomConnectionInput { [key: string]: unknown }
+
+export interface ZoomAuthorization {
+  authorizationUrl: string;
+}
+
+export interface ZoomStatus {
+  clientConfigured: boolean;
+  connected: boolean;
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  connectedBy: string | null;
+  /** @nullable */
+  callbackUrl: string | null;
 }
 
 export type PitchEventType = typeof PitchEventType[keyof typeof PitchEventType];
@@ -1098,6 +1130,11 @@ export interface SessionInput {
   scheduledDate: string;
   /** @nullable */
   startTime?: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes?: number;
   /** @nullable */
   facilitator?: string | null;
   /** @nullable */
@@ -1131,6 +1168,11 @@ export interface SessionUpdate {
   scheduledDate?: string;
   /** @nullable */
   startTime?: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes?: number;
   /** @nullable */
   facilitator?: string | null;
   /** @nullable */
@@ -1285,6 +1327,12 @@ programId?: number;
 };
 
 export type CompleteCalendlyConnectionParams = {
+code?: string;
+state?: string;
+error?: string;
+};
+
+export type CompleteZoomConnectionParams = {
 code?: string;
 state?: string;
 error?: string;

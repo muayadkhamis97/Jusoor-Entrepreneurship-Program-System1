@@ -19,6 +19,11 @@ export interface SessionInput {
   scheduledDate: string;
   /** @nullable */
   startTime?: string | null;
+  /**
+     * @minimum 15
+     * @maximum 480
+     */
+  durationMinutes?: number;
   /** @nullable */
   facilitator?: string | null;
   /** @nullable */
