@@ -16,3 +16,9 @@ Mentor booking: each mentor authorizes their own Calendly account. The app keeps
 **Why:** The coordinator chose per-mentor booking accounts and left the platform choice open; Calendly was selected for direct founder scheduling.
 
 **How to apply:** Preserve individual mentor ownership. Do not store mentor access tokens or replace the per-mentor setup with a shared workspace account unless the coordinator changes this decision.
+
+Mentoring feedback includes participant ratings and comments. The assigned mentor and coordinator can see named feedback.
+
+**Why:** The coordinator selected this visibility model for post-session evaluation.
+
+**How to apply:** Restrict each response to its assigned mentor and coordinators; never expose individual feedback to other mentors or participants.
