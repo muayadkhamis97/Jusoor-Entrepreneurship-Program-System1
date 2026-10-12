@@ -2,14 +2,29 @@ import { Router, type IRouter } from "express";
 import { and, asc, eq } from "drizzle-orm";
 import {
   GetMentorDashboardResponse,
+  UpdateMentorBookingSettingsBody,
+  UpdateMentorBookingSettingsResponse,
   UpdateAssignedMentoringBody,
   UpdateAssignedMentoringParams,
   UpdateAssignedMentoringResponse,
 } from "@workspace/api-zod";
-import { businessesTable, db, programsTable, supportTable } from "@workspace/db";
+import { businessesTable, db, programsTable, staffMembersTable, supportTable } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
+
+function isGoogleCalendarBookingUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      url.hostname === "calendar.google.com" &&
+      url.pathname.includes("/appointments/schedules/");
+  } catch {
+    return false;
+  }
+}
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
@@ -32,7 +47,71 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     .orderBy(asc(supportTable.scheduledDate));
   res.json(GetMentorDashboardResponse.parse({
     engagements,
+    bookingProvider: staff.bookingProvider,
     calendlyBookingUrl: staff.calendlyBookingUrl,
+    googleCalendarBookingUrl: staff.googleCalendarBookingUrl,
+    googleCalendarConnected: Boolean(staff.googleCalendarAccountEmail),
+  }));
+});
+
+router.patch("/booking-settings", async (req, res): Promise<void> => {
+  const body = UpdateMentorBookingSettingsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const staff = res.locals.staff as StaffAccess;
+  const googleCalendarBookingUrl = body.data.googleCalendarBookingUrl;
+  if (
+    googleCalendarBookingUrl !== null &&
+    !isGoogleCalendarBookingUrl(googleCalendarBookingUrl)
+  ) {
+    res.status(400).json({ error: "Enter a Google Calendar appointment-schedule link." });
+    return;
+  }
+  if (body.data.bookingProvider === "calendly" && !staff.calendlyBookingUrl) {
+    res.status(400).json({ error: "Connect Calendly before selecting it as your booking provider." });
+    return;
+  }
+  if (body.data.bookingProvider === "google_calendar") {
+    if (!staff.googleCalendarAccountEmail) {
+      res.status(400).json({ error: "Connect Google Calendar before selecting it as your booking provider." });
+      return;
+    }
+    if (!googleCalendarBookingUrl) {
+      res.status(400).json({ error: "Add your public Google Calendar appointment-schedule link first." });
+      return;
+    }
+  }
+
+  const [updated] = await db.update(staffMembersTable)
+    .set({
+      bookingProvider: body.data.bookingProvider,
+      googleCalendarBookingUrl,
+    })
+    .where(and(
+      eq(staffMembersTable.id, staff.id),
+      eq(staffMembersTable.role, "mentor"),
+      eq(staffMembersTable.status, "active"),
+    ))
+    .returning({
+      bookingProvider: staffMembersTable.bookingProvider,
+      calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+      googleCalendarBookingUrl: staffMembersTable.googleCalendarBookingUrl,
+      googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+    });
+
+  if (!updated) {
+    res.status(403).json({ error: "Active mentor access is required." });
+    return;
+  }
+
+  res.json(UpdateMentorBookingSettingsResponse.parse({
+    bookingProvider: updated.bookingProvider,
+    calendlyBookingUrl: updated.calendlyBookingUrl,
+    googleCalendarBookingUrl: updated.googleCalendarBookingUrl,
+    googleCalendarConnected: Boolean(updated.googleCalendarAccountEmail),
   }));
 });
 

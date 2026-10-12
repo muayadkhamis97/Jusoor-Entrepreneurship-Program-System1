@@ -237,7 +237,9 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       topic: supportTable.topic,
       scheduledDate: supportTable.scheduledDate,
       status: supportTable.status,
+      bookingProvider: staffMembersTable.bookingProvider,
       calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+      googleCalendarBookingUrl: staffMembersTable.googleCalendarBookingUrl,
     })
       .from(supportTable)
       .leftJoin(staffMembersTable, eq(supportTable.mentorStaffId, staffMembersTable.id))

@@ -1131,7 +1131,10 @@ export const GetMentorDashboardResponse = zod.object({
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
   "notes": zod.string().nullable()
 })),
-  "calendlyBookingUrl": zod.string().url().nullable()
+  "bookingProvider": zod.enum(['calendly', 'google_calendar']),
+  "calendlyBookingUrl": zod.string().url().nullable(),
+  "googleCalendarBookingUrl": zod.string().url().nullable(),
+  "googleCalendarConnected": zod.boolean()
 })
 
 
@@ -1173,6 +1176,46 @@ export const ReceiveCalendlyWebhookBody = zod.object({
 })
 
 export const ReceiveCalendlyWebhookResponse = zod.unknown()
+
+
+/**
+ * @summary Start the signed-in mentor's Google account authorization
+ */
+export const StartGoogleCalendarConnectionBody = zod.object({
+
+}).passthrough().describe('Empty request body used to begin the mentor\'s Google account authorization.')
+
+export const StartGoogleCalendarConnectionResponse = zod.object({
+  "authorizationUrl": zod.string().url()
+})
+
+
+/**
+ * @summary Complete a mentor's Google account authorization
+ */
+export const CompleteGoogleCalendarConnectionQueryParams = zod.object({
+  "code": zod.coerce.string().optional(),
+  "state": zod.coerce.string().optional(),
+  "error": zod.coerce.string().optional()
+})
+
+export const CompleteGoogleCalendarConnectionResponse = zod.void()
+
+
+/**
+ * @summary Choose the booking provider and save the Google Calendar booking link
+ */
+export const UpdateMentorBookingSettingsBody = zod.object({
+  "bookingProvider": zod.enum(['calendly', 'google_calendar']),
+  "googleCalendarBookingUrl": zod.string().url().nullable()
+})
+
+export const UpdateMentorBookingSettingsResponse = zod.object({
+  "bookingProvider": zod.enum(['calendly', 'google_calendar']),
+  "calendlyBookingUrl": zod.string().url().nullable(),
+  "googleCalendarBookingUrl": zod.string().url().nullable(),
+  "googleCalendarConnected": zod.boolean()
+})
 
 
 /**
@@ -1890,13 +1933,15 @@ export const GetAuthMeResponse = zod.object({
 
 
 /**
- * @summary List mentor Calendly connection status for coordinators
+ * @summary List mentor booking provider and connection status for coordinators
  */
 export const GetMentorBookingStatusResponseItem = zod.object({
   "staffId": zod.number().int(),
   "email": zod.string().email(),
   "status": zod.enum(['invited', 'active']),
-  "calendlyConnected": zod.boolean()
+  "bookingProvider": zod.enum(['calendly', 'google_calendar']),
+  "calendlyConnected": zod.boolean(),
+  "googleCalendarConnected": zod.boolean()
 })
 export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusResponseItem)
 

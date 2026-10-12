@@ -35,6 +35,7 @@ import type {
   CalendlyAuthorizationInput,
   CalendlyWebhookEnvelope,
   CompleteCalendlyConnectionParams,
+  CompleteGoogleCalendarConnectionParams,
   CompleteZoomConnectionParams,
   CourseManagement,
   CourseMaterial,
@@ -48,6 +49,7 @@ import type {
   Dashboard,
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
+  GoogleCalendarAuthorizationInput,
   HealthStatus,
   JudgeDashboard,
   JudgePitch,
@@ -56,6 +58,8 @@ import type {
   ListPitchesParams,
   ListSessionsParams,
   ListSupportParams,
+  MentorBookingSettings,
+  MentorBookingSettingsInput,
   MentorBookingStatus,
   MentorDashboard,
   MentorEngagement,
@@ -3253,6 +3257,266 @@ export const useReceiveCalendlyWebhook = <TError = ErrorType<void>,
       return useMutation(getReceiveCalendlyWebhookMutationOptions(options));
     }
 
+export const getStartGoogleCalendarConnectionUrl = () => {
+
+
+
+
+  return `/api/mentor/google-calendar/connect`
+}
+
+/**
+ * @summary Start the signed-in mentor's Google account authorization
+ */
+export const startGoogleCalendarConnection = async (googleCalendarAuthorizationInput: GoogleCalendarAuthorizationInput, options?: Parameters<typeof customFetch>[1]): Promise<CalendlyAuthorization> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CalendlyAuthorization>(getStartGoogleCalendarConnectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(googleCalendarAuthorizationInput)
+  }
+);}
+
+
+
+
+
+export const getStartGoogleCalendarConnectionMutationKey = () => ['startGoogleCalendarConnection'] as const;
+
+export const getStartGoogleCalendarConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startGoogleCalendarConnection>>, TError,StartGoogleCalendarConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startGoogleCalendarConnection>>, TError,StartGoogleCalendarConnectionMutationVariables, TContext> => {
+
+const mutationKey = getStartGoogleCalendarConnectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startGoogleCalendarConnection>>, StartGoogleCalendarConnectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startGoogleCalendarConnection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartGoogleCalendarConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof startGoogleCalendarConnection>>>
+    export type StartGoogleCalendarConnectionMutationBody = BodyType<GoogleCalendarAuthorizationInput>
+    export type StartGoogleCalendarConnectionMutationError = ErrorType<void>
+    export type StartGoogleCalendarConnectionMutationVariables = {data: BodyType<GoogleCalendarAuthorizationInput>}
+
+    /**
+ * @summary Start the signed-in mentor's Google account authorization
+ */
+export const useStartGoogleCalendarConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startGoogleCalendarConnection>>, TError,StartGoogleCalendarConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startGoogleCalendarConnection>>,
+        TError,
+        StartGoogleCalendarConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartGoogleCalendarConnectionMutationOptions(options));
+    }
+
+export const getCompleteGoogleCalendarConnectionUrl = (params?: CompleteGoogleCalendarConnectionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/mentor/google-calendar/callback?${stringifiedParams}` : `/api/mentor/google-calendar/callback`
+}
+
+/**
+ * @summary Complete a mentor's Google account authorization
+ */
+export const completeGoogleCalendarConnection = async (params?: CompleteGoogleCalendarConnectionParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getCompleteGoogleCalendarConnectionUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteGoogleCalendarConnectionQueryKey = (params?: CompleteGoogleCalendarConnectionParams,) => {
+    return [
+    `/api/mentor/google-calendar/callback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCompleteGoogleCalendarConnectionQueryOptions = <TData = Awaited<ReturnType<typeof completeGoogleCalendarConnection>>, TError = ErrorType<void>>(params?: CompleteGoogleCalendarConnectionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeGoogleCalendarConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCompleteGoogleCalendarConnectionQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof completeGoogleCalendarConnection>>> = ({ signal }) => completeGoogleCalendarConnection(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof completeGoogleCalendarConnection>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CompleteGoogleCalendarConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof completeGoogleCalendarConnection>>>
+export type CompleteGoogleCalendarConnectionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Complete a mentor's Google account authorization
+ */
+
+export function useCompleteGoogleCalendarConnection<TData = Awaited<ReturnType<typeof completeGoogleCalendarConnection>>, TError = ErrorType<void>>(
+ params?: CompleteGoogleCalendarConnectionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeGoogleCalendarConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCompleteGoogleCalendarConnectionQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMentorBookingSettingsUrl = () => {
+
+
+
+
+  return `/api/mentor/booking-settings`
+}
+
+/**
+ * @summary Choose the booking provider and save the Google Calendar booking link
+ */
+export const updateMentorBookingSettings = async (mentorBookingSettingsInput: MentorBookingSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<MentorBookingSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MentorBookingSettings>(getUpdateMentorBookingSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mentorBookingSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMentorBookingSettingsMutationKey = () => ['updateMentorBookingSettings'] as const;
+
+export const getUpdateMentorBookingSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMentorBookingSettings>>, TError,UpdateMentorBookingSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMentorBookingSettings>>, TError,UpdateMentorBookingSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMentorBookingSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMentorBookingSettings>>, UpdateMentorBookingSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMentorBookingSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMentorBookingSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateMentorBookingSettings>>>
+    export type UpdateMentorBookingSettingsMutationBody = BodyType<MentorBookingSettingsInput>
+    export type UpdateMentorBookingSettingsMutationError = ErrorType<void>
+    export type UpdateMentorBookingSettingsMutationVariables = {data: BodyType<MentorBookingSettingsInput>}
+
+    /**
+ * @summary Choose the booking provider and save the Google Calendar booking link
+ */
+export const useUpdateMentorBookingSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMentorBookingSettings>>, TError,UpdateMentorBookingSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMentorBookingSettings>>,
+        TError,
+        UpdateMentorBookingSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMentorBookingSettingsMutationOptions(options));
+    }
+
 export const getGetZoomStatusUrl = () => {
 
 
@@ -5563,7 +5827,7 @@ export const getGetMentorBookingStatusUrl = () => {
 }
 
 /**
- * @summary List mentor Calendly connection status for coordinators
+ * @summary List mentor booking provider and connection status for coordinators
  */
 export const getMentorBookingStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<MentorBookingStatus[]> => {
 
@@ -5610,7 +5874,7 @@ export type GetMentorBookingStatusQueryError = ErrorType<void>
 
 
 /**
- * @summary List mentor Calendly connection status for coordinators
+ * @summary List mentor booking provider and connection status for coordinators
  */
 
 export function useGetMentorBookingStatus<TData = Awaited<ReturnType<typeof getMentorBookingStatus>>, TError = ErrorType<void>>(

@@ -725,6 +725,73 @@ paths:
           description: Invalid Calendly event
         "401":
           description: Invalid or expired webhook signature
+  /mentor/google-calendar/connect:
+    post:
+      operationId: startGoogleCalendarConnection
+      tags: [support]
+      summary: Start the signed-in mentor's Google account authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleCalendarAuthorizationInput"
+      responses:
+        "200":
+          description: Google authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendlyAuthorization"
+        "403":
+          description: Mentor access required
+        "503":
+          description: Google OAuth is not configured
+  /mentor/google-calendar/callback:
+    get:
+      operationId: completeGoogleCalendarConnection
+      tags: [support]
+      summary: Complete a mentor's Google account authorization
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the mentor workspace with the connection result
+        "400":
+          description: Authorization state is missing or invalid
+  /mentor/booking-settings:
+    patch:
+      operationId: updateMentorBookingSettings
+      tags: [support]
+      summary: Choose the booking provider and save the Google Calendar booking link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MentorBookingSettingsInput"
+      responses:
+        "200":
+          description: Updated mentor booking settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorBookingSettings"
+        "400":
+          description: Provider is not connected or its booking link is invalid
+        "403":
+          description: Mentor access required
   /zoom/status:
     get:
       operationId: getZoomStatus
@@ -1240,10 +1307,10 @@ paths:
     get:
       operationId: getMentorBookingStatus
       tags: [staff]
-      summary: List mentor Calendly connection status for coordinators
+      summary: List mentor booking provider and connection status for coordinators
       responses:
         "200":
-          description: Mentor accounts and whether a Calendly booking link is connected
+          description: Mentor accounts, selected booking provider, and provider connection statuses
           content:
             application/json:
               schema:
@@ -1857,8 +1924,31 @@ components:
         engagements:
           type: array
           items: { $ref: "#/components/schemas/MentorEngagement" }
+        bookingProvider: { $ref: "#/components/schemas/MentorBookingProvider" }
         calendlyBookingUrl: { type: ["string", "null"], format: uri }
-      required: [engagements, calendlyBookingUrl]
+        googleCalendarBookingUrl: { type: ["string", "null"], format: uri }
+        googleCalendarConnected: { type: boolean }
+      required: [engagements, bookingProvider, calendlyBookingUrl, googleCalendarBookingUrl, googleCalendarConnected]
+    MentorBookingProvider:
+      type: string
+      enum: [calendly, google_calendar]
+    MentorBookingSettings:
+      type: object
+      properties:
+        bookingProvider: { $ref: "#/components/schemas/MentorBookingProvider" }
+        calendlyBookingUrl: { type: ["string", "null"], format: uri }
+        googleCalendarBookingUrl: { type: ["string", "null"], format: uri }
+        googleCalendarConnected: { type: boolean }
+      required: [bookingProvider, calendlyBookingUrl, googleCalendarBookingUrl, googleCalendarConnected]
+    MentorBookingSettingsInput:
+      type: object
+      properties:
+        bookingProvider: { $ref: "#/components/schemas/MentorBookingProvider" }
+        googleCalendarBookingUrl: { type: ["string", "null"], format: uri }
+      required: [bookingProvider, googleCalendarBookingUrl]
+    GoogleCalendarAuthorizationInput:
+      type: object
+      description: Empty request body used to begin the mentor's Google account authorization.
     CalendlyAuthorizationInput:
       type: object
       description: Empty request body used to begin the mentor's Calendly OAuth flow.
@@ -1958,8 +2048,10 @@ components:
         staffId: { type: integer }
         email: { type: string, format: email }
         status: { $ref: "#/components/schemas/StaffStatus" }
+        bookingProvider: { $ref: "#/components/schemas/MentorBookingProvider" }
         calendlyConnected: { type: boolean }
-      required: [staffId, email, status, calendlyConnected]
+        googleCalendarConnected: { type: boolean }
+      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected]
     StaffInput:
       type: object
       properties:

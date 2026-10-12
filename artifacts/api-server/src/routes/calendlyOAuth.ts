@@ -360,6 +360,7 @@ router.get("/callback", async (req, res): Promise<void> => {
 
     const [updatedMentor] = await db.update(staffMembersTable)
       .set({
+        bookingProvider: "calendly",
         calendlyBookingUrl: parsedBookingUrl.toString(),
         calendlyWebhookTokenHash: createHash("sha256").update(webhookToken).digest("hex"),
         calendlyWebhookTokenEncrypted: sealSecret(webhookToken),

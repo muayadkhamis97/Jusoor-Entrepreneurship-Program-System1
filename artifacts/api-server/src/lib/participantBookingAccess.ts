@@ -6,7 +6,9 @@ export type ParticipantSupportBooking = {
   topic: string | null;
   scheduledDate: string | null;
   status: string;
+  bookingProvider: string | null;
   calendlyBookingUrl: string | null;
+  googleCalendarBookingUrl: string | null;
 };
 
 export function getParticipantSupportForBusiness(
@@ -15,8 +17,12 @@ export function getParticipantSupportForBusiness(
 ) {
   return support
     .filter((item) => item.businessId === businessId)
-    .map(({ businessId: _businessId, calendlyBookingUrl, ...item }) => ({
+    .map(({ businessId: _businessId, calendlyBookingUrl, googleCalendarBookingUrl, bookingProvider, ...item }) => ({
       ...item,
-      mentorBookingUrl: item.type === "mentor" ? calendlyBookingUrl : null,
+      mentorBookingUrl: item.type !== "mentor"
+        ? null
+        : bookingProvider === "google_calendar"
+          ? googleCalendarBookingUrl
+          : calendlyBookingUrl,
     }));
 }

@@ -8,7 +8,10 @@ type StaffAccess = {
   email: string;
   role: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
   status: "invited" | "active";
+  bookingProvider: "calendly" | "google_calendar";
   calendlyBookingUrl: string | null;
+  googleCalendarAccountEmail: string | null;
+  googleCalendarBookingUrl: string | null;
   createdAt: Date;
 };
 
@@ -97,7 +100,10 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
       email: member.email,
       role: member.role as StaffAccess["role"],
       status: member.status as StaffAccess["status"],
+      bookingProvider: member.bookingProvider as StaffAccess["bookingProvider"],
       calendlyBookingUrl: member.calendlyBookingUrl,
+      googleCalendarAccountEmail: member.googleCalendarAccountEmail,
+      googleCalendarBookingUrl: member.googleCalendarBookingUrl,
       createdAt: member.createdAt,
     } satisfies StaffAccess;
     next();

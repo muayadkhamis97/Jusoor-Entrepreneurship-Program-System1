@@ -5,10 +5,15 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorBookingProvider } from './mentorBookingProvider';
 import type { MentorEngagement } from './mentorEngagement';
 
 export interface MentorDashboard {
   engagements: MentorEngagement[];
+  bookingProvider: MentorBookingProvider;
   /** @nullable */
   calendlyBookingUrl: string | null;
+  /** @nullable */
+  googleCalendarBookingUrl: string | null;
+  googleCalendarConnected: boolean;
 }

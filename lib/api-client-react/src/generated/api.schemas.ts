@@ -873,11 +873,43 @@ export interface MentorEngagementUpdate {
   notes?: string | null;
 }
 
+export type MentorBookingProvider = typeof MentorBookingProvider[keyof typeof MentorBookingProvider];
+
+
+export const MentorBookingProvider = {
+  calendly: 'calendly',
+  google_calendar: 'google_calendar',
+} as const;
+
 export interface MentorDashboard {
   engagements: MentorEngagement[];
+  bookingProvider: MentorBookingProvider;
   /** @nullable */
   calendlyBookingUrl: string | null;
+  /** @nullable */
+  googleCalendarBookingUrl: string | null;
+  googleCalendarConnected: boolean;
 }
+
+export interface MentorBookingSettings {
+  bookingProvider: MentorBookingProvider;
+  /** @nullable */
+  calendlyBookingUrl: string | null;
+  /** @nullable */
+  googleCalendarBookingUrl: string | null;
+  googleCalendarConnected: boolean;
+}
+
+export interface MentorBookingSettingsInput {
+  bookingProvider: MentorBookingProvider;
+  /** @nullable */
+  googleCalendarBookingUrl: string | null;
+}
+
+/**
+ * Empty request body used to begin the mentor's Google account authorization.
+ */
+export interface GoogleCalendarAuthorizationInput { [key: string]: unknown }
 
 /**
  * Empty request body used to begin the mentor's Calendly OAuth flow.
@@ -1016,7 +1048,9 @@ export interface MentorBookingStatus {
   staffId: number;
   email: string;
   status: StaffStatus;
+  bookingProvider: MentorBookingProvider;
   calendlyConnected: boolean;
+  googleCalendarConnected: boolean;
 }
 
 export interface StaffInput {
@@ -1437,6 +1471,12 @@ programId?: number;
 };
 
 export type CompleteCalendlyConnectionParams = {
+code?: string;
+state?: string;
+error?: string;
+};
+
+export type CompleteGoogleCalendarConnectionParams = {
 code?: string;
 state?: string;
 error?: string;

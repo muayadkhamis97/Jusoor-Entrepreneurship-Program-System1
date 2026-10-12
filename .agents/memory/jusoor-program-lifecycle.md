@@ -17,6 +17,12 @@ Mentor booking: each mentor authorizes their own Calendly account. Keep Calendly
 
 **How to apply:** Preserve individual mentor ownership; do not use a shared account or persist Calendly OAuth tokens. Store only per-mentor webhook routing and signing material encrypted with `SESSION_SECRET`, and reconnect Calendly if that secret rotates.
 
+Google Calendar booking: each mentor authorizes their own Google account with identity-only OAuth scopes, then supplies a public appointment-schedule link. Discard the OAuth token after verifying the account; coordinators see only provider and connection status.
+
+**Why:** Founder booking needs a public schedule link, not access to private calendar events.
+
+**How to apply:** Keep Google OAuth scopes limited to account verification and do not persist or expose Google access tokens or account email. Add event sync only with an explicit product requirement and a separate privacy review.
+
 Mentoring feedback includes participant ratings and comments. The assigned mentor and coordinator can see named feedback.
 
 **Why:** The coordinator selected this visibility model for post-session evaluation.

@@ -592,21 +592,24 @@ function MentorBookingStatusPage() {
     query: { queryKey: getGetMentorBookingStatusQueryKey(), refetchOnWindowFocus: true },
   });
   const mentors = query.data || [];
-  const connectedCount = mentors.filter(mentor => mentor.calendlyConnected).length;
+  const isSelectedProviderConnected = (mentor: typeof mentors[number]) => mentor.bookingProvider === 'google_calendar'
+    ? mentor.googleCalendarConnected
+    : mentor.calendlyConnected;
+  const connectedCount = mentors.filter(isSelectedProviderConnected).length;
   const pendingCount = mentors.length - connectedCount;
 
   return <>
     <PageHeading
       kicker="MENTOR OPERATIONS / SESSION BOOKING"
       title="Mentor booking status"
-      summary="See which mentors have connected Calendly so founders can book mentoring sessions."
+      summary="See each mentor’s selected booking platform and whether its account is connected."
       action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? 'Refreshing…' : <><RefreshCw size={14} /> Refresh status</>}</button>}
     />
     {query.isLoading ? <LoadingState label="Loading mentor booking status" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : <>
       <section className="metric-grid mentor-booking-metrics">
         <Metric label="Mentors" value={mentors.length} hint="Invited and active accounts" icon={Users} />
-        <Metric label="Connected" value={connectedCount} hint="Calendly booking is ready" icon={CalendarCheck} />
-        <Metric label="Needs follow-up" value={pendingCount} hint="Not connected to Calendly" icon={CircleAlert} accent="metric-sand" />
+        <Metric label="Connected" value={connectedCount} hint="Selected provider connected" icon={CalendarCheck} />
+        <Metric label="Needs follow-up" value={pendingCount} hint="Selected provider not connected" icon={CircleAlert} accent="metric-sand" />
       </section>
       {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after a coordinator adds them under Team access." /> :
         <section className="panel staff-panel">
@@ -615,20 +618,17 @@ function MentorBookingStatusPage() {
             <span className="section-meta">{pendingCount} need{pendingCount === 1 ? 's' : ''} follow-up</span>
           </div>
           <div className="table-wrap"><table>
-            <thead><tr><th>MENTOR</th><th>JUSOOR ACCOUNT</th><th>CALENDLY</th></tr></thead>
+            <thead><tr><th>MENTOR</th><th>JUSOOR ACCOUNT</th><th>BOOKING PROVIDER</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th></tr></thead>
             <tbody>{mentors.map(mentor => <tr key={mentor.staffId} data-testid={`row-mentor-booking-${mentor.staffId}`}>
               <td><div className="staff-email"><span className="staff-avatar">{mentor.email.slice(0, 1).toUpperCase()}</span><b>{mentor.email}</b></div></td>
               <td><Badge value={mentor.status} label={mentor.status === 'active' ? 'Active' : 'Invitation pending'} /></td>
-              <td>
-                <span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}>
-                  <span />{mentor.calendlyConnected ? 'Connected' : 'Not connected'}
-                </span>
-                {!mentor.calendlyConnected && mentor.status === 'invited' && <small className="mentor-booking-note">Waiting for account sign-in</small>}
-              </td>
+              <td><b>{mentor.bookingProvider === 'google_calendar' ? 'Google Calendar' : 'Calendly'}</b></td>
+              <td><span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}><span />{mentor.calendlyConnected ? 'Connected' : 'Not connected'}</span></td>
+              <td><span className={`badge ${mentor.googleCalendarConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-google-calendar-${mentor.staffId}`}><span />{mentor.googleCalendarConnected ? 'Connected' : 'Not connected'}</span>{!mentor.googleCalendarConnected && mentor.status === 'invited' && <small className="mentor-booking-note">Waiting for account sign-in</small>}</td>
             </tr>)}</tbody>
           </table></div>
         </section>}
-      <div className="dashboard-note"><span className="note-mark"><CalendarDays size={13} /></span><span><b>Connection status only.</b> This page does not display or change a mentor’s Calendly account.</span></div>
+      <div className="dashboard-note"><span className="note-mark"><CalendarDays size={13} /></span><span><b>Connection status only.</b> This page shows provider selection and account status, not private calendar details or credentials.</span></div>
     </>}
   </>;
 }

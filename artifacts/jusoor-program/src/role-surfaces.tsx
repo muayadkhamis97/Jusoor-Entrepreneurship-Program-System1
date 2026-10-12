@@ -7,10 +7,12 @@ import {
   useGetTrainerDashboard, useCreateTrainingAssignment, useReviewTrainingAnswer,
   useReplyTrainingQuestion, useGetMentorDashboard, useUpdateAssignedMentoring,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
+  useStartGoogleCalendarConnection, useUpdateMentorBookingSettings,
 } from '@workspace/api-client-react';
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
   MentorEngagementUpdate, JudgeScorecardInput, StaffMember,
+  MentorBookingProvider, MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, LogOut, MessageCircle, Video } from 'lucide-react';
 
@@ -120,20 +122,47 @@ export function MentorDashboardPage({ name }: { name: string }) {
   const client = useQueryClient();
   const update = useUpdateAssignedMentoring();
   const connectCalendly = useStartCalendlyConnection();
+  const connectGoogleCalendar = useStartGoogleCalendarConnection();
+  const saveBookingSettings = useUpdateMentorBookingSettings();
+  const [bookingProvider, setBookingProvider] = useState<MentorBookingProvider>('calendly');
+  const [googleCalendarBookingUrl, setGoogleCalendarBookingUrl] = useState('');
   const [drafts, setDrafts] = useState<Record<number, { date: string; status: string; notes: string }>>({});
-  const [calendlyNotice] = useState(() => {
-    const status = new URLSearchParams(window.location.search).get('calendly');
-    if (status === 'connected') return 'Calendly booking link connected.';
-    if (status === 'cancelled') return 'Calendly authorization was cancelled.';
-    if (status === 'error') return 'Calendly could not be connected. Try again or ask the coordinator to check the setup.';
+  const [bookingNotice] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const calendly = params.get('calendly');
+    if (calendly === 'connected') return 'Calendly booking link connected.';
+    if (calendly === 'cancelled') return 'Calendly authorization was cancelled.';
+    if (calendly === 'error') return 'Calendly could not be connected. Try again or ask the coordinator to check the setup.';
+    const googleCalendar = params.get('googleCalendar');
+    if (googleCalendar === 'connected') return 'Google account connected. Add your appointment-schedule link below to receive founder bookings.';
+    if (googleCalendar === 'cancelled') return 'Google authorization was cancelled.';
+    if (googleCalendar === 'error') return 'Google Calendar could not be connected. Try again or ask the coordinator to check the setup.';
     return '';
   });
+  const dashboard = query.data;
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('calendly')) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('calendly') || params.has('googleCalendar')) {
       window.history.replaceState(window.history.state, '', window.location.pathname);
     }
   }, []);
+  useEffect(() => {
+    if (dashboard) {
+      setBookingProvider(dashboard.bookingProvider);
+      setGoogleCalendarBookingUrl(dashboard.googleCalendarBookingUrl || '');
+    }
+  }, [dashboard?.bookingProvider, dashboard?.googleCalendarBookingUrl]);
   const engagements = query.data?.engagements || [];
+  const saveBooking = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const data: MentorBookingSettingsInput = {
+      bookingProvider,
+      googleCalendarBookingUrl: googleCalendarBookingUrl.trim() || null,
+    };
+    saveBookingSettings.mutate({ data }, {
+      onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()),
+    });
+  };
   const save = (event: FormEvent<HTMLFormElement>, id: number) => {
     event.preventDefault();
     const values = drafts[id] || (() => {
@@ -146,22 +175,58 @@ export function MentorDashboardPage({ name }: { name: string }) {
   return <RoleFrame role="mentor" name={name}>
     <Heading kicker="FOUNDER ENABLEMENT / MENTOR DESK" title="Support, with context." description="Your assigned engagements and the next useful step for each founder." count={`${engagements.length} engagements`} />
     <LoadOrError loading={query.isLoading} error={query.isError || !query.data} retry={() => void query.refetch()} />
-    <section className="role-section" data-testid="mentor-calendly-settings">
-      <div className="role-section-title"><div><div className="eyebrow">SESSION BOOKING</div><h2>Your Calendly link</h2></div></div>
-      <p>Connect your own Calendly account so founders can book mentoring sessions with you. Jusoor keeps only your public booking link; the temporary access token is discarded after setup.</p>
-      {calendlyNotice && <p role="status" className="form-success">{calendlyNotice}</p>}
-      {query.data?.calendlyBookingUrl && <p><a href={query.data.calendlyBookingUrl} target="_blank" rel="noreferrer">Open your public booking page <ArrowRight size={14} /></a></p>}
-      {connectCalendly.isError && <p className="form-error" role="alert">Could not start Calendly authorization. Try again or ask the coordinator to check the setup.</p>}
-      <button
-        className="button button-primary"
-        disabled={connectCalendly.isPending}
-        onClick={() => connectCalendly.mutate({ data: {} }, {
-          onSuccess: (result) => window.location.assign(result.authorizationUrl),
-        })}
-        data-testid="button-connect-calendly"
-      >
-        {connectCalendly.isPending ? 'Connecting…' : query.data?.calendlyBookingUrl ? 'Reconnect Calendly' : 'Connect Calendly'}
-      </button>
+    <section className="role-section" data-testid="mentor-booking-settings">
+      <div className="role-section-title"><div><div className="eyebrow">SESSION BOOKING</div><h2>Choose your booking platform</h2></div></div>
+      <p>Connect your own account, then choose where founders should book time with you.</p>
+      {bookingNotice && <p role="status" className="form-success">{bookingNotice}</p>}
+      {(connectCalendly.isError || connectGoogleCalendar.isError) && <p className="form-error" role="alert">Authorization could not be started. Try again or ask the coordinator to check the setup.</p>}
+      <div className="role-form-grid compact">
+        <div className="field field-wide">
+          <b>Connect an account</b>
+          <div className="role-button-row">
+            <button
+              type="button"
+              className="button button-outline"
+              disabled={connectCalendly.isPending}
+              onClick={() => connectCalendly.mutate({ data: {} }, {
+                onSuccess: result => window.location.assign(result.authorizationUrl),
+              })}
+              data-testid="button-connect-calendly"
+            >{connectCalendly.isPending ? 'Connecting…' : dashboard?.calendlyBookingUrl ? 'Reconnect Calendly' : 'Connect Calendly'}</button>
+            <button
+              type="button"
+              className="button button-outline"
+              disabled={connectGoogleCalendar.isPending}
+              onClick={() => connectGoogleCalendar.mutate({ data: {} }, {
+                onSuccess: result => window.location.assign(result.authorizationUrl),
+              })}
+              data-testid="button-connect-google-calendar"
+            >{connectGoogleCalendar.isPending ? 'Connecting…' : dashboard?.googleCalendarConnected ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}</button>
+          </div>
+        </div>
+        {dashboard?.calendlyBookingUrl && <p className="field-wide"><a href={dashboard.calendlyBookingUrl} target="_blank" rel="noreferrer">Open your Calendly booking page <ArrowRight size={14} /></a></p>}
+        <form className="role-form-grid compact field-wide" onSubmit={saveBooking}>
+          <fieldset className="field field-wide">
+            <legend>Founders will book through</legend>
+            <label className="mentor-booking-choice">
+              <input type="radio" name="bookingProvider" value="calendly" checked={bookingProvider === 'calendly'} disabled={!dashboard?.calendlyBookingUrl} onChange={() => setBookingProvider('calendly')} data-testid="radio-booking-calendly" />
+              <span><b>Calendly</b><small>{dashboard?.calendlyBookingUrl ? 'Connected' : 'Connect Calendly first'}</small></span>
+            </label>
+            <label className="mentor-booking-choice">
+              <input type="radio" name="bookingProvider" value="google_calendar" checked={bookingProvider === 'google_calendar'} disabled={!dashboard?.googleCalendarConnected} onChange={() => setBookingProvider('google_calendar')} data-testid="radio-booking-google-calendar" />
+              <span><b>Google Calendar</b><small>{dashboard?.googleCalendarConnected ? 'Account connected' : 'Connect Google Calendar first'}</small></span>
+            </label>
+          </fieldset>
+          {bookingProvider === 'google_calendar' && <label className="field field-wide">
+            Google Calendar appointment-schedule link
+            <input className="form-control" type="url" value={googleCalendarBookingUrl} onChange={event => setGoogleCalendarBookingUrl(event.target.value)} placeholder="https://calendar.google.com/calendar/appointments/schedules/…" required data-testid="input-google-calendar-booking-url" />
+            <small>Create an appointment schedule in Google Calendar, then paste its public link here. Jusoor does not read your calendar events.</small>
+          </label>}
+          {saveBookingSettings.isError && <p className="form-error field-wide" role="alert">Booking settings could not be saved. Confirm the selected account is connected and the schedule link is valid.</p>}
+          {saveBookingSettings.isSuccess && <p className="form-success field-wide" role="status">Booking platform saved.</p>}
+          <div className="field-wide"><button className="button button-primary" disabled={saveBookingSettings.isPending || !dashboard || (bookingProvider === 'google_calendar' && !dashboard.googleCalendarConnected)} data-testid="button-save-booking-settings">{saveBookingSettings.isPending ? 'Saving…' : 'Save booking platform'}</button></div>
+        </form>
+      </div>
     </section>
     {query.data && (engagements.length === 0 ? <div className="empty-panel"><span className="empty-icon">J</span><h3>No engagements assigned yet.</h3><p>Your coordinator will connect you with a founder when the right support need comes into view.</p></div> : <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">YOUR FOUNDER ENGAGEMENTS</div><h2>Keep the next step visible</h2></div></div><div className="answer-list">{engagements.map(item => {
       const draft = drafts[item.id] || { date: item.scheduledDate || '', status: item.status, notes: item.notes || '' };

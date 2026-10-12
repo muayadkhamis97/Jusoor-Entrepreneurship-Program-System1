@@ -30,14 +30,17 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     staffId: staffMembersTable.id,
     email: staffMembersTable.email,
     status: staffMembersTable.status,
+    bookingProvider: staffMembersTable.bookingProvider,
     calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+    googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
   }).from(staffMembersTable)
     .where(eq(staffMembersTable.role, "mentor"))
     .orderBy(asc(staffMembersTable.email));
 
-  res.json(GetMentorBookingStatusResponse.parse(mentors.map(({ calendlyBookingUrl, ...mentor }) => ({
+  res.json(GetMentorBookingStatusResponse.parse(mentors.map(({ calendlyBookingUrl, googleCalendarAccountEmail, ...mentor }) => ({
     ...mentor,
     calendlyConnected: Boolean(calendlyBookingUrl),
+    googleCalendarConnected: Boolean(googleCalendarAccountEmail),
   }))));
 });
 

@@ -222,12 +222,14 @@ test("exchanges a code, saves only mentor connection data, and keeps credentials
     assert.equal(fetchCalls.length, 3);
     assert.match(String(fetchCalls[0]?.init?.body), new RegExp(clientCode));
     assert.deepEqual(Object.keys(persistedValues[0] ?? {}).sort(), [
+      "bookingProvider",
       "calendlyBookingUrl",
       "calendlyWebhookSecretEncrypted",
       "calendlyWebhookSubscriptionUri",
       "calendlyWebhookTokenEncrypted",
       "calendlyWebhookTokenHash",
     ]);
+    assert.equal(persistedValues[0]?.bookingProvider, "calendly");
     assert.equal(persistedValues[0]?.calendlyBookingUrl, "https://calendly.com/mentor-one");
     assert.doesNotMatch(JSON.stringify(persistedValues), new RegExp(accessToken));
     assert.doesNotMatch(redirect, new RegExp(`${clientCode}|${accessToken}`));
@@ -270,7 +272,9 @@ test("returns only the booking link for the participant's own assigned mentor", 
       topic: "Planning",
       scheduledDate: null,
       status: "open",
+      bookingProvider: "calendly",
       calendlyBookingUrl: "https://calendly.com/mentor-a",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-a",
     },
     {
       id: 2,
@@ -280,7 +284,9 @@ test("returns only the booking link for the participant's own assigned mentor", 
       topic: "Growth",
       scheduledDate: null,
       status: "open",
+      bookingProvider: "calendly",
       calendlyBookingUrl: "https://calendly.com/mentor-b",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-b",
     },
     {
       id: 3,
@@ -290,7 +296,9 @@ test("returns only the booking link for the participant's own assigned mentor", 
       topic: "Workshop",
       scheduledDate: null,
       status: "open",
+      bookingProvider: "google_calendar",
       calendlyBookingUrl: "https://calendly.com/not-a-mentor",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/not-a-mentor",
     },
   ];
 
@@ -303,4 +311,40 @@ test("returns only the booking link for the participant's own assigned mentor", 
     null,
   ]);
   assert.equal("calendlyBookingUrl" in founderB[0]!, false);
+});
+
+test("uses the selected provider's public link only for its assigned mentoring support", () => {
+  const support = [
+    {
+      id: 1,
+      businessId: 101,
+      type: "mentor",
+      provider: "Mentor A",
+      topic: "Planning",
+      scheduledDate: null,
+      status: "open",
+      bookingProvider: "google_calendar",
+      calendlyBookingUrl: "https://calendly.com/mentor-a",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-a",
+    },
+    {
+      id: 2,
+      businessId: 101,
+      type: "subject_expert",
+      provider: "Expert",
+      topic: "Finance",
+      scheduledDate: null,
+      status: "open",
+      bookingProvider: "google_calendar",
+      calendlyBookingUrl: "https://calendly.com/not-a-mentor",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/not-a-mentor",
+    },
+  ];
+
+  const result = getParticipantSupportForBusiness(support, 101);
+  assert.deepEqual(result.map((entry) => entry.mentorBookingUrl), [
+    "https://calendar.google.com/calendar/appointments/schedules/mentor-a",
+    null,
+  ]);
+  assert.equal("googleCalendarBookingUrl" in result[0]!, false);
 });

@@ -5,11 +5,14 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorBookingProvider } from './mentorBookingProvider';
 import type { StaffStatus } from './staffStatus';
 
 export interface MentorBookingStatus {
   staffId: number;
   email: string;
   status: StaffStatus;
+  bookingProvider: MentorBookingProvider;
   calendlyConnected: boolean;
+  googleCalendarConnected: boolean;
 }
