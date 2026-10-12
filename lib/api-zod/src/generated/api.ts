@@ -1933,17 +1933,58 @@ export const GetAuthMeResponse = zod.object({
 
 
 /**
- * @summary List mentor booking provider and connection status for coordinators
+ * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
  */
+export const getMentorBookingStatusResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getMentorBookingStatusResponseCalendlyFollowUpNoteMax = 1000;
+
+
+
 export const GetMentorBookingStatusResponseItem = zod.object({
   "staffId": zod.number().int(),
   "email": zod.string().email(),
   "status": zod.enum(['invited', 'active']),
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyConnected": zod.boolean(),
-  "googleCalendarConnected": zod.boolean()
+  "googleCalendarConnected": zod.boolean(),
+  "calendlyFollowUpDate": zod.string().regex(getMentorBookingStatusResponseCalendlyFollowUpDateRegExp).nullable(),
+  "calendlyFollowUpNote": zod.string().max(getMentorBookingStatusResponseCalendlyFollowUpNoteMax).nullable()
 })
 export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusResponseItem)
+
+
+/**
+ * @summary Update follow-up details for a mentor who has not connected Calendly
+ */
+export const UpdateMentorBookingFollowUpParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateMentorBookingFollowUpBodyCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateMentorBookingFollowUpBodyCalendlyFollowUpNoteMax = 1000;
+
+
+
+export const UpdateMentorBookingFollowUpBody = zod.object({
+  "calendlyFollowUpDate": zod.string().regex(updateMentorBookingFollowUpBodyCalendlyFollowUpDateRegExp).nullable(),
+  "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpBodyCalendlyFollowUpNoteMax).nullable()
+})
+
+export const updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax = 1000;
+
+
+
+export const UpdateMentorBookingFollowUpResponse = zod.object({
+  "staffId": zod.number().int(),
+  "email": zod.string().email(),
+  "status": zod.enum(['invited', 'active']),
+  "bookingProvider": zod.enum(['calendly', 'google_calendar']),
+  "calendlyConnected": zod.boolean(),
+  "googleCalendarConnected": zod.boolean(),
+  "calendlyFollowUpDate": zod.string().regex(updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp).nullable(),
+  "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax).nullable()
+})
 
 
 /**

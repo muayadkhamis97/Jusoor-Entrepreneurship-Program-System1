@@ -58,6 +58,7 @@ import type {
   ListPitchesParams,
   ListSessionsParams,
   ListSupportParams,
+  MentorBookingFollowUpUpdate,
   MentorBookingSettings,
   MentorBookingSettingsInput,
   MentorBookingStatus,
@@ -5827,7 +5828,7 @@ export const getGetMentorBookingStatusUrl = () => {
 }
 
 /**
- * @summary List mentor booking provider and connection status for coordinators
+ * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
  */
 export const getMentorBookingStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<MentorBookingStatus[]> => {
 
@@ -5874,7 +5875,7 @@ export type GetMentorBookingStatusQueryError = ErrorType<void>
 
 
 /**
- * @summary List mentor booking provider and connection status for coordinators
+ * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
  */
 
 export function useGetMentorBookingStatus<TData = Awaited<ReturnType<typeof getMentorBookingStatus>>, TError = ErrorType<void>>(
@@ -5894,6 +5895,95 @@ export function useGetMentorBookingStatus<TData = Awaited<ReturnType<typeof getM
 
 
 
+
+export const getUpdateMentorBookingFollowUpUrl = (id: number,) => {
+
+
+
+
+  return `/api/staff/${id}/mentor-booking-follow-up`
+}
+
+/**
+ * @summary Update follow-up details for a mentor who has not connected Calendly
+ */
+export const updateMentorBookingFollowUp = async (id: number,
+    mentorBookingFollowUpUpdate: MentorBookingFollowUpUpdate, options?: Parameters<typeof customFetch>[1]): Promise<MentorBookingStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MentorBookingStatus>(getUpdateMentorBookingFollowUpUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mentorBookingFollowUpUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMentorBookingFollowUpMutationKey = () => ['updateMentorBookingFollowUp'] as const;
+
+export const getUpdateMentorBookingFollowUpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMentorBookingFollowUp>>, TError,UpdateMentorBookingFollowUpMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMentorBookingFollowUp>>, TError,UpdateMentorBookingFollowUpMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMentorBookingFollowUpMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMentorBookingFollowUp>>, UpdateMentorBookingFollowUpMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateMentorBookingFollowUp(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMentorBookingFollowUpMutationResult = NonNullable<Awaited<ReturnType<typeof updateMentorBookingFollowUp>>>
+    export type UpdateMentorBookingFollowUpMutationBody = BodyType<MentorBookingFollowUpUpdate>
+    export type UpdateMentorBookingFollowUpMutationError = ErrorType<void>
+    export type UpdateMentorBookingFollowUpMutationVariables = {id: number;data: BodyType<MentorBookingFollowUpUpdate>}
+
+    /**
+ * @summary Update follow-up details for a mentor who has not connected Calendly
+ */
+export const useUpdateMentorBookingFollowUp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMentorBookingFollowUp>>, TError,UpdateMentorBookingFollowUpMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMentorBookingFollowUp>>,
+        TError,
+        UpdateMentorBookingFollowUpMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMentorBookingFollowUpMutationOptions(options));
+    }
 
 export const getListStaffUrl = () => {
 

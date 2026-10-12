@@ -1,4 +1,4 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateStaffBody,
@@ -6,7 +6,10 @@ import {
   DeleteStaffParams,
   GetAuthMeResponse,
   GetMentorBookingStatusResponse,
+  GetMentorBookingStatusResponseItem,
   ListStaffResponse,
+  UpdateMentorBookingFollowUpBody,
+  UpdateMentorBookingFollowUpParams,
   UpdateStaffBody,
   UpdateStaffParams,
   UpdateStaffResponse,
@@ -32,6 +35,8 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     status: staffMembersTable.status,
     bookingProvider: staffMembersTable.bookingProvider,
     calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+    calendlyFollowUpDate: staffMembersTable.calendlyFollowUpDate,
+    calendlyFollowUpNote: staffMembersTable.calendlyFollowUpNote,
     googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
   }).from(staffMembersTable)
     .where(eq(staffMembersTable.role, "mentor"))
@@ -43,6 +48,72 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     googleCalendarConnected: Boolean(googleCalendarAccountEmail),
   }))));
 });
+
+router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (req, res): Promise<void> => {
+  const params = UpdateMentorBookingFollowUpParams.safeParse(req.params);
+  const body = UpdateMentorBookingFollowUpBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  if (body.data.calendlyFollowUpDate && !isValidCalendarDate(body.data.calendlyFollowUpDate)) {
+    res.status(400).json({ error: "Follow-up date must be a valid calendar date." });
+    return;
+  }
+
+  const [mentor] = await db.select({
+    staffId: staffMembersTable.id,
+    calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+  }).from(staffMembersTable)
+    .where(and(eq(staffMembersTable.id, params.data.id), eq(staffMembersTable.role, "mentor")))
+    .limit(1);
+  if (!mentor) {
+    res.status(404).json({ error: "Mentor not found." });
+    return;
+  }
+  if (mentor.calendlyBookingUrl) {
+    res.status(400).json({ error: "Follow-up details can only be changed before Calendly is connected." });
+    return;
+  }
+
+  const [updated] = await db.update(staffMembersTable)
+    .set({
+      calendlyFollowUpDate: body.data.calendlyFollowUpDate,
+      calendlyFollowUpNote: body.data.calendlyFollowUpNote?.trim() || null,
+    })
+    .where(and(
+      eq(staffMembersTable.id, params.data.id),
+      eq(staffMembersTable.role, "mentor"),
+      isNull(staffMembersTable.calendlyBookingUrl),
+    ))
+    .returning({
+      staffId: staffMembersTable.id,
+      email: staffMembersTable.email,
+      status: staffMembersTable.status,
+      bookingProvider: staffMembersTable.bookingProvider,
+      calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+      calendlyFollowUpDate: staffMembersTable.calendlyFollowUpDate,
+      calendlyFollowUpNote: staffMembersTable.calendlyFollowUpNote,
+      googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+    });
+  if (!updated) {
+    res.status(400).json({ error: "Follow-up details can only be changed before Calendly is connected." });
+    return;
+  }
+
+  const { calendlyBookingUrl, googleCalendarAccountEmail, ...status } = updated;
+  res.json(GetMentorBookingStatusResponseItem.parse({
+    ...status,
+    calendlyConnected: Boolean(calendlyBookingUrl),
+    googleCalendarConnected: Boolean(googleCalendarAccountEmail),
+  }));
+});
+
+function isValidCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
 
 router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
   const parsed = CreateStaffBody.safeParse(req.body);

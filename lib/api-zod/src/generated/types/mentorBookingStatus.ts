@@ -15,4 +15,14 @@ export interface MentorBookingStatus {
   bookingProvider: MentorBookingProvider;
   calendlyConnected: boolean;
   googleCalendarConnected: boolean;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  calendlyFollowUpDate: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  calendlyFollowUpNote: string | null;
 }

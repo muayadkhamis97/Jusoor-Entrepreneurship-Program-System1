@@ -16,12 +16,12 @@ import {
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
-  useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdatePitch,
+  useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useSyncZoomRecording, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
 } from '@workspace/api-client-react';
 import type {
-  Business, BusinessInput, BusinessStage, BusinessUpdate, PitchInput,
+  Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
   PitchRecord, PitchUpdate, Program, ProgramInput, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
@@ -588,49 +588,98 @@ function PitchJudgeControl({ pitchId, pitchLabel, judges, client }: { pitchId: n
 }
 
 function MentorBookingStatusPage() {
+  const [followUpFilter, setFollowUpFilter] = useState('all');
   const query = useGetMentorBookingStatus({
     query: { queryKey: getGetMentorBookingStatusQueryKey(), refetchOnWindowFocus: true },
   });
   const mentors = query.data || [];
-  const isSelectedProviderConnected = (mentor: typeof mentors[number]) => mentor.bookingProvider === 'google_calendar'
-    ? mentor.googleCalendarConnected
-    : mentor.calendlyConnected;
-  const connectedCount = mentors.filter(isSelectedProviderConnected).length;
-  const pendingCount = mentors.length - connectedCount;
+  const visibleMentors = mentors.filter(mentor => {
+    if (followUpFilter === 'all') return true;
+    if (mentor.calendlyConnected) return false;
+    const hasFollowUp = Boolean(mentor.calendlyFollowUpDate || mentor.calendlyFollowUpNote);
+    return followUpFilter === 'recorded' ? hasFollowUp : !hasFollowUp;
+  });
+  const calendlyConnectedCount = mentors.filter(mentor => mentor.calendlyConnected).length;
+  const pendingCount = mentors.length - calendlyConnectedCount;
+  const needsFollowUpCount = mentors.filter(mentor =>
+    !mentor.calendlyConnected && !mentor.calendlyFollowUpDate && !mentor.calendlyFollowUpNote,
+  ).length;
 
   return <>
     <PageHeading
       kicker="MENTOR OPERATIONS / SESSION BOOKING"
       title="Mentor booking status"
-      summary="See each mentor’s selected booking platform and whether its account is connected."
+      summary="See booking connections and keep track of follow-ups for mentors who have not connected Calendly."
       action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? 'Refreshing…' : <><RefreshCw size={14} /> Refresh status</>}</button>}
     />
     {query.isLoading ? <LoadingState label="Loading mentor booking status" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : <>
       <section className="metric-grid mentor-booking-metrics">
         <Metric label="Mentors" value={mentors.length} hint="Invited and active accounts" icon={Users} />
-        <Metric label="Connected" value={connectedCount} hint="Selected provider connected" icon={CalendarCheck} />
-        <Metric label="Needs follow-up" value={pendingCount} hint="Selected provider not connected" icon={CircleAlert} accent="metric-sand" />
+        <Metric label="Calendly connected" value={calendlyConnectedCount} hint="Calendly account connected" icon={CalendarCheck} />
+        <Metric label="Needs follow-up" value={needsFollowUpCount} hint="No date or note recorded" icon={CircleAlert} accent="metric-sand" />
       </section>
       {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after a coordinator adds them under Team access." /> :
         <section className="panel staff-panel">
           <div className="panel-heading">
             <div><div className="eyebrow">BOOKING READINESS</div><h2 className="app-title">Mentor accounts</h2></div>
-            <span className="section-meta">{pendingCount} need{pendingCount === 1 ? 's' : ''} follow-up</span>
+            <span className="section-meta">{pendingCount} still need Calendly</span>
+          </div>
+          <div className="mentor-booking-toolbar">
+            <label className="filter-select"><Filter size={15} /><select aria-label="Filter mentors by follow-up status" value={followUpFilter} onChange={event => setFollowUpFilter(event.target.value)} data-testid="select-mentor-follow-up-filter"><option value="all">All mentors</option><option value="recorded">Follow-up recorded</option><option value="not_recorded">Needs follow-up</option></select><ChevronDown size={13} /></label>
+            <span className="toolbar-count"><b>{visibleMentors.length}</b> mentors</span>
           </div>
           <div className="table-wrap"><table>
-            <thead><tr><th>MENTOR</th><th>JUSOOR ACCOUNT</th><th>BOOKING PROVIDER</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th></tr></thead>
-            <tbody>{mentors.map(mentor => <tr key={mentor.staffId} data-testid={`row-mentor-booking-${mentor.staffId}`}>
+            <thead><tr><th>MENTOR</th><th>JUSOOR ACCOUNT</th><th>BOOKING PROVIDER</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th><th>FOLLOW-UP</th></tr></thead>
+            <tbody>{visibleMentors.map(mentor => <tr key={mentor.staffId} data-testid={`row-mentor-booking-${mentor.staffId}`}>
               <td><div className="staff-email"><span className="staff-avatar">{mentor.email.slice(0, 1).toUpperCase()}</span><b>{mentor.email}</b></div></td>
               <td><Badge value={mentor.status} label={mentor.status === 'active' ? 'Active' : 'Invitation pending'} /></td>
               <td><b>{mentor.bookingProvider === 'google_calendar' ? 'Google Calendar' : 'Calendly'}</b></td>
               <td><span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}><span />{mentor.calendlyConnected ? 'Connected' : 'Not connected'}</span></td>
               <td><span className={`badge ${mentor.googleCalendarConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-google-calendar-${mentor.staffId}`}><span />{mentor.googleCalendarConnected ? 'Connected' : 'Not connected'}</span>{!mentor.googleCalendarConnected && mentor.status === 'invited' && <small className="mentor-booking-note">Waiting for account sign-in</small>}</td>
+              <td><MentorFollowUpEditor mentor={mentor} onSaved={() => void query.refetch()} /></td>
             </tr>)}</tbody>
           </table></div>
+          {visibleMentors.length === 0 && <div className="mentor-follow-up-empty">No mentors match this follow-up filter.</div>}
         </section>}
       <div className="dashboard-note"><span className="note-mark"><CalendarDays size={13} /></span><span><b>Connection status only.</b> This page shows provider selection and account status, not private calendar details or credentials.</span></div>
     </>}
   </>;
+}
+
+function MentorFollowUpEditor({ mentor, onSaved }: { mentor: MentorBookingStatus; onSaved: () => void }) {
+  const [followUpDate, setFollowUpDate] = useState(mentor.calendlyFollowUpDate || '');
+  const [followUpNote, setFollowUpNote] = useState(mentor.calendlyFollowUpNote || '');
+  const update = useUpdateMentorBookingFollowUp();
+  const hasFollowUp = Boolean(mentor.calendlyFollowUpDate || mentor.calendlyFollowUpNote);
+  const unchanged = followUpDate === (mentor.calendlyFollowUpDate || '') && followUpNote === (mentor.calendlyFollowUpNote || '');
+  useEffect(() => {
+    setFollowUpDate(mentor.calendlyFollowUpDate || '');
+    setFollowUpNote(mentor.calendlyFollowUpNote || '');
+  }, [mentor.calendlyFollowUpDate, mentor.calendlyFollowUpNote]);
+  const save = (data: MentorBookingFollowUpUpdate) => update.mutate(
+    { id: mentor.staffId, data },
+    { onSuccess: onSaved },
+  );
+
+  if (mentor.calendlyConnected) {
+    return <span className="mentor-follow-up-connected">Not needed</span>;
+  }
+  return <div className="mentor-follow-up-editor" data-testid={`mentor-follow-up-${mentor.staffId}`}>
+    <span className={`mentor-follow-up-state ${hasFollowUp ? 'is-recorded' : ''}`} data-testid={`mentor-follow-up-state-${mentor.staffId}`}>
+      {hasFollowUp ? 'Recorded' : 'Not recorded'}
+      {mentor.calendlyFollowUpDate && <small>Due {mentor.calendlyFollowUpDate}</small>}
+      {mentor.calendlyFollowUpNote && <small className="mentor-follow-up-saved-note">{mentor.calendlyFollowUpNote}</small>}
+    </span>
+    <label className="sr-only" htmlFor={`mentor-follow-up-date-${mentor.staffId}`}>Follow-up date for {mentor.email}</label>
+    <input id={`mentor-follow-up-date-${mentor.staffId}`} className="form-control" type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} data-testid={`input-mentor-follow-up-date-${mentor.staffId}`} />
+    <label className="sr-only" htmlFor={`mentor-follow-up-note-${mentor.staffId}`}>Follow-up note for {mentor.email}</label>
+    <input id={`mentor-follow-up-note-${mentor.staffId}`} className="form-control" type="text" maxLength={1000} placeholder="Contact note" value={followUpNote} onChange={event => setFollowUpNote(event.target.value)} data-testid={`input-mentor-follow-up-note-${mentor.staffId}`} />
+    <div className="mentor-follow-up-actions">
+      <button className="button button-outline" onClick={() => save({ calendlyFollowUpDate: followUpDate || null, calendlyFollowUpNote: followUpNote.trim() || null })} disabled={unchanged || update.isPending} data-testid={`button-save-mentor-follow-up-${mentor.staffId}`}>{update.isPending ? 'Saving…' : hasFollowUp ? 'Save' : 'Save follow-up'}</button>
+      {hasFollowUp && <button className="button button-quiet" onClick={() => save({ calendlyFollowUpDate: null, calendlyFollowUpNote: null })} disabled={update.isPending} data-testid={`button-clear-mentor-follow-up-${mentor.staffId}`}>Clear</button>}
+    </div>
+    {update.isError && <small className="form-error">Could not save this follow-up. Please try again.</small>}
+  </div>;
 }
 
 function TeamPage() {

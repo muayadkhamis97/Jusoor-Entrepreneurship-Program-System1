@@ -57,6 +57,7 @@ export * from './listBusinessesParams';
 export * from './listPitchesParams';
 export * from './listSessionsParams';
 export * from './listSupportParams';
+export * from './mentorBookingFollowUpUpdate';
 export * from './mentorBookingProvider';
 export * from './mentorBookingSettings';
 export * from './mentorBookingSettingsInput';

@@ -405,7 +405,19 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 
 .mentor-booking-note { display: block; margin-top: 5px; color: hsl(var(--muted-foreground)); font-size: 9px; }
 .mentor-booking-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mentor-booking-toolbar { display: flex; align-items: center; gap: 12px; margin: 13px 0 10px; }
+.mentor-follow-up-editor { display: grid; min-width: 190px; gap: 6px; }
+.mentor-follow-up-state { color: hsl(var(--muted-foreground)); font-size: 9px; font-weight: 600; }
+.mentor-follow-up-state.is-recorded { color: hsl(var(--primary)); }
+.mentor-follow-up-state small { display: block; margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 9px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+.mentor-follow-up-saved-note { max-width: 230px; }
+.mentor-follow-up-editor .form-control { height: 32px; min-width: 160px; font-size: 10px; }
+.mentor-follow-up-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.mentor-follow-up-actions .button { min-height: 30px; padding: 0 9px; font-size: 9px; }
+.mentor-follow-up-connected { color: hsl(var(--muted-foreground)); font-size: 9px; }
+.mentor-follow-up-empty { padding: 18px 2px; color: hsl(var(--muted-foreground)); font-size: 11px; }
 @media (max-width: 760px) {
   .mentor-booking-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mentor-booking-metrics .metric-card:last-child { grid-column: 1 / -1; }
+  .mentor-booking-toolbar { align-items: flex-start; flex-direction: column; gap: 7px; }
 }

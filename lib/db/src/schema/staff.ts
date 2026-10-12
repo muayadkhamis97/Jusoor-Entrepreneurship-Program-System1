@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { date, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 export const staffMembersTable = pgTable("jusoor_staff_members", {
@@ -10,6 +10,8 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
   status: text("status").notNull().default("invited"),
   bookingProvider: text("booking_provider").notNull().default("calendly"),
   calendlyBookingUrl: text("calendly_booking_url"),
+  calendlyFollowUpDate: date("calendly_follow_up_date", { mode: "string" }),
+  calendlyFollowUpNote: text("calendly_follow_up_note"),
   googleCalendarAccountEmail: text("google_calendar_account_email"),
   googleCalendarBookingUrl: text("google_calendar_booking_url"),
   calendlyWebhookTokenHash: text("calendly_webhook_token_hash").unique(),
