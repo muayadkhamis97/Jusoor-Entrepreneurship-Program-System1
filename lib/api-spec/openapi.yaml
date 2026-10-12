@@ -3,13 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Program management for the Jusoor Entrepreneurship Program
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: programs
+    description: Program projects and cohorts
+  - name: businesses
+    description: Applicants and businesses through the program pipeline
+  - name: sessions
+    description: Training and event sessions
+  - name: support
+    description: Mentoring, expert, and agency support
+  - name: pitches
+    description: Pitch-day and grant decisions
+  - name: dashboard
+    description: Program overview
 paths:
   /healthz:
     get:
@@ -24,7 +36,401 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get program dashboard overview
+      responses:
+        "200":
+          description: Dashboard totals and upcoming activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /programs:
+    get:
+      operationId: listPrograms
+      tags: [programs]
+      summary: List program projects
+      responses:
+        "200":
+          description: Programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Program"
+    post:
+      operationId: createProgram
+      tags: [programs]
+      summary: Create a program project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramInput"
+      responses:
+        "201":
+          description: Created program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Program"
+  /programs/{id}:
+    patch:
+      operationId: updateProgram
+      tags: [programs]
+      summary: Update a program project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramUpdate"
+      responses:
+        "200":
+          description: Updated program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Program"
+        "404":
+          description: Program not found
+    delete:
+      operationId: deleteProgram
+      tags: [programs]
+      summary: Delete a program project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Program deleted
+        "404":
+          description: Program not found
+  /businesses:
+    get:
+      operationId: listBusinesses
+      tags: [businesses]
+      summary: List and filter applicants and businesses
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: stage
+          in: query
+          schema:
+            $ref: "#/components/schemas/BusinessStage"
+        - name: programId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Businesses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Business"
+    post:
+      operationId: createBusiness
+      tags: [businesses]
+      summary: Add an applicant or business
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessInput"
+      responses:
+        "201":
+          description: Created business
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+  /businesses/{id}:
+    get:
+      operationId: getBusiness
+      tags: [businesses]
+      summary: Get a business record
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Business
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+        "404":
+          description: Business not found
+    patch:
+      operationId: updateBusiness
+      tags: [businesses]
+      summary: Update applicant, business, or program stage
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessUpdate"
+      responses:
+        "200":
+          description: Updated business
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Business"
+        "404":
+          description: Business not found
+    delete:
+      operationId: deleteBusiness
+      tags: [businesses]
+      summary: Delete a business record
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Business deleted
+        "404":
+          description: Business not found
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List training sessions and program events
+      parameters:
+        - name: programId
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/SessionType"
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Schedule a session or program event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+  /sessions/{id}:
+    patch:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Update a session, Zoom link, or recording
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionUpdate"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "404":
+          description: Session not found
+    delete:
+      operationId: deleteSession
+      tags: [sessions]
+      summary: Delete a session
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Session deleted
+        "404":
+          description: Session not found
+  /support:
+    get:
+      operationId: listSupport
+      tags: [support]
+      summary: List mentoring, expert, and agency support
+      parameters:
+        - name: businessId
+          in: query
+          schema:
+            type: integer
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/SupportType"
+      responses:
+        "200":
+          description: Support engagements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportEngagement"
+    post:
+      operationId: createSupport
+      tags: [support]
+      summary: Add a support engagement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportInput"
+      responses:
+        "201":
+          description: Created support engagement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportEngagement"
+  /support/{id}:
+    patch:
+      operationId: updateSupport
+      tags: [support]
+      summary: Update a support engagement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportUpdate"
+      responses:
+        "200":
+          description: Updated support engagement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportEngagement"
+        "404":
+          description: Support engagement not found
+    delete:
+      operationId: deleteSupport
+      tags: [support]
+      summary: Delete a support engagement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Support engagement deleted
+        "404":
+          description: Support engagement not found
+  /pitches:
+    get:
+      operationId: listPitches
+      tags: [pitches]
+      summary: List pitch-day and demo-day evaluations and grant decisions
+      parameters:
+        - name: businessId
+          in: query
+          schema:
+            type: integer
+        - name: eventType
+          in: query
+          schema:
+            $ref: "#/components/schemas/PitchEventType"
+      responses:
+        "200":
+          description: Pitch records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PitchRecord"
+    post:
+      operationId: createPitch
+      tags: [pitches]
+      summary: Record a pitch evaluation or grant decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PitchInput"
+      responses:
+        "201":
+          description: Created pitch record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PitchRecord"
+  /pitches/{id}:
+    patch:
+      operationId: updatePitch
+      tags: [pitches]
+      summary: Update a pitch evaluation or grant decision
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PitchUpdate"
+      responses:
+        "200":
+          description: Updated pitch record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PitchRecord"
+        "404":
+          description: Pitch record not found
+    delete:
+      operationId: deletePitch
+      tags: [pitches]
+      summary: Delete a pitch record
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Pitch record deleted
+        "404":
+          description: Pitch record not found
 components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +439,247 @@ components:
           type: string
       required:
         - status
+    BusinessStage:
+      type: string
+      enum: [application, bootcamp, incubator, pitch, demo_day, grant_awarded, alumni, declined]
+    SessionType:
+      type: string
+      enum: [bootcamp, hackathon, training, pitch_day, demo_day, other]
+    DeliveryMode:
+      type: string
+      enum: [online, in_person, hybrid]
+    SupportType:
+      type: string
+      enum: [mentor, subject_expert, branding, technical]
+    SupportStatus:
+      type: string
+      enum: [requested, matched, scheduled, completed]
+    PitchEventType:
+      type: string
+      enum: [pitch_day, demo_day]
+    GrantDecision:
+      type: string
+      enum: [pending, awarded, not_awarded]
+    Program:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        format: { type: string, enum: [bootcamp, hackathon] }
+        description: { type: ["string", "null"] }
+        startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { type: string, enum: [planning, outreach, active, completed] }
+        createdAt: { type: string, format: date-time }
+      required: [id, name, format, status, createdAt]
+    ProgramInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        format: { type: string, enum: [bootcamp, hackathon] }
+        description: { type: ["string", "null"] }
+        startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { type: string, enum: [planning, outreach, active, completed] }
+      required: [name, format]
+    ProgramUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        format: { type: string, enum: [bootcamp, hackathon] }
+        description: { type: ["string", "null"] }
+        startDate: { type: ["string", "null"], format: date }
+        endDate: { type: ["string", "null"], format: date }
+        applicationDeadline: { type: ["string", "null"], format: date }
+        status: { type: string, enum: [planning, outreach, active, completed] }
+    Business:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        businessName: { type: string }
+        founderName: { type: string }
+        email: { type: string }
+        phone: { type: ["string", "null"] }
+        industry: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+        applicationDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        needs: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, programId, businessName, founderName, email, stage, createdAt]
+    BusinessInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        businessName: { type: string, minLength: 1 }
+        founderName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        phone: { type: ["string", "null"] }
+        industry: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+        applicationDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        needs: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+      required: [programId, businessName, founderName, email]
+    BusinessUpdate:
+      type: object
+      properties:
+        programId: { type: integer }
+        businessName: { type: string, minLength: 1 }
+        founderName: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        phone: { type: ["string", "null"] }
+        industry: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+        applicationDate: { type: ["string", "null"], format: date }
+        needs: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+    Session:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: ["integer", "null"] }
+        title: { type: string }
+        type: { $ref: "#/components/schemas/SessionType" }
+        scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        startTime: { type: ["string", "null"] }
+        facilitator: { type: ["string", "null"] }
+        deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
+        location: { type: ["string", "null"] }
+        zoomUrl: { type: ["string", "null"] }
+        recordingUrl: { type: ["string", "null"] }
+        status: { type: string, enum: [scheduled, completed, cancelled] }
+        createdAt: { type: string, format: date-time }
+      required: [id, title, type, scheduledDate, deliveryMode, status, createdAt]
+    SessionInput:
+      type: object
+      properties:
+        programId: { type: ["integer", "null"] }
+        title: { type: string, minLength: 1 }
+        type: { $ref: "#/components/schemas/SessionType" }
+        scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        startTime: { type: ["string", "null"] }
+        facilitator: { type: ["string", "null"] }
+        deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
+        location: { type: ["string", "null"] }
+        zoomUrl: { type: ["string", "null"], format: uri }
+        recordingUrl: { type: ["string", "null"], format: uri }
+        status: { type: string, enum: [scheduled, completed, cancelled] }
+      required: [title, type, scheduledDate]
+    SessionUpdate:
+      type: object
+      properties:
+        programId: { type: ["integer", "null"] }
+        title: { type: string, minLength: 1 }
+        type: { $ref: "#/components/schemas/SessionType" }
+        scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        startTime: { type: ["string", "null"] }
+        facilitator: { type: ["string", "null"] }
+        deliveryMode: { $ref: "#/components/schemas/DeliveryMode" }
+        location: { type: ["string", "null"] }
+        zoomUrl: { type: ["string", "null"], format: uri }
+        recordingUrl: { type: ["string", "null"], format: uri }
+        status: { type: string, enum: [scheduled, completed, cancelled] }
+    SupportEngagement:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        type: { $ref: "#/components/schemas/SupportType" }
+        provider: { type: string }
+        topic: { type: string }
+        scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { $ref: "#/components/schemas/SupportStatus" }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, businessId, type, provider, topic, status, createdAt]
+    SupportInput:
+      type: object
+      properties:
+        businessId: { type: integer }
+        type: { $ref: "#/components/schemas/SupportType" }
+        provider: { type: string, minLength: 1 }
+        topic: { type: string, minLength: 1 }
+        scheduledDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { $ref: "#/components/schemas/SupportStatus" }
+        notes: { type: ["string", "null"] }
+      required: [businessId, type, provider, topic]
+    SupportUpdate:
+      type: object
+      properties:
+        businessId: { type: integer }
+        type: { $ref: "#/components/schemas/SupportType" }
+        provider: { type: string, minLength: 1 }
+        topic: { type: string, minLength: 1 }
+        scheduledDate: { type: ["string", "null"], format: date }
+        status: { $ref: "#/components/schemas/SupportStatus" }
+        notes: { type: ["string", "null"] }
+    PitchRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        eventType: { $ref: "#/components/schemas/PitchEventType" }
+        eventDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        judges: { type: ["string", "null"] }
+        score: { type: ["number", "null"] }
+        grantDecision: { $ref: "#/components/schemas/GrantDecision" }
+        grantAmount: { type: ["number", "null"] }
+        feedback: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, businessId, eventType, eventDate, grantDecision, createdAt]
+    PitchInput:
+      type: object
+      properties:
+        businessId: { type: integer }
+        eventType: { $ref: "#/components/schemas/PitchEventType" }
+        eventDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        judges: { type: ["string", "null"] }
+        score: { type: ["number", "null"], minimum: 0 }
+        grantDecision: { $ref: "#/components/schemas/GrantDecision" }
+        grantAmount: { type: ["number", "null"], minimum: 0 }
+        feedback: { type: ["string", "null"] }
+      required: [businessId, eventType, eventDate]
+    PitchUpdate:
+      type: object
+      properties:
+        businessId: { type: integer }
+        eventType: { $ref: "#/components/schemas/PitchEventType" }
+        eventDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        judges: { type: ["string", "null"] }
+        score: { type: ["number", "null"], minimum: 0 }
+        grantDecision: { $ref: "#/components/schemas/GrantDecision" }
+        grantAmount: { type: ["number", "null"], minimum: 0 }
+        feedback: { type: ["string", "null"] }
+    Dashboard:
+      type: object
+      properties:
+        programs: { type: integer }
+        applications: { type: integer }
+        incubatorBusinesses: { type: integer }
+        supportInProgress: { type: integer }
+        grantsAwarded: { type: integer }
+        totalGrantAmount: { type: number }
+        stageCounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/StageCount"
+        upcomingSessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Session"
+        recentBusinesses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Business"
+      required: [programs, applications, incubatorBusinesses, supportInProgress, grantsAwarded, totalGrantAmount, stageCounts, upcomingSessions, recentBusinesses]
+    StageCount:
+      type: object
+      properties:
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+        count: { type: integer }
+      required: [stage, count]
 

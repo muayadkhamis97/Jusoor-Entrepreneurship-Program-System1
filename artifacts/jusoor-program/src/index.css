@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  --background: 42 36% 96%;
+  --foreground: 203 28% 19%;
+  --card: 40 38% 99%;
+  --card-foreground: 203 28% 19%;
+  --border: 37 22% 86%;
+  --input: 37 22% 86%;
+  --ring: 164 47% 35%;
+  --primary: 164 47% 30%;
+  --primary-foreground: 45 40% 97%;
+  --secondary: 36 33% 91%;
+  --secondary-foreground: 203 28% 22%;
+  --muted: 39 30% 92%;
+  --muted-foreground: 202 11% 47%;
+  --accent: 18 63% 56%;
+  --accent-foreground: 40 38% 99%;
+  --destructive: 4 60% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --popover: 40 38% 99%;
+  --popover-foreground: 203 28% 19%;
+  --sidebar: 200 35% 18%;
+  --sidebar-foreground: 40 35% 93%;
+  --sidebar-primary: 164 48% 53%;
+  --sidebar-primary-foreground: 200 35% 15%;
+  --app-font-sans: 'DM Sans', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', monospace;
+  --radius: 0.8rem;
+  --shadow-card: 0 8px 26px hsl(203 28% 19% / .045);
+}
+
+.dark {
+  --background: 203 30% 12%;
+  --foreground: 40 35% 93%;
+  --card: 203 27% 16%;
+  --card-foreground: 40 35% 93%;
+  --border: 203 18% 28%;
+  --input: 203 18% 28%;
+  --ring: 164 47% 48%;
+  --primary: 164 47% 48%;
+  --primary-foreground: 203 30% 12%;
+  --secondary: 203 20% 22%;
+  --secondary-foreground: 40 35% 93%;
+  --muted: 203 20% 22%;
+  --muted-foreground: 202 12% 67%;
+  --accent: 18 63% 60%;
+  --accent-foreground: 203 30% 12%;
+  --destructive: 4 60% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --popover: 203 27% 16%;
+  --popover-foreground: 40 35% 93%;
+  --sidebar: 203 33% 9%;
+  --sidebar-foreground: 40 35% 93%;
+  --sidebar-primary: 164 48% 53%;
+  --sidebar-primary-foreground: 203 30% 12%;
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; margin: 0; }
+  button, input, select, textarea { font: inherit; }
+}
+
+.app-title { font-family: 'Manrope', sans-serif; letter-spacing: -.045em; }
+.mono { font-family: var(--app-font-mono); }
+.page-enter { animation: page-in .32s ease-out both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.noise:before { content: ''; pointer-events: none; position: fixed; inset: 0; z-index: 20; opacity: .025; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); }
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }

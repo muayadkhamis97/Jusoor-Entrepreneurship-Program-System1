@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Jusoor Program Hub"
+description = "A program-management app for Jusoor Entrepreneurship coordinators to manage applications, bootcamps and hackathons, incubation cohorts, training recordings, mentoring, expert and agency referrals, pitch-day judging, demo-day selection, and grant decisions."
+version = "1.0.0"
+id = "artifacts/jusoor-program"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19333
+
+[services.development]
+run = "pnpm --filter @workspace/jusoor-program run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/jusoor-program", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/jusoor-program/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19333"
+BASE_PATH = "/"
