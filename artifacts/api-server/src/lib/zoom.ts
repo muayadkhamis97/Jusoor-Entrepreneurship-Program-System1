@@ -2,7 +2,9 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createHmac,
   randomBytes,
+  timingSafeEqual,
 } from "node:crypto";
 import { eq } from "drizzle-orm";
 import {
@@ -14,6 +16,7 @@ import {
 } from "@workspace/db";
 
 const zoomApiBase = "https://api.zoom.us/v2";
+const zoomWebhookTimestampToleranceMs = 5 * 60 * 1000;
 
 export class ZoomIntegrationError extends Error {
   constructor(
@@ -46,6 +49,55 @@ export function hasZoomOAuthConfiguration(): boolean {
       process.env.ZOOM_CLIENT_SECRET &&
       process.env.SESSION_SECRET,
   );
+}
+
+export function verifyZoomWebhookSignature(
+  rawBody: Buffer,
+  timestamp: string | undefined,
+  signature: string | undefined,
+): boolean {
+  const secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN;
+  if (
+    !secretToken ||
+    !timestamp ||
+    !/^\d{10}$/.test(timestamp) ||
+    !signature
+  ) {
+    return false;
+  }
+  const timestampMs = Number(timestamp) * 1000;
+  if (
+    !Number.isFinite(timestampMs) ||
+    Math.abs(Date.now() - timestampMs) > zoomWebhookTimestampToleranceMs
+  ) {
+    return false;
+  }
+  const signatureMatch = signature.match(/^v0=([a-f\d]{64})$/i);
+  if (!signatureMatch) return false;
+
+  const expected = createHmac("sha256", secretToken)
+    .update(`v0:${timestamp}:${rawBody.toString("utf8")}`, "utf8")
+    .digest();
+  const received = Buffer.from(signatureMatch[1], "hex");
+  return received.length === expected.length && timingSafeEqual(received, expected);
+}
+
+export function createZoomWebhookValidationResponse(
+  plainToken: string,
+): { plainToken: string; encryptedToken: string } {
+  const secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN;
+  if (!secretToken) {
+    throw new ZoomIntegrationError(
+      "Zoom webhook validation is not configured.",
+      503,
+    );
+  }
+  return {
+    plainToken,
+    encryptedToken: createHmac("sha256", secretToken)
+      .update(plainToken, "utf8")
+      .digest("hex"),
+  };
 }
 
 function encryptionKey(): Buffer {
@@ -372,4 +424,17 @@ export async function syncZoomRecording(session: Session): Promise<Session> {
     throw new ZoomIntegrationError("Session not found.", 404);
   }
   return updatedSession;
+}
+
+export async function syncZoomRecordingForMeetingId(
+  meetingId: string,
+): Promise<boolean> {
+  const [session] = await db
+    .select()
+    .from(sessionsTable)
+    .where(eq(sessionsTable.zoomMeetingId, meetingId))
+    .limit(1);
+  if (!session) return false;
+  await syncZoomRecording(session);
+  return true;
 }

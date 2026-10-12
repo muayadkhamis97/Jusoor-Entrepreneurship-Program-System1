@@ -26,12 +26,15 @@ import { requireStaff } from "../middlewares/staffAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { requireRole } from "../middlewares/requireRole";
 import {
+  createZoomWebhookValidationResponse,
   createOrUpdateZoomMeeting,
   getZoomConnection,
   hasZoomOAuthConfiguration,
   removeZoomConnection,
   saveZoomConnection,
+  syncZoomRecordingForMeetingId,
   syncZoomRecording,
+  verifyZoomWebhookSignature,
   ZoomIntegrationError,
 } from "../lib/zoom";
 
@@ -189,6 +192,75 @@ function sendZoomError(res: Response, error: unknown): void {
   }
   res.status(502).json({ error: "Zoom could not complete this request." });
 }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+router.post("/webhook", async (req, res): Promise<void> => {
+  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+  if (!rawBody) {
+    res.status(400).json({ error: "Invalid Zoom webhook payload." });
+    return;
+  }
+  if (
+    !verifyZoomWebhookSignature(
+      rawBody,
+      req.get("x-zm-request-timestamp"),
+      req.get("x-zm-signature"),
+    )
+  ) {
+    res.status(401).json({ error: "Invalid Zoom webhook signature." });
+    return;
+  }
+
+  const envelope: unknown = req.body;
+  if (!isRecord(envelope) || typeof envelope.event !== "string") {
+    res.status(400).json({ error: "Invalid Zoom webhook payload." });
+    return;
+  }
+  if (envelope.event === "endpoint.url_validation") {
+    const payload = envelope.payload;
+    const plainToken = isRecord(payload) ? payload.plainToken : null;
+    if (typeof plainToken !== "string" || !plainToken || plainToken.length > 256) {
+      res.status(400).json({ error: "Invalid Zoom webhook validation request." });
+      return;
+    }
+    try {
+      res.json(createZoomWebhookValidationResponse(plainToken));
+    } catch (error) {
+      sendZoomError(res, error);
+    }
+    return;
+  }
+
+  if (envelope.event !== "recording.completed") {
+    res.sendStatus(200);
+    return;
+  }
+
+  const payload = envelope.payload;
+  const zoomObject = isRecord(payload) ? payload.object : null;
+  const meetingId = isRecord(zoomObject) ? zoomObject.id : null;
+  if (
+    (typeof meetingId !== "string" && typeof meetingId !== "number") ||
+    String(meetingId).trim() === ""
+  ) {
+    res.status(400).json({ error: "Invalid Zoom recording event." });
+    return;
+  }
+
+  try {
+    await syncZoomRecordingForMeetingId(String(meetingId));
+    res.sendStatus(200);
+  } catch (error) {
+    req.log.error(
+      { errorName: error instanceof Error ? error.name : "UnknownError" },
+      "Zoom recording webhook sync failed",
+    );
+    res.status(500).json({ error: "Zoom recording could not be synced." });
+  }
+});
 
 router.get(
   "/status",
