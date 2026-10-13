@@ -5,6 +5,7 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { CourseReminderSummary } from './courseReminderSummary';
 import type { LearningProgressParticipant } from './learningProgressParticipant';
 
 export interface LearningProgressProgram {
@@ -29,5 +30,6 @@ export interface LearningProgressProgram {
   averageQuizPercent: number | null;
   /** @minimum 0 */
   certificatesIssued: number;
+  reminders: CourseReminderSummary;
   participants: LearningProgressParticipant[];
 }

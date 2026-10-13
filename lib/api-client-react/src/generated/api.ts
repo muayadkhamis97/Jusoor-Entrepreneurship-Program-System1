@@ -120,6 +120,7 @@ import type {
   ProgramUpdate,
   PutXapiActivityStateParams,
   PutXapiStatementParams,
+  RetryCourseReminder,
   ScormCommitResult,
   Session,
   SessionAttendanceInput,
@@ -830,6 +831,80 @@ export const useIssueCourseCertificate = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getIssueCourseCertificateMutationOptions(options));
+    }
+
+export const getRetryCourseReminderUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/learning-progress/reminders/${id}/retry`
+}
+
+/**
+ * @summary Retry a failed course reminder email
+ */
+export const retryCourseReminder = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<RetryCourseReminder> => {
+
+  return customFetch<RetryCourseReminder>(getRetryCourseReminderUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryCourseReminderMutationKey = () => ['retryCourseReminder'] as const;
+
+export const getRetryCourseReminderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCourseReminder>>, TError,RetryCourseReminderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryCourseReminder>>, TError,RetryCourseReminderMutationVariables, TContext> => {
+
+const mutationKey = getRetryCourseReminderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryCourseReminder>>, RetryCourseReminderMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryCourseReminder(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryCourseReminderMutationResult = NonNullable<Awaited<ReturnType<typeof retryCourseReminder>>>
+
+    export type RetryCourseReminderMutationError = ErrorType<void>
+    export type RetryCourseReminderMutationVariables = {id: number}
+
+    /**
+ * @summary Retry a failed course reminder email
+ */
+export const useRetryCourseReminder = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryCourseReminder>>, TError,RetryCourseReminderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryCourseReminder>>,
+        TError,
+        RetryCourseReminderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryCourseReminderMutationOptions(options));
     }
 
 export const getGetSessionAttendanceRegisterUrl = (sessionId: number,) => {

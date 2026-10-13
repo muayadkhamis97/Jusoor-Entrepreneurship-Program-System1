@@ -289,6 +289,12 @@ export const getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentM
 
 export const getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin = 0;
 
+export const getLearningProgressAnalyticsResponseProgramsItemRemindersPendingMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemRemindersSentMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemRemindersFailedMin = 0;
+
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletedRequiredModulesMin = 0;
 
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneTotalRequiredModulesMin = 0;
@@ -316,6 +322,23 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "averageActiveSeconds": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAverageActiveSecondsMin),
   "averageQuizPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMax).nullable(),
   "certificatesIssued": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin),
+  "reminders": zod.object({
+  "pending": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersPendingMin),
+  "sent": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersSentMin),
+  "failed": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersFailedMin),
+  "latestError": zod.union([zod.object({
+  "message": zod.string(),
+  "failedAt": zod.coerce.date()
+}),zod.null()]),
+  "failedDeliveries": zod.array(zod.object({
+  "id": zod.number().int(),
+  "founderName": zod.string(),
+  "businessName": zod.string(),
+  "moduleTitle": zod.string(),
+  "lastError": zod.string(),
+  "failedAt": zod.coerce.date()
+}))
+}),
   "participants": zod.array(zod.object({
   "programId": zod.number().int(),
   "programName": zod.string(),
@@ -387,6 +410,19 @@ export const IssueCourseCertificateResponse = zod.object({
   "certificateCode": zod.string(),
   "issuedAt": zod.coerce.date(),
   "issuedByName": zod.string()
+})
+
+
+/**
+ * @summary Retry a failed course reminder email
+ */
+export const RetryCourseReminderParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RetryCourseReminderResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['pending'])
 })
 
 

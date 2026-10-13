@@ -11,10 +11,16 @@ before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";
 
-  const [{ default: analyticsRouter }, { default: grantsRouter }, { default: pitchesRouter }] = await Promise.all([
+  const [
+    { default: analyticsRouter },
+    { default: grantsRouter },
+    { default: pitchesRouter },
+    { staffLearningProgressRouter },
+  ] = await Promise.all([
     import("../src/routes/analytics"),
     import("../src/routes/grants"),
     import("../src/routes/pitches"),
+    import("../src/routes/courseProgress"),
   ]);
   const app = express();
   app.use(express.json());
@@ -27,6 +33,7 @@ before(async () => {
   app.use("/api", analyticsRouter);
   app.use("/api", grantsRouter);
   app.use("/api", pitchesRouter);
+  app.use("/api", staffLearningProgressRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 });
@@ -102,4 +109,14 @@ test("analytics routes validate date and identifier inputs before database acces
   assert.equal(invalidSession.status, 400);
   assert.equal(invalidProgram.status, 400);
   assert.equal(invalidGrant.status, 400);
+});
+
+test("course reminder retries require a coordinator and validate the delivery id", async () => {
+  role = "staff";
+  const denied = await request("/api/analytics/learning-progress/reminders/1/retry", { method: "POST" });
+  role = "coordinator";
+  const invalidId = await request("/api/analytics/learning-progress/reminders/not-a-delivery/retry", { method: "POST" });
+
+  assert.equal(denied.status, 403);
+  assert.equal(invalidId.status, 400);
 });

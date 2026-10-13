@@ -52,7 +52,6 @@ function safeError(error: unknown): string {
 
 async function sendCourseReminder(input: {
   id: number;
-  attempt: number;
   email: string;
   founderName: string;
   programName: string;
@@ -83,7 +82,7 @@ async function sendCourseReminder(input: {
   const response = await new ReplitConnectors().proxy("resend", "/emails/batch", {
     method: "POST",
     headers: {
-      "Idempotency-Key": `jusoor-course-reminder-${input.id}-${input.attempt}`,
+      "Idempotency-Key": `jusoor-course-reminder-${input.id}`,
     },
     body: [{
       from,
@@ -243,7 +242,6 @@ async function sendPendingReminders(now: Date): Promise<void> {
       if (!reminder) throw new Error("Unknown course reminder type.");
       await sendCourseReminder({
         id: item.delivery.id,
-        attempt,
         email: item.application.email,
         founderName: item.application.founderName,
         programName: item.programName,

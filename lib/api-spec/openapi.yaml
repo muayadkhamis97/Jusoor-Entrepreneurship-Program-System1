@@ -199,6 +199,26 @@ paths:
           description: Accepted participant application not found
         "409":
           description: A certificate has already been issued for this application
+  /analytics/learning-progress/reminders/{id}/retry:
+    post:
+      operationId: retryCourseReminder
+      tags: [dashboard]
+      summary: Retry a failed course reminder email
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202":
+          description: Reminder queued for a safe retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetryCourseReminder"
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Reminder delivery not found
+        "409":
+          description: Reminder is no longer failed
   /analytics/attendance/{sessionId}:
     get:
       operationId: getSessionAttendanceRegister
@@ -2880,10 +2900,45 @@ components:
           minimum: 0
           maximum: 100
         certificatesIssued: { type: integer, minimum: 0 }
+        reminders: { $ref: "#/components/schemas/CourseReminderSummary" }
         participants:
           type: array
           items: { $ref: "#/components/schemas/LearningProgressParticipant" }
-      required: [programId, programName, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, certificatesIssued, participants]
+      required: [programId, programName, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, certificatesIssued, reminders, participants]
+    CourseReminderSummary:
+      type: object
+      properties:
+        pending: { type: integer, minimum: 0 }
+        sent: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        latestError:
+          oneOf:
+            - type: object
+              properties:
+                message: { type: string }
+                failedAt: { type: string, format: date-time }
+              required: [message, failedAt]
+            - type: "null"
+        failedDeliveries:
+          type: array
+          items: { $ref: "#/components/schemas/CourseReminderFailure" }
+      required: [pending, sent, failed, latestError, failedDeliveries]
+    CourseReminderFailure:
+      type: object
+      properties:
+        id: { type: integer }
+        founderName: { type: string }
+        businessName: { type: string }
+        moduleTitle: { type: string }
+        lastError: { type: string }
+        failedAt: { type: string, format: date-time }
+      required: [id, founderName, businessName, moduleTitle, lastError, failedAt]
+    RetryCourseReminder:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [pending] }
+      required: [id, status]
     LearningProgressAnalytics:
       type: object
       properties:

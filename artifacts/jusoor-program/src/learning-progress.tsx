@@ -6,10 +6,11 @@ import {
   useGetLearningProgressAnalytics,
   useGetParticipantLearningProgress,
   useIssueCourseCertificate,
+  useRetryCourseReminder,
   useRecordParticipantCourseActivity,
   useRecordParticipantModuleProgress,
 } from '@workspace/api-client-react';
-import type { CourseProgressModule, LearningProgressParticipant, ParticipantLearningProgram } from '@workspace/api-client-react';
+import type { CourseProgressModule, CourseReminderFailure, LearningProgressParticipant, LearningProgressProgram, ParticipantLearningProgram } from '@workspace/api-client-react';
 import {
   Activity, Award, BookOpen, CalendarClock, Check, CircleAlert, Clock3,
   Download, FileCheck2, Hourglass, Medal, RefreshCw, Sparkles,
@@ -19,6 +20,7 @@ import './learning-progress.css';
 
 const fmtDate = (value?: string | null) => value ? new Date(value).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('Not set');
 const fmtDateTime = (value?: string | null) => value ? new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : t('No activity yet');
+const fmtTimestamp = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 const fmtTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor(seconds % 3600 / 60);
@@ -160,13 +162,44 @@ function ParticipantRow({ participant, onIssue, pending }: { participant: Learni
   </details>;
 }
 
+function ReminderDeliveryPanel({ program, retryingId, onRetry }: {
+  program: LearningProgressProgram;
+  retryingId: number | null;
+  onRetry: (delivery: CourseReminderFailure) => void;
+}) {
+  const reminders = program.reminders;
+  return <section className="lp-reminders" data-testid={`panel-course-reminders-${program.programId}`}>
+    <header className="lp-reminders-heading"><div><span className="lp-eyebrow">{t('COHORT EMAILS')}</span><h4>{t('Course reminder emails')}</h4></div><small>{t('Delivery status for this cohort')}</small></header>
+    <div className="lp-reminder-counts">
+      <div><span>{t('Pending')}</span><b data-testid={`text-reminders-pending-${program.programId}`}>{reminders.pending}</b></div>
+      <div><span>{t('Sent')}</span><b data-testid={`text-reminders-sent-${program.programId}`}>{reminders.sent}</b></div>
+      <div className={reminders.failed ? 'has-failures' : ''}><span>{t('Failed')}</span><b data-testid={`text-reminders-failed-${program.programId}`}>{reminders.failed}</b></div>
+    </div>
+    {reminders.latestError && <div className="lp-reminder-latest-error" data-testid={`text-reminders-latest-error-${program.programId}`}>
+      <CircleAlert size={15} /><div><b>{t('Latest delivery error')}</b><span>{reminders.latestError.message}</span><small>{fmtTimestamp(reminders.latestError.failedAt)}</small></div>
+    </div>}
+    {reminders.failedDeliveries.length > 0 && <div className="lp-reminder-failures">
+      <b>{t('Failed reminders')}</b>
+      {reminders.failedDeliveries.map(delivery => <article key={delivery.id} data-testid={`row-failed-reminder-${delivery.id}`}>
+        <div><strong>{delivery.founderName}</strong><span>{delivery.businessName} · {delivery.moduleTitle}</span><small>{delivery.lastError} · {fmtTimestamp(delivery.failedAt)}</small></div>
+        <button type="button" className="lp-button lp-button-outline" onClick={() => onRetry(delivery)} disabled={retryingId !== null} data-testid={`button-retry-reminder-${delivery.id}`}>
+          <RefreshCw size={13} />{retryingId === delivery.id ? t('Queuing…') : t('Retry email')}
+        </button>
+      </article>)}
+      {reminders.failed > reminders.failedDeliveries.length && <small className="lp-reminder-more">{t('Showing the 20 most recent failed reminders.')}</small>}
+    </div>}
+    {reminders.failed === 0 && <p className="lp-reminder-clear">{t('No failed reminders for this cohort.')}</p>}
+  </section>;
+}
+
 export function LearningProgressAnalytics() {
   useAppLanguage();
   const client = useQueryClient();
   const [selected, setSelected] = useState('');
   const params = useMemo(() => selected ? { programId: Number(selected) } : undefined, [selected]);
-  const query = useGetLearningProgressAnalytics(params, { query: { queryKey: getGetLearningProgressAnalyticsQueryKey(params), refetchOnWindowFocus: true } });
+  const query = useGetLearningProgressAnalytics(params, { query: { queryKey: getGetLearningProgressAnalyticsQueryKey(params), refetchOnWindowFocus: true, refetchInterval: 30_000 } });
   const issue = useIssueCourseCertificate();
+  const retryReminder = useRetryCourseReminder();
   const programs = query.data?.programs || [];
   const programCatalogRef = useRef(programs);
   if (programs.length) {
@@ -176,6 +209,7 @@ export function LearningProgressAnalytics() {
   const programCatalog = programCatalogRef.current;
   const visiblePrograms = selected ? programs.filter(program => String(program.programId) === selected) : programs;
   const [issuing, setIssuing] = useState<number | null>(null);
+  const [retryingReminder, setRetryingReminder] = useState<number | null>(null);
   const issueCertificate = (person: LearningProgressParticipant) => {
     setIssuing(person.applicationId);
     issue.mutate({ id: person.applicationId }, {
@@ -185,6 +219,14 @@ export function LearningProgressAnalytics() {
     });
   };
   const allParticipants = visiblePrograms.flatMap(program => program.participants);
+  const retryFailedReminder = (delivery: CourseReminderFailure) => {
+    retryReminder.reset();
+    setRetryingReminder(delivery.id);
+    retryReminder.mutate({ id: delivery.id }, {
+      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey(params) }),
+      onSettled: () => setRetryingReminder(null),
+    });
+  };
   const completion = allParticipants.length ? allParticipants.reduce((sum, person) => sum + person.completionPercent, 0) / allParticipants.length : 0;
   const totalTime = allParticipants.reduce((sum, person) => sum + person.activeSeconds, 0);
   const certs = visiblePrograms.reduce((sum, program) => sum + program.certificatesIssued, 0);
@@ -196,8 +238,10 @@ export function LearningProgressAnalytics() {
       : <>
         <div className="lp-metrics"><article><span><Activity size={15} />{t('PARTICIPANTS')}</span><b data-testid="text-learning-participant-count">{allParticipants.length}</b><small>{t('Across selected programs')}</small></article><article><span><Check size={15} />{t('AVERAGE COMPLETION')}</span><b>{completion.toFixed(1)}%</b><small>{t('Required learning pathway')}</small></article><article><span><Hourglass size={15} />{t('ACTIVE LEARNING')}</span><b>{fmtTime(totalTime)}</b><small>{t('Combined recorded time')}</small></article><article><span><Award size={15} />{t('CERTIFICATES')}</span><b>{certs}</b><small>{t('Issued by coordinators')}</small></article></div>
         {issue.isError && <div className="lp-mutation-error" role="alert" data-testid="error-issue-certificate">{t('Certificate could not be issued. Confirm eligibility and try again.')}</div>}
+         {retryReminder.isError && <div className="lp-mutation-error" role="alert" data-testid="error-retry-course-reminder">{t('Reminder could not be queued. Refresh the cohort status and try again.')}</div>}
         {visiblePrograms.map(program => <article className="lp-analytics-program" key={program.programId} data-testid={`card-learning-analytics-program-${program.programId}`}>
           <header><div><span className="lp-eyebrow">{t('COHORT LEARNING')}</span><h3>{program.programName}</h3></div><div className="lp-program-stats"><span><b>{program.completedParticipants}</b> / {program.participantCount} {t('completed')}</span><span><b>{program.averageCompletionPercent.toFixed(1)}%</b> {t('average progress')}</span><span><b>{fmtTime(program.averageActiveSeconds)}</b> {t('average active time')}</span><span><b>{program.averageQuizPercent == null ? '—' : `${program.averageQuizPercent.toFixed(1)}%`}</b> {t('quiz average')}</span><span><b>{program.certificatesIssued}</b> {t('certificates')}</span></div></header>
+           <ReminderDeliveryPanel program={program} retryingId={retryingReminder} onRetry={retryFailedReminder} />
           <div className="lp-roster-head"><span>{t('PARTICIPANT / BUSINESS')}</span><span>{t('COURSE COMPLETION')}</span><span>{t('ACTIVE TIME')}</span><span>{t('CERTIFICATE STATE')}</span></div>
           {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={issueCertificate} pending={issuing === person.applicationId} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}
         </article>)}

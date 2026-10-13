@@ -487,6 +487,31 @@ export type LearningProgressParticipant = ParticipantLearningProgram & {
   email: string;
 };
 
+export interface CourseReminderFailure {
+  id: number;
+  founderName: string;
+  businessName: string;
+  moduleTitle: string;
+  lastError: string;
+  failedAt: string;
+}
+
+export type CourseReminderSummaryLatestError = {
+  message: string;
+  failedAt: string;
+} | null;
+
+export interface CourseReminderSummary {
+  /** @minimum 0 */
+  pending: number;
+  /** @minimum 0 */
+  sent: number;
+  /** @minimum 0 */
+  failed: number;
+  latestError: CourseReminderSummaryLatestError;
+  failedDeliveries: CourseReminderFailure[];
+}
+
 export interface LearningProgressProgram {
   programId: number;
   programName: string;
@@ -509,7 +534,20 @@ export interface LearningProgressProgram {
   averageQuizPercent: number | null;
   /** @minimum 0 */
   certificatesIssued: number;
+  reminders: CourseReminderSummary;
   participants: LearningProgressParticipant[];
+}
+
+export type RetryCourseReminderStatus = typeof RetryCourseReminderStatus[keyof typeof RetryCourseReminderStatus];
+
+
+export const RetryCourseReminderStatus = {
+  pending: 'pending',
+} as const;
+
+export interface RetryCourseReminder {
+  id: number;
+  status: RetryCourseReminderStatus;
 }
 
 export interface LearningProgressAnalytics {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   GetLearningProgressAnalyticsQueryParams,
@@ -13,6 +13,8 @@ import {
   RecordParticipantModuleProgressBody,
   RecordParticipantModuleProgressParams,
   RecordParticipantModuleProgressResponse,
+  RetryCourseReminderParams,
+  RetryCourseReminderResponse,
 } from "@workspace/api-zod";
 import {
   applicationsTable,
@@ -24,6 +26,7 @@ import {
   courseProgramActivityTable,
   courseQuizAttemptsTable,
   courseQuizzesTable,
+  courseReminderDeliveriesTable,
   db,
   programsTable,
   staffMembersTable,
@@ -449,6 +452,70 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
     ));
   const rows = await loadProgressData(applications);
   const byApplicationId = new Map(rows.map((row) => [row.application.id, row]));
+  const programIds = programs.map((program) => program.id);
+  const [reminderCounts, failedReminders] = await Promise.all([
+    db.select({
+      programId: courseModulesTable.programId,
+      status: courseReminderDeliveriesTable.status,
+      count: sql<number>`count(*)::int`,
+    }).from(courseReminderDeliveriesTable)
+      .innerJoin(courseModulesTable, eq(courseModulesTable.id, courseReminderDeliveriesTable.moduleId))
+      .where(inArray(courseModulesTable.programId, programIds))
+      .groupBy(courseModulesTable.programId, courseReminderDeliveriesTable.status),
+    db.select({
+      programId: courseModulesTable.programId,
+      id: courseReminderDeliveriesTable.id,
+      founderName: applicationsTable.founderName,
+      businessName: applicationsTable.businessName,
+      moduleTitle: courseModulesTable.title,
+      lastError: courseReminderDeliveriesTable.lastError,
+      failedAt: courseReminderDeliveriesTable.updatedAt,
+    }).from(courseReminderDeliveriesTable)
+      .innerJoin(courseModulesTable, eq(courseModulesTable.id, courseReminderDeliveriesTable.moduleId))
+      .innerJoin(applicationsTable, eq(applicationsTable.id, courseReminderDeliveriesTable.applicationId))
+      .where(and(
+        inArray(courseModulesTable.programId, programIds),
+        eq(courseReminderDeliveriesTable.status, "failed"),
+      ))
+      .orderBy(desc(courseReminderDeliveriesTable.updatedAt)),
+  ]);
+  const remindersByProgram = new Map(programIds.map((programId) => [programId, {
+    pending: 0,
+    sent: 0,
+    failed: 0,
+    latestError: null as { message: string; failedAt: Date } | null,
+    failedDeliveries: [] as Array<{
+      id: number;
+      founderName: string;
+      businessName: string;
+      moduleTitle: string;
+      lastError: string;
+      failedAt: Date;
+    }>,
+  }]));
+  for (const row of reminderCounts) {
+    const summary = remindersByProgram.get(row.programId);
+    if (!summary) continue;
+    if (row.status === "pending" || row.status === "sending") summary.pending += row.count;
+    if (row.status === "sent") summary.sent += row.count;
+    if (row.status === "failed") summary.failed += row.count;
+  }
+  for (const row of failedReminders) {
+    const summary = remindersByProgram.get(row.programId);
+    if (!summary) continue;
+    const lastError = row.lastError ?? "Email delivery failed.";
+    if (!summary.latestError) summary.latestError = { message: lastError, failedAt: row.failedAt };
+    if (summary.failedDeliveries.length < 20) {
+      summary.failedDeliveries.push({
+        id: row.id,
+        founderName: row.founderName,
+        businessName: row.businessName,
+        moduleTitle: row.moduleTitle,
+        lastError,
+        failedAt: row.failedAt,
+      });
+    }
+  }
   const programCertificates = applications.length
     ? await db.select({ programId: courseCertificatesTable.programId })
       .from(courseCertificatesTable)
@@ -505,6 +572,13 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
         ? Math.round(quizPercentages.reduce((sum, value) => sum + value, 0) / quizPercentages.length)
         : null,
       certificatesIssued: certificatesByProgram.get(program.id) ?? 0,
+      reminders: remindersByProgram.get(program.id) ?? {
+        pending: 0,
+        sent: 0,
+        failed: 0,
+        latestError: null,
+        failedDeliveries: [],
+      },
       participants,
     };
   });
@@ -589,5 +663,44 @@ staffLearningProgressRouter.post("/analytics/learning-progress/applications/:id/
     certificateCode: issued.certificateCode,
     issuedAt: issued.issuedAt,
     issuedByName: staff.email,
+  }));
+});
+
+staffLearningProgressRouter.post("/analytics/learning-progress/reminders/:id/retry", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess | undefined;
+  const params = RetryCourseReminderParams.safeParse(req.params);
+  if (!staff || staff.role !== "coordinator") {
+    res.status(403).json({ error: "Coordinator access is required." });
+    return;
+  }
+  if (!params.success) {
+    res.status(400).json({ error: "A valid reminder delivery id is required." });
+    return;
+  }
+  const now = new Date();
+  const [delivery] = await db.update(courseReminderDeliveriesTable).set({
+    status: "pending",
+    nextAttemptAt: now,
+    lastError: null,
+    updatedAt: now,
+  }).where(and(
+    eq(courseReminderDeliveriesTable.id, params.data.id),
+    eq(courseReminderDeliveriesTable.status, "failed"),
+  )).returning({ id: courseReminderDeliveriesTable.id });
+  if (!delivery) {
+    const [existing] = await db.select({ id: courseReminderDeliveriesTable.id })
+      .from(courseReminderDeliveriesTable)
+      .where(eq(courseReminderDeliveriesTable.id, params.data.id))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Course reminder delivery not found." });
+      return;
+    }
+    res.status(409).json({ error: "This reminder is no longer failed and cannot be retried." });
+    return;
+  }
+  res.status(202).json(RetryCourseReminderResponse.parse({
+    id: delivery.id,
+    status: "pending",
   }));
 });
