@@ -1,0 +1,363 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CSVLink } from "react-csv";
+import {
+  useGetProgramAnalytics,
+  useGetSessionAttendanceRegister,
+  useSaveSessionAttendance,
+  useListProgramImpactKpis,
+  useCreateProgramImpactKpi,
+  useUpdateProgramImpactKpi,
+  useDeleteProgramImpactKpi,
+  useSaveProgramImpactKpiValues,
+  getGetProgramAnalyticsQueryKey,
+  getGetSessionAttendanceRegisterQueryKey,
+  getListProgramImpactKpisQueryKey,
+} from "@workspace/api-client-react";
+import type { ImpactKpi } from "@workspace/api-client-react";
+import {
+  Activity, BarChart3, CalendarDays, Check, ChevronDown,
+  ClipboardCheck, Download, FileText, Moon, Printer, RefreshCw, Sun, Target,
+  Users, X, CircleAlert, Plus, Pencil, Trash2,
+} from "lucide-react";
+import {
+  Area, AreaChart, CartesianGrid, ResponsiveContainer,
+  Tooltip, XAxis, YAxis,
+} from "recharts";
+import "./analytics.css";
+
+const INTERVALS = [
+  { label: "5 minutes", ms: 5 * 60 * 1000 },
+  { label: "15 minutes", ms: 15 * 60 * 1000 },
+  { label: "1 hour", ms: 60 * 60 * 1000 },
+];
+const COLORS = { teal: "#267d70", coral: "#d4795b", gold: "#b59a5d", slate: "#65818a" };
+const STAGE_LABELS: Record<string, string> = {
+  application: "Applications", bootcamp: "Bootcamp", incubator: "Online incubation",
+  pitch: "Pitch day", demo_day: "Demo day", grant_awarded: "Grant awarded",
+  alumni: "Alumni", declined: "Declined",
+};
+const fmt = (value: number) => new Intl.NumberFormat("en-US").format(value);
+const dateLabel = (value: string) => {
+  if (!value) return "—";
+  const [y, m, d] = value.slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+};
+function ExportButton({ rows, filename }: { rows: Array<Record<string, unknown>>; filename: string }) {
+  return rows.length
+    ? <CSVLink className="ana-icon-btn print-hide" aria-label="Export chart data as CSV" title="Export CSV" data={rows} filename={filename}><Download size={15} /></CSVLink>
+    : <button className="ana-icon-btn print-hide" aria-label="Export chart data as CSV" title="No data to export" disabled><Download size={15} /></button>;
+}
+
+type AttendanceState = Record<number, { status: "present" | "absent" | "excused" | null; notes: string }>;
+type KpiForm = { name: string; description: string; unit: string; targetValue: string; direction: "increase_is_good" | "decrease_is_good" };
+
+export function ProgramAnalyticsPage() {
+  const queryClient = useQueryClient();
+  const now = new Date();
+  const initialFrom = new Date(now.getTime() - 89 * 86400000).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+  const [programChoice, setProgramChoice] = useState("");
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(today);
+  const queryParams = useMemo(() => ({
+    ...(programChoice ? { programId: Number(programChoice) } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+  }), [programChoice, from, to]);
+  const analyticsQuery = useGetProgramAnalytics(queryParams);
+  const data = analyticsQuery.data;
+  const selectedProgram = programChoice ? Number(programChoice) : data?.selectedProgramId ?? undefined;
+  const kpiQuery = useListProgramImpactKpis({ programId: selectedProgram ?? 0 }, {
+    query: { enabled: !!selectedProgram, queryKey: getListProgramImpactKpisQueryKey({ programId: selectedProgram ?? 0 }) },
+  });
+  const [isDark, setIsDark] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [intervalMs, setIntervalMs] = useState(INTERVALS[0].ms);
+  const [refreshMenu, setRefreshMenu] = useState(false);
+  const refreshRef = useRef<HTMLDivElement>(null);
+  const [activeSession, setActiveSession] = useState<number | null>(null);
+  const [attendance, setAttendance] = useState<AttendanceState>({});
+  const [kpiEditor, setKpiEditor] = useState<ImpactKpi | null | "new">(null);
+  const [valueEditor, setValueEditor] = useState<ImpactKpi | null>(null);
+  const [deleteKpi, setDeleteKpi] = useState<ImpactKpi | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportTitle, setReportTitle] = useState("Program progress report");
+  const [reportParts, setReportParts] = useState({ summary: true, stages: true, attendance: true, engagement: true, impact: true });
+  const saveAttendance = useSaveSessionAttendance();
+  const createKpi = useCreateProgramImpactKpi();
+  const updateKpi = useUpdateProgramImpactKpi();
+  const removeKpi = useDeleteProgramImpactKpi();
+  const saveKpiValues = useSaveProgramImpactKpiValues();
+  const registerQuery = useGetSessionAttendanceRegister(activeSession ?? 0, {
+    query: { enabled: activeSession !== null, queryKey: getGetSessionAttendanceRegisterQueryKey(activeSession ?? 0) },
+  });
+  const loading = analyticsQuery.isLoading || analyticsQuery.isFetching;
+  const error = analyticsQuery.isError;
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+    return () => document.documentElement.classList.remove("dark");
+  }, [isDark]);
+  useEffect(() => {
+    const dismiss = (event: MouseEvent) => {
+      if (refreshRef.current && !refreshRef.current.contains(event.target as Node)) setRefreshMenu(false);
+    };
+    document.addEventListener("mousedown", dismiss);
+    return () => document.removeEventListener("mousedown", dismiss);
+  }, []);
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const timer = window.setInterval(() => {
+      void analyticsQuery.refetch();
+      if (selectedProgram) void kpiQuery.refetch();
+    }, Math.max(intervalMs, 5 * 60 * 1000));
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, intervalMs, analyticsQuery.refetch, kpiQuery.refetch, selectedProgram]);
+  useEffect(() => {
+    if (registerQuery.data) {
+      const next: AttendanceState = {};
+      registerQuery.data.roster.forEach((person) => { next[person.businessId] = { status: person.status, notes: person.notes ?? "" }; });
+      setAttendance(next);
+    }
+  }, [registerQuery.data]);
+
+  const stageRows = data?.stageCounts ?? [];
+  const trendRows = data?.attendanceTrend ?? [];
+  const hasAttendanceData = trendRows.some((row) => row.present !== null || row.absent !== null || row.excused !== null);
+  const engagementRows = data?.engagement ?? [];
+  const sessions = data?.sessions ?? [];
+  const kpis = kpiQuery.data ?? [];
+  const refreshedAt = analyticsQuery.dataUpdatedAt ? new Date(analyticsQuery.dataUpdatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
+  const chartGrid = isDark ? "rgba(255,255,255,.1)" : "#e5e0d5";
+  const chartTicks = isDark ? "#b2c3c0" : "#687873";
+
+  const invalidateKpis = () => {
+    if (selectedProgram) void queryClient.invalidateQueries({ queryKey: getListProgramImpactKpisQueryKey({ programId: selectedProgram }) });
+  };
+  const invalidateAnalytics = () => void queryClient.invalidateQueries({ queryKey: getGetProgramAnalyticsQueryKey(queryParams) });
+  function patchAttendance(businessId: number, patch: Partial<AttendanceState[number]>) {
+    setAttendance((current) => ({ ...current, [businessId]: { status: current[businessId]?.status ?? null, notes: current[businessId]?.notes ?? "", ...patch } }));
+  }
+  function saveRegister() {
+    if (activeSession === null || !registerQuery.data) return;
+    saveAttendance.mutate({ sessionId: activeSession, data: { records: registerQuery.data.roster.map((person) => ({
+      businessId: person.businessId, status: attendance[person.businessId]?.status ?? null,
+      notes: attendance[person.businessId]?.notes.trim() || null,
+    })) } }, {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getGetSessionAttendanceRegisterQueryKey(activeSession) });
+        invalidateAnalytics();
+        setActiveSession(null);
+      },
+    });
+  }
+  const refresh = () => {
+    void analyticsQuery.refetch();
+    if (selectedProgram) void kpiQuery.refetch();
+  };
+  function commitKpi(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProgram) return;
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      name: String(form.get("name") ?? "").trim(),
+      description: String(form.get("description") ?? "").trim() || null,
+      unit: String(form.get("unit") ?? "").trim(),
+      targetValue: String(form.get("targetValue") ?? "").trim() ? Number(form.get("targetValue")) : null,
+      direction: String(form.get("direction")) as KpiForm["direction"],
+    };
+    if (kpiEditor === "new") {
+      createKpi.mutate({ data: { ...payload, programId: selectedProgram } }, { onSuccess: () => { invalidateKpis(); setKpiEditor(null); } });
+    } else if (kpiEditor) {
+      updateKpi.mutate({ id: kpiEditor.id, data: payload }, { onSuccess: () => { invalidateKpis(); setKpiEditor(null); } });
+    }
+  }
+  function commitValues(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!valueEditor) return;
+    const form = new FormData(event.currentTarget);
+    saveKpiValues.mutate({ id: valueEditor.id, data: { values: [{
+      businessId: Number(form.get("businessId")), value: Number(form.get("value")),
+      periodEnd: String(form.get("periodEnd")), notes: String(form.get("notes") ?? "").trim() || null,
+    }] } }, { onSuccess: () => { invalidateKpis(); setValueEditor(null); } });
+  }
+
+  const summary = data?.summary;
+  const metrics = [
+    { title: "Active businesses", value: summary ? fmt(summary.activeBusinesses) : "—", hint: summary ? `${fmt(summary.businesses)} enrolled businesses` : "No program data", icon: Users, hue: "teal" },
+    { title: "Attendance", value: summary?.attendanceRate == null ? "—" : `${summary.attendanceRate.toFixed(1)}%`, hint: summary?.attendanceRate == null ? "No attendance marks in range" : `${fmt(summary.present)} present of ${fmt(summary.attendanceMarks)} marks`, icon: ClipboardCheck, hue: "coral" },
+    { title: "Assignment completion", value: summary?.assignmentCompletionRate == null ? "—" : `${summary.assignmentCompletionRate.toFixed(1)}%`, hint: summary?.assignmentCompletionRate == null ? "No assignment records in range" : `${fmt(summary.submissions)} of ${fmt(summary.assignments)} submissions`, icon: FileText, hue: "gold" },
+    { title: "Grants awarded", value: summary ? fmt(summary.grantsAwarded) : "—", hint: summary ? `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(summary.grantAmount)} total` : "No program data", icon: Target, hue: "slate" },
+  ];
+
+  return <section className="analytics-page">
+    <div className="analytics-wrap">
+      <header className="analytics-heading">
+        <div>
+          <div className="ana-eyebrow"><span className="ana-kicker-dot" />PROGRAM INTELLIGENCE <span className="ana-slash">/</span> COORDINATOR VIEW</div>
+          <h1>Progress, with <em>proof.</em></h1>
+          <p>Track each founder’s journey, capture attendance and turn program activity into evidence.</p>
+          <div className="ana-refresh-meta">{refreshedAt ? <>Updated {refreshedAt}</> : "Live from program records"} <span>·</span> Filters apply across this view</div>
+        </div>
+        <div className="ana-header-tools print-hide">
+          <div className="ana-split-wrap" ref={refreshRef}>
+            <div className="ana-split">
+              <button onClick={refresh} disabled={loading}><RefreshCw size={15} className={loading ? "ana-spinning" : ""} /> Refresh</button>
+              <button aria-label="Refresh settings" onClick={() => setRefreshMenu((open) => !open)}><ChevronDown size={14} /></button>
+            </div>
+            {refreshMenu && <div className="ana-refresh-pop">
+              <label className="ana-switchline">Auto-refresh <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /><span className="ana-switch" /></label>
+              <div className="ana-pop-label">INTERVAL</div>
+              {INTERVALS.map((option) => <button key={option.ms} className="ana-interval" onClick={() => { setIntervalMs(option.ms); setRefreshMenu(false); }}>{option.label}{intervalMs === option.ms && <Check size={14} />}</button>)}
+              <small>Automatic refresh is off by default. Minimum interval: 5 minutes.</small>
+            </div>}
+          </div>
+          <button className="ana-tool" onClick={() => setReportOpen(true)} aria-label="Configure report"><FileText size={16} /><span>Report</span></button>
+          <button className="ana-tool" onClick={() => window.print()} aria-label="Print or save PDF"><Printer size={16} /></button>
+          <button className="ana-tool" onClick={() => setIsDark((dark) => !dark)} aria-label="Toggle dark mode">{isDark ? <Sun size={16} /> : <Moon size={16} />}</button>
+        </div>
+      </header>
+
+      <section className="ana-filters print-hide">
+        <div className="ana-filter-title"><CalendarDays size={16} /><span>FILTER SCOPE</span></div>
+        <label className="ana-field"><span>Program</span><select value={programChoice} onChange={(e) => setProgramChoice(e.target.value)}><option value="">All programs</option>{data?.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
+        <label className="ana-field"><span>From</span><input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label className="ana-field"><span>Through</span><input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
+        <div className="ana-range-caption"><span className="ana-range-pulse" />{data ? `${dateLabel(data.from)} — ${dateLabel(data.to)}` : "Loading date range"}</div>
+      </section>
+
+      {error ? <section className="ana-state ana-error"><CircleAlert size={23} /><h2>Analytics could not load</h2><p>The program records are temporarily unavailable. Your filters are preserved.</p><button className="ana-button primary" onClick={refresh}><RefreshCw size={14} /> Try again</button></section> :
+      !loading && data && data.programs.length === 0 ? <section className="ana-state"><BarChart3 size={25} /><h2>No programs to report yet</h2><p>Analytics will appear when a program has been created and founder activity is recorded.</p></section> : <>
+        <div className="ana-section-heading">
+          <div><span className="ana-eyebrow">AT A GLANCE</span><h2>Program pulse</h2></div>
+          <span className="ana-context">{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"} <i /> {from && to ? `${dateLabel(from)} — ${dateLabel(to)}` : "All dates"}</span>
+        </div>
+        <section className="ana-metrics">
+          {metrics.map(({ title, value, hint, icon: Icon, hue }) => <article key={title} className={`ana-metric ana-${hue}`}>
+            <div className="ana-metric-top"><span>{title}</span><span className="ana-metric-icon"><Icon size={17} /></span></div>
+            <strong>{loading ? <span className="ana-skeleton" /> : value}</strong><small>{loading ? "Updating records…" : hint}</small>
+          </article>)}
+        </section>
+
+        <section className="ana-chart-grid">
+          <article className="ana-panel ana-panel-stage">
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">FOUNDER JOURNEY</span><h3>Stage distribution</h3><p>Businesses grouped by their current recorded stage.</p></div><ExportButton rows={stageRows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, businesses: r.count }))} filename="stage-distribution.csv" /></div>
+            {loading ? <div className="ana-chart-skeleton" /> : stageRows.length ? <div className="ana-stage-list">{stageRows.map((row, index) => {
+              const maximum = Math.max(...stageRows.map((item) => item.count), 1);
+              return <div className="ana-stage-row" key={row.stage}><span className="ana-stage-index">0{index + 1}</span><span className="ana-stage-name">{STAGE_LABELS[row.stage] ?? row.stage}</span><span className="ana-stage-bar"><i style={{ width: `${Math.max(3, row.count / maximum * 100)}%` }} /></span><b>{fmt(row.count)}</b></div>;
+            })}</div> : <div className="ana-inline-empty"><Activity size={18} /><span>No stage records for this program.</span></div>}
+            <div className="ana-panel-foot">Source: current business stage records</div>
+          </article>
+          <article className="ana-panel ana-panel-trend">
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">ATTENDANCE RECORDS</span><h3>Participation over time</h3><p>Recorded present, absent and excused marks by period.</p></div><ExportButton rows={trendRows.map((row) => ({ period: row.period, present: row.present, absent: row.absent, excused: row.excused }))} filename="attendance-trend.csv" /></div>
+            {loading ? <div className="ana-chart-skeleton" /> : hasAttendanceData ? <div className="ana-chart"><ResponsiveContainer width="100%" height={230} debounce={0}><AreaChart data={trendRows} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 5" stroke={chartGrid} vertical={false} /><XAxis dataKey="period" tick={{ fontSize: 11, fill: chartTicks }} stroke={chartGrid} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: chartTicks }} stroke="transparent" axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip isAnimationActive={false} contentStyle={{ borderRadius: 8, borderColor: chartGrid, background: isDark ? "#1c302d" : "#fffdf7", color: isDark ? "#e8eee9" : "#283a36", fontSize: 12 }} />
+               <Area type="monotone" dataKey="present" name="Present" stackId="attendance" stroke={COLORS.teal} fill={COLORS.teal} fillOpacity={.22} strokeWidth={2.3} isAnimationActive={false} />
+               <Area type="monotone" dataKey="absent" name="Absent" stackId="attendance" stroke={COLORS.coral} fill={COLORS.coral} fillOpacity={.18} strokeWidth={2} isAnimationActive={false} />
+               <Area type="monotone" dataKey="excused" name="Excused" stackId="attendance" stroke={COLORS.gold} fill={COLORS.gold} fillOpacity={.16} strokeWidth={1.8} isAnimationActive={false} />
+            </AreaChart></ResponsiveContainer><div className="ana-legend"><span><i className="legend-present" />Present</span><span><i className="legend-absent" />Absent</span><span><i className="legend-excused" />Excused</span></div></div> : <div className="ana-inline-empty"><Activity size={18} /><span>No attendance data in this date range.</span></div>}
+            <div className="ana-panel-foot">Missing attendance is not counted as absent.</div>
+          </article>
+        </section>
+
+        <section className="ana-panel ana-engagement">
+          <div className="ana-panel-head ana-engagement-head"><div><span className="ana-eyebrow">FOUNDER-LEVEL SIGNALS</span><h3>Engagement &amp; progress</h3><p>Activity captured inside the selected date window.</p></div>
+            <div className="ana-eng-summary"><b>{loading ? "—" : fmt(engagementRows.length)}</b><span>business records</span></div>
+            <ExportButton rows={engagementRows.map((person) => ({ business: person.businessName, stage: STAGE_LABELS[person.stage] ?? person.stage, sessionsAttended: person.sessionsAttended, sessionsMarked: person.sessionsMarked, attendanceRate: person.attendanceRate == null ? "No marks" : `${person.attendanceRate.toFixed(1)}%`, assignmentsSubmitted: person.assignmentsSubmitted, assignmentsAvailable: person.assignmentsAvailable, questionsAsked: person.questionsAsked, supportEngagements: person.supportEngagements, lastActivityAt: person.lastActivityAt ?? "No recorded activity" }))} filename="founder-engagement.csv" />
+          </div>
+          {loading ? <div className="ana-table-skeleton"><i /><i /><i /><i /></div> : engagementRows.length ? <div className="ana-table-scroll"><table className="ana-table"><thead><tr><th>Business</th><th>Current stage</th><th>Sessions</th><th>Attendance</th><th>Assignments</th><th>Questions</th><th>Support</th><th>Last activity</th></tr></thead><tbody>{engagementRows.map((person) => <tr key={person.businessId}>
+            <td><span className="ana-business"><i>{person.businessName.slice(0, 1).toUpperCase()}</i><b>{person.businessName}</b></span></td>
+            <td><span className="ana-stage-chip">{STAGE_LABELS[person.stage] ?? person.stage}</span></td><td>{fmt(person.sessionsAttended)} <span className="ana-table-muted">/ {fmt(person.sessionsMarked)} marked</span></td>
+            <td>{person.attendanceRate == null ? <span className="ana-missing">No marks</span> : <span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(person.attendanceRate, 100))}%` } as React.CSSProperties} />{person.attendanceRate.toFixed(0)}%</span>}</td>
+            <td>{fmt(person.assignmentsSubmitted)} <span className="ana-table-muted">/ {fmt(person.assignmentsAvailable)}</span></td><td>{fmt(person.questionsAsked)}</td><td>{fmt(person.supportEngagements)}</td><td>{person.lastActivityAt ? dateLabel(person.lastActivityAt.slice(0, 10)) : <span className="ana-missing">No recent activity</span>}</td>
+          </tr>)}</tbody></table></div> : <div className="ana-inline-empty"><Users size={18} /><span>No founder activity records match these filters.</span></div>}
+          <div className="ana-panel-foot">A dash means the source contains no record for that metric; it is not treated as zero performance.</div>
+        </section>
+
+        <section className="ana-lower-grid">
+          <article className="ana-panel ana-session-panel">
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">COLLECTION DESK</span><h3>Session attendance</h3><p>Select a session to mark present, absent, excused or unmarked.</p></div><span className="ana-count-tag">{fmt(sessions.length)} sessions</span></div>
+            {loading ? <div className="ana-sessions-loading"><i /><i /><i /></div> : sessions.length ? <div className="ana-session-list">{sessions.map((session) => <div className="ana-session" key={session.id}>
+              <div className="ana-date-tile"><b>{session.scheduledDate.slice(8, 10)}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString("en", { month: "short" })}</span></div>
+              <div className="ana-session-copy"><b>{session.title}</b><span>{dateLabel(session.scheduledDate)} <i /> {session.status}</span><small>{session.attendanceMarks ? `${fmt(session.present)} present · ${fmt(session.attendanceMarks)} marked` : "No attendance recorded"}</small></div>
+              <button className="ana-button subtle" onClick={() => setActiveSession(session.id)}><ClipboardCheck size={14} /> Register</button>
+            </div>)}</div> : <div className="ana-inline-empty"><CalendarDays size={18} /><span>No sessions are recorded in this date range.</span></div>}
+          </article>
+          <article className="ana-panel ana-kpi-panel">
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h3>Impact indicators</h3><p>Coordinator-defined KPIs and business-level observations.</p></div><button className="ana-icon-btn print-hide" onClick={() => setKpiEditor("new")} disabled={!selectedProgram} title={!selectedProgram ? "Choose a program to manage KPIs" : "Create impact KPI"} aria-label="Create impact KPI"><Plus size={17} /></button></div>
+            {!selectedProgram ? <div className="ana-inline-empty"><Target size={18} /><span>Select a single program to manage impact indicators.</span></div> : kpiQuery.isLoading ? <div className="ana-sessions-loading"><i /><i /></div> : kpiQuery.isError ? <div className="ana-inline-empty"><CircleAlert size={18} /><span>Impact indicators could not load. Refresh to try again.</span></div> : kpis.length ? <div className="ana-kpi-list">{kpis.map((kpi) => {
+              const latest = [...kpi.values].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd))[0];
+              const targetText = kpi.targetValue == null ? "Target not set" : `${kpi.targetValue} ${kpi.unit} target`;
+              const progress = latest && kpi.targetValue !== null && kpi.targetValue !== 0 ? Math.min(100, Math.max(0, latest.value / kpi.targetValue * 100)) : 0;
+              return <div className="ana-kpi-row" key={kpi.id}><div className="ana-kpi-copy"><span className="ana-kpi-symbol"><Target size={15} /></span><div><b>{kpi.name}</b><small>{kpi.description || targetText}</small></div></div>
+                <div className="ana-kpi-value">{latest ? <><strong>{latest.value} <small>{kpi.unit}</small></strong><span>{dateLabel(latest.periodEnd)}</span></> : <span className="ana-missing">No business values</span>}</div>
+                {kpi.targetValue != null && <div className="ana-target-line"><i style={{ width: `${progress}%` }} /></div>}
+                <div className="ana-kpi-actions print-hide"><button onClick={() => setValueEditor(kpi)} title="Record a business value">Record value</button><button aria-label={`Edit ${kpi.name}`} onClick={() => setKpiEditor(kpi)}><Pencil size={14} /></button><button aria-label={`Remove ${kpi.name}`} onClick={() => setDeleteKpi(kpi)}><Trash2 size={14} /></button></div>
+              </div>;
+            })}</div> : <div className="ana-kpi-empty"><Target size={20} /><b>No impact indicators defined</b><span>Add an indicator to start collecting measurable outcomes from businesses.</span><button className="ana-button primary print-hide" onClick={() => setKpiEditor("new")}><Plus size={14} /> Create indicator</button></div>}
+          </article>
+        </section>
+      </>}
+      <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> COORDINATOR ANALYTICS</span><span>Only recorded program activity is shown</span></footer>
+    </div>
+
+    {activeSession !== null && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setActiveSession(null); }}><section className="ana-modal ana-attendance-modal" role="dialog" aria-modal="true" aria-labelledby="attendance-title">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">SESSION REGISTER</span><h2 id="attendance-title">{registerQuery.data?.session.title ?? "Attendance register"}</h2><p>{registerQuery.data ? dateLabel(registerQuery.data.session.scheduledDate) : "Loading roster"}</p></div><button className="ana-icon-btn" onClick={() => setActiveSession(null)} aria-label="Close register"><X size={17} /></button></div>
+      {registerQuery.isLoading ? <div className="ana-modal-body"><div className="ana-sessions-loading"><i /><i /><i /></div></div> : registerQuery.isError ? <div className="ana-modal-body"><div className="ana-inline-empty"><CircleAlert size={18} /><span>Roster unavailable. Close and try opening this session again.</span></div></div> : <>
+        <div className="ana-register-tools"><span>{fmt(registerQuery.data?.roster.length ?? 0)} businesses on roster</span><div>{(["present", "absent", "excused", null] as const).map((status) => <button key={status ?? "unmarked"} onClick={() => setAttendance((current) => Object.fromEntries((registerQuery.data?.roster ?? []).map((person) => [person.businessId, { ...current[person.businessId], status, notes: current[person.businessId]?.notes ?? "" }])))}>{status ?? "Clear all"}</button>)}</div></div>
+        <div className="ana-register-list">{registerQuery.data?.roster.map((person) => <div className="ana-register-person" key={person.businessId}><div className="ana-register-name"><i>{person.businessName.slice(0, 1).toUpperCase()}</i><b>{person.businessName}</b></div><div className="ana-status-set">{(["present", "absent", "excused", null] as const).map((status) => <button key={status ?? "clear"} className={attendance[person.businessId]?.status === status ? `selected ${status ?? "unmarked"}` : ""} onClick={() => patchAttendance(person.businessId, { status })}>{status ?? "—"}</button>)}</div><input aria-label={`Notes for ${person.businessName}`} placeholder="Optional note" value={attendance[person.businessId]?.notes ?? ""} onChange={(event) => patchAttendance(person.businessId, { notes: event.target.value })} /></div>)}</div>
+        <div className="ana-modal-actions"><button className="ana-button subtle" onClick={() => setActiveSession(null)}>Cancel</button><button className="ana-button primary" onClick={saveRegister} disabled={saveAttendance.isPending}><Check size={14} />{saveAttendance.isPending ? "Saving…" : "Save register"}</button></div>
+        {saveAttendance.isError && <p className="ana-form-error">Attendance could not be saved. Your changes are still here; try again.</p>}
+      </>}
+    </section></div>}
+
+    {(kpiEditor === "new" || kpiEditor) && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setKpiEditor(null); }}><section className="ana-modal" role="dialog" aria-modal="true" aria-labelledby="kpi-title">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h2 id="kpi-title">{kpiEditor === "new" ? "New impact indicator" : "Edit impact indicator"}</h2><p>Define a useful measure for this program’s businesses.</p></div><button className="ana-icon-btn" onClick={() => setKpiEditor(null)} aria-label="Close"><X size={17} /></button></div>
+      <form className="ana-form" onSubmit={commitKpi}>
+        <label>Name<input name="name" required maxLength={120} defaultValue={kpiEditor === "new" ? "" : kpiEditor.name} placeholder="e.g. Monthly recurring revenue" /></label>
+        <label>Description <span className="ana-optional">Optional</span><textarea name="description" maxLength={1000} defaultValue={kpiEditor === "new" ? "" : kpiEditor.description ?? ""} placeholder="What should this measure tell you?" /></label>
+        <div className="ana-form-row"><label>Unit<input name="unit" required maxLength={40} defaultValue={kpiEditor === "new" ? "" : kpiEditor.unit} placeholder="USD, customers, jobs…" /></label><label>Target value <span className="ana-optional">Optional</span><input name="targetValue" type="number" step="any" defaultValue={kpiEditor === "new" || kpiEditor.targetValue == null ? "" : kpiEditor.targetValue} /></label></div>
+        <label>Direction<select name="direction" defaultValue={kpiEditor === "new" ? "increase_is_good" : kpiEditor.direction}><option value="increase_is_good">Higher values are better</option><option value="decrease_is_good">Lower values are better</option></select></label>
+        {(createKpi.isError || updateKpi.isError) && <p className="ana-form-error">Could not save this indicator. Check your connection and try again.</p>}
+        <div className="ana-modal-actions"><button type="button" className="ana-button subtle" onClick={() => setKpiEditor(null)}>Cancel</button><button className="ana-button primary" disabled={createKpi.isPending || updateKpi.isPending}>{createKpi.isPending || updateKpi.isPending ? "Saving…" : "Save indicator"}</button></div>
+      </form>
+    </section></div>}
+
+    {valueEditor && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setValueEditor(null); }}><section className="ana-modal" role="dialog" aria-modal="true" aria-labelledby="value-title">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">RECORD OUTCOME</span><h2 id="value-title">{valueEditor.name}</h2><p>Add one observed value for a business.</p></div><button className="ana-icon-btn" onClick={() => setValueEditor(null)} aria-label="Close"><X size={17} /></button></div>
+      <form className="ana-form" onSubmit={commitValues}>
+        <label>Business<select name="businessId" required defaultValue=""><option value="" disabled>Select a business</option>{engagementRows.map((person) => <option key={person.businessId} value={person.businessId}>{person.businessName}</option>)}</select></label>
+        <div className="ana-form-row"><label>Observed value ({valueEditor.unit})<input name="value" type="number" step="any" required /></label><label>Period ending<input name="periodEnd" type="date" required defaultValue={today} /></label></div>
+        <label>Notes <span className="ana-optional">Optional</span><textarea name="notes" maxLength={1000} placeholder="Context for this measurement" /></label>
+        {saveKpiValues.isError && <p className="ana-form-error">Value not saved. Please check the details and retry.</p>}
+        <div className="ana-modal-actions"><button type="button" className="ana-button subtle" onClick={() => setValueEditor(null)}>Cancel</button><button className="ana-button primary" disabled={saveKpiValues.isPending}>{saveKpiValues.isPending ? "Saving…" : "Save value"}</button></div>
+        {!engagementRows.length && <p className="ana-form-hint">There are no businesses in this filtered program window to select.</p>}
+      </form>
+    </section></div>}
+
+    {deleteKpi && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteKpi(null); }}><section className="ana-modal ana-confirm" role="dialog" aria-modal="true" aria-labelledby="delete-title"><span className="ana-delete-mark"><Trash2 size={18} /></span><h2 id="delete-title">Remove this indicator?</h2><p><b>{deleteKpi.name}</b> and its recorded values will be deleted. This cannot be undone.</p>{removeKpi.isError && <p className="ana-form-error">Could not remove the indicator. Try again.</p>}<div className="ana-modal-actions"><button className="ana-button subtle" onClick={() => setDeleteKpi(null)}>Keep indicator</button><button className="ana-button danger" disabled={removeKpi.isPending} onClick={() => removeKpi.mutate({ id: deleteKpi.id }, { onSuccess: () => { invalidateKpis(); setDeleteKpi(null); } })}>{removeKpi.isPending ? "Removing…" : "Remove indicator"}</button></div></section></div>}
+
+    {reportOpen && <div className="ana-modal-backdrop print-hide" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setReportOpen(false); }}><section className="ana-modal" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">REPORT BUILDER</span><h2 id="report-title">Prepare a filtered report</h2><p>Choose sections from the current program and date scope.</p></div><button className="ana-icon-btn" onClick={() => setReportOpen(false)} aria-label="Close"><X size={17} /></button></div>
+      <div className="ana-form"><label>Report title<input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} maxLength={100} /></label>
+         <div className="ana-report-parts">{Object.entries({ summary: "Program summary", stages: "Founder stage distribution", attendance: "Attendance trend and sessions", engagement: "Founder engagement table", impact: "Impact indicators and business outcomes" }).map(([key, label]) => <label key={key}><input type="checkbox" checked={reportParts[key as keyof typeof reportParts]} onChange={(event) => setReportParts((parts) => ({ ...parts, [key]: event.target.checked }))} /><span>{label}</span></label>)}</div>
+        <div className="ana-report-scope"><b>Included scope</b><span>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"}</span><span>{from ? dateLabel(from) : "Start"} to {to ? dateLabel(to) : "Today"}</span></div>
+        <div className="ana-modal-actions"><button className="ana-button subtle" onClick={() => setReportOpen(false)}>Cancel</button><button className="ana-button primary" onClick={() => { setReportOpen(false); window.setTimeout(() => window.print(), 100); }}><Printer size={14} /> Print / Save PDF</button></div>
+      </div>
+    </section></div>}
+
+    <div className="ana-report-print" aria-hidden="true"><div className="ana-print-title"><span>JUSOOR PROGRAM HUB · IMPACT &amp; PROGRESS</span><h1>{reportTitle || "Program progress report"}</h1><p>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"} · {from ? dateLabel(from) : "Start"} — {to ? dateLabel(to) : "Today"}</p></div>
+      {reportParts.summary && summary && <section><h2>Program summary</h2><div className="ana-print-stats">{metrics.map((metric) => <div key={metric.title}><span>{metric.title}</span><b>{metric.value}</b><small>{metric.hint}</small></div>)}</div><p>Applications: {fmt(summary.applications)} · Accepted: {fmt(summary.acceptedApplications)} · Sessions: {fmt(summary.sessionsInRange)} · Completed support: {fmt(summary.completedSupport)} · Unanswered questions: {fmt(summary.unansweredQuestions)}</p></section>}
+      {reportParts.stages && <section><h2>Founder stage distribution</h2>{stageRows.length ? stageRows.map((row) => <p key={row.stage}>{STAGE_LABELS[row.stage] ?? row.stage}: {fmt(row.count)}</p>) : <p>No stage data recorded.</p>}</section>}
+      {reportParts.attendance && <section><h2>Attendance trend and sessions</h2>{hasAttendanceData ? trendRows.map((row) => <p key={row.period}>{row.period}: {row.present === null ? "No attendance marks recorded" : `${row.present} present · ${row.absent} absent · ${row.excused} excused`}</p>) : <p>No attendance data recorded for this range.</p>}{sessions.map((session) => <p key={session.id}>{dateLabel(session.scheduledDate)} · {session.title}: {session.present} present / {session.attendanceMarks} marked</p>)}</section>}
+      {reportParts.engagement && <section><h2>Founder engagement</h2>{engagementRows.length ? engagementRows.map((person) => <p key={person.businessId}>{person.businessName} · {STAGE_LABELS[person.stage] ?? person.stage} · {person.attendanceRate == null ? "No attendance records" : `${person.attendanceRate.toFixed(1)}% attendance`} · {person.assignmentsSubmitted}/{person.assignmentsAvailable} assignments</p>) : <p>No founder activity data recorded.</p>}</section>}
+      {reportParts.impact && <section><h2>Impact indicators and business outcomes</h2>{!selectedProgram ? <p>Select one program to include its impact indicators.</p> : kpis.length ? kpis.map((kpi) => <div key={kpi.id}><h3>{kpi.name} ({kpi.unit}){kpi.targetValue == null ? "" : ` · Target ${kpi.targetValue}`}</h3>{kpi.values.length ? kpi.values.map((value) => <p key={`${value.businessId}-${value.periodEnd}`}>{value.businessName} · {value.value} {kpi.unit} · period ending {dateLabel(value.periodEnd)}{value.notes ? ` · ${value.notes}` : ""}</p>) : <p>No business outcomes recorded for this indicator.</p>}</div>) : <p>No impact indicators have been defined for this program.</p>}</section>}
+      <small>Generated from recorded Jusoor Program Hub data. Missing records are reported as unavailable, not estimated.</small>
+    </div>
+  </section>;
+}
+
+export default ProgramAnalyticsPage;

@@ -1526,6 +1526,243 @@ export interface Dashboard {
   recentBusinesses: Business[];
 }
 
+export interface AnalyticsProgram {
+  id: number;
+  name: string;
+}
+
+export interface AnalyticsSummary {
+  applications: number;
+  acceptedApplications: number;
+  businesses: number;
+  activeBusinesses: number;
+  sessionsInRange: number;
+  sessionsWithAttendance: number;
+  attendanceMarks: number;
+  present: number;
+  absent: number;
+  excused: number;
+  /** @nullable */
+  attendanceRate: number | null;
+  assignments: number;
+  submissions: number;
+  /** @nullable */
+  assignmentCompletionRate: number | null;
+  questionsAsked: number;
+  unansweredQuestions: number;
+  completedSupport: number;
+  grantsAwarded: number;
+  grantAmount: number;
+}
+
+export interface AttendanceTrendPoint {
+  /** @pattern ^\d{4}-\d{2}$ */
+  period: string;
+  /** @nullable */
+  present: number | null;
+  /** @nullable */
+  absent: number | null;
+  /** @nullable */
+  excused: number | null;
+}
+
+export interface BusinessEngagementMetric {
+  businessId: number;
+  businessName: string;
+  stage: BusinessStage;
+  sessionsAttended: number;
+  sessionsMarked: number;
+  /** @nullable */
+  attendanceRate: number | null;
+  assignmentsSubmitted: number;
+  assignmentsAvailable: number;
+  questionsAsked: number;
+  supportEngagements: number;
+  /** @nullable */
+  lastActivityAt: string | null;
+}
+
+export interface AnalyticsSession {
+  id: number;
+  title: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  scheduledDate: string;
+  status: string;
+  attendanceMarks: number;
+  present: number;
+}
+
+export interface ProgramAnalytics {
+  programs: AnalyticsProgram[];
+  /** @nullable */
+  selectedProgramId: number | null;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  from: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  to: string;
+  summary: AnalyticsSummary;
+  stageCounts: StageCount[];
+  attendanceTrend: AttendanceTrendPoint[];
+  engagement: BusinessEngagementMetric[];
+  sessions: AnalyticsSession[];
+}
+
+export type AttendanceStatus = typeof AttendanceStatus[keyof typeof AttendanceStatus];
+
+
+export const AttendanceStatus = {
+  present: 'present',
+  absent: 'absent',
+  excused: 'excused',
+} as const;
+
+export interface AttendanceRosterEntry {
+  businessId: number;
+  businessName: string;
+  status: AttendanceStatus | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  markedAt: string | null;
+}
+
+export type SessionAttendanceRegisterSession = {
+  id: number;
+  /** @nullable */
+  programId: number | null;
+  title: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  scheduledDate: string;
+};
+
+export interface SessionAttendanceRegister {
+  session: SessionAttendanceRegisterSession;
+  roster: AttendanceRosterEntry[];
+}
+
+export interface SessionAttendanceRecordInput {
+  businessId: number;
+  status: AttendanceStatus | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  notes: string | null;
+}
+
+export interface SessionAttendanceInput {
+  records: SessionAttendanceRecordInput[];
+}
+
+export type ImpactKpiDirection = typeof ImpactKpiDirection[keyof typeof ImpactKpiDirection];
+
+
+export const ImpactKpiDirection = {
+  increase_is_good: 'increase_is_good',
+  decrease_is_good: 'decrease_is_good',
+} as const;
+
+export interface ImpactKpiValue {
+  businessId: number;
+  businessName: string;
+  value: number;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  periodEnd: string;
+  /** @nullable */
+  notes: string | null;
+  recordedAt: string;
+}
+
+export interface ImpactKpi {
+  id: number;
+  programId: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  unit: string;
+  /** @nullable */
+  targetValue: number | null;
+  direction: ImpactKpiDirection;
+  values: ImpactKpiValue[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImpactKpiInput {
+  programId: number;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  unit: string;
+  /** @nullable */
+  targetValue?: number | null;
+  direction: ImpactKpiDirection;
+}
+
+export interface ImpactKpiUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name?: string;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  unit?: string;
+  /** @nullable */
+  targetValue?: number | null;
+  direction?: ImpactKpiDirection;
+}
+
+export interface ImpactKpiValueInput {
+  businessId: number;
+  value: number;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  periodEnd: string;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  notes: string | null;
+}
+
+export interface ImpactKpiValuesInput {
+  values: ImpactKpiValueInput[];
+}
+
+export type GetProgramAnalyticsParams = {
+programId?: number;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+to?: string;
+};
+
+export type ListProgramImpactKpisParams = {
+programId: number;
+};
+
 export type ListBusinessesParams = {
 search?: string;
 stage?: BusinessStage;

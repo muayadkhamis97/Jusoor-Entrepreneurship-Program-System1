@@ -49,13 +49,19 @@ import type {
   Dashboard,
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
+  GetProgramAnalyticsParams,
   GoogleCalendarAuthorizationInput,
   HealthStatus,
+  ImpactKpi,
+  ImpactKpiInput,
+  ImpactKpiUpdate,
+  ImpactKpiValuesInput,
   JudgeDashboard,
   JudgePitch,
   JudgeScorecardInput,
   ListBusinessesParams,
   ListPitchesParams,
+  ListProgramImpactKpisParams,
   ListSessionsParams,
   ListSupportParams,
   MentorBookingFollowUpUpdate,
@@ -74,9 +80,12 @@ import type {
   PitchRecord,
   PitchUpdate,
   Program,
+  ProgramAnalytics,
   ProgramInput,
   ProgramUpdate,
   Session,
+  SessionAttendanceInput,
+  SessionAttendanceRegister,
   SessionInput,
   SessionUpdate,
   StaffInput,
@@ -280,6 +289,680 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
 
 
 
+
+export const getGetProgramAnalyticsUrl = (params?: GetProgramAnalyticsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics?${stringifiedParams}` : `/api/analytics`
+}
+
+/**
+ * @summary Get coordinator-only program analytics
+ */
+export const getProgramAnalytics = async (params?: GetProgramAnalyticsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProgramAnalytics> => {
+
+  return customFetch<ProgramAnalytics>(getGetProgramAnalyticsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProgramAnalyticsQueryKey = (params?: GetProgramAnalyticsParams,) => {
+    return [
+    `/api/analytics`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetProgramAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getProgramAnalytics>>, TError = ErrorType<void>>(params?: GetProgramAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProgramAnalyticsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgramAnalytics>>> = ({ signal }) => getProgramAnalytics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProgramAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProgramAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getProgramAnalytics>>>
+export type GetProgramAnalyticsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get coordinator-only program analytics
+ */
+
+export function useGetProgramAnalytics<TData = Awaited<ReturnType<typeof getProgramAnalytics>>, TError = ErrorType<void>>(
+ params?: GetProgramAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProgramAnalyticsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSessionAttendanceRegisterUrl = (sessionId: number,) => {
+
+
+
+
+  return `/api/analytics/attendance/${sessionId}`
+}
+
+/**
+ * @summary Get a session attendance register
+ */
+export const getSessionAttendanceRegister = async (sessionId: number, options?: Parameters<typeof customFetch>[1]): Promise<SessionAttendanceRegister> => {
+
+  return customFetch<SessionAttendanceRegister>(getGetSessionAttendanceRegisterUrl(sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSessionAttendanceRegisterQueryKey = (sessionId: number,) => {
+    return [
+    `/api/analytics/attendance/${sessionId}`
+    ] as const;
+    }
+
+
+export const getGetSessionAttendanceRegisterQueryOptions = <TData = Awaited<ReturnType<typeof getSessionAttendanceRegister>>, TError = ErrorType<void>>(sessionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSessionAttendanceRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSessionAttendanceRegisterQueryKey(sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSessionAttendanceRegister>>> = ({ signal }) => getSessionAttendanceRegister(sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSessionAttendanceRegister>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSessionAttendanceRegisterQueryResult = NonNullable<Awaited<ReturnType<typeof getSessionAttendanceRegister>>>
+export type GetSessionAttendanceRegisterQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a session attendance register
+ */
+
+export function useGetSessionAttendanceRegister<TData = Awaited<ReturnType<typeof getSessionAttendanceRegister>>, TError = ErrorType<void>>(
+ sessionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSessionAttendanceRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSessionAttendanceRegisterQueryOptions(sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveSessionAttendanceUrl = (sessionId: number,) => {
+
+
+
+
+  return `/api/analytics/attendance/${sessionId}`
+}
+
+/**
+ * @summary Record or clear session attendance for businesses
+ */
+export const saveSessionAttendance = async (sessionId: number,
+    sessionAttendanceInput: SessionAttendanceInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionAttendanceRegister> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SessionAttendanceRegister>(getSaveSessionAttendanceUrl(sessionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sessionAttendanceInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSessionAttendanceMutationKey = () => ['saveSessionAttendance'] as const;
+
+export const getSaveSessionAttendanceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSessionAttendance>>, TError,SaveSessionAttendanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSessionAttendance>>, TError,SaveSessionAttendanceMutationVariables, TContext> => {
+
+const mutationKey = getSaveSessionAttendanceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSessionAttendance>>, SaveSessionAttendanceMutationVariables> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  saveSessionAttendance(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSessionAttendanceMutationResult = NonNullable<Awaited<ReturnType<typeof saveSessionAttendance>>>
+    export type SaveSessionAttendanceMutationBody = BodyType<SessionAttendanceInput>
+    export type SaveSessionAttendanceMutationError = ErrorType<void>
+    export type SaveSessionAttendanceMutationVariables = {sessionId: number;data: BodyType<SessionAttendanceInput>}
+
+    /**
+ * @summary Record or clear session attendance for businesses
+ */
+export const useSaveSessionAttendance = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSessionAttendance>>, TError,SaveSessionAttendanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveSessionAttendance>>,
+        TError,
+        SaveSessionAttendanceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveSessionAttendanceMutationOptions(options));
+    }
+
+export const getListProgramImpactKpisUrl = (params: ListProgramImpactKpisParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/kpis?${stringifiedParams}` : `/api/analytics/kpis`
+}
+
+/**
+ * @summary List impact indicators and latest business values
+ */
+export const listProgramImpactKpis = async (params: ListProgramImpactKpisParams, options?: Parameters<typeof customFetch>[1]): Promise<ImpactKpi[]> => {
+
+  return customFetch<ImpactKpi[]>(getListProgramImpactKpisUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProgramImpactKpisQueryKey = (params?: ListProgramImpactKpisParams,) => {
+    return [
+    `/api/analytics/kpis`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProgramImpactKpisQueryOptions = <TData = Awaited<ReturnType<typeof listProgramImpactKpis>>, TError = ErrorType<void>>(params: ListProgramImpactKpisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramImpactKpis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProgramImpactKpisQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProgramImpactKpis>>> = ({ signal }) => listProgramImpactKpis(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProgramImpactKpis>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProgramImpactKpisQueryResult = NonNullable<Awaited<ReturnType<typeof listProgramImpactKpis>>>
+export type ListProgramImpactKpisQueryError = ErrorType<void>
+
+
+/**
+ * @summary List impact indicators and latest business values
+ */
+
+export function useListProgramImpactKpis<TData = Awaited<ReturnType<typeof listProgramImpactKpis>>, TError = ErrorType<void>>(
+ params: ListProgramImpactKpisParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramImpactKpis>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProgramImpactKpisQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProgramImpactKpiUrl = () => {
+
+
+
+
+  return `/api/analytics/kpis`
+}
+
+/**
+ * @summary Create a customizable impact indicator
+ */
+export const createProgramImpactKpi = async (impactKpiInput: ImpactKpiInput, options?: Parameters<typeof customFetch>[1]): Promise<ImpactKpi> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ImpactKpi>(getCreateProgramImpactKpiUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(impactKpiInput)
+  }
+);}
+
+
+
+
+
+export const getCreateProgramImpactKpiMutationKey = () => ['createProgramImpactKpi'] as const;
+
+export const getCreateProgramImpactKpiMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramImpactKpi>>, TError,CreateProgramImpactKpiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProgramImpactKpi>>, TError,CreateProgramImpactKpiMutationVariables, TContext> => {
+
+const mutationKey = getCreateProgramImpactKpiMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProgramImpactKpi>>, CreateProgramImpactKpiMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createProgramImpactKpi(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProgramImpactKpiMutationResult = NonNullable<Awaited<ReturnType<typeof createProgramImpactKpi>>>
+    export type CreateProgramImpactKpiMutationBody = BodyType<ImpactKpiInput>
+    export type CreateProgramImpactKpiMutationError = ErrorType<void>
+    export type CreateProgramImpactKpiMutationVariables = {data: BodyType<ImpactKpiInput>}
+
+    /**
+ * @summary Create a customizable impact indicator
+ */
+export const useCreateProgramImpactKpi = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramImpactKpi>>, TError,CreateProgramImpactKpiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProgramImpactKpi>>,
+        TError,
+        CreateProgramImpactKpiMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateProgramImpactKpiMutationOptions(options));
+    }
+
+export const getUpdateProgramImpactKpiUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/kpis/${id}`
+}
+
+/**
+ * @summary Update an impact indicator
+ */
+export const updateProgramImpactKpi = async (id: number,
+    impactKpiUpdate: ImpactKpiUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ImpactKpi> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ImpactKpi>(getUpdateProgramImpactKpiUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(impactKpiUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateProgramImpactKpiMutationKey = () => ['updateProgramImpactKpi'] as const;
+
+export const getUpdateProgramImpactKpiMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramImpactKpi>>, TError,UpdateProgramImpactKpiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProgramImpactKpi>>, TError,UpdateProgramImpactKpiMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProgramImpactKpiMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProgramImpactKpi>>, UpdateProgramImpactKpiMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateProgramImpactKpi(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProgramImpactKpiMutationResult = NonNullable<Awaited<ReturnType<typeof updateProgramImpactKpi>>>
+    export type UpdateProgramImpactKpiMutationBody = BodyType<ImpactKpiUpdate>
+    export type UpdateProgramImpactKpiMutationError = ErrorType<void>
+    export type UpdateProgramImpactKpiMutationVariables = {id: number;data: BodyType<ImpactKpiUpdate>}
+
+    /**
+ * @summary Update an impact indicator
+ */
+export const useUpdateProgramImpactKpi = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramImpactKpi>>, TError,UpdateProgramImpactKpiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProgramImpactKpi>>,
+        TError,
+        UpdateProgramImpactKpiMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProgramImpactKpiMutationOptions(options));
+    }
+
+export const getDeleteProgramImpactKpiUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/kpis/${id}`
+}
+
+/**
+ * @summary Delete an impact indicator and its values
+ */
+export const deleteProgramImpactKpi = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteProgramImpactKpiUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteProgramImpactKpiMutationKey = () => ['deleteProgramImpactKpi'] as const;
+
+export const getDeleteProgramImpactKpiMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProgramImpactKpi>>, TError,DeleteProgramImpactKpiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProgramImpactKpi>>, TError,DeleteProgramImpactKpiMutationVariables, TContext> => {
+
+const mutationKey = getDeleteProgramImpactKpiMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProgramImpactKpi>>, DeleteProgramImpactKpiMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteProgramImpactKpi(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProgramImpactKpiMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProgramImpactKpi>>>
+
+    export type DeleteProgramImpactKpiMutationError = ErrorType<void>
+    export type DeleteProgramImpactKpiMutationVariables = {id: number}
+
+    /**
+ * @summary Delete an impact indicator and its values
+ */
+export const useDeleteProgramImpactKpi = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProgramImpactKpi>>, TError,DeleteProgramImpactKpiMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProgramImpactKpi>>,
+        TError,
+        DeleteProgramImpactKpiMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteProgramImpactKpiMutationOptions(options));
+    }
+
+export const getSaveProgramImpactKpiValuesUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/kpis/${id}/values`
+}
+
+/**
+ * @summary Record business outcome values for an impact indicator
+ */
+export const saveProgramImpactKpiValues = async (id: number,
+    impactKpiValuesInput: ImpactKpiValuesInput, options?: Parameters<typeof customFetch>[1]): Promise<ImpactKpi> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ImpactKpi>(getSaveProgramImpactKpiValuesUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(impactKpiValuesInput)
+  }
+);}
+
+
+
+
+
+export const getSaveProgramImpactKpiValuesMutationKey = () => ['saveProgramImpactKpiValues'] as const;
+
+export const getSaveProgramImpactKpiValuesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveProgramImpactKpiValues>>, TError,SaveProgramImpactKpiValuesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveProgramImpactKpiValues>>, TError,SaveProgramImpactKpiValuesMutationVariables, TContext> => {
+
+const mutationKey = getSaveProgramImpactKpiValuesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveProgramImpactKpiValues>>, SaveProgramImpactKpiValuesMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveProgramImpactKpiValues(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveProgramImpactKpiValuesMutationResult = NonNullable<Awaited<ReturnType<typeof saveProgramImpactKpiValues>>>
+    export type SaveProgramImpactKpiValuesMutationBody = BodyType<ImpactKpiValuesInput>
+    export type SaveProgramImpactKpiValuesMutationError = ErrorType<void>
+    export type SaveProgramImpactKpiValuesMutationVariables = {id: number;data: BodyType<ImpactKpiValuesInput>}
+
+    /**
+ * @summary Record business outcome values for an impact indicator
+ */
+export const useSaveProgramImpactKpiValues = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveProgramImpactKpiValues>>, TError,SaveProgramImpactKpiValuesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveProgramImpactKpiValues>>,
+        TError,
+        SaveProgramImpactKpiValuesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveProgramImpactKpiValuesMutationOptions(options));
+    }
 
 export const getListProgramsUrl = () => {
 

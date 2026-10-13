@@ -56,6 +56,191 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Dashboard"
+  /analytics:
+    get:
+      operationId: getProgramAnalytics
+      tags: [dashboard]
+      summary: Get coordinator-only program analytics
+      parameters:
+        - name: programId
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+      responses:
+        "200":
+          description: Program participation, attendance, learning, support, and grant aggregates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgramAnalytics"
+        "403":
+          description: Coordinator access required
+  /analytics/attendance/{sessionId}:
+    get:
+      operationId: getSessionAttendanceRegister
+      tags: [dashboard]
+      summary: Get a session attendance register
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Session roster and recorded attendance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionAttendanceRegister"
+        "404":
+          description: Session not found
+        "403":
+          description: Coordinator access required
+    put:
+      operationId: saveSessionAttendance
+      tags: [dashboard]
+      summary: Record or clear session attendance for businesses
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionAttendanceInput"
+      responses:
+        "200":
+          description: Saved attendance register
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionAttendanceRegister"
+        "400":
+          description: Invalid attendance records
+        "404":
+          description: Session not found
+        "403":
+          description: Coordinator access required
+  /analytics/kpis:
+    get:
+      operationId: listProgramImpactKpis
+      tags: [dashboard]
+      summary: List impact indicators and latest business values
+      parameters:
+        - name: programId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Impact indicators for a program
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImpactKpi"
+        "403":
+          description: Coordinator access required
+    post:
+      operationId: createProgramImpactKpi
+      tags: [dashboard]
+      summary: Create a customizable impact indicator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImpactKpiInput"
+      responses:
+        "201":
+          description: Created impact indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImpactKpi"
+        "400":
+          description: Invalid indicator
+        "409":
+          description: Indicator name already exists in the program
+        "403":
+          description: Coordinator access required
+  /analytics/kpis/{id}:
+    patch:
+      operationId: updateProgramImpactKpi
+      tags: [dashboard]
+      summary: Update an impact indicator
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImpactKpiUpdate"
+      responses:
+        "200":
+          description: Updated impact indicator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImpactKpi"
+        "404":
+          description: Indicator not found
+        "409":
+          description: Indicator name already exists in the program
+        "403":
+          description: Coordinator access required
+    delete:
+      operationId: deleteProgramImpactKpi
+      tags: [dashboard]
+      summary: Delete an impact indicator and its values
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Indicator deleted
+        "404":
+          description: Indicator not found
+        "403":
+          description: Coordinator access required
+  /analytics/kpis/{id}/values:
+    put:
+      operationId: saveProgramImpactKpiValues
+      tags: [dashboard]
+      summary: Record business outcome values for an impact indicator
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImpactKpiValuesInput"
+      responses:
+        "200":
+          description: Updated impact indicator values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImpactKpi"
+        "400":
+          description: Invalid values
+        "404":
+          description: Indicator or business not found in the program
+        "403":
+          description: Coordinator access required
   /programs:
     get:
       operationId: listPrograms
@@ -2381,6 +2566,194 @@ components:
           items:
             $ref: "#/components/schemas/Business"
       required: [programs, applications, incubatorBusinesses, supportInProgress, grantsAwarded, totalGrantAmount, stageCounts, upcomingSessions, recentBusinesses]
+    AnalyticsProgram:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+      required: [id, name]
+    AnalyticsSummary:
+      type: object
+      properties:
+        applications: { type: integer }
+        acceptedApplications: { type: integer }
+        businesses: { type: integer }
+        activeBusinesses: { type: integer }
+        sessionsInRange: { type: integer }
+        sessionsWithAttendance: { type: integer }
+        attendanceMarks: { type: integer }
+        present: { type: integer }
+        absent: { type: integer }
+        excused: { type: integer }
+        attendanceRate: { type: ["number", "null"] }
+        assignments: { type: integer }
+        submissions: { type: integer }
+        assignmentCompletionRate: { type: ["number", "null"] }
+        questionsAsked: { type: integer }
+        unansweredQuestions: { type: integer }
+        completedSupport: { type: integer }
+        grantsAwarded: { type: integer }
+        grantAmount: { type: number }
+      required: [applications, acceptedApplications, businesses, activeBusinesses, sessionsInRange, sessionsWithAttendance, attendanceMarks, present, absent, excused, attendanceRate, assignments, submissions, assignmentCompletionRate, questionsAsked, unansweredQuestions, completedSupport, grantsAwarded, grantAmount]
+    AttendanceTrendPoint:
+      type: object
+      properties:
+        period: { type: string, pattern: "^\\d{4}-\\d{2}$" }
+        present: { type: ["integer", "null"] }
+        absent: { type: ["integer", "null"] }
+        excused: { type: ["integer", "null"] }
+      required: [period, present, absent, excused]
+    BusinessEngagementMetric:
+      type: object
+      properties:
+        businessId: { type: integer }
+        businessName: { type: string }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+        sessionsAttended: { type: integer }
+        sessionsMarked: { type: integer }
+        attendanceRate: { type: ["number", "null"] }
+        assignmentsSubmitted: { type: integer }
+        assignmentsAvailable: { type: integer }
+        questionsAsked: { type: integer }
+        supportEngagements: { type: integer }
+        lastActivityAt: { type: ["string", "null"], format: date-time }
+      required: [businessId, businessName, stage, sessionsAttended, sessionsMarked, attendanceRate, assignmentsSubmitted, assignmentsAvailable, questionsAsked, supportEngagements, lastActivityAt]
+    AnalyticsSession:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        status: { type: string }
+        attendanceMarks: { type: integer }
+        present: { type: integer }
+      required: [id, title, scheduledDate, status, attendanceMarks, present]
+    ProgramAnalytics:
+      type: object
+      properties:
+        programs:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsProgram" }
+        selectedProgramId: { type: ["integer", "null"] }
+        from: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        to: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        summary: { $ref: "#/components/schemas/AnalyticsSummary" }
+        stageCounts:
+          type: array
+          items: { $ref: "#/components/schemas/StageCount" }
+        attendanceTrend:
+          type: array
+          items: { $ref: "#/components/schemas/AttendanceTrendPoint" }
+        engagement:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessEngagementMetric" }
+        sessions:
+          type: array
+          items: { $ref: "#/components/schemas/AnalyticsSession" }
+      required: [programs, selectedProgramId, from, to, summary, stageCounts, attendanceTrend, engagement, sessions]
+    AttendanceStatus:
+      type: string
+      enum: [present, absent, excused]
+    AttendanceRosterEntry:
+      type: object
+      properties:
+        businessId: { type: integer }
+        businessName: { type: string }
+        status: { oneOf: [{ $ref: "#/components/schemas/AttendanceStatus" }, { type: "null" }] }
+        notes: { type: ["string", "null"] }
+        markedAt: { type: ["string", "null"], format: date-time }
+      required: [businessId, businessName, status, notes, markedAt]
+    SessionAttendanceRegister:
+      type: object
+      properties:
+        session:
+          type: object
+          properties:
+            id: { type: integer }
+            programId: { type: ["integer", "null"] }
+            title: { type: string }
+            scheduledDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+          required: [id, programId, title, scheduledDate]
+        roster:
+          type: array
+          items: { $ref: "#/components/schemas/AttendanceRosterEntry" }
+      required: [session, roster]
+    SessionAttendanceRecordInput:
+      type: object
+      properties:
+        businessId: { type: integer }
+        status: { oneOf: [{ $ref: "#/components/schemas/AttendanceStatus" }, { type: "null" }] }
+        notes: { type: ["string", "null"], maxLength: 1000 }
+      required: [businessId, status, notes]
+    SessionAttendanceInput:
+      type: object
+      properties:
+        records:
+          type: array
+          items: { $ref: "#/components/schemas/SessionAttendanceRecordInput" }
+      required: [records]
+    ImpactKpiDirection:
+      type: string
+      enum: [increase_is_good, decrease_is_good]
+    ImpactKpiValue:
+      type: object
+      properties:
+        businessId: { type: integer }
+        businessName: { type: string }
+        value: { type: number }
+        periodEnd: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        notes: { type: ["string", "null"] }
+        recordedAt: { type: string, format: date-time }
+      required: [businessId, businessName, value, periodEnd, notes, recordedAt]
+    ImpactKpi:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        unit: { type: string }
+        targetValue: { type: ["number", "null"] }
+        direction: { $ref: "#/components/schemas/ImpactKpiDirection" }
+        values:
+          type: array
+          items: { $ref: "#/components/schemas/ImpactKpiValue" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, programId, name, unit, targetValue, direction, values, createdAt, updatedAt]
+    ImpactKpiInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: ["string", "null"], maxLength: 1000 }
+        unit: { type: string, minLength: 1, maxLength: 40 }
+        targetValue: { type: ["number", "null"] }
+        direction: { $ref: "#/components/schemas/ImpactKpiDirection" }
+      required: [programId, name, unit, direction]
+    ImpactKpiUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: ["string", "null"], maxLength: 1000 }
+        unit: { type: string, minLength: 1, maxLength: 40 }
+        targetValue: { type: ["number", "null"] }
+        direction: { $ref: "#/components/schemas/ImpactKpiDirection" }
+    ImpactKpiValueInput:
+      type: object
+      properties:
+        businessId: { type: integer }
+        value: { type: number }
+        periodEnd: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        notes: { type: ["string", "null"], maxLength: 1000 }
+      required: [businessId, value, periodEnd, notes]
+    ImpactKpiValuesInput:
+      type: object
+      properties:
+        values:
+          type: array
+          items: { $ref: "#/components/schemas/ImpactKpiValueInput" }
+      required: [values]
     StageCount:
       type: object
       properties:

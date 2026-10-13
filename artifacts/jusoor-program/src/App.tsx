@@ -30,7 +30,7 @@ import type {
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
-  Activity, ArrowRight, ArrowUpRight, BookOpen, BriefcaseBusiness,
+  Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness,
   CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
   FileText, Filter, Handshake, LayoutDashboard, MapPin,
   Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X,
@@ -43,6 +43,7 @@ import { RoleAccessPage } from './role-access';
 import { SessionCalendar } from './session-calendar';
 import { CommunicationsPage } from './communications-surfaces';
 import { SessionRecordingPlayer } from './session-recording-player';
+import { ProgramAnalyticsPage } from './analytics-surfaces';
 import { trackEvent } from './lib/analytics';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
@@ -128,6 +129,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
     { href: '/programs', label: 'Programs', icon: Activity },
+    ...(staff.role === 'coordinator' ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }] : []),
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     ...(staff.role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
     { href: '/support', label: 'Support', icon: Handshake },
@@ -777,6 +779,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/" component={Overview} />
     <Route path="/businesses" component={BusinessesPage} />
     <Route path="/programs" component={ProgramsPage} />
+    <Route path="/analytics" component={staff.role === 'coordinator' ? ProgramAnalyticsPage : NotFoundPage} />
     <Route path="/courses" component={CourseManagementPage} />
     <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />

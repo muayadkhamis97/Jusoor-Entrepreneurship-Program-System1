@@ -74,6 +74,332 @@ export const GetDashboardResponse = zod.object({
 
 
 /**
+ * @summary Get coordinator-only program analytics
+ */
+export const getProgramAnalyticsQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramAnalyticsQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetProgramAnalyticsQueryParams = zod.object({
+  "programId": zod.coerce.number().int().optional(),
+  "from": zod.coerce.string().regex(getProgramAnalyticsQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(getProgramAnalyticsQueryToRegExp).optional()
+})
+
+export const getProgramAnalyticsResponseFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramAnalyticsResponseToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramAnalyticsResponseAttendanceTrendItemPeriodRegExp = new RegExp('^\\d{4}-\\d{2}$');
+export const getProgramAnalyticsResponseSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetProgramAnalyticsResponse = zod.object({
+  "programs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "selectedProgramId": zod.number().int().nullable(),
+  "from": zod.string().regex(getProgramAnalyticsResponseFromRegExp),
+  "to": zod.string().regex(getProgramAnalyticsResponseToRegExp),
+  "summary": zod.object({
+  "applications": zod.number().int(),
+  "acceptedApplications": zod.number().int(),
+  "businesses": zod.number().int(),
+  "activeBusinesses": zod.number().int(),
+  "sessionsInRange": zod.number().int(),
+  "sessionsWithAttendance": zod.number().int(),
+  "attendanceMarks": zod.number().int(),
+  "present": zod.number().int(),
+  "absent": zod.number().int(),
+  "excused": zod.number().int(),
+  "attendanceRate": zod.number().nullable(),
+  "assignments": zod.number().int(),
+  "submissions": zod.number().int(),
+  "assignmentCompletionRate": zod.number().nullable(),
+  "questionsAsked": zod.number().int(),
+  "unansweredQuestions": zod.number().int(),
+  "completedSupport": zod.number().int(),
+  "grantsAwarded": zod.number().int(),
+  "grantAmount": zod.number()
+}),
+  "stageCounts": zod.array(zod.object({
+  "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
+  "count": zod.number().int()
+})),
+  "attendanceTrend": zod.array(zod.object({
+  "period": zod.string().regex(getProgramAnalyticsResponseAttendanceTrendItemPeriodRegExp),
+  "present": zod.number().int().nullable(),
+  "absent": zod.number().int().nullable(),
+  "excused": zod.number().int().nullable()
+})),
+  "engagement": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
+  "sessionsAttended": zod.number().int(),
+  "sessionsMarked": zod.number().int(),
+  "attendanceRate": zod.number().nullable(),
+  "assignmentsSubmitted": zod.number().int(),
+  "assignmentsAvailable": zod.number().int(),
+  "questionsAsked": zod.number().int(),
+  "supportEngagements": zod.number().int(),
+  "lastActivityAt": zod.coerce.date().nullable()
+})),
+  "sessions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(getProgramAnalyticsResponseSessionsItemScheduledDateRegExp),
+  "status": zod.string(),
+  "attendanceMarks": zod.number().int(),
+  "present": zod.number().int()
+}))
+})
+
+
+/**
+ * @summary Get a session attendance register
+ */
+export const GetSessionAttendanceRegisterParams = zod.object({
+  "sessionId": zod.coerce.number().int()
+})
+
+export const getSessionAttendanceRegisterResponseSessionScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetSessionAttendanceRegisterResponse = zod.object({
+  "session": zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullable(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(getSessionAttendanceRegisterResponseSessionScheduledDateRegExp)
+}),
+  "roster": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
+  "notes": zod.string().nullable(),
+  "markedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Record or clear session attendance for businesses
+ */
+export const SaveSessionAttendanceParams = zod.object({
+  "sessionId": zod.coerce.number().int()
+})
+
+export const saveSessionAttendanceBodyRecordsItemNotesMax = 1000;
+
+
+
+export const SaveSessionAttendanceBody = zod.object({
+  "records": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
+  "notes": zod.string().max(saveSessionAttendanceBodyRecordsItemNotesMax).nullable()
+}))
+})
+
+export const saveSessionAttendanceResponseSessionScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const SaveSessionAttendanceResponse = zod.object({
+  "session": zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullable(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(saveSessionAttendanceResponseSessionScheduledDateRegExp)
+}),
+  "roster": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
+  "notes": zod.string().nullable(),
+  "markedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary List impact indicators and latest business values
+ */
+export const ListProgramImpactKpisQueryParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const listProgramImpactKpisResponseValuesItemPeriodEndRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListProgramImpactKpisResponseItem = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "unit": zod.string(),
+  "targetValue": zod.number().nullable(),
+  "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
+  "values": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "value": zod.number(),
+  "periodEnd": zod.string().regex(listProgramImpactKpisResponseValuesItemPeriodEndRegExp),
+  "notes": zod.string().nullable(),
+  "recordedAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProgramImpactKpisResponse = zod.array(ListProgramImpactKpisResponseItem)
+
+
+/**
+ * @summary Create a customizable impact indicator
+ */
+export const createProgramImpactKpiBodyNameMax = 120;
+
+export const createProgramImpactKpiBodyDescriptionMax = 1000;
+
+export const createProgramImpactKpiBodyUnitMax = 40;
+
+
+
+export const CreateProgramImpactKpiBody = zod.object({
+  "programId": zod.number().int(),
+  "name": zod.string().min(1).max(createProgramImpactKpiBodyNameMax),
+  "description": zod.string().max(createProgramImpactKpiBodyDescriptionMax).nullish(),
+  "unit": zod.string().min(1).max(createProgramImpactKpiBodyUnitMax),
+  "targetValue": zod.number().nullish(),
+  "direction": zod.enum(['increase_is_good', 'decrease_is_good'])
+})
+
+export const createProgramImpactKpiResponseValuesItemPeriodEndRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateProgramImpactKpiResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "unit": zod.string(),
+  "targetValue": zod.number().nullable(),
+  "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
+  "values": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "value": zod.number(),
+  "periodEnd": zod.string().regex(createProgramImpactKpiResponseValuesItemPeriodEndRegExp),
+  "notes": zod.string().nullable(),
+  "recordedAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an impact indicator
+ */
+export const UpdateProgramImpactKpiParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateProgramImpactKpiBodyNameMax = 120;
+
+export const updateProgramImpactKpiBodyDescriptionMax = 1000;
+
+export const updateProgramImpactKpiBodyUnitMax = 40;
+
+
+
+export const UpdateProgramImpactKpiBody = zod.object({
+  "name": zod.string().min(1).max(updateProgramImpactKpiBodyNameMax).optional(),
+  "description": zod.string().max(updateProgramImpactKpiBodyDescriptionMax).nullish(),
+  "unit": zod.string().min(1).max(updateProgramImpactKpiBodyUnitMax).optional(),
+  "targetValue": zod.number().nullish(),
+  "direction": zod.enum(['increase_is_good', 'decrease_is_good']).optional()
+})
+
+export const updateProgramImpactKpiResponseValuesItemPeriodEndRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpdateProgramImpactKpiResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "unit": zod.string(),
+  "targetValue": zod.number().nullable(),
+  "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
+  "values": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "value": zod.number(),
+  "periodEnd": zod.string().regex(updateProgramImpactKpiResponseValuesItemPeriodEndRegExp),
+  "notes": zod.string().nullable(),
+  "recordedAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an impact indicator and its values
+ */
+export const DeleteProgramImpactKpiParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteProgramImpactKpiResponse = zod.void()
+
+
+/**
+ * @summary Record business outcome values for an impact indicator
+ */
+export const SaveProgramImpactKpiValuesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const saveProgramImpactKpiValuesBodyValuesItemPeriodEndRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const saveProgramImpactKpiValuesBodyValuesItemNotesMax = 1000;
+
+
+
+export const SaveProgramImpactKpiValuesBody = zod.object({
+  "values": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "value": zod.number(),
+  "periodEnd": zod.string().regex(saveProgramImpactKpiValuesBodyValuesItemPeriodEndRegExp),
+  "notes": zod.string().max(saveProgramImpactKpiValuesBodyValuesItemNotesMax).nullable()
+}))
+})
+
+export const saveProgramImpactKpiValuesResponseValuesItemPeriodEndRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const SaveProgramImpactKpiValuesResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "unit": zod.string(),
+  "targetValue": zod.number().nullable(),
+  "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
+  "values": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "value": zod.number(),
+  "periodEnd": zod.string().regex(saveProgramImpactKpiValuesResponseValuesItemPeriodEndRegExp),
+  "notes": zod.string().nullable(),
+  "recordedAt": zod.coerce.date()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List program projects
  */
 export const listProgramsResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');

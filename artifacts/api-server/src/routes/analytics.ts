@@ -1,0 +1,677 @@
+import { Router, type IRouter } from "express";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lte,
+} from "drizzle-orm";
+import {
+  CreateProgramImpactKpiBody,
+  CreateProgramImpactKpiResponse,
+  DeleteProgramImpactKpiParams,
+  DeleteProgramImpactKpiResponse,
+  GetProgramAnalyticsQueryParams,
+  GetProgramAnalyticsResponse,
+  GetSessionAttendanceRegisterParams,
+  GetSessionAttendanceRegisterResponse,
+  ImpactKpiDirection,
+  ListProgramImpactKpisQueryParams,
+  ListProgramImpactKpisResponse,
+  SaveProgramImpactKpiValuesBody,
+  SaveProgramImpactKpiValuesParams,
+  SaveProgramImpactKpiValuesResponse,
+  SaveSessionAttendanceBody,
+  SaveSessionAttendanceParams,
+  SaveSessionAttendanceResponse,
+  UpdateProgramImpactKpiBody,
+  UpdateProgramImpactKpiParams,
+  UpdateProgramImpactKpiResponse,
+} from "@workspace/api-zod";
+import {
+  applicationsTable,
+  businessesTable,
+  db,
+  impactKpiValuesTable,
+  impactKpisTable,
+  pitchesTable,
+  programsTable,
+  sessionAttendanceTable,
+  sessionsTable,
+  supportTable,
+  trainingAssignmentsTable,
+  trainingQuestionsTable,
+  trainingSubmissionsTable,
+} from "@workspace/db";
+import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
+
+const router: IRouter = Router();
+router.use(requireCoordinator);
+
+function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function timestampStart(date: string): Date {
+  return new Date(`${date}T00:00:00.000Z`);
+}
+
+function timestampEnd(date: string): Date {
+  return new Date(`${date}T23:59:59.999Z`);
+}
+
+function dateOnly(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+async function getAttendanceRegister(sessionId: number) {
+  const [session] = await db.select({
+    id: sessionsTable.id,
+    programId: sessionsTable.programId,
+    title: sessionsTable.title,
+    scheduledDate: sessionsTable.scheduledDate,
+  }).from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
+  if (!session) return null;
+
+  const businesses = session.programId === null
+    ? []
+    : await db.select({
+      id: businessesTable.id,
+      businessName: businessesTable.businessName,
+    }).from(businessesTable)
+      .where(eq(businessesTable.programId, session.programId))
+      .orderBy(asc(businessesTable.businessName));
+  const records = await db.select({
+    businessId: sessionAttendanceTable.businessId,
+    status: sessionAttendanceTable.status,
+    notes: sessionAttendanceTable.notes,
+    markedAt: sessionAttendanceTable.markedAt,
+  }).from(sessionAttendanceTable)
+    .where(eq(sessionAttendanceTable.sessionId, sessionId));
+  const byBusiness = new Map(records.map((record) => [record.businessId, record]));
+
+  return {
+    session,
+    roster: businesses.map((business) => {
+      const record = byBusiness.get(business.id);
+      return {
+        businessId: business.id,
+        businessName: business.businessName,
+        status: record?.status ?? null,
+        notes: record?.notes ?? null,
+        markedAt: record?.markedAt ?? null,
+      };
+    }),
+  };
+}
+
+async function getImpactKpis(programId: number) {
+  const kpis = await db.select().from(impactKpisTable)
+    .where(eq(impactKpisTable.programId, programId))
+    .orderBy(asc(impactKpisTable.name));
+  if (kpis.length === 0) return [];
+
+  const values = await db.select({
+    kpiId: impactKpiValuesTable.kpiId,
+    businessId: impactKpiValuesTable.businessId,
+    businessName: businessesTable.businessName,
+    value: impactKpiValuesTable.value,
+    periodEnd: impactKpiValuesTable.periodEnd,
+    notes: impactKpiValuesTable.notes,
+    recordedAt: impactKpiValuesTable.recordedAt,
+  }).from(impactKpiValuesTable)
+    .innerJoin(businessesTable, eq(impactKpiValuesTable.businessId, businessesTable.id))
+    .where(inArray(impactKpiValuesTable.kpiId, kpis.map((kpi) => kpi.id)))
+    .orderBy(asc(impactKpiValuesTable.periodEnd), asc(impactKpiValuesTable.recordedAt));
+  const valuesByKpi = new Map<number, typeof values>();
+  for (const value of values) {
+    const current = valuesByKpi.get(value.kpiId) ?? [];
+    current.push(value);
+    valuesByKpi.set(value.kpiId, current);
+  }
+
+  return kpis.map((kpi) => ({
+    ...kpi,
+    values: (valuesByKpi.get(kpi.id) ?? []).map(({ kpiId: _kpiId, ...value }) => value),
+  }));
+}
+
+router.get("/analytics", async (req, res): Promise<void> => {
+  const parsed = GetProgramAnalyticsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const today = dateOnly(new Date());
+  const from = parsed.data.from ?? dateOnly(addDays(timestampStart(today), -89));
+  const to = parsed.data.to ?? today;
+  if (!isCalendarDate(from) || !isCalendarDate(to) || from > to) {
+    res.status(400).json({ error: "Choose a valid date range." });
+    return;
+  }
+
+  const programs = await db.select({ id: programsTable.id, name: programsTable.name })
+    .from(programsTable).orderBy(asc(programsTable.name));
+  if (parsed.data.programId !== undefined && !programs.some(({ id }) => id === parsed.data.programId)) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+
+  const programFilter = parsed.data.programId === undefined
+    ? undefined
+    : eq(businessesTable.programId, parsed.data.programId);
+  const applicationProgramFilter = parsed.data.programId === undefined
+    ? undefined
+    : eq(applicationsTable.programId, parsed.data.programId);
+  const sessionProgramFilter = parsed.data.programId === undefined
+    ? undefined
+    : eq(sessionsTable.programId, parsed.data.programId);
+  const businessRows = await db.select({
+    id: businessesTable.id,
+    businessName: businessesTable.businessName,
+    stage: businessesTable.stage,
+  }).from(businessesTable).where(programFilter).orderBy(asc(businessesTable.businessName));
+  const businessIds = businessRows.map(({ id }) => id);
+
+  const [applications, sessions, assignments, questions, pitches] = await Promise.all([
+    db.select({ status: applicationsTable.status }).from(applicationsTable).where(and(
+      applicationProgramFilter,
+      gte(applicationsTable.createdAt, timestampStart(from)),
+      lte(applicationsTable.createdAt, timestampEnd(to)),
+    )),
+    db.select({
+      id: sessionsTable.id,
+      title: sessionsTable.title,
+      scheduledDate: sessionsTable.scheduledDate,
+      status: sessionsTable.status,
+    }).from(sessionsTable).where(and(
+      sessionProgramFilter,
+      gte(sessionsTable.scheduledDate, from),
+      lte(sessionsTable.scheduledDate, to),
+    )).orderBy(asc(sessionsTable.scheduledDate), asc(sessionsTable.startTime)),
+    parsed.data.programId === undefined
+      ? db.select({
+        id: trainingAssignmentsTable.id,
+        programId: trainingAssignmentsTable.programId,
+      }).from(trainingAssignmentsTable)
+      : db.select({
+        id: trainingAssignmentsTable.id,
+        programId: trainingAssignmentsTable.programId,
+      }).from(trainingAssignmentsTable)
+        .where(eq(trainingAssignmentsTable.programId, parsed.data.programId)),
+    parsed.data.programId === undefined
+      ? db.select({
+        businessId: trainingQuestionsTable.businessId,
+        reply: trainingQuestionsTable.reply,
+        createdAt: trainingQuestionsTable.createdAt,
+      }).from(trainingQuestionsTable).where(and(
+        gte(trainingQuestionsTable.createdAt, timestampStart(from)),
+        lte(trainingQuestionsTable.createdAt, timestampEnd(to)),
+      ))
+      : db.select({
+        businessId: trainingQuestionsTable.businessId,
+        reply: trainingQuestionsTable.reply,
+        createdAt: trainingQuestionsTable.createdAt,
+      }).from(trainingQuestionsTable).where(and(
+        eq(trainingQuestionsTable.programId, parsed.data.programId),
+        gte(trainingQuestionsTable.createdAt, timestampStart(from)),
+        lte(trainingQuestionsTable.createdAt, timestampEnd(to)),
+      )),
+    parsed.data.programId === undefined
+      ? db.select({
+        grantDecision: pitchesTable.grantDecision,
+        grantAmount: pitchesTable.grantAmount,
+        eventDate: pitchesTable.eventDate,
+      }).from(pitchesTable)
+        .innerJoin(businessesTable, eq(pitchesTable.businessId, businessesTable.id))
+        .where(and(
+          gte(pitchesTable.eventDate, from),
+          lte(pitchesTable.eventDate, to),
+        ))
+      : db.select({
+        grantDecision: pitchesTable.grantDecision,
+        grantAmount: pitchesTable.grantAmount,
+        eventDate: pitchesTable.eventDate,
+      }).from(pitchesTable)
+        .innerJoin(businessesTable, eq(pitchesTable.businessId, businessesTable.id))
+        .where(and(
+          eq(businessesTable.programId, parsed.data.programId),
+          gte(pitchesTable.eventDate, from),
+          lte(pitchesTable.eventDate, to),
+        )),
+  ]);
+
+  const sessionIds = sessions.map(({ id }) => id);
+  const assignmentIds = assignments.map(({ id }) => id);
+  const [attendanceRows, submissionRows, supportRows] = await Promise.all([
+    sessionIds.length
+      ? db.select({
+        sessionId: sessionAttendanceTable.sessionId,
+        businessId: sessionAttendanceTable.businessId,
+        status: sessionAttendanceTable.status,
+        markedAt: sessionAttendanceTable.markedAt,
+        scheduledDate: sessionsTable.scheduledDate,
+      }).from(sessionAttendanceTable)
+        .innerJoin(sessionsTable, eq(sessionAttendanceTable.sessionId, sessionsTable.id))
+        .where(inArray(sessionAttendanceTable.sessionId, sessionIds))
+      : Promise.resolve([]),
+    assignmentIds.length
+      ? db.select({
+        businessId: trainingSubmissionsTable.businessId,
+        assignmentId: trainingSubmissionsTable.assignmentId,
+        submittedAt: trainingSubmissionsTable.submittedAt,
+      }).from(trainingSubmissionsTable)
+        .innerJoin(trainingAssignmentsTable, eq(trainingSubmissionsTable.assignmentId, trainingAssignmentsTable.id))
+        .where(and(
+          inArray(trainingSubmissionsTable.assignmentId, assignmentIds),
+          gte(trainingSubmissionsTable.submittedAt, timestampStart(from)),
+          lte(trainingSubmissionsTable.submittedAt, timestampEnd(to)),
+        ))
+      : Promise.resolve([]),
+    businessIds.length
+      ? db.select({
+        businessId: supportTable.businessId,
+        status: supportTable.status,
+        createdAt: supportTable.createdAt,
+      }).from(supportTable)
+        .where(and(
+          inArray(supportTable.businessId, businessIds),
+          gte(supportTable.createdAt, timestampStart(from)),
+          lte(supportTable.createdAt, timestampEnd(to)),
+        ))
+      : Promise.resolve([]),
+  ]);
+
+  const stageCountsMap = new Map<string, number>();
+  for (const business of businessRows) {
+    stageCountsMap.set(business.stage, (stageCountsMap.get(business.stage) ?? 0) + 1);
+  }
+  const attendanceCounts = { present: 0, absent: 0, excused: 0 };
+  const attendanceBySession = new Map<number, { marks: number; present: number }>();
+  const attendanceTrendMap = new Map<string, { present: number; absent: number; excused: number }>();
+  const engagementMap = new Map<number, {
+    sessionsAttended: number;
+    sessionsMarked: number;
+    assignmentsSubmitted: number;
+    questionsAsked: number;
+    supportEngagements: number;
+    activityDates: Date[];
+  }>();
+  const ensureEngagement = (businessId: number) => {
+    const current = engagementMap.get(businessId) ?? {
+      sessionsAttended: 0,
+      sessionsMarked: 0,
+      assignmentsSubmitted: 0,
+      questionsAsked: 0,
+      supportEngagements: 0,
+      activityDates: [],
+    };
+    engagementMap.set(businessId, current);
+    return current;
+  };
+  for (const row of attendanceRows) {
+    if (row.status === "present" || row.status === "absent" || row.status === "excused") {
+      attendanceCounts[row.status] += 1;
+    }
+    const sessionCount = attendanceBySession.get(row.sessionId) ?? { marks: 0, present: 0 };
+    sessionCount.marks += 1;
+    if (row.status === "present") sessionCount.present += 1;
+    attendanceBySession.set(row.sessionId, sessionCount);
+    const month = row.scheduledDate.slice(0, 7);
+    const trend = attendanceTrendMap.get(month) ?? { present: 0, absent: 0, excused: 0 };
+    if (row.status === "present" || row.status === "absent" || row.status === "excused") {
+      trend[row.status] += 1;
+      attendanceTrendMap.set(month, trend);
+    }
+    const engagement = ensureEngagement(row.businessId);
+    engagement.sessionsMarked += 1;
+    if (row.status === "present") engagement.sessionsAttended += 1;
+    engagement.activityDates.push(row.markedAt);
+  }
+  for (const row of submissionRows) {
+    const engagement = ensureEngagement(row.businessId);
+    engagement.assignmentsSubmitted += 1;
+    engagement.activityDates.push(row.submittedAt);
+  }
+  for (const row of questions) {
+    const engagement = ensureEngagement(row.businessId);
+    engagement.questionsAsked += 1;
+    engagement.activityDates.push(row.createdAt);
+  }
+  for (const row of supportRows) {
+    const engagement = ensureEngagement(row.businessId);
+    engagement.supportEngagements += 1;
+    engagement.activityDates.push(row.createdAt);
+  }
+
+  const awardedPitches = pitches.filter(({ grantDecision }) => grantDecision === "awarded");
+  const assignmentSubmissions = submissionRows.length;
+  const possibleSubmissions = assignments.length * businessRows.length;
+  const markedCount = attendanceCounts.present + attendanceCounts.absent + attendanceCounts.excused;
+  const stageCounts = [...stageCountsMap.entries()].map(([stage, count]) => ({ stage, count }));
+  const firstMonth = new Date(`${from.slice(0, 7)}-01T00:00:00.000Z`);
+  const finalMonth = to.slice(0, 7);
+  const attendancePeriods: string[] = [];
+  for (const cursor = firstMonth; dateOnly(cursor).slice(0, 7) <= finalMonth; cursor.setUTCMonth(cursor.getUTCMonth() + 1)) {
+    attendancePeriods.push(dateOnly(cursor).slice(0, 7));
+  }
+  const attendanceTrend = attendancePeriods.map((period) => {
+    const values = attendanceTrendMap.get(period);
+    return values
+      ? { period, ...values }
+      : { period, present: null, absent: null, excused: null };
+  });
+  const sessionCountsById = attendanceBySession;
+  const engagement = businessRows.map((business) => {
+    const metrics = engagementMap.get(business.id);
+    const latestActivity = metrics?.activityDates.reduce<Date | null>(
+      (latest, candidate) => !latest || candidate > latest ? candidate : latest,
+      null,
+    ) ?? null;
+    return {
+      businessId: business.id,
+      businessName: business.businessName,
+      stage: business.stage,
+      sessionsAttended: metrics?.sessionsAttended ?? 0,
+      sessionsMarked: metrics?.sessionsMarked ?? 0,
+      attendanceRate: metrics && metrics.sessionsMarked > 0
+        ? Math.round(metrics.sessionsAttended / metrics.sessionsMarked * 1000) / 10
+        : null,
+      assignmentsSubmitted: metrics?.assignmentsSubmitted ?? 0,
+      assignmentsAvailable: assignments.length,
+      questionsAsked: metrics?.questionsAsked ?? 0,
+      supportEngagements: metrics?.supportEngagements ?? 0,
+      lastActivityAt: latestActivity,
+    };
+  }).sort((left, right) =>
+    (right.lastActivityAt?.getTime() ?? 0) - (left.lastActivityAt?.getTime() ?? 0),
+  );
+  const parsedOutput = {
+    programs,
+    selectedProgramId: parsed.data.programId ?? null,
+    from,
+    to,
+    summary: {
+      applications: applications.length,
+      acceptedApplications: applications.filter(({ status }) => status === "accepted").length,
+      businesses: businessRows.length,
+      activeBusinesses: businessRows.filter(({ stage }) =>
+        ["incubator", "pitch", "demo_day", "grant_awarded"].includes(stage),
+      ).length,
+      sessionsInRange: sessions.length,
+      sessionsWithAttendance: attendanceBySession.size,
+      attendanceMarks: markedCount,
+      ...attendanceCounts,
+      attendanceRate: markedCount > 0
+        ? Math.round(attendanceCounts.present / markedCount * 1000) / 10
+        : null,
+      assignments: assignments.length,
+      submissions: assignmentSubmissions,
+      assignmentCompletionRate: possibleSubmissions > 0
+        ? Math.round(Math.min(assignmentSubmissions / possibleSubmissions, 1) * 1000) / 10
+        : null,
+      questionsAsked: questions.length,
+      unansweredQuestions: questions.filter(({ reply }) => reply === null).length,
+      completedSupport: supportRows.filter(({ status }) => status === "completed").length,
+      grantsAwarded: awardedPitches.length,
+      grantAmount: awardedPitches.reduce((total, { grantAmount }) => total + Number(grantAmount ?? 0), 0),
+    },
+    stageCounts,
+    attendanceTrend,
+    engagement,
+    sessions: sessions.map((session) => {
+      const counts = sessionCountsById.get(session.id) ?? { marks: 0, present: 0 };
+      return {
+        id: session.id,
+        title: session.title,
+        scheduledDate: session.scheduledDate,
+        status: session.status,
+        attendanceMarks: counts.marks,
+        present: counts.present,
+      };
+    }),
+  };
+  res.json(GetProgramAnalyticsResponse.parse(parsedOutput));
+});
+
+router.get("/analytics/attendance/:sessionId", async (req, res): Promise<void> => {
+  const params = GetSessionAttendanceRegisterParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const register = await getAttendanceRegister(params.data.sessionId);
+  if (!register) {
+    res.status(404).json({ error: "Session not found." });
+    return;
+  }
+  res.json(GetSessionAttendanceRegisterResponse.parse(register));
+});
+
+router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> => {
+  const params = SaveSessionAttendanceParams.safeParse(req.params);
+  const body = SaveSessionAttendanceBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const register = await getAttendanceRegister(params.data.sessionId);
+  if (!register) {
+    res.status(404).json({ error: "Session not found." });
+    return;
+  }
+  if (register.session.programId === null) {
+    res.status(400).json({ error: "Assign this session to a program before recording attendance." });
+    return;
+  }
+  const rosterIds = new Set(register.roster.map(({ businessId }) => businessId));
+  const submittedIds = new Set<number>();
+  for (const record of body.data.records) {
+    if (!rosterIds.has(record.businessId) || submittedIds.has(record.businessId)) {
+      res.status(400).json({ error: "Attendance records must contain each program business at most once." });
+      return;
+    }
+    submittedIds.add(record.businessId);
+  }
+  const staff = res.locals.staff as StaffAccess;
+  await db.transaction(async (transaction) => {
+    for (const record of body.data.records) {
+      if (record.status === null) {
+        await transaction.delete(sessionAttendanceTable).where(and(
+          eq(sessionAttendanceTable.sessionId, params.data.sessionId),
+          eq(sessionAttendanceTable.businessId, record.businessId),
+        ));
+      } else {
+        await transaction.insert(sessionAttendanceTable).values({
+          sessionId: params.data.sessionId,
+          businessId: record.businessId,
+          status: record.status,
+          notes: record.notes,
+          recordedByStaffId: staff.id,
+        }).onConflictDoUpdate({
+          target: [sessionAttendanceTable.sessionId, sessionAttendanceTable.businessId],
+          set: {
+            status: record.status,
+            notes: record.notes,
+            recordedByStaffId: staff.id,
+            markedAt: new Date(),
+          },
+        });
+      }
+    }
+  });
+  const updated = await getAttendanceRegister(params.data.sessionId);
+  res.json(SaveSessionAttendanceResponse.parse(updated));
+});
+
+router.get("/analytics/kpis", async (req, res): Promise<void> => {
+  const parsed = ListProgramImpactKpisQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [program] = await db.select({ id: programsTable.id }).from(programsTable)
+    .where(eq(programsTable.id, parsed.data.programId)).limit(1);
+  if (!program) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  res.json(ListProgramImpactKpisResponse.parse(await getImpactKpis(parsed.data.programId)));
+});
+
+router.post("/analytics/kpis", async (req, res): Promise<void> => {
+  const body = CreateProgramImpactKpiBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [program] = await db.select({ id: programsTable.id }).from(programsTable)
+    .where(eq(programsTable.id, body.data.programId)).limit(1);
+  if (!program) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  const [existing] = await db.select({ id: impactKpisTable.id }).from(impactKpisTable).where(and(
+    eq(impactKpisTable.programId, body.data.programId),
+    eq(impactKpisTable.name, body.data.name.trim()),
+  )).limit(1);
+  if (existing) {
+    res.status(409).json({ error: "An indicator with this name already exists in the program." });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const [kpi] = await db.insert(impactKpisTable).values({
+    ...body.data,
+    name: body.data.name.trim(),
+    description: body.data.description ?? null,
+    targetValue: body.data.targetValue ?? null,
+    direction: body.data.direction as typeof ImpactKpiDirection[keyof typeof ImpactKpiDirection],
+    createdByStaffId: staff.id,
+  }).returning();
+  const result = (await getImpactKpis(kpi.programId)).find(({ id }) => id === kpi.id);
+  res.status(201).json(CreateProgramImpactKpiResponse.parse(result));
+});
+
+router.patch("/analytics/kpis/:id", async (req, res): Promise<void> => {
+  const params = UpdateProgramImpactKpiParams.safeParse(req.params);
+  const body = UpdateProgramImpactKpiBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const [current] = await db.select().from(impactKpisTable)
+    .where(eq(impactKpisTable.id, params.data.id)).limit(1);
+  if (!current) {
+    res.status(404).json({ error: "Impact indicator not found." });
+    return;
+  }
+  const nextName = body.data.name?.trim() ?? current.name;
+  const [duplicate] = await db.select({ id: impactKpisTable.id }).from(impactKpisTable).where(and(
+    eq(impactKpisTable.programId, current.programId),
+    eq(impactKpisTable.name, nextName),
+  )).limit(1);
+  if (duplicate && duplicate.id !== current.id) {
+    res.status(409).json({ error: "An indicator with this name already exists in the program." });
+    return;
+  }
+  await db.update(impactKpisTable).set({
+    ...body.data,
+    ...(body.data.name !== undefined ? { name: nextName } : {}),
+  }).where(eq(impactKpisTable.id, params.data.id));
+  const result = (await getImpactKpis(current.programId)).find(({ id }) => id === current.id);
+  res.json(UpdateProgramImpactKpiResponse.parse(result));
+});
+
+router.delete("/analytics/kpis/:id", async (req, res): Promise<void> => {
+  const params = DeleteProgramImpactKpiParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const deleted = await db.delete(impactKpisTable)
+    .where(eq(impactKpisTable.id, params.data.id))
+    .returning({ id: impactKpisTable.id });
+  if (!deleted.length) {
+    res.status(404).json({ error: "Impact indicator not found." });
+    return;
+  }
+  res.status(204).end();
+});
+
+router.put("/analytics/kpis/:id/values", async (req, res): Promise<void> => {
+  const params = SaveProgramImpactKpiValuesParams.safeParse(req.params);
+  const body = SaveProgramImpactKpiValuesBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const [kpi] = await db.select().from(impactKpisTable)
+    .where(eq(impactKpisTable.id, params.data.id)).limit(1);
+  if (!kpi) {
+    res.status(404).json({ error: "Impact indicator not found." });
+    return;
+  }
+  const keys = new Set<string>();
+  for (const value of body.data.values) {
+    if (!isCalendarDate(value.periodEnd)) {
+      res.status(400).json({ error: "Outcome dates must be valid calendar dates." });
+      return;
+    }
+    const key = `${value.businessId}:${value.periodEnd}`;
+    if (keys.has(key)) {
+      res.status(400).json({ error: "Submit each business and period only once." });
+      return;
+    }
+    keys.add(key);
+  }
+  const businessIds = [...new Set(body.data.values.map(({ businessId }) => businessId))];
+  const businesses = businessIds.length
+    ? await db.select({ id: businessesTable.id }).from(businessesTable).where(and(
+      eq(businessesTable.programId, kpi.programId),
+      inArray(businessesTable.id, businessIds),
+    ))
+    : [];
+  if (businesses.length !== businessIds.length) {
+    res.status(404).json({ error: "Each business must belong to the indicator's program." });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  await db.transaction(async (transaction) => {
+    for (const value of body.data.values) {
+      await transaction.insert(impactKpiValuesTable).values({
+        kpiId: kpi.id,
+        businessId: value.businessId,
+        value: value.value,
+        periodEnd: value.periodEnd,
+        notes: value.notes,
+        recordedByStaffId: staff.id,
+      }).onConflictDoUpdate({
+        target: [
+          impactKpiValuesTable.kpiId,
+          impactKpiValuesTable.businessId,
+          impactKpiValuesTable.periodEnd,
+        ],
+        set: {
+          value: value.value,
+          notes: value.notes,
+          recordedByStaffId: staff.id,
+          recordedAt: new Date(),
+        },
+      });
+    }
+  });
+  const result = (await getImpactKpis(kpi.programId)).find(({ id }) => id === kpi.id);
+  res.json(SaveProgramImpactKpiValuesResponse.parse(result));
+});
+
+export default router;
