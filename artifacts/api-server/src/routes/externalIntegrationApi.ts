@@ -40,6 +40,20 @@ const router = Router();
 router.use(requireIntegrationApiKey);
 
 type RecordBody = Record<string, unknown>;
+const externalSessionFields = {
+  id: sessionsTable.id,
+  programId: sessionsTable.programId,
+  title: sessionsTable.title,
+  type: sessionsTable.type,
+  scheduledDate: sessionsTable.scheduledDate,
+  startTime: sessionsTable.startTime,
+  durationMinutes: sessionsTable.durationMinutes,
+  facilitator: sessionsTable.facilitator,
+  deliveryMode: sessionsTable.deliveryMode,
+  location: sessionsTable.location,
+  status: sessionsTable.status,
+  createdAt: sessionsTable.createdAt,
+};
 
 function apiKey(res: { locals: Record<string, unknown> }): IntegrationApiKeyContext {
   return res.locals.integrationApiKey as IntegrationApiKeyContext;
@@ -264,7 +278,7 @@ router.get("/programs/:programId/resources/:resource", async (req, res): Promise
         .orderBy(asc(businessesTable.businessName));
       break;
     case "sessions":
-      items = await db.select().from(sessionsTable)
+      items = await db.select(externalSessionFields).from(sessionsTable)
         .where(eq(sessionsTable.programId, programId))
         .orderBy(asc(sessionsTable.scheduledDate), asc(sessionsTable.startTime));
       break;
@@ -448,11 +462,15 @@ router.post("/programs/:programId/resources/:resource", async (req, res): Promis
         ...parsed.data,
         applicationDate: normalizeDateValue(parsed.data.applicationDate),
         programId,
-      }).returning();
+      }).returning(externalSessionFields);
       responseItem(res, 201, created);
       return;
     }
     case "sessions": {
+      if (["trainerStaffId", "zoomUrl", "zoomMeetingId", "recordingUrl"].some((field) => field in payload)) {
+        invalidPayload(res, "Trainer assignment, Zoom links, and recording links must be managed in the Jusoor platform.");
+        return;
+      }
       const parsed = CreateSessionBody.safeParse(payload);
       if (!parsed.success) {
         invalidPayload(res, parsed.error.message);
@@ -552,7 +570,7 @@ router.post("/programs/:programId/resources/:resource", async (req, res): Promis
         return { progress } as const;
       });
       if ("error" in result) {
-        res.status(result.status).json({ error: result.error });
+        res.status(result.status ?? 400).json({ error: result.error });
         return;
       }
       responseItem(res, 200, result.progress);
@@ -789,6 +807,10 @@ router.patch("/programs/:programId/resources/:resource/:recordId", async (req, r
       return;
     }
     case "sessions": {
+      if (["trainerStaffId", "zoomUrl", "zoomMeetingId", "recordingUrl"].some((field) => field in payload)) {
+        invalidPayload(res, "Trainer assignment, Zoom links, and recording links must be managed in the Jusoor platform.");
+        return;
+      }
       const parsed = UpdateSessionBody.safeParse(payload);
       if (!parsed.success) {
         invalidPayload(res, parsed.error.message);
@@ -802,7 +824,7 @@ router.patch("/programs/:programId/resources/:resource/:recordId", async (req, r
       const [record] = await db.update(sessionsTable)
         .set({ ...parsed.data, programId })
         .where(and(eq(sessionsTable.id, recordId), eq(sessionsTable.programId, programId)))
-        .returning();
+        .returning(externalSessionFields);
       if (!record) {
         res.status(404).json({ error: "Session not found in this program." });
         return;
@@ -934,7 +956,7 @@ router.patch("/programs/:programId/resources/:resource/:recordId", async (req, r
         return { record } as const;
       });
       if ("error" in result) {
-        res.status(result.status).json({ error: result.error });
+        res.status(result.status ?? 400).json({ error: result.error });
         return;
       }
       responseItem(res, 200, result.record);
