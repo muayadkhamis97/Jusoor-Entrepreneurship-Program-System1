@@ -5,6 +5,74 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+export interface IntegrationApiKeyInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  label: string;
+  /** @minimum 1 */
+  programId: number;
+}
+
+export interface IntegrationApiKey {
+  id: number;
+  label: string;
+  keyPrefix: string;
+  programId: number;
+  programName: string;
+  createdAt: string;
+  /** @nullable */
+  lastUsedAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
+}
+
+export interface IntegrationApiKeysResponse {
+  keys: IntegrationApiKey[];
+}
+
+export interface IntegrationApiKeyCreated {
+  key: IntegrationApiKey;
+  /** One-time bearer secret. Store it securely; it cannot be retrieved later. */
+  secret: string;
+}
+
+export interface IntegrationApiKeyRevocation {
+  id: number;
+  revokedAt: string;
+}
+
+export type IntegrationApiResource = typeof IntegrationApiResource[keyof typeof IntegrationApiResource];
+
+
+export const IntegrationApiResource = {
+  applications: 'applications',
+  businesses: 'businesses',
+  sessions: 'sessions',
+  'course-modules': 'course-modules',
+  attendance: 'attendance',
+  'learning-progress': 'learning-progress',
+  mentoring: 'mentoring',
+  pitches: 'pitches',
+  'grant-receipts': 'grant-receipts',
+} as const;
+
+/**
+ * The resource-specific fields are listed in the coordinator API guide. Program IDs are always derived from the API key scope.
+ */
+export interface IntegrationApiRecordInput { [key: string]: unknown }
+
+export interface IntegrationApiRecord { [key: string]: unknown }
+
+export interface IntegrationApiRecordsResponse {
+  items: IntegrationApiRecord[];
+}
+
+export interface IntegrationApiRecordResponse {
+  item: IntegrationApiRecord;
+}
+
 export interface HealthStatus {
   status: string;
 }

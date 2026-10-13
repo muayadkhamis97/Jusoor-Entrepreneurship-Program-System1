@@ -24,7 +24,7 @@ export function isScheduleOnlyModuleUpdate(update: Record<string, unknown>): boo
     keys.every((key) => key === "releaseAt" || key === "dueAt") &&
     keys.every((key) => {
       const value = update[key];
-      return value === null || typeof value === "string" || value instanceof Date;
+        return typeof value === "string" || value instanceof Date;
     });
 }
 

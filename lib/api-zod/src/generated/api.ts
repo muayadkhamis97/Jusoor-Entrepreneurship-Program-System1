@@ -4355,3 +4355,174 @@ export const SubmitParticipantCourseQuizAttemptResponse = zod.object({
 })
 
 
+/**
+ * Coordinator-only. Secrets are never returned after creation.
+ * @summary List coordinator-managed API keys
+ */
+export const ListIntegrationApiKeysResponse = zod.object({
+  "keys": zod.array(zod.object({
+  "id": zod.number().int(),
+  "label": zod.string(),
+  "keyPrefix": zod.string(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * Coordinator-only. The secret is returned once and cannot be retrieved later.
+ * @summary Create an API key limited to one program
+ */
+export const createIntegrationApiKeyBodyLabelMax = 100;
+
+
+
+
+export const CreateIntegrationApiKeyBody = zod.object({
+  "label": zod.string().min(1).max(createIntegrationApiKeyBodyLabelMax),
+  "programId": zod.number().int().min(1)
+})
+
+export const CreateIntegrationApiKeyResponse = zod.object({
+  "key": zod.object({
+  "id": zod.number().int(),
+  "label": zod.string(),
+  "keyPrefix": zod.string(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+}),
+  "secret": zod.string().describe('One-time bearer secret. Store it securely; it cannot be retrieved later.')
+})
+
+
+/**
+ * Coordinator-only. Revocation applies to the next request.
+ * @summary Revoke an API key
+ */
+export const RevokeIntegrationApiKeyParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RevokeIntegrationApiKeyResponse = zod.object({
+  "id": zod.number().int(),
+  "revokedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Read the program linked to this key
+ */
+export const GetExternalProgramParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const getExternalProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getExternalProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getExternalProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetExternalProgramResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "format": zod.enum(['bootcamp', 'hackathon']),
+  "description": zod.string().nullish(),
+  "startDate": zod.string().regex(getExternalProgramResponseStartDateRegExp).nullish(),
+  "endDate": zod.string().regex(getExternalProgramResponseEndDateRegExp).nullish(),
+  "applicationDeadline": zod.string().regex(getExternalProgramResponseApplicationDeadlineRegExp).nullish(),
+  "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update program details
+ */
+export const UpdateExternalProgramParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+
+
+
+export const UpdateExternalProgramBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "format": zod.enum(['bootcamp', 'hackathon']).optional(),
+  "description": zod.string().nullish(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "applicationDeadline": zod.coerce.date().nullish(),
+  "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
+})
+
+export const updateExternalProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateExternalProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateExternalProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpdateExternalProgramResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "format": zod.enum(['bootcamp', 'hackathon']),
+  "description": zod.string().nullish(),
+  "startDate": zod.string().regex(updateExternalProgramResponseStartDateRegExp).nullish(),
+  "endDate": zod.string().regex(updateExternalProgramResponseEndDateRegExp).nullish(),
+  "applicationDeadline": zod.string().regex(updateExternalProgramResponseApplicationDeadlineRegExp).nullish(),
+  "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Resources are applications, businesses, sessions, course-modules, attendance, learning-progress, mentoring, pitches, or grant-receipts. Each response is an array of records.
+ * @summary Read records from one program-scoped resource
+ */
+export const ListExternalProgramResourcesParams = zod.object({
+  "programId": zod.coerce.number().int(),
+  "resource": zod.enum(['applications', 'businesses', 'sessions', 'course-modules', 'attendance', 'learning-progress', 'mentoring', 'pitches', 'grant-receipts'])
+})
+
+export const ListExternalProgramResourcesResponse = zod.object({
+  "items": zod.array(zod.record(zod.string(), zod.unknown()))
+})
+
+
+/**
+ * Use the matching resource payload documented in the coordinator API guide. Attendance and learning-progress writes are idempotent upserts; grant-receipts append to the immutable ledger.
+ * @summary Create a record in one program-scoped resource
+ */
+export const CreateExternalProgramResourceParams = zod.object({
+  "programId": zod.coerce.number().int(),
+  "resource": zod.enum(['applications', 'businesses', 'sessions', 'course-modules', 'attendance', 'learning-progress', 'mentoring', 'pitches', 'grant-receipts'])
+})
+
+export const CreateExternalProgramResourceBody = zod.record(zod.string(), zod.unknown()).describe('The resource-specific fields are listed in the coordinator API guide. Program IDs are always derived from the API key scope.')
+
+export const CreateExternalProgramResourceResponse = zod.object({
+  "item": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * Grant receipts cannot be updated; append a reversal instead. Hard deletes are not exposed.
+ * @summary Update a record in the key's program
+ */
+export const UpdateExternalProgramResourceParams = zod.object({
+  "programId": zod.coerce.number().int(),
+  "resource": zod.enum(['applications', 'businesses', 'sessions', 'course-modules', 'attendance', 'learning-progress', 'mentoring', 'pitches', 'grant-receipts']),
+  "recordId": zod.coerce.number().int()
+})
+
+export const UpdateExternalProgramResourceBody = zod.record(zod.string(), zod.unknown()).describe('The resource-specific fields are listed in the coordinator API guide. Program IDs are always derived from the API key scope.')
+
+export const UpdateExternalProgramResourceResponse = zod.object({
+  "item": zod.record(zod.string(), zod.unknown())
+})
+
+

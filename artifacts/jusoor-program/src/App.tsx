@@ -32,7 +32,7 @@ import type {
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
-  Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign,
+  Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
   CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
   FileText, Filter, Handshake, LayoutDashboard, MapPin,
    Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
@@ -52,6 +52,7 @@ import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
 import { BrandingPage } from './branding-surfaces';
+import { ApiIntegrationsPage } from './api-integrations';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -139,7 +140,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
     { href: '/programs', label: 'Programs', icon: Activity },
-    ...(staff.role === 'coordinator' ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }, { href: '/branding', label: 'Branding', icon: Palette }] : []),
+    ...(staff.role === 'coordinator' ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }, { href: '/branding', label: 'Branding', icon: Palette }, { href: '/api-integrations', label: 'API integrations', icon: KeyRound }] : []),
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     ...(staff.role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
     { href: '/support', label: 'Support', icon: Handshake },
@@ -820,6 +821,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/programs" component={ProgramsPage} />
     <Route path="/analytics">{() => staff.role === 'coordinator' ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
     <Route path="/branding" component={staff.role === 'coordinator' ? BrandingPage : NotFoundPage} />
+    <Route path="/api-integrations" component={staff.role === 'coordinator' ? ApiIntegrationsPage : NotFoundPage} />
     <Route path="/courses">{() => staff.role === 'coordinator' ? <CourseManagementPage /> : staff.role === 'staff' ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
     <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} staffId={staff.id} />}</Route>
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />

@@ -42,6 +42,8 @@ import { requireParticipant } from "./middlewares/participantAccess";
 import { requireRole } from "./middlewares/requireRole";
 import { logger } from "./lib/logger";
 import programBrandingRouter from "./routes/programBranding";
+import externalIntegrationApiRouter from "./routes/externalIntegrationApi";
+import integrationApiKeysRouter from "./routes/integrationApiKeys";
 
 const app: Express = express();
 
@@ -85,6 +87,8 @@ app.use(
 app.use("/api", healthRouter);
 app.use("/api", publicApplicationsRouter);
 app.use("/api", programBrandingRouter);
+app.use("/api/v1", externalIntegrationApiRouter);
+app.use("/api", integrationApiKeysRouter);
 app.use("/api/participant", requireParticipant, participantRouter);
 app.use("/api/participant", participantSessionInteractionsRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseDiscussionRouter);

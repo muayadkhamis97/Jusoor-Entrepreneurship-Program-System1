@@ -2576,6 +2576,172 @@ paths:
           description: Participant is not enrolled in this quiz's cohort
         "404":
           description: Published quiz not found
+  /integrations/api-keys:
+    get:
+      operationId: listIntegrationApiKeys
+      tags: [integrations]
+      summary: List coordinator-managed API keys
+      description: Coordinator-only. Secrets are never returned after creation.
+      responses:
+        "200":
+          description: Key metadata and program scopes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiKeysResponse" }
+        "401": { description: Sign-in required }
+        "403": { description: Coordinator access required }
+    post:
+      operationId: createIntegrationApiKey
+      tags: [integrations]
+      summary: Create an API key limited to one program
+      description: Coordinator-only. The secret is returned once and cannot be retrieved later.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IntegrationApiKeyInput" }
+      responses:
+        "201":
+          description: Key metadata and one-time secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiKeyCreated" }
+        "400": { description: Invalid key label or program }
+        "401": { description: Sign-in required }
+        "403": { description: Coordinator access required }
+  /integrations/api-keys/{id}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: revokeIntegrationApiKey
+      tags: [integrations]
+      summary: Revoke an API key
+      description: Coordinator-only. Revocation applies to the next request.
+      responses:
+        "200":
+          description: Revocation timestamp
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiKeyRevocation" }
+        "401": { description: Sign-in required }
+        "403": { description: Coordinator access required }
+        "404": { description: Key not found }
+  /v1/programs/{programId}:
+    parameters:
+      - $ref: "#/components/parameters/ProgramId"
+    get:
+      operationId: getExternalProgram
+      tags: [integrations]
+      summary: Read the program linked to this key
+      security: [{ IntegrationApiKey: [] }]
+      responses:
+        "200":
+          description: Program record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Program" }
+        "401": { description: Invalid or revoked key }
+        "403": { description: Key is limited to another program }
+        "404": { description: Program not found }
+    patch:
+      operationId: updateExternalProgram
+      tags: [integrations]
+      summary: Update program details
+      security: [{ IntegrationApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProgramUpdate" }
+      responses:
+        "200":
+          description: Updated program
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Program" }
+        "400": { description: Invalid program details }
+        "401": { description: Invalid or revoked key }
+        "403": { description: Key is limited to another program }
+  /v1/programs/{programId}/resources/{resource}:
+    parameters:
+      - $ref: "#/components/parameters/ProgramId"
+      - name: resource
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/IntegrationApiResource" }
+    get:
+      operationId: listExternalProgramResources
+      tags: [integrations]
+      summary: Read records from one program-scoped resource
+      description: Resources are applications, businesses, sessions, course-modules, attendance, learning-progress, mentoring, pitches, or grant-receipts. Each response is an array of records.
+      security: [{ IntegrationApiKey: [] }]
+      responses:
+        "200":
+          description: Records in the selected program
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiRecordsResponse" }
+        "401": { description: Invalid or revoked key }
+        "403": { description: Key is limited to another program }
+    post:
+      operationId: createExternalProgramResource
+      tags: [integrations]
+      summary: Create a record in one program-scoped resource
+      description: Use the matching resource payload documented in the coordinator API guide. Attendance and learning-progress writes are idempotent upserts; grant-receipts append to the immutable ledger.
+      security: [{ IntegrationApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IntegrationApiRecordInput" }
+      responses:
+        "200":
+          description: Upserted attendance or learning progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiRecordResponse" }
+        "201":
+          description: Created or appended record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiRecordResponse" }
+        "400": { description: Invalid resource payload }
+        "401": { description: Invalid or revoked key }
+        "403": { description: Key or a related record is outside this program }
+        "409": { description: Record conflicts with a final workflow decision }
+  /v1/programs/{programId}/resources/{resource}/{recordId}:
+    parameters:
+      - $ref: "#/components/parameters/ProgramId"
+      - name: resource
+        in: path
+        required: true
+        schema: { $ref: "#/components/schemas/IntegrationApiResource" }
+      - name: recordId
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      operationId: updateExternalProgramResource
+      tags: [integrations]
+      summary: Update a record in the key's program
+      description: Grant receipts cannot be updated; append a reversal instead. Hard deletes are not exposed.
+      security: [{ IntegrationApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IntegrationApiRecordInput" }
+      responses:
+        "200":
+          description: Updated record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationApiRecordResponse" }
+        "400": { description: Invalid update or immutable resource }
+        "401": { description: Invalid or revoked key }
+        "403": { description: Record is outside the key's program }
+        "404": { description: Record not found }
+        "409": { description: A final workflow decision cannot be changed }
 components:
   parameters:
     Id:
@@ -2584,7 +2750,81 @@ components:
       required: true
       schema:
         type: integer
+    ProgramId:
+      name: programId
+      in: path
+      required: true
+      schema:
+        type: integer
+  securitySchemes:
+    IntegrationApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: Jusoor integration key
   schemas:
+    IntegrationApiKeyInput:
+      type: object
+      additionalProperties: false
+      properties:
+        label: { type: string, minLength: 1, maxLength: 100 }
+        programId: { type: integer, minimum: 1 }
+      required: [label, programId]
+    IntegrationApiKey:
+      type: object
+      properties:
+        id: { type: integer }
+        label: { type: string }
+        keyPrefix: { type: string }
+        programId: { type: integer }
+        programName: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: ["string", "null"], format: date-time }
+        revokedAt: { type: ["string", "null"], format: date-time }
+      required: [id, label, keyPrefix, programId, programName, createdAt, lastUsedAt, revokedAt]
+    IntegrationApiKeysResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items: { $ref: "#/components/schemas/IntegrationApiKey" }
+      required: [keys]
+    IntegrationApiKeyCreated:
+      type: object
+      properties:
+        key: { $ref: "#/components/schemas/IntegrationApiKey" }
+        secret:
+          type: string
+          description: One-time bearer secret. Store it securely; it cannot be retrieved later.
+      required: [key, secret]
+    IntegrationApiKeyRevocation:
+      type: object
+      properties:
+        id: { type: integer }
+        revokedAt: { type: string, format: date-time }
+      required: [id, revokedAt]
+    IntegrationApiResource:
+      type: string
+      enum: [applications, businesses, sessions, course-modules, attendance, learning-progress, mentoring, pitches, grant-receipts]
+    IntegrationApiRecordInput:
+      type: object
+      minProperties: 1
+      additionalProperties: true
+      description: The resource-specific fields are listed in the coordinator API guide. Program IDs are always derived from the API key scope.
+    IntegrationApiRecord:
+      type: object
+      additionalProperties: true
+    IntegrationApiRecordsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IntegrationApiRecord" }
+      required: [items]
+    IntegrationApiRecordResponse:
+      type: object
+      properties:
+        item: { $ref: "#/components/schemas/IntegrationApiRecord" }
+      required: [item]
     HealthStatus:
       type: object
       properties:

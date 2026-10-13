@@ -82,6 +82,14 @@ import type {
   ImpactKpiInput,
   ImpactKpiUpdate,
   ImpactKpiValuesInput,
+  IntegrationApiKeyCreated,
+  IntegrationApiKeyInput,
+  IntegrationApiKeyRevocation,
+  IntegrationApiKeysResponse,
+  IntegrationApiRecordInput,
+  IntegrationApiRecordResponse,
+  IntegrationApiRecordsResponse,
+  IntegrationApiResource,
   JudgeDashboard,
   JudgePitch,
   JudgeScorecardInput,
@@ -10788,5 +10796,682 @@ export const useSubmitParticipantCourseQuizAttempt = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSubmitParticipantCourseQuizAttemptMutationOptions(options));
+    }
+
+export const getListIntegrationApiKeysUrl = () => {
+
+
+
+
+  return `/api/integrations/api-keys`
+}
+
+/**
+ * Coordinator-only. Secrets are never returned after creation.
+ * @summary List coordinator-managed API keys
+ */
+export const listIntegrationApiKeys = async ( options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiKeysResponse> => {
+
+  return customFetch<IntegrationApiKeysResponse>(getListIntegrationApiKeysUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListIntegrationApiKeysQueryKey = () => {
+    return [
+    `/api/integrations/api-keys`
+    ] as const;
+    }
+
+
+export const getListIntegrationApiKeysQueryOptions = <TData = Awaited<ReturnType<typeof listIntegrationApiKeys>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrationApiKeys>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIntegrationApiKeysQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIntegrationApiKeys>>> = ({ signal }) => listIntegrationApiKeys({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIntegrationApiKeys>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListIntegrationApiKeysQueryResult = NonNullable<Awaited<ReturnType<typeof listIntegrationApiKeys>>>
+export type ListIntegrationApiKeysQueryError = ErrorType<void>
+
+
+/**
+ * @summary List coordinator-managed API keys
+ */
+
+export function useListIntegrationApiKeys<TData = Awaited<ReturnType<typeof listIntegrationApiKeys>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrationApiKeys>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListIntegrationApiKeysQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateIntegrationApiKeyUrl = () => {
+
+
+
+
+  return `/api/integrations/api-keys`
+}
+
+/**
+ * Coordinator-only. The secret is returned once and cannot be retrieved later.
+ * @summary Create an API key limited to one program
+ */
+export const createIntegrationApiKey = async (integrationApiKeyInput: IntegrationApiKeyInput, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiKeyCreated> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<IntegrationApiKeyCreated>(getCreateIntegrationApiKeyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(integrationApiKeyInput)
+  }
+);}
+
+
+
+
+
+export const getCreateIntegrationApiKeyMutationKey = () => ['createIntegrationApiKey'] as const;
+
+export const getCreateIntegrationApiKeyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIntegrationApiKey>>, TError,CreateIntegrationApiKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createIntegrationApiKey>>, TError,CreateIntegrationApiKeyMutationVariables, TContext> => {
+
+const mutationKey = getCreateIntegrationApiKeyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIntegrationApiKey>>, CreateIntegrationApiKeyMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createIntegrationApiKey(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateIntegrationApiKeyMutationResult = NonNullable<Awaited<ReturnType<typeof createIntegrationApiKey>>>
+    export type CreateIntegrationApiKeyMutationBody = BodyType<IntegrationApiKeyInput>
+    export type CreateIntegrationApiKeyMutationError = ErrorType<void>
+    export type CreateIntegrationApiKeyMutationVariables = {data: BodyType<IntegrationApiKeyInput>}
+
+    /**
+ * @summary Create an API key limited to one program
+ */
+export const useCreateIntegrationApiKey = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIntegrationApiKey>>, TError,CreateIntegrationApiKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createIntegrationApiKey>>,
+        TError,
+        CreateIntegrationApiKeyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateIntegrationApiKeyMutationOptions(options));
+    }
+
+export const getRevokeIntegrationApiKeyUrl = (id: number,) => {
+
+
+
+
+  return `/api/integrations/api-keys/${id}/revoke`
+}
+
+/**
+ * Coordinator-only. Revocation applies to the next request.
+ * @summary Revoke an API key
+ */
+export const revokeIntegrationApiKey = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiKeyRevocation> => {
+
+  return customFetch<IntegrationApiKeyRevocation>(getRevokeIntegrationApiKeyUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeIntegrationApiKeyMutationKey = () => ['revokeIntegrationApiKey'] as const;
+
+export const getRevokeIntegrationApiKeyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeIntegrationApiKey>>, TError,RevokeIntegrationApiKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeIntegrationApiKey>>, TError,RevokeIntegrationApiKeyMutationVariables, TContext> => {
+
+const mutationKey = getRevokeIntegrationApiKeyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeIntegrationApiKey>>, RevokeIntegrationApiKeyMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  revokeIntegrationApiKey(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeIntegrationApiKeyMutationResult = NonNullable<Awaited<ReturnType<typeof revokeIntegrationApiKey>>>
+
+    export type RevokeIntegrationApiKeyMutationError = ErrorType<void>
+    export type RevokeIntegrationApiKeyMutationVariables = {id: number}
+
+    /**
+ * @summary Revoke an API key
+ */
+export const useRevokeIntegrationApiKey = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeIntegrationApiKey>>, TError,RevokeIntegrationApiKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeIntegrationApiKey>>,
+        TError,
+        RevokeIntegrationApiKeyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeIntegrationApiKeyMutationOptions(options));
+    }
+
+export const getGetExternalProgramUrl = (programId: number,) => {
+
+
+
+
+  return `/api/v1/programs/${programId}`
+}
+
+/**
+ * @summary Read the program linked to this key
+ */
+export const getExternalProgram = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<Program> => {
+
+  return customFetch<Program>(getGetExternalProgramUrl(programId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetExternalProgramQueryKey = (programId: number,) => {
+    return [
+    `/api/v1/programs/${programId}`
+    ] as const;
+    }
+
+
+export const getGetExternalProgramQueryOptions = <TData = Awaited<ReturnType<typeof getExternalProgram>>, TError = ErrorType<void>>(programId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getExternalProgram>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetExternalProgramQueryKey(programId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getExternalProgram>>> = ({ signal }) => getExternalProgram(programId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: programId !== null && programId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getExternalProgram>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetExternalProgramQueryResult = NonNullable<Awaited<ReturnType<typeof getExternalProgram>>>
+export type GetExternalProgramQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the program linked to this key
+ */
+
+export function useGetExternalProgram<TData = Awaited<ReturnType<typeof getExternalProgram>>, TError = ErrorType<void>>(
+ programId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getExternalProgram>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetExternalProgramQueryOptions(programId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateExternalProgramUrl = (programId: number,) => {
+
+
+
+
+  return `/api/v1/programs/${programId}`
+}
+
+/**
+ * @summary Update program details
+ */
+export const updateExternalProgram = async (programId: number,
+    programUpdate: ProgramUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Program> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Program>(getUpdateExternalProgramUrl(programId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(programUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateExternalProgramMutationKey = () => ['updateExternalProgram'] as const;
+
+export const getUpdateExternalProgramMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExternalProgram>>, TError,UpdateExternalProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateExternalProgram>>, TError,UpdateExternalProgramMutationVariables, TContext> => {
+
+const mutationKey = getUpdateExternalProgramMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateExternalProgram>>, UpdateExternalProgramMutationVariables> = (props) => {
+          const {programId,data} = props ?? {};
+
+          return  updateExternalProgram(programId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateExternalProgramMutationResult = NonNullable<Awaited<ReturnType<typeof updateExternalProgram>>>
+    export type UpdateExternalProgramMutationBody = BodyType<ProgramUpdate>
+    export type UpdateExternalProgramMutationError = ErrorType<void>
+    export type UpdateExternalProgramMutationVariables = {programId: number;data: BodyType<ProgramUpdate>}
+
+    /**
+ * @summary Update program details
+ */
+export const useUpdateExternalProgram = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExternalProgram>>, TError,UpdateExternalProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateExternalProgram>>,
+        TError,
+        UpdateExternalProgramMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateExternalProgramMutationOptions(options));
+    }
+
+export const getListExternalProgramResourcesUrl = (programId: number,
+    resource: IntegrationApiResource,) => {
+
+
+
+
+  return `/api/v1/programs/${programId}/resources/${resource}`
+}
+
+/**
+ * Resources are applications, businesses, sessions, course-modules, attendance, learning-progress, mentoring, pitches, or grant-receipts. Each response is an array of records.
+ * @summary Read records from one program-scoped resource
+ */
+export const listExternalProgramResources = async (programId: number,
+    resource: IntegrationApiResource, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiRecordsResponse> => {
+
+  return customFetch<IntegrationApiRecordsResponse>(getListExternalProgramResourcesUrl(programId,resource),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListExternalProgramResourcesQueryKey = (programId: number,
+    resource: IntegrationApiResource,) => {
+    return [
+    `/api/v1/programs/${programId}/resources/${resource}`
+    ] as const;
+    }
+
+
+export const getListExternalProgramResourcesQueryOptions = <TData = Awaited<ReturnType<typeof listExternalProgramResources>>, TError = ErrorType<void>>(programId: number,
+    resource: IntegrationApiResource, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExternalProgramResources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListExternalProgramResourcesQueryKey(programId,resource);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listExternalProgramResources>>> = ({ signal }) => listExternalProgramResources(programId,resource, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: programId !== null && programId !== undefined && resource !== null && resource !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listExternalProgramResources>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListExternalProgramResourcesQueryResult = NonNullable<Awaited<ReturnType<typeof listExternalProgramResources>>>
+export type ListExternalProgramResourcesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read records from one program-scoped resource
+ */
+
+export function useListExternalProgramResources<TData = Awaited<ReturnType<typeof listExternalProgramResources>>, TError = ErrorType<void>>(
+ programId: number,
+    resource: IntegrationApiResource, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listExternalProgramResources>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListExternalProgramResourcesQueryOptions(programId,resource,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateExternalProgramResourceUrl = (programId: number,
+    resource: IntegrationApiResource,) => {
+
+
+
+
+  return `/api/v1/programs/${programId}/resources/${resource}`
+}
+
+/**
+ * Use the matching resource payload documented in the coordinator API guide. Attendance and learning-progress writes are idempotent upserts; grant-receipts append to the immutable ledger.
+ * @summary Create a record in one program-scoped resource
+ */
+export const createExternalProgramResource = async (programId: number,
+    resource: IntegrationApiResource,
+    integrationApiRecordInput: IntegrationApiRecordInput, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiRecordResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<IntegrationApiRecordResponse>(getCreateExternalProgramResourceUrl(programId,resource),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(integrationApiRecordInput)
+  }
+);}
+
+
+
+
+
+export const getCreateExternalProgramResourceMutationKey = () => ['createExternalProgramResource'] as const;
+
+export const getCreateExternalProgramResourceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExternalProgramResource>>, TError,CreateExternalProgramResourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createExternalProgramResource>>, TError,CreateExternalProgramResourceMutationVariables, TContext> => {
+
+const mutationKey = getCreateExternalProgramResourceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createExternalProgramResource>>, CreateExternalProgramResourceMutationVariables> = (props) => {
+          const {programId,resource,data} = props ?? {};
+
+          return  createExternalProgramResource(programId,resource,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateExternalProgramResourceMutationResult = NonNullable<Awaited<ReturnType<typeof createExternalProgramResource>>>
+    export type CreateExternalProgramResourceMutationBody = BodyType<IntegrationApiRecordInput>
+    export type CreateExternalProgramResourceMutationError = ErrorType<void>
+    export type CreateExternalProgramResourceMutationVariables = {programId: number;resource: IntegrationApiResource;data: BodyType<IntegrationApiRecordInput>}
+
+    /**
+ * @summary Create a record in one program-scoped resource
+ */
+export const useCreateExternalProgramResource = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createExternalProgramResource>>, TError,CreateExternalProgramResourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createExternalProgramResource>>,
+        TError,
+        CreateExternalProgramResourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateExternalProgramResourceMutationOptions(options));
+    }
+
+export const getUpdateExternalProgramResourceUrl = (programId: number,
+    resource: IntegrationApiResource,
+    recordId: number,) => {
+
+
+
+
+  return `/api/v1/programs/${programId}/resources/${resource}/${recordId}`
+}
+
+/**
+ * Grant receipts cannot be updated; append a reversal instead. Hard deletes are not exposed.
+ * @summary Update a record in the key's program
+ */
+export const updateExternalProgramResource = async (programId: number,
+    resource: IntegrationApiResource,
+    recordId: number,
+    integrationApiRecordInput: IntegrationApiRecordInput, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiRecordResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<IntegrationApiRecordResponse>(getUpdateExternalProgramResourceUrl(programId,resource,recordId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(integrationApiRecordInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateExternalProgramResourceMutationKey = () => ['updateExternalProgramResource'] as const;
+
+export const getUpdateExternalProgramResourceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExternalProgramResource>>, TError,UpdateExternalProgramResourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateExternalProgramResource>>, TError,UpdateExternalProgramResourceMutationVariables, TContext> => {
+
+const mutationKey = getUpdateExternalProgramResourceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateExternalProgramResource>>, UpdateExternalProgramResourceMutationVariables> = (props) => {
+          const {programId,resource,recordId,data} = props ?? {};
+
+          return  updateExternalProgramResource(programId,resource,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateExternalProgramResourceMutationResult = NonNullable<Awaited<ReturnType<typeof updateExternalProgramResource>>>
+    export type UpdateExternalProgramResourceMutationBody = BodyType<IntegrationApiRecordInput>
+    export type UpdateExternalProgramResourceMutationError = ErrorType<void>
+    export type UpdateExternalProgramResourceMutationVariables = {programId: number;resource: IntegrationApiResource;recordId: number;data: BodyType<IntegrationApiRecordInput>}
+
+    /**
+ * @summary Update a record in the key's program
+ */
+export const useUpdateExternalProgramResource = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateExternalProgramResource>>, TError,UpdateExternalProgramResourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateExternalProgramResource>>,
+        TError,
+        UpdateExternalProgramResourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateExternalProgramResourceMutationOptions(options));
     }
 
