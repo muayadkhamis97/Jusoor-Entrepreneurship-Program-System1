@@ -30,6 +30,7 @@ export * from "./applications";
 export * from "./training";
 export * from "./pitch-judges";
 export * from "./courses";
+export * from "./course-discussions";
 export * from "./zoom-connections";
 export * from "./announcements";
 export * from "./calendly-meetings";

@@ -782,7 +782,7 @@ function NotFoundPage() {
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
   useAppLanguage();
   const [location] = useLocation();
-  if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage /></RoleFrame> : <RoleNotFound role={staff.role} />;
+  if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage readOnly /></RoleFrame> : <RoleNotFound role={staff.role} />;
   if (staff.role === 'mentor') return location === '/mentor' ? <MentorDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
   if (staff.role === 'judge') return location === '/judge' ? <JudgeDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
   return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>

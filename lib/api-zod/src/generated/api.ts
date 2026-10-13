@@ -1142,6 +1142,59 @@ export const CreateCourseMaterialResponse = zod.object({
 
 
 /**
+ * @summary List discussions for a course module for coordinators and assigned trainers
+ */
+export const GetCourseDiscussionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetCourseDiscussionsResponse = zod.object({
+  "moduleId": zod.number().int(),
+  "moduleTitle": zod.string(),
+  "posts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "authorName": zod.string(),
+  "authorRole": zod.enum(['participant', 'trainer', 'coordinator']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a course discussion topic or reply as coordinator or assigned trainer
+ */
+export const CreateCourseDiscussionPostParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+export const createCourseDiscussionPostBodyTitleMax = 140;
+
+export const createCourseDiscussionPostBodyBodyMax = 3000;
+
+
+
+export const CreateCourseDiscussionPostBody = zod.object({
+  "parentId": zod.number().int().min(1).nullish(),
+  "title": zod.string().min(1).max(createCourseDiscussionPostBodyTitleMax).optional(),
+  "body": zod.string().min(1).max(createCourseDiscussionPostBodyBodyMax)
+})
+
+export const CreateCourseDiscussionPostResponse = zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "authorName": zod.string(),
+  "authorRole": zod.enum(['participant', 'trainer', 'coordinator']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Update material details or its role access
  */
 export const UpdateCourseMaterialParams = zod.object({
@@ -1265,6 +1318,59 @@ export const GetParticipantCoursesResponse = zod.object({
 }))
 }))
 }))
+})
+
+
+/**
+ * @summary List discussions for a released module in the participant's accepted cohort
+ */
+export const GetParticipantCourseDiscussionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetParticipantCourseDiscussionsResponse = zod.object({
+  "moduleId": zod.number().int(),
+  "moduleTitle": zod.string(),
+  "posts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "authorName": zod.string(),
+  "authorRole": zod.enum(['participant', 'trainer', 'coordinator']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a discussion topic or reply in the participant's accepted cohort
+ */
+export const CreateParticipantCourseDiscussionPostParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+export const createParticipantCourseDiscussionPostBodyTitleMax = 140;
+
+export const createParticipantCourseDiscussionPostBodyBodyMax = 3000;
+
+
+
+export const CreateParticipantCourseDiscussionPostBody = zod.object({
+  "parentId": zod.number().int().min(1).nullish(),
+  "title": zod.string().min(1).max(createParticipantCourseDiscussionPostBodyTitleMax).optional(),
+  "body": zod.string().min(1).max(createParticipantCourseDiscussionPostBodyBodyMax)
+})
+
+export const CreateParticipantCourseDiscussionPostResponse = zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "authorName": zod.string(),
+  "authorRole": zod.enum(['participant', 'trainer', 'coordinator']),
+  "createdAt": zod.coerce.date()
 })
 
 

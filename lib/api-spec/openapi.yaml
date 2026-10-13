@@ -614,6 +614,49 @@ paths:
                 $ref: "#/components/schemas/CourseMaterial"
         "403":
           description: Module is not in a manageable program
+  /courses/modules/{id}/discussions:
+    get:
+      operationId: getCourseDiscussions
+      tags: [courses]
+      summary: List discussions for a course module for coordinators and assigned trainers
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Module discussion topics and replies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDiscussion"
+        "403":
+          description: Role is not allowed or trainer is not assigned to this cohort
+        "404":
+          description: Course module not found
+    post:
+      operationId: createCourseDiscussionPost
+      tags: [courses]
+      summary: Create a course discussion topic or reply as coordinator or assigned trainer
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseDiscussionPostInput"
+      responses:
+        "201":
+          description: Discussion post created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDiscussionPost"
+        "400":
+          description: Invalid topic or reply
+        "403":
+          description: Role is not allowed or trainer is not assigned to this cohort
+        "404":
+          description: Course module or reply target not found
   /courses/materials/{id}:
     patch:
       operationId: updateCourseMaterial
@@ -702,6 +745,49 @@ paths:
                 $ref: "#/components/schemas/ParticipantCourses"
         "403":
           description: No application is linked to this account
+  /participant/courses/modules/{id}/discussions:
+    get:
+      operationId: getParticipantCourseDiscussions
+      tags: [courses]
+      summary: List discussions for a released module in the participant's accepted cohort
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Module discussion topics and replies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDiscussion"
+        "403":
+          description: Participant is not enrolled in this module's cohort
+        "404":
+          description: Released course module not found
+    post:
+      operationId: createParticipantCourseDiscussionPost
+      tags: [courses]
+      summary: Create a discussion topic or reply in the participant's accepted cohort
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseDiscussionPostInput"
+      responses:
+        "201":
+          description: Discussion post created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDiscussionPost"
+        "400":
+          description: Invalid topic or reply
+        "403":
+          description: Participant is not enrolled in this module's cohort
+        "404":
+          description: Released course module or reply target not found
   /participant/courses/materials/{id}/file:
     get:
       operationId: getParticipantCourseMaterialFile
@@ -1964,6 +2050,33 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ParticipantCourseProgram" }
       required: [programs]
+    CourseDiscussionPostInput:
+      type: object
+      properties:
+        parentId: { type: ["integer", "null"], minimum: 1 }
+        title: { type: string, minLength: 1, maxLength: 140 }
+        body: { type: string, minLength: 1, maxLength: 3000 }
+      required: [body]
+    CourseDiscussionPost:
+      type: object
+      properties:
+        id: { type: integer }
+        parentId: { type: ["integer", "null"] }
+        title: { type: ["string", "null"] }
+        body: { type: string }
+        authorName: { type: string }
+        authorRole: { type: string, enum: [participant, trainer, coordinator] }
+        createdAt: { type: string, format: date-time }
+      required: [id, parentId, title, body, authorName, authorRole, createdAt]
+    CourseDiscussion:
+      type: object
+      properties:
+        moduleId: { type: integer }
+        moduleTitle: { type: string }
+        posts:
+          type: array
+          items: { $ref: "#/components/schemas/CourseDiscussionPost" }
+      required: [moduleId, moduleTitle, posts]
     ParticipantBusiness:
       type: object
       properties:

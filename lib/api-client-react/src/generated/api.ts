@@ -37,6 +37,9 @@ import type {
   CompleteCalendlyConnectionParams,
   CompleteGoogleCalendarConnectionParams,
   CompleteZoomConnectionParams,
+  CourseDiscussion,
+  CourseDiscussionPost,
+  CourseDiscussionPostInput,
   CourseManagement,
   CourseMaterial,
   CourseMaterialInput,
@@ -2621,6 +2624,172 @@ export const useCreateCourseMaterial = <TError = ErrorType<void>,
       return useMutation(getCreateCourseMaterialMutationOptions(options));
     }
 
+export const getGetCourseDiscussionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/courses/modules/${id}/discussions`
+}
+
+/**
+ * @summary List discussions for a course module for coordinators and assigned trainers
+ */
+export const getCourseDiscussions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CourseDiscussion> => {
+
+  return customFetch<CourseDiscussion>(getGetCourseDiscussionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCourseDiscussionsQueryKey = (id: number,) => {
+    return [
+    `/api/courses/modules/${id}/discussions`
+    ] as const;
+    }
+
+
+export const getGetCourseDiscussionsQueryOptions = <TData = Awaited<ReturnType<typeof getCourseDiscussions>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCourseDiscussions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCourseDiscussionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCourseDiscussions>>> = ({ signal }) => getCourseDiscussions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCourseDiscussions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCourseDiscussionsQueryResult = NonNullable<Awaited<ReturnType<typeof getCourseDiscussions>>>
+export type GetCourseDiscussionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List discussions for a course module for coordinators and assigned trainers
+ */
+
+export function useGetCourseDiscussions<TData = Awaited<ReturnType<typeof getCourseDiscussions>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCourseDiscussions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCourseDiscussionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCourseDiscussionPostUrl = (id: number,) => {
+
+
+
+
+  return `/api/courses/modules/${id}/discussions`
+}
+
+/**
+ * @summary Create a course discussion topic or reply as coordinator or assigned trainer
+ */
+export const createCourseDiscussionPost = async (id: number,
+    courseDiscussionPostInput: CourseDiscussionPostInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseDiscussionPost> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseDiscussionPost>(getCreateCourseDiscussionPostUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseDiscussionPostInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCourseDiscussionPostMutationKey = () => ['createCourseDiscussionPost'] as const;
+
+export const getCreateCourseDiscussionPostMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCourseDiscussionPost>>, TError,CreateCourseDiscussionPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCourseDiscussionPost>>, TError,CreateCourseDiscussionPostMutationVariables, TContext> => {
+
+const mutationKey = getCreateCourseDiscussionPostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCourseDiscussionPost>>, CreateCourseDiscussionPostMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createCourseDiscussionPost(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCourseDiscussionPostMutationResult = NonNullable<Awaited<ReturnType<typeof createCourseDiscussionPost>>>
+    export type CreateCourseDiscussionPostMutationBody = BodyType<CourseDiscussionPostInput>
+    export type CreateCourseDiscussionPostMutationError = ErrorType<void>
+    export type CreateCourseDiscussionPostMutationVariables = {id: number;data: BodyType<CourseDiscussionPostInput>}
+
+    /**
+ * @summary Create a course discussion topic or reply as coordinator or assigned trainer
+ */
+export const useCreateCourseDiscussionPost = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCourseDiscussionPost>>, TError,CreateCourseDiscussionPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCourseDiscussionPost>>,
+        TError,
+        CreateCourseDiscussionPostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCourseDiscussionPostMutationOptions(options));
+    }
+
 export const getUpdateCourseMaterialUrl = (id: number,) => {
 
 
@@ -3025,6 +3194,172 @@ export function useGetParticipantCourses<TData = Awaited<ReturnType<typeof getPa
 
 
 
+
+export const getGetParticipantCourseDiscussionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/modules/${id}/discussions`
+}
+
+/**
+ * @summary List discussions for a released module in the participant's accepted cohort
+ */
+export const getParticipantCourseDiscussions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CourseDiscussion> => {
+
+  return customFetch<CourseDiscussion>(getGetParticipantCourseDiscussionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantCourseDiscussionsQueryKey = (id: number,) => {
+    return [
+    `/api/participant/courses/modules/${id}/discussions`
+    ] as const;
+    }
+
+
+export const getGetParticipantCourseDiscussionsQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantCourseDiscussions>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantCourseDiscussions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantCourseDiscussionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantCourseDiscussions>>> = ({ signal }) => getParticipantCourseDiscussions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantCourseDiscussions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantCourseDiscussionsQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantCourseDiscussions>>>
+export type GetParticipantCourseDiscussionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List discussions for a released module in the participant's accepted cohort
+ */
+
+export function useGetParticipantCourseDiscussions<TData = Awaited<ReturnType<typeof getParticipantCourseDiscussions>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantCourseDiscussions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantCourseDiscussionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateParticipantCourseDiscussionPostUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/modules/${id}/discussions`
+}
+
+/**
+ * @summary Create a discussion topic or reply in the participant's accepted cohort
+ */
+export const createParticipantCourseDiscussionPost = async (id: number,
+    courseDiscussionPostInput: CourseDiscussionPostInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseDiscussionPost> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseDiscussionPost>(getCreateParticipantCourseDiscussionPostUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseDiscussionPostInput)
+  }
+);}
+
+
+
+
+
+export const getCreateParticipantCourseDiscussionPostMutationKey = () => ['createParticipantCourseDiscussionPost'] as const;
+
+export const getCreateParticipantCourseDiscussionPostMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createParticipantCourseDiscussionPost>>, TError,CreateParticipantCourseDiscussionPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createParticipantCourseDiscussionPost>>, TError,CreateParticipantCourseDiscussionPostMutationVariables, TContext> => {
+
+const mutationKey = getCreateParticipantCourseDiscussionPostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createParticipantCourseDiscussionPost>>, CreateParticipantCourseDiscussionPostMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createParticipantCourseDiscussionPost(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateParticipantCourseDiscussionPostMutationResult = NonNullable<Awaited<ReturnType<typeof createParticipantCourseDiscussionPost>>>
+    export type CreateParticipantCourseDiscussionPostMutationBody = BodyType<CourseDiscussionPostInput>
+    export type CreateParticipantCourseDiscussionPostMutationError = ErrorType<void>
+    export type CreateParticipantCourseDiscussionPostMutationVariables = {id: number;data: BodyType<CourseDiscussionPostInput>}
+
+    /**
+ * @summary Create a discussion topic or reply in the participant's accepted cohort
+ */
+export const useCreateParticipantCourseDiscussionPost = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createParticipantCourseDiscussionPost>>, TError,CreateParticipantCourseDiscussionPostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createParticipantCourseDiscussionPost>>,
+        TError,
+        CreateParticipantCourseDiscussionPostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateParticipantCourseDiscussionPostMutationOptions(options));
+    }
 
 export const getGetParticipantCourseMaterialFileUrl = (id: number,) => {
 

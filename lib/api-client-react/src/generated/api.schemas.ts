@@ -378,6 +378,51 @@ export interface ParticipantCourses {
   programs: ParticipantCourseProgram[];
 }
 
+export interface CourseDiscussionPostInput {
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  parentId?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 140
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 3000
+     */
+  body: string;
+}
+
+export type CourseDiscussionPostAuthorRole = typeof CourseDiscussionPostAuthorRole[keyof typeof CourseDiscussionPostAuthorRole];
+
+
+export const CourseDiscussionPostAuthorRole = {
+  participant: 'participant',
+  trainer: 'trainer',
+  coordinator: 'coordinator',
+} as const;
+
+export interface CourseDiscussionPost {
+  id: number;
+  /** @nullable */
+  parentId: number | null;
+  /** @nullable */
+  title: string | null;
+  body: string;
+  authorName: string;
+  authorRole: CourseDiscussionPostAuthorRole;
+  createdAt: string;
+}
+
+export interface CourseDiscussion {
+  moduleId: number;
+  moduleTitle: string;
+  posts: CourseDiscussionPost[];
+}
+
 export type BusinessStage = typeof BusinessStage[keyof typeof BusinessStage];
 
 

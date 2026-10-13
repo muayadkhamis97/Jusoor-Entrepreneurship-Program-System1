@@ -9,7 +9,8 @@ description: Durable access boundaries for coordinator, trainer, mentor, judge, 
 - Trainers work with assigned cohorts: they can review participant assignments and answers and reply to participant questions. They do not get course-authoring rights by default.
 - Mentors work only within assigned support engagements; judges work only with assigned pitch scorecards.
 - Course materials are audience-restricted. Trainers see only published, released material whose role allowlist includes trainers; participants see material allowed for participants.
+- Course discussions are module-scoped: participants can post in released modules for their accepted cohort, trainers in released modules for assigned cohorts, and coordinators have program-wide access. Program Staff remain schedule-only.
 
-**Why:** The program uses distinct role workspaces; the user confirmed that project staff assign module dates while coordinators retain course-content control.
+**Why:** The program uses distinct role workspaces; the user confirmed that project staff assign module dates while coordinators retain course-content control, and selected a course discussion board for interactive learning.
 
-**How to apply:** Enforce ownership and assignment checks in API routes, not just navigation. Keep schedule-only staff responses free of course material details, require coordinator authorization for course authoring, and keep each material's allowlist and release state effective on both listing and file-download requests.
+**How to apply:** Enforce ownership and assignment checks in API routes, not just navigation. Keep schedule-only staff responses free of course material details, require coordinator authorization for course authoring, and keep each material's allowlist and release state effective on both listing and file-download requests. Apply the same accepted-cohort, assigned-trainer, release, and coordinator boundaries to discussion routes.

@@ -31,6 +31,7 @@ const matrix: MatrixRow[] = [
   { area: 'Financial grant tracking', detail: 'Record award receipts and corrections', icon: Presentation, access: { coordinator: 'full', staff: 'none', participant: 'none', trainer: 'none', mentor: 'none', judge: 'none' } },
   { area: 'Assignments & responses', detail: 'Create text assignments, submit work and review answers', icon: BookOpen, access: { coordinator: 'none', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Questions & replies', detail: 'Ask questions, reply within assigned cohorts', icon: MessageCircle, access: { coordinator: 'none', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
+  { area: 'Course discussions', detail: 'Start module topics and reply within assigned cohorts', icon: MessageCircle, access: { coordinator: 'full', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Role assignment', detail: 'Assign trainers, mentors and judges', icon: UserRound, access: { coordinator: 'full', staff: 'none', participant: 'none', trainer: 'none', mentor: 'none', judge: 'none' } },
 ];
 

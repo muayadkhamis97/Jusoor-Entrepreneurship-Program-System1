@@ -20,6 +20,7 @@ before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";
   const { default: coursesRouter } = await import("../src/routes/courses");
+  const { staffCourseDiscussionRouter } = await import("../src/routes/courseDiscussions");
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => {
@@ -29,6 +30,7 @@ before(async () => {
     next();
   });
   app.use("/api/courses", coursesRouter);
+  app.use("/api/courses", staffCourseDiscussionRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 });
@@ -140,4 +142,26 @@ test("program staff can schedule modules but cannot create content, edit module 
   const file = await request("/api/courses/materials/1/file");
 
   assert.deepEqual([create.status, changeTitle.status, scheduleWithInvalidId.status, file.status], [403, 403, 400, 403]);
+});
+
+test("course discussions reject staff without course access and validate module ids", async () => {
+  for (const restrictedRole of ["staff", "mentor", "judge"] as const) {
+    role = restrictedRole;
+    const read = await request("/api/courses/modules/1/discussions");
+    const post = await request("/api/courses/modules/1/discussions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Question", body: "A valid discussion message." }),
+    });
+    assert.deepEqual([read.status, post.status], [403, 403]);
+  }
+
+  role = "coordinator";
+  const invalidIdRead = await request("/api/courses/modules/not-an-id/discussions");
+  const invalidIdPost = await request("/api/courses/modules/not-an-id/discussions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Question", body: "A valid discussion message." }),
+  });
+  assert.deepEqual([invalidIdRead.status, invalidIdPost.status], [400, 400]);
 });
