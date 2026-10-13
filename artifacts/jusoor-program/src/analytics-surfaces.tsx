@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { currentLanguage, t, useAppLanguage } from "./language";
 import { CSVLink } from "react-csv";
 import {
   useGetProgramAnalytics,
@@ -41,22 +42,23 @@ const STAGE_LABELS: Record<string, string> = {
   pitch: "Pitch day", demo_day: "Demo day", grant_awarded: "Grant awarded",
   alumni: "Alumni", declined: "Declined",
 };
-const fmt = (value: number) => new Intl.NumberFormat("en-US").format(value);
+const fmt = (value: number) => new Intl.NumberFormat(currentLanguage() === "ar" ? "ar-JO" : "en-US").format(value);
 const dateLabel = (value: string) => {
   if (!value) return "—";
   const [y, m, d] = value.slice(0, 10).split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(y, m - 1, d).toLocaleDateString(currentLanguage() === "ar" ? "ar-JO" : "en", { month: "short", day: "numeric", year: "numeric" });
 };
 function ExportButton({ rows, filename }: { rows: Array<Record<string, unknown>>; filename: string }) {
   return rows.length
-    ? <CSVLink className="ana-icon-btn print-hide" aria-label="Export chart data as CSV" title="Export CSV" data={rows} filename={filename}><Download size={15} /></CSVLink>
-    : <button className="ana-icon-btn print-hide" aria-label="Export chart data as CSV" title="No data to export" disabled><Download size={15} /></button>;
+    ? <CSVLink className="ana-icon-btn print-hide" aria-label={t("Export chart data as CSV")} title={t("Export CSV")} data={rows} filename={filename}><Download size={15} /></CSVLink>
+    : <button className="ana-icon-btn print-hide" aria-label={t("Export chart data as CSV")} title={t("No data to export")} disabled><Download size={15} /></button>;
 }
 
 type AttendanceState = Record<number, { status: "present" | "absent" | "excused" | null; notes: string }>;
 type KpiForm = { name: string; description: string; unit: string; targetValue: string; direction: "increase_is_good" | "decrease_is_good" };
 
 export function ProgramAnalyticsPage() {
+  useAppLanguage();
   const queryClient = useQueryClient();
   const now = new Date();
   const initialFrom = new Date(now.getTime() - 89 * 86400000).toISOString().slice(0, 10);
@@ -231,43 +233,43 @@ export function ProgramAnalyticsPage() {
     <div className="analytics-wrap">
       <header className="analytics-heading">
         <div>
-          <div className="ana-eyebrow"><span className="ana-kicker-dot" />PROGRAM INTELLIGENCE <span className="ana-slash">/</span> COORDINATOR VIEW</div>
-          <h1>Progress, with <em>proof.</em></h1>
-          <p>Track each founder’s journey, capture attendance and turn program activity into evidence.</p>
-          <div className="ana-refresh-meta">{refreshedAt ? <>Updated {refreshedAt}</> : "Live from program records"} <span>·</span> Filters apply across this view</div>
+          <div className="ana-eyebrow"><span className="ana-kicker-dot" />{t("PROGRAM INTELLIGENCE")} <span className="ana-slash">/</span> {t("COORDINATOR VIEW")}</div>
+          <h1>{t("Progress, with")} <em>{t("proof.")}</em></h1>
+          <p>{t("Track each founder’s journey, capture attendance and turn program activity into evidence.")}</p>
+          <div className="ana-refresh-meta">{refreshedAt ? <>{t("Updated")} {refreshedAt}</> : t("Live from program records")} <span>·</span> {t("Filters apply across this view")}</div>
         </div>
         <div className="ana-header-tools print-hide">
           <div className="ana-split-wrap" ref={refreshRef}>
             <div className="ana-split">
-              <button onClick={refresh} disabled={loading}><RefreshCw size={15} className={loading ? "ana-spinning" : ""} /> Refresh</button>
-              <button aria-label="Refresh settings" onClick={() => setRefreshMenu((open) => !open)}><ChevronDown size={14} /></button>
+              <button onClick={refresh} disabled={loading}><RefreshCw size={15} className={loading ? "ana-spinning" : ""} /> {t("Refresh")}</button>
+              <button aria-label={t("Refresh settings")} onClick={() => setRefreshMenu((open) => !open)}><ChevronDown size={14} /></button>
             </div>
             {refreshMenu && <div className="ana-refresh-pop">
-              <label className="ana-switchline">Auto-refresh <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /><span className="ana-switch" /></label>
-              <div className="ana-pop-label">INTERVAL</div>
+              <label className="ana-switchline">{t("Auto-refresh")} <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /><span className="ana-switch" /></label>
+              <div className="ana-pop-label">{t("INTERVAL")}</div>
               {INTERVALS.map((option) => <button key={option.ms} className="ana-interval" onClick={() => { setIntervalMs(option.ms); setRefreshMenu(false); }}>{option.label}{intervalMs === option.ms && <Check size={14} />}</button>)}
-              <small>Automatic refresh is off by default. Minimum interval: 5 minutes.</small>
+              <small>{t("Automatic refresh is off by default. Minimum interval: 5 minutes.")}</small>
             </div>}
           </div>
-          <button className="ana-tool" onClick={() => setReportOpen(true)} aria-label="Configure report"><FileText size={16} /><span>Report</span></button>
-          <button className="ana-tool" onClick={() => window.print()} aria-label="Print or save PDF"><Printer size={16} /></button>
-          <button className="ana-tool" onClick={() => setIsDark((dark) => !dark)} aria-label="Toggle dark mode">{isDark ? <Sun size={16} /> : <Moon size={16} />}</button>
+          <button className="ana-tool" onClick={() => setReportOpen(true)} aria-label={t("Configure report")}><FileText size={16} /><span>{t("Report")}</span></button>
+          <button className="ana-tool" onClick={() => window.print()} aria-label={t("Print or save PDF")}><Printer size={16} /></button>
+          <button className="ana-tool" onClick={() => setIsDark((dark) => !dark)} aria-label={t("Toggle dark mode")}>{isDark ? <Sun size={16} /> : <Moon size={16} />}</button>
         </div>
       </header>
 
       <section className="ana-filters print-hide">
-        <div className="ana-filter-title"><CalendarDays size={16} /><span>FILTER SCOPE</span></div>
-        <label className="ana-field"><span>Program</span><select value={programChoice} onChange={(e) => setProgramChoice(e.target.value)}><option value="">All programs</option>{data?.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
-        <label className="ana-field"><span>From</span><input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="ana-field"><span>Through</span><input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
-        <div className="ana-range-caption"><span className="ana-range-pulse" />{data ? `${dateLabel(data.from)} — ${dateLabel(data.to)}` : "Loading date range"}</div>
+        <div className="ana-filter-title"><CalendarDays size={16} /><span>{t("FILTER SCOPE")}</span></div>
+        <label className="ana-field"><span>{t("Program")}</span><select value={programChoice} onChange={(e) => setProgramChoice(e.target.value)}><option value="">{t("All programs")}</option>{data?.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
+        <label className="ana-field"><span>{t("From")}</span><input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label className="ana-field"><span>{t("Through")}</span><input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
+        <div className="ana-range-caption"><span className="ana-range-pulse" />{data ? `${dateLabel(data.from)} — ${dateLabel(data.to)}` : t("Loading date range")}</div>
       </section>
 
-      {error ? <section className="ana-state ana-error"><CircleAlert size={23} /><h2>Analytics could not load</h2><p>The program records are temporarily unavailable. Your filters are preserved.</p><button className="ana-button primary" onClick={refresh}><RefreshCw size={14} /> Try again</button></section> :
-      !loading && data && data.programs.length === 0 ? <section className="ana-state"><BarChart3 size={25} /><h2>No programs to report yet</h2><p>Analytics will appear when a program has been created and founder activity is recorded.</p></section> : <>
+      {error ? <section className="ana-state ana-error"><CircleAlert size={23} /><h2>{t("Analytics could not load")}</h2><p>{t("The program records are temporarily unavailable. Your filters are preserved.")}</p><button className="ana-button primary" onClick={refresh}><RefreshCw size={14} /> {t("Try again")}</button></section> :
+      !loading && data && data.programs.length === 0 ? <section className="ana-state"><BarChart3 size={25} /><h2>{t("No programs to report yet")}</h2><p>{t("Analytics will appear when a program has been created and founder activity is recorded.")}</p></section> : <>
         <div className="ana-section-heading">
-          <div><span className="ana-eyebrow">AT A GLANCE</span><h2>Program pulse</h2></div>
-          <span className="ana-context">{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"} <i /> {from && to ? `${dateLabel(from)} — ${dateLabel(to)}` : "All dates"}</span>
+          <div><span className="ana-eyebrow">{t("AT A GLANCE")}</span><h2>{t("Program pulse")}</h2></div>
+          <span className="ana-context">{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : t("All programs")} <i /> {from && to ? `${dateLabel(from)} — ${dateLabel(to)}` : t("All dates")}</span>
         </div>
         <section className="ana-metrics">
           {metrics.map(({ title, value, hint, icon: Icon, hue }) => <article key={title} className={`ana-metric ana-${hue}`}>

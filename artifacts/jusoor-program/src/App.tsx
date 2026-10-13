@@ -2,6 +2,7 @@ import './workspace.css';
 import './role-workspace.css';
 import './role-access.css';
 import './session-recording.css';
+import './language.css';
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -10,6 +11,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
+import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
@@ -46,6 +48,7 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import { ProgramAnalyticsPage } from './analytics-surfaces';
 import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
+import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -67,12 +70,12 @@ const stageNames: Record<string, string> = {
   alumni: 'Alumni', declined: 'Declined',
 };
 const businessStages: BusinessStage[] = ['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'];
-const dateLabel = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const dateLabel = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 type MentorFollowUpStatus = 'overdue' | 'upcoming' | 'undated';
 const localCalendarDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const mentorFollowUpStatus = (date: string | null, today: string): MentorFollowUpStatus => !date ? 'undated' : date < today ? 'overdue' : 'upcoming';
-const money = (value?: number | null) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
-const display = (v?: string | null) => v ? v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
+const money = (value?: number | null) => new Intl.NumberFormat(currentLanguage() === 'ar' ? 'ar-JO' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
+const display = (v?: string | null) => v ? t(v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
 const statusTone = (status: string) => {
   if (['active', 'completed', 'scheduled', 'awarded', 'grant_awarded', 'incubator'].includes(status)) return 'good';
   if (['declined', 'cancelled', 'not_awarded'].includes(status)) return 'bad';
@@ -102,14 +105,15 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
   title: string; description?: string; fields: Field[]; initial?: Values; loading?: boolean;
   onClose: () => void; onSubmit: (values: Values) => void; error?: string;
 }) {
+  useAppLanguage();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? ''])));
   return <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
     <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-      <div className="modal-head"><div><div className="eyebrow">PROGRAM HUB / RECORD</div><h2 id="dialog-title" className="app-title">{title}</h2>{description && <p>{description}</p>}</div><button className="icon-button" aria-label="Close dialog" onClick={onClose} data-testid="button-close-dialog"><X size={18} /></button></div>
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p>{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={onClose} data-testid="button-close-dialog"><X size={18} /></button></div>
       <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
-        <div className="form-grid">{fields.map(field => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{field.label}{field.required && <i> *</i>}</span><FieldControl field={field} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{field.hint}</small>}</label>)}</div>
-        {error && <div className="form-error"><CircleAlert size={16} />{error}</div>}
-        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={onClose} data-testid="button-cancel">Cancel</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? 'Saving…' : <><Check size={16} /> Save record</>}</button></div>
+        <div className="form-grid">{fields.map(field => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{t(field.label)}{field.required && <i> *</i>}</span><FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{t(field.hint)}</small>}</label>)}</div>
+        {error && <div className="form-error"><CircleAlert size={16} />{t(error)}</div>}
+        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={onClose} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t('Save record')}</>}</button></div>
       </form>
     </section>
   </div>;
@@ -117,9 +121,9 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
 
 function ConfirmDialog({ item, onCancel, onConfirm, loading, error }: { item: string; onCancel: () => void; onConfirm: () => void; loading?: boolean; error?: string }) {
   return <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true">
-    <div className="confirm-symbol"><Trash2 size={20} /></div><h2 className="app-title">Remove this record?</h2><p><strong>{item}</strong> will be permanently removed from the workspace. This cannot be undone.</p>
+      <div className="confirm-symbol"><Trash2 size={20} /></div><h2 className="app-title">{t('Remove this record?')}</h2><p><strong>{t(item)}</strong> {t('will be permanently removed from the workspace. This cannot be undone.')}</p>
     {error && <div className="form-error"><CircleAlert size={16} />{error}</div>}
-    <div className="modal-actions"><button className="button button-quiet" onClick={onCancel} data-testid="button-keep-record">Keep record</button><button className="button button-danger" onClick={onConfirm} disabled={loading} data-testid="button-confirm-delete">{loading ? 'Removing…' : 'Remove record'}</button></div>
+    <div className="modal-actions"><button className="button button-quiet" onClick={onCancel} data-testid="button-keep-record">{t('Keep record')}</button><button className="button button-danger" onClick={onConfirm} disabled={loading} data-testid="button-confirm-delete">{loading ? t('Removing…') : t('Remove record')}</button></div>
   </section></div>;
 }
 
@@ -143,47 +147,47 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   return <div className="workspace noise">
     <aside className="sidebar">
       <Link href="/" className="brand" data-testid="link-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></Link>
-      <div className="workspace-tag"><span className="live-dot" /> PROGRAM OPERATIONS</div>
+       <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
       <nav className="side-nav" aria-label="Main navigation">{nav.map(item => {
         const Icon = item.icon; const active = path === item.href;
-        return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{item.label}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
+         return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
       })}</nav>
       <div className="sidebar-bottom">
-        <div className="sidebar-note"><Sparkles size={15} /><div><b>One journey, in view.</b><span>Move each founder forward.</span></div></div>
-        <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.role === 'coordinator' ? 'Jusoor coordinator' : 'Program staff'}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label="Sign out"><LogOut size={15} /></button></div>
+         <div className="sidebar-note"><Sparkles size={15} /><div><b>{t('One journey, in view.')}</b><span>{t('Move each founder forward.')}</span></div></div>
+         <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.role === 'coordinator' ? t('Jusoor coordinator') : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
       </div>
     </aside>
     <main className="main-panel">
-      <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{label}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.role === 'coordinator' ? 'COORDINATOR' : 'STAFF'}</span></div></header>
-      <div className="mobile-nav">{nav.map(item => <Link href={item.href} key={item.href} className={path === item.href ? 'mobile-active' : ''} aria-label={item.label}><item.icon size={18} /></Link>)}<button type="button" className="mobile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label="Sign out"><LogOut size={17} /></button></div>
+       <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.role === 'coordinator' ? t('COORDINATOR') : t('STAFF')}</span><LanguageToggle /></div></header>
+       <div className="mobile-nav">{nav.map(item => <Link href={item.href} key={item.href} className={path === item.href ? 'mobile-active' : ''} aria-label={t(item.label)}><item.icon size={18} /></Link>)}<LanguageToggle /><button type="button" className="mobile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={17} /></button></div>
       <div className="page-content page-enter">{children}</div>
-      <footer className="footer"><span>JUSOOR ENTREPRENEURSHIP PROGRAM</span><span>PROGRAM OPERATIONS <i /> FIELD NOTES</span></footer>
+       <footer className="footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
     </main>
   </div>;
 }
 
 function PageHeading({ kicker, title, summary, action }: { kicker: string; title: string; summary: string; action?: ReactNode }) {
-  return <div className="page-heading"><div><div className="eyebrow">{kicker}</div><h1 className="app-title">{title}</h1><p>{summary}</p></div>{action}</div>;
+  return <div className="page-heading"><div><div className="eyebrow">{t(kicker)}</div><h1 className="app-title">{t(title)}</h1><p>{t(summary)}</p></div>{action}</div>;
 }
 
 function LoadingState({ label = 'Loading program records' }: { label?: string }) {
-  return <div className="loading-panel" aria-label={label}><div className="skeleton skeleton-wide" /><div className="skeleton-grid"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>;
+  return <div className="loading-panel" aria-label={t(label)}><div className="skeleton skeleton-wide" /><div className="skeleton-grid"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>;
 }
 
 function ErrorState({ retry }: { retry: () => void }) {
-  return <div className="empty-panel error-panel"><div className="empty-icon"><CircleAlert size={22} /></div><h3>We couldn't load this view.</h3><p>Your records are safe. Try connecting again.</p><button className="button button-outline" onClick={retry} data-testid="button-retry"><Activity size={15} /> Retry connection</button></div>;
+  return <div className="empty-panel error-panel"><div className="empty-icon"><CircleAlert size={22} /></div><h3>{t("We couldn't load this view.")}</h3><p>{t('Your records are safe. Try connecting again.')}</p><button className="button button-outline" onClick={retry} data-testid="button-retry"><Activity size={15} /> {t('Retry connection')}</button></div>;
 }
 
 function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
-  return <div className="empty-panel"><div className="empty-icon"><FileText size={21} /></div><h3>{title}</h3><p>{body}</p>{action}</div>;
+  return <div className="empty-panel"><div className="empty-icon"><FileText size={21} /></div><h3>{t(title)}</h3><p>{t(body)}</p>{action}</div>;
 }
 
 function Badge({ value, label }: { value: string; label?: string }) {
-  return <span className={`badge badge-${statusTone(value)}`}><span />{label || display(value)}</span>;
+  return <span className={`badge badge-${statusTone(value)}`}><span />{t(label || display(value))}</span>;
 }
 
 function Metric({ label, value, hint, icon: Icon, accent, trend }: { label: string; value: string | number; hint: string; icon: typeof Users; accent?: string; trend?: string }) {
-  return <article className={`metric-card ${accent || ''}`}><div className="metric-top"><span>{label}</span><span className="metric-icon"><Icon size={17} /></span></div><strong className="metric-value">{value}</strong><div className="metric-bottom"><span>{hint}</span>{trend && <span className="metric-trend"><ArrowUpRight size={13} />{trend}</span>}</div></article>;
+  return <article className={`metric-card ${accent || ''}`}><div className="metric-top"><span>{t(label)}</span><span className="metric-icon"><Icon size={17} /></span></div><strong className="metric-value">{value}</strong><div className="metric-bottom"><span>{t(hint)}</span>{trend && <span className="metric-trend"><ArrowUpRight size={13} />{t(trend)}</span>}</div></article>;
 }
 
 function Overview() {
@@ -193,7 +197,7 @@ function Overview() {
   if (query.isLoading) return <><PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." /><LoadingState /></>;
   if (query.isError || !dashboard) return <><PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." /><ErrorState retry={() => void query.refetch()} /></>;
   return <>
-    <PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." action={<Link href="/businesses" className="button button-primary"><Plus size={16} /> Add a business</Link>} />
+    <PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." action={<Link href="/businesses" className="button button-primary"><Plus size={16} /> {t('Add a business')}</Link>} />
     <section className="metric-grid">
       <Metric label="Active programs" value={dashboard.programs} hint="Cohorts in motion" icon={Activity} trend="across formats" />
       <Metric label="Applications" value={dashboard.applications} hint="In the pipeline" icon={Users} accent="metric-coral" />
@@ -202,24 +206,24 @@ function Overview() {
       <Metric label="Grants awarded" value={dashboard.grantsAwarded} hint={money(dashboard.totalGrantAmount) + ' committed'} icon={Trophy} accent="metric-coral" />
     </section>
     <div className="overview-grid">
-      <section className="panel stage-panel"><div className="panel-heading"><div><div className="eyebrow">FOUNDER JOURNEY</div><h2 className="app-title">Where the work is</h2></div><Link href="/businesses" className="text-link">Open pipeline <ArrowRight size={14} /></Link></div>
+       <section className="panel stage-panel"><div className="panel-heading"><div><div className="eyebrow">{t('FOUNDER JOURNEY')}</div><h2 className="app-title">{t('Where the work is')}</h2></div><Link href="/businesses" className="text-link">{t('Open pipeline')} <ArrowRight size={14} /></Link></div>
         {stages.length ? <div className="stage-list">{businessStages.map((key, index) => {
           const entry = stages.find(item => item.stage === key); const count = entry?.count || 0;
-          return <div className="stage-row" key={key}><span className="stage-number mono">{String(index + 1).padStart(2, '0')}</span><span className="stage-name">{stageNames[key]}</span><div className="stage-track"><div className={`stage-fill stage-fill-${index % 5}`} style={{ width: `${Math.max(count ? 8 : 0, count / max * 100)}%` }} /></div><span className="stage-count mono">{count}</span></div>;
+           return <div className="stage-row" key={key}><span className="stage-number mono">{String(index + 1).padStart(2, '0')}</span><span className="stage-name">{t(stageNames[key])}</span><div className="stage-track"><div className={`stage-fill stage-fill-${index % 5}`} style={{ width: `${Math.max(count ? 8 : 0, count / max * 100)}%` }} /></div><span className="stage-count mono">{count}</span></div>;
         })}</div> : <EmptyState title="The journey starts here." body="Once founders enter the pipeline, their progress will appear across every stage." action={<Link href="/businesses" className="text-link">Add your first business <ArrowRight size={14} /></Link>} />}
-        <div className="journey-foot"><span><span className="live-dot" /> THE FULL JOURNEY, AT A GLANCE</span><span>{dashboard.applications + dashboard.incubatorBusinesses} founders tracked</span></div>
+         <div className="journey-foot"><span><span className="live-dot" /> {t('THE FULL JOURNEY, AT A GLANCE')}</span><span>{dashboard.applications + dashboard.incubatorBusinesses} {t('founders tracked')}</span></div>
       </section>
-      <section className="panel upcoming-panel"><div className="panel-heading"><div><div className="eyebrow">ON THE CALENDAR</div><h2 className="app-title">Upcoming sessions</h2></div><Link href="/sessions" className="text-link">All sessions <ArrowRight size={14} /></Link></div>
+       <section className="panel upcoming-panel"><div className="panel-heading"><div><div className="eyebrow">{t('ON THE CALENDAR')}</div><h2 className="app-title">{t('Upcoming sessions')}</h2></div><Link href="/sessions" className="text-link">{t('All sessions')} <ArrowRight size={14} /></Link></div>
         <div className="session-preview-list">{dashboard.upcomingSessions.length ? dashboard.upcomingSessions.slice(0, 5).map(session => {
           const hasZoom = session.deliveryMode !== 'in_person' && Boolean(session.zoomUrl);
-          return <div className="session-preview" key={session.id}><div className="date-block"><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short' }).toUpperCase()}</span></div><div className="session-info"><b>{session.title}</b><span>{display(session.type)} · {display(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.location ? ` · ${session.location}` : ''}</span></div>{hasZoom ? <a href={session.zoomUrl!} target="_blank" rel="noreferrer" className="session-join" aria-label={`Join ${session.title} on Zoom`}><Video size={15} /></a> : <span className="session-join disabled" aria-label={session.deliveryMode === 'in_person' ? 'In-person session' : 'No Zoom link available'}><Video size={15} /></span>}</div>;
+           return <div className="session-preview" key={session.id}><div className="date-block"><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div><div className="session-info"><b>{session.title}</b><span>{display(session.type)} · {display(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.location ? ` · ${session.location}` : ''}</span></div>{hasZoom ? <a href={session.zoomUrl!} target="_blank" rel="noreferrer" className="session-join" aria-label={`${t('Join')} ${session.title} ${t('on Zoom')}`}><Video size={15} /></a> : <span className="session-join disabled" aria-label={session.deliveryMode === 'in_person' ? t('In-person session') : t('No Zoom link available')}><Video size={15} /></span>}</div>;
         }) : <EmptyState title="Nothing on the calendar yet." body="Schedule a bootcamp, training or pitch event to give the cohort its next milestone." action={<Link href="/sessions" className="text-link">Plan a session <ArrowRight size={14} /></Link>} />}</div>
       </section>
     </div>
-    <section className="panel recent-panel"><div className="panel-heading"><div><div className="eyebrow">LATEST MOVEMENT</div><h2 className="app-title">Recently added businesses</h2></div><Link href="/businesses" className="text-link">View pipeline <ArrowRight size={14} /></Link></div>
-      {dashboard.recentBusinesses.length ? <div className="table-wrap"><table><thead><tr><th>BUSINESS / FOUNDER</th><th>INDUSTRY</th><th>STAGE</th><th>APPLIED</th><th /></tr></thead><tbody>{dashboard.recentBusinesses.slice(0, 5).map(business => <tr key={business.id}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName}</small></span></div></td><td>{business.industry || '—'}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><Link href="/businesses" className="row-arrow" aria-label={`View ${business.businessName}`}><ArrowRight size={15} /></Link></td></tr>)}</tbody></table></div> : <EmptyState title="No businesses added yet." body="Applications and founder records will appear here as the program gets underway." action={<Link href="/businesses" className="text-link">Add a founder <ArrowRight size={14} /></Link>} />}
+       <section className="panel recent-panel"><div className="panel-heading"><div><div className="eyebrow">{t('LATEST MOVEMENT')}</div><h2 className="app-title">{t('Recently added businesses')}</h2></div><Link href="/businesses" className="text-link">{t('View pipeline')} <ArrowRight size={14} /></Link></div>
+       {dashboard.recentBusinesses.length ? <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS / FOUNDER')}</th><th>{t('INDUSTRY')}</th><th>{t('STAGE')}</th><th>{t('APPLIED')}</th><th /></tr></thead><tbody>{dashboard.recentBusinesses.slice(0, 5).map(business => <tr key={business.id}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName}</small></span></div></td><td>{business.industry || '—'}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><Link href="/businesses" className="row-arrow" aria-label={`${t('View')} ${business.businessName}`}><ArrowRight size={15} /></Link></td></tr>)}</tbody></table></div> : <EmptyState title="No businesses added yet." body="Applications and founder records will appear here as the program gets underway." action={<Link href="/businesses" className="text-link">{t('Add a founder')} <ArrowRight size={14} /></Link>} />}
     </section>
-    <div className="dashboard-note"><span className="note-mark">J</span><span><b>The work is the journey.</b> Outreach to grant decision — keep every next step visible.</span><Link href="/programs">Program setup <ArrowRight size={14} /></Link></div>
+     <div className="dashboard-note"><span className="note-mark">J</span><span><b>{t('The work is the journey.')}</b> {t('Outreach to grant decision — keep every next step visible.')}</span><Link href="/programs">{t('Program setup')} <ArrowRight size={14} /></Link></div>
   </>;
 }
 
@@ -308,7 +312,7 @@ function ProgramsPage() {
   };
   const confirmRemove = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListProgramsQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
-    <PageHeading kicker="PROGRAM MANAGEMENT / COHORTS" title="Programs" summary="Set the shape of each cohort, from first call to final milestone." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-program"><Plus size={16} /> New program</button>} />
+    <PageHeading kicker="PROGRAM MANAGEMENT / COHORTS" title="Programs" summary="Set the shape of each cohort, from first call to final milestone." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-program"><Plus size={16} /> {t('New program')}</button>} />
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : programs.length === 0 ? <EmptyState title="A good program starts with a clear plan." body="Create your first cohort to define its format, application window and key dates." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button>} /> :
     <><div className="section-strip"><span><b>{programs.length}</b> cohorts in the workspace</span><span><span className="live-dot" /> Keep cohort dates current</span></div><div className="program-grid">{programs.map((program, index) => <article className="program-card" key={program.id} data-testid={`card-program-${program.id}`}><div className="program-card-top"><div className={`program-symbol program-symbol-${index % 3}`}>{program.format === 'bootcamp' ? 'B' : 'H'}</div><Badge value={program.status} /><div className="row-actions"><button className="icon-button" onClick={() => setEditing(program)} aria-label={`Edit ${program.name}`} data-testid={`button-edit-program-${program.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(program)} aria-label={`Delete ${program.name}`} data-testid={`button-delete-program-${program.id}`}><Trash2 size={15} /></button></div></div><div className="eyebrow">{display(program.format)} COHORT</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div><Link href="/businesses" className="program-link">View businesses <ArrowRight size={15} /></Link></article>)}</div></>}
     {editing !== undefined && <FormDialog title={editing ? 'Edit program' : 'Create a program'} description="A cohort is the backbone of the founder journey." fields={programFields} initial={editing ? { name: editing.name, format: editing.format, status: editing.status, description: editing.description || '', startDate: valueOf(editing.startDate), endDate: valueOf(editing.endDate), applicationDeadline: valueOf(editing.applicationDeadline) } : { format: 'bootcamp', status: 'planning' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this program. Check required fields and try again.' : undefined} />}
@@ -334,7 +338,7 @@ function BusinessesPage() {
   };
   const confirmRemove = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListBusinessesQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
-    <PageHeading kicker="FOUNDER JOURNEY / PIPELINE" title="Businesses" summary="Every founder, application and next stage — in one working view." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-business"><Plus size={16} /> Add business</button>} />
+    <PageHeading kicker="FOUNDER JOURNEY / PIPELINE" title="Businesses" summary="Every founder, application and next stage — in one working view." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-business"><Plus size={16} /> {t('Add business')}</button>} />
     <section className="pipeline-ribbon"><div className="ribbon-heading"><div className="eyebrow">JUSOOR JOURNEY</div><span>Follow progress, not just applications.</span></div><div className="ribbon-stages">{businessStages.slice(0, 7).map((s, i) => <div className="ribbon-stage" key={s}><span className={`ribbon-dot dot-${i}`} />{stageNames[s]}{i < 6 && <i />}</div>)}</div></section>
     <section className="list-panel panel"><div className="toolbar"><div className="search-box"><Search size={16} /><input type="search" aria-label="Search businesses" placeholder="Search business, founder, email…" value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-businesses" />{search && <button onClick={() => setSearch('')} aria-label="Clear search"><X size={14} /></button>}</div><label className="filter-select"><Filter size={15} /><select value={stage} aria-label="Filter businesses by stage" onChange={e => setStage(e.target.value)} data-testid="select-business-stage"><option value="">All stages</option>{businessStages.map(s => <option key={s} value={s}>{stageNames[s]}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{businesses.length}</b> records</div></div>
       {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : businesses.length === 0 ? <EmptyState title={search || stage ? 'No matching businesses.' : 'The founder pipeline is ready.'} body={search || stage ? 'Try a different search or clear the stage filter.' : 'Add a business or applicant and start tracking the next step.'} action={search || stage ? <button className="button button-outline" onClick={() => { setSearch(''); setStage(''); }}>Clear filters</button> : <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Add a business</button>} /> :
@@ -454,7 +458,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
         : null;
 
   return <>
-    <PageHeading kicker="PROGRAM DELIVERY / SESSIONS" title="Sessions" summary="Bootcamps, hackathons and online moments that move the cohort forward." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-session"><Plus size={16} /> Schedule session</button>} />
+    <PageHeading kicker="PROGRAM DELIVERY / SESSIONS" title="Sessions" summary="Bootcamps, hackathons and online moments that move the cohort forward." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-session"><Plus size={16} /> {t('Schedule session')}</button>} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Trainer assignments are temporarily unavailable.</b><span>Reload the page to retry team access records before assigning a trainer.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-trainers">Retry</button></div>}
     {coordinator && <section className="team-callout zoom-connect-panel" data-testid="zoom-connection-panel" aria-live="polite">
       <Video size={18} />
@@ -567,7 +571,7 @@ function SupportPage({ coordinator = false }: { coordinator?: boolean }) {
   };
   const removeRecord = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListSupportQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
-    <PageHeading kicker="FOUNDER ENABLEMENT / ENGAGEMENTS" title="Support" summary="The right mentor, specialist or agency at the moment it matters." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-support"><Plus size={16} /> Log engagement</button>} />
+    <PageHeading kicker="FOUNDER ENABLEMENT / ENGAGEMENTS" title="Support" summary="The right mentor, specialist or agency at the moment it matters." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-support"><Plus size={16} /> {t('Log engagement')}</button>} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Mentor assignments are temporarily unavailable.</b><span>Retry team access records before assigning an engagement.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-mentors">Retry</button></div>}
     <div className="support-callout"><div className="support-callout-icon"><Handshake size={20} /></div><div><div className="eyebrow">SUPPORT THAT MOVES THE NEEDLE</div><b>Match practical expertise to a founder's next milestone.</b><span>Mentoring · subject expertise · branding · technical agency</span></div><div className="support-total"><b>{engagements.filter(e => e.status !== 'completed').length}</b><span>IN MOTION</span></div></div>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label="Filter support by type" onChange={e => setType(e.target.value)} data-testid="select-support-type"><option value="">All support types</option>{['mentor', 'subject_expert', 'branding', 'technical'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{engagements.length}</b> engagements</div></div>
@@ -594,7 +598,7 @@ function PitchesPage({ coordinator = false }: { coordinator?: boolean }) {
   const awarded = pitches.filter(p => p.grantDecision === 'awarded');
   const awardedTotal = awarded.reduce((sum, pitch) => sum + (pitch.grantAmount || 0), 0);
   return <>
-    <PageHeading kicker="PITCH DAY / DECISIONS" title="Pitch & grants" summary="Keep evaluations, judge feedback and funding decisions connected." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-pitch"><Plus size={16} /> Add evaluation</button>} />
+    <PageHeading kicker="PITCH DAY / DECISIONS" title="Pitch & grants" summary="Keep evaluations, judge feedback and funding decisions connected." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-pitch"><Plus size={16} /> {t('Add evaluation')}</button>} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Judge assignments are temporarily unavailable.</b><span>Retry team access records before assigning scorecards.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-judges">Retry</button></div>}
      {coordinator && <section className="grant-summary"><div className="grant-emblem"><Trophy size={21} /></div><div className="grant-copy"><div className="eyebrow">FROM THE STAGE TO THE NEXT CHAPTER</div><b>Make each decision legible and grounded.</b><span>Scores, feedback and grant outcomes stay with the founder record.</span></div><div className="grant-stat"><b>{awarded.length}</b><span>GRANTS AWARDED</span></div><div className="grant-stat grant-amount"><b>{money(awardedTotal)}</b><span>TRACKED HERE</span></div></section>}
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={eventType} aria-label="Filter pitch evaluations by event" onChange={e => setEventType(e.target.value)} data-testid="select-pitch-event"><option value="">Pitch + demo day</option><option value="pitch_day">Pitch day</option><option value="demo_day">Demo day</option></select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{pitches.length}</b> evaluations</div></div>
@@ -750,7 +754,7 @@ function TeamPage() {
   const deleteError = remove.error as { data?: { error?: string } } | null;
 
   return <>
-    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> Invite team member</button>} />
+    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button>} />
     <div className="team-callout"><Shield size={18} /><div><b>Every role is tied to a verified email.</b><span>Choose coordinator, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.</span></div></div>
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add a coordinator or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
       <section className="panel staff-panel">
@@ -775,6 +779,7 @@ function NotFoundPage() {
 }
 
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
+  useAppLanguage();
   const [location] = useLocation();
   if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage /></RoleFrame> : <RoleNotFound role={staff.role} />;
   if (staff.role === 'mentor') return location === '/mentor' ? <MentorDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
@@ -799,46 +804,52 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
 }
 
 function AuthLanding() {
+  useAppLanguage();
   return <main className="auth-page">
-    <div className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></div>
+    <div className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></div>
+    <LanguageToggle className="auth-language-toggle" />
     <section className="auth-welcome">
-      <div className="eyebrow">JUSOOR ENTREPRENEURSHIP PROGRAM</div>
-      <h1 className="app-title">Good work,<br /><em>moving forward.</em></h1>
-      <p>A private workspace for the team supporting founders from outreach and incubation to pitch day and grants.</p>
-      <div className="auth-actions"><Link href="/apply" className="button button-primary">Apply to a program <ArrowRight size={16} /></Link><Link href="/participant" className="auth-secondary">Already applied? Sign in to track progress</Link><Link href="/sign-in" className="auth-secondary">Program team sign in</Link></div>
-      <div className="auth-foot"><Shield size={15} /><span>Founder progress is private to the applicant. Staff workspace access requires coordinator approval.</span></div>
+      <div className="eyebrow">{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</div>
+      <h1 className="app-title">{t('Good work,')}<br /><em>{t('moving forward.')}</em></h1>
+      <p>{t('A private workspace for the team supporting founders from outreach and incubation to pitch day and grants.')}</p>
+      <div className="auth-actions"><Link href="/apply" className="button button-primary">{t('Apply to a program')} <ArrowRight size={16} /></Link><Link href="/participant" className="auth-secondary">{t('Already applied? Sign in to track progress')}</Link><Link href="/sign-in" className="auth-secondary">{t('Program team sign in')}</Link></div>
+      <div className="auth-foot"><Shield size={15} /><span>{t('Founder progress is private to the applicant. Staff workspace access requires coordinator approval.')}</span></div>
     </section>
-    <div className="auth-side-note"><span>01 — PROGRAM OPERATIONS</span><b>Every founder.<br />Every next step.</b><i>OUTREACH → INCUBATION → GRANTS</i></div>
+    <div className="auth-side-note"><span>01 — {t('PROGRAM OPERATIONS')}</span><b>{t('Every founder.')}<br />{t('Every next step.')}</b><i>{t('OUTREACH → INCUBATION → GRANTS')}</i></div>
   </main>;
 }
 
 function AuthPage({ mode, participantRedirect = false }: { mode: 'sign-in' | 'sign-up'; participantRedirect?: boolean }) {
+  useAppLanguage();
   const isSignIn = mode === 'sign-in';
   return <main className="auth-page auth-form-page">
-    <Link href="/" className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></Link>
-    <div className="auth-form-content"><div className="eyebrow">{isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT'}</div><h1 className="app-title">{isSignIn ? 'Welcome back.' : 'Your journey, in view.'}</h1><p>{isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require coordinator approval.'}</p>
+    <Link href="/" className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></Link>
+    <LanguageToggle className="auth-language-toggle" />
+    <div className="auth-form-content"><div className="eyebrow">{t(isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}</div><h1 className="app-title">{t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}</h1><p>{t(isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require coordinator approval.')}</p>
       <div className="clerk-card">{isSignIn
         ? <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={participantRedirect ? `${basePath}/participant` : undefined} />
         : <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={`${basePath}/participant`} />}
       </div>
-      <Link href="/" className="auth-back">← Back to Jusoor Program Hub</Link>
+      <Link href="/" className="auth-back">← {t('Back to Jusoor Program Hub')}</Link>
     </div>
     <div className="auth-form-note"><Shield size={15} /> Founder progress is private to the signed-in applicant. Staff workspace access remains coordinator-approved.</div>
   </main>;
 }
 
 function AuthLoading() {
-  return <main className="auth-status-page"><div className="brand-mark">J</div><p>Checking your staff access…</p></main>;
+  return <main className="auth-status-page"><div className="brand-mark">J</div><LanguageToggle /><p>{t('Checking your staff access…')}</p></main>;
 }
 
 function AccessDenied({ retry }: { retry?: () => void }) {
+  useAppLanguage();
   const { signOut } = useClerk();
-  return <main className="auth-status-page"><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">STAFF ACCESS REQUIRED</div><h1 className="app-title">This account isn’t approved yet.</h1><p>Ask a Jusoor coordinator to approve your verified email address, then sign in again.</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>Check access again</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> Sign out</button></div></main>;
+  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask a Jusoor coordinator to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
 }
 
 function AccessCheckFailed({ retry, sessionExpired = false }: { retry: () => void; sessionExpired?: boolean }) {
+  useAppLanguage();
   const { signOut } = useClerk();
-  return <main className="auth-status-page"><span className="denied-icon"><CircleAlert size={21} /></span><div className="eyebrow">ACCESS CHECK</div><h1 className="app-title">{sessionExpired ? 'Your sign-in needs refreshing.' : 'We couldn’t verify access.'}</h1><p>{sessionExpired ? 'Sign out, then sign in again to refresh your session.' : 'Your program data is still protected. Check your connection and try again.'}</p><div className="auth-actions"><button className="button button-outline" onClick={retry}>Try again</button><button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> Sign out</button></div></main>;
+  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><CircleAlert size={21} /></span><div className="eyebrow">{t('ACCESS CHECK')}</div><h1 className="app-title">{t(sessionExpired ? 'Your sign-in needs refreshing.' : 'We couldn’t verify access.')}</h1><p>{t(sessionExpired ? 'Sign out, then sign in again to refresh your session.' : 'Your program data is still protected. Check your connection and try again.')}</p><div className="auth-actions"><button className="button button-outline" onClick={retry}>{t('Try again')}</button><button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
 }
 
 function AuthenticatedWorkspace() {
@@ -890,6 +901,7 @@ function ClerkQueryClientCacheInvalidator() {
 }
 
 function ClerkApp() {
+  const { language } = useAppLanguage();
   const [, setLocation] = useLocation();
   const appearance = {
     theme: shadcn,
@@ -937,7 +949,7 @@ function ClerkApp() {
     appearance={appearance}
     signInUrl={`${basePath}/sign-in`}
     signUpUrl={`${basePath}/sign-up`}
-    localization={{
+    localization={language === 'ar' ? arSA : {
       signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your Jusoor workspace' } },
       signUp: { start: { title: 'Create your Jusoor account', subtitle: 'Founders: use the email on your application' } },
     }}
@@ -953,6 +965,7 @@ function ClerkApp() {
 }
 
 function AuthRouter() {
+  useAppLanguage();
   const [location] = useLocation();
   const { isLoaded, isSignedIn } = useAuth();
   if (location === '/apply') return <ApplyPage />;
@@ -963,7 +976,7 @@ function AuthRouter() {
 }
 
 function App() {
-  return <TooltipProvider><WouterRouter base={basePath}><ClerkApp /></WouterRouter></TooltipProvider>;
+  return <LanguageProvider><TooltipProvider><WouterRouter base={basePath}><ClerkApp /></WouterRouter></TooltipProvider></LanguageProvider>;
 }
 
 export default App;

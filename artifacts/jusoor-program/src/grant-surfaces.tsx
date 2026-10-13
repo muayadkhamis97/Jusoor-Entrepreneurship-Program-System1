@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { currentLanguage, t, useAppLanguage } from "./language";
 import {
   getListGrantAwardsQueryKey,
   useCreateGrantReceipt,
@@ -39,7 +40,7 @@ const localDate = () => {
 };
 
 const dateLabel = (value: string) =>
-  new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString("en-GB", {
+  new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === "ar" ? "ar-JO" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -90,18 +91,18 @@ function ReceiptDialog({
       <section className="modal-card grant-receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="grant-dialog-title">
         <div className="modal-head">
           <div>
-            <div className="eyebrow">GRANT LEDGER / {kind === "received" ? "RECEIPT" : "CORRECTION"}</div>
+            <div className="eyebrow">{t("GRANT LEDGER")} / {t(kind === "received" ? "RECEIPT" : "CORRECTION")}</div>
             <h2 id="grant-dialog-title" className="app-title">
-              {kind === "received" ? "Record funds received" : "Reverse a ledger entry"}
+              {t(kind === "received" ? "Record funds received" : "Reverse a ledger entry")}
             </h2>
             <p>{award.businessName} · Award {money(award.grantAmount)}</p>
           </div>
-          <button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={18} /></button>
+          <button type="button" className="icon-button" aria-label={t("Close dialog")} onClick={onClose}><X size={18} /></button>
         </div>
         {kind === "reversal" && (
           <div className="grant-correction-note" role="note">
             <Undo2 size={15} />
-            <span>This adds a dated correction entry; it does not delete the original receipt. Explain the correction below.</span>
+            <span>{t("This adds a dated correction entry; it does not delete the original receipt. Explain the correction below.")}</span>
           </div>
         )}
         <form className="modal-form" onSubmit={(event) => {
@@ -116,27 +117,27 @@ function ReceiptDialog({
         }}>
           <div className="form-grid">
             <label className="field">
-              <span>Amount (USD) *</span>
+              <span>{t("Amount (USD)")} *</span>
               <input className="form-control" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required autoFocus />
             </label>
             <label className="field">
-              <span>{kind === "received" ? "Date received" : "Correction date"} *</span>
+              <span>{t(kind === "received" ? "Date received" : "Correction date")} *</span>
               <input className="form-control" type="date" value={receivedOn} onChange={(event) => setReceivedOn(event.target.value)} required />
             </label>
             <label className="field field-wide">
-              <span>Reference <small>(optional)</small></span>
-              <input className="form-control" maxLength={120} value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Internal voucher or transfer reference" />
+              <span>{t("Reference")} <small>({t("optional")})</small></span>
+              <input className="form-control" maxLength={120} value={reference} onChange={(event) => setReference(event.target.value)} placeholder={t("Internal voucher or transfer reference")} />
             </label>
             <label className="field field-wide">
-              <span>{kind === "reversal" ? "Reason for correction *" : "Notes"}{kind === "received" && <small> (optional)</small>}</span>
-              <textarea className="form-control resize-y" rows={3} maxLength={2000} value={notes} onChange={(event) => setNotes(event.target.value)} required={kind === "reversal"} placeholder={kind === "reversal" ? "Explain why this amount is being reversed." : "Add any internal receipt context."} />
+              <span>{t(kind === "reversal" ? "Reason for correction" : "Notes")} *{kind === "received" && <small> ({t("optional")})</small>}</span>
+              <textarea className="form-control resize-y" rows={3} maxLength={2000} value={notes} onChange={(event) => setNotes(event.target.value)} required={kind === "reversal"} placeholder={t(kind === "reversal" ? "Explain why this amount is being reversed." : "Add any internal receipt context.")} />
             </label>
           </div>
           {error && <div className="form-error" role="alert"><AlertCircle size={16} />{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="button button-quiet" onClick={onClose}>Cancel</button>
+            <button type="button" className="button button-quiet" onClick={onClose}>{t("Cancel")}</button>
             <button className="button button-primary" type="submit" disabled={saving}>
-              {saving ? "Saving…" : <><Check size={16} /> {kind === "received" ? "Save receipt" : "Save correction"}</>}
+              {saving ? t("Saving…") : <><Check size={16} /> {t(kind === "received" ? "Save receipt" : "Save correction")}</>}
             </button>
           </div>
         </form>
@@ -146,6 +147,7 @@ function ReceiptDialog({
 }
 
 export function GrantManagementPage() {
+  useAppLanguage();
   const query = useListGrantAwards();
   const createReceipt = useCreateGrantReceipt();
   const client = useQueryClient();
@@ -184,20 +186,20 @@ export function GrantManagementPage() {
     <>
       <header className="page-heading grant-page-heading">
         <div>
-          <div className="eyebrow">FINANCE / AWARD ADMINISTRATION</div>
-          <h1 className="app-title">Grant management</h1>
-          <p>Follow each demo-day award from commitment through received installments.</p>
+          <div className="eyebrow">{t("FINANCE / AWARD ADMINISTRATION")}</div>
+          <h1 className="app-title">{t("Grant management")}</h1>
+          <p>{t("Follow each demo-day award from commitment through received installments.")}</p>
         </div>
       </header>
 
       <section className="grant-ledger-intro">
         <span className="grant-ledger-mark"><CircleDollarSign size={21} /></span>
         <div>
-          <div className="eyebrow">AWARDS TO RECEIPTS</div>
-          <b>Keep the funding record connected to the judge’s decision.</b>
-          <span>Record each amount received, keep the history, and add a correction entry instead of removing a receipt.</span>
+          <div className="eyebrow">{t("AWARDS TO RECEIPTS")}</div>
+          <b>{t("Keep the funding record connected to the judge’s decision.")}</b>
+          <span>{t("Record each amount received, keep the history, and add a correction entry instead of removing a receipt.")}</span>
         </div>
-        <Link href="/pitches" className="button button-quiet grant-pitch-link"><FileText size={15} /> Review award decisions</Link>
+        <Link href="/pitches" className="button button-quiet grant-pitch-link"><FileText size={15} /> {t("Review award decisions")}</Link>
       </section>
 
       <section className="grant-ledger-metrics" aria-label="Grant totals">
@@ -208,38 +210,38 @@ export function GrantManagementPage() {
       </section>
 
       <div className="grant-ledger-toolbar">
-        <label className="grant-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search business or program" aria-label="Search grants" /></label>
-        <label className="grant-status-filter"><span className="sr-only">Filter grants by receipt status</span>
+        <label className="grant-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search business or program")} aria-label={t("Search grants")} /></label>
+        <label className="grant-status-filter"><span className="sr-only">{t("Filter grants by receipt status")}</span>
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="all">All awards</option>
-            <option value="amount_needed">Amount needed</option>
-            <option value="not_received">Not received</option>
-            <option value="partially_received">Partially received</option>
-            <option value="received">Fully received</option>
-            <option value="over_received">Over award</option>
+            <option value="all">{t("All awards")}</option>
+            <option value="amount_needed">{t("Amount needed")}</option>
+            <option value="not_received">{t("Not received")}</option>
+            <option value="partially_received">{t("Partially received")}</option>
+            <option value="received">{t("Fully received")}</option>
+            <option value="over_received">{t("Over award")}</option>
           </select>
         </label>
-        <span className="grant-ledger-count"><b>{filteredAwards.length}</b> awards</span>
+        <span className="grant-ledger-count"><b>{filteredAwards.length}</b> {t("awards")}</span>
       </div>
 
       {query.isLoading ? (
-        <div className="grant-ledger-state">Loading grant records…</div>
+        <div className="grant-ledger-state">{t("Loading grant records…")}</div>
       ) : query.isError ? (
         <div className="grant-ledger-state grant-ledger-error" role="alert">
-          <AlertCircle size={18} /><span>Grant records couldn’t be loaded.</span>
-          <button type="button" className="button button-quiet" onClick={() => void query.refetch()}>Retry</button>
+          <AlertCircle size={18} /><span>{t("Grant records couldn’t be loaded.")}</span>
+          <button type="button" className="button button-quiet" onClick={() => void query.refetch()}>{t("Retry")}</button>
         </div>
       ) : awards.length === 0 ? (
         <div className="grant-ledger-empty">
           <span className="grant-ledger-mark"><ShieldCheck size={21} /></span>
-          <h2>No grant awards to track yet.</h2>
-          <p>When judges select grant recipients, set the awarded amount in Pitch &amp; grants. The awards will appear here for installment tracking.</p>
-          <Link href="/pitches" className="button button-primary">Open Pitch &amp; grants</Link>
+          <h2>{t("No grant awards to track yet.")}</h2>
+          <p>{t("When judges select grant recipients, set the awarded amount in Pitch &amp; grants. The awards will appear here for installment tracking.")}</p>
+          <Link href="/pitches" className="button button-primary">{t("Open Pitch &amp; grants")}</Link>
         </div>
       ) : filteredAwards.length === 0 ? (
-        <div className="grant-ledger-state">No awards match this search or status.</div>
+        <div className="grant-ledger-state">{t("No awards match this search or status.")}</div>
       ) : (
-        <section className="grant-award-list" aria-label="Award ledger">
+        <section className="grant-award-list" aria-label={t("Award ledger")}>
           {filteredAwards.map((award) => {
             const awardAmount = award.grantAmount ?? 0;
             const percentReceived = awardAmount > 0 ? Math.min(100, (award.totalReceived / awardAmount) * 100) : 0;
@@ -250,49 +252,49 @@ export function GrantManagementPage() {
                     <span className="grant-award-monogram">{award.businessName.slice(0, 1).toUpperCase()}</span>
                     <div>
                       <h2>{award.businessName}</h2>
-                      <span>{award.founderName || "Founder"}{award.programName ? ` · ${award.programName}` : ""}</span>
-                      <small>{award.eventType.replaceAll("_", " ")} · {dateLabel(award.eventDate)}</small>
+                      <span>{award.founderName || t("Founder")}{award.programName ? ` · ${award.programName}` : ""}</span>
+                      <small>{t(award.eventType.replaceAll("_", " "))} · {dateLabel(award.eventDate)}</small>
                     </div>
                   </div>
                   <div className="grant-award-status">
-                    <span className={`grant-status-pill status-${award.status}`}>{statusLabel[award.status]}</span>
+                    <span className={`grant-status-pill status-${award.status}`}>{t(statusLabel[award.status])}</span>
                     <div className="grant-award-actions">
                       {award.grantAmount !== null && award.grantAmount > 0 ? (
                         <>
                           <button type="button" className="button button-primary grant-action-button" onClick={() => { createReceipt.reset(); setActiveEntry({ award, kind: "received" }); }}>
-                            <Plus size={14} /> Record receipt
+                            <Plus size={14} /> {t("Record receipt")}
                           </button>
                           {award.totalReceived > 0 && <button type="button" className="button button-quiet grant-action-button" onClick={() => { createReceipt.reset(); setActiveEntry({ award, kind: "reversal" }); }}>
-                            <Undo2 size={14} /> Correct ledger
+                            <Undo2 size={14} /> {t("Correct ledger")}
                           </button>}
                         </>
-                      ) : <Link href="/pitches" className="button button-quiet grant-action-button">Set award amount</Link>}
+                      ) : <Link href="/pitches" className="button button-quiet grant-action-button">{t("Set award amount")}</Link>}
                     </div>
                   </div>
                 </div>
 
                 <div className="grant-award-numbers">
-                  <div><span>AWARD</span><b>{award.grantAmount === null ? "Set amount" : money(award.grantAmount)}</b></div>
-                  <div><span>RECEIVED</span><b>{money(award.totalReceived)}</b></div>
-                  <div><span>{award.status === "over_received" ? "OVER AWARD" : "REMAINING"}</span><b className={award.status === "over_received" ? "grant-overage" : ""}>{award.remainingAmount === null ? "—" : money(Math.abs(award.remainingAmount))}</b></div>
+                  <div><span>{t("AWARD")}</span><b>{award.grantAmount === null ? t("Set amount") : money(award.grantAmount)}</b></div>
+                  <div><span>{t("RECEIVED")}</span><b>{money(award.totalReceived)}</b></div>
+                  <div><span>{t(award.status === "over_received" ? "OVER AWARD" : "REMAINING")}</span><b className={award.status === "over_received" ? "grant-overage" : ""}>{award.remainingAmount === null ? "—" : money(Math.abs(award.remainingAmount))}</b></div>
                 </div>
 
                 {award.grantAmount !== null && award.grantAmount > 0 && (
-                  <div className="grant-progress-track" role="progressbar" aria-label={`${award.businessName} award received`} aria-valuenow={Math.min(100, Math.round(percentReceived))} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="grant-progress-track" role="progressbar" aria-label={`${award.businessName} ${t("award received")}`} aria-valuenow={Math.min(100, Math.round(percentReceived))} aria-valuemin={0} aria-valuemax={100}>
                     <span style={{ width: `${percentReceived}%` }} />
                   </div>
                 )}
 
                 <details className="grant-receipt-history">
-                  <summary>{award.receipts.length === 0 ? "No receipt entries yet" : `${award.receipts.length} ledger ${award.receipts.length === 1 ? "entry" : "entries"}`}<span>{award.receipts.length ? "View history" : "View details"}</span></summary>
+                  <summary>{award.receipts.length === 0 ? t("No receipt entries yet") : `${award.receipts.length} ${t("ledger")} ${t(award.receipts.length === 1 ? "entry" : "entries")}`}<span>{award.receipts.length ? t("View history") : t("View details")}</span></summary>
                   {award.receipts.length ? (
                     <ol className="grant-receipt-list">
                       {award.receipts.map((entry) => (
                         <li key={entry.id} className={entry.kind === "reversal" ? "grant-receipt-reversal" : ""}>
                           <span className="grant-receipt-icon">{entry.kind === "received" ? <ArrowDownLeft size={15} /> : <ArrowUpLeft size={15} />}</span>
                           <div className="grant-receipt-copy">
-                            <b>{entry.kind === "received" ? "Funds received" : "Correction reversal"}</b>
-                            <small>{dateLabel(entry.receivedOn)}{entry.reference ? ` · Ref ${entry.reference}` : ""}{entry.recordedBy ? ` · Recorded by ${entry.recordedBy}` : ""}</small>
+                            <b>{t(entry.kind === "received" ? "Funds received" : "Correction reversal")}</b>
+                            <small>{dateLabel(entry.receivedOn)}{entry.reference ? ` · ${t("Ref")} ${entry.reference}` : ""}{entry.recordedBy ? ` · ${t("Recorded by")} ${entry.recordedBy}` : ""}</small>
                             {entry.notes && <span>{entry.notes}</span>}
                           </div>
                           <strong className="grant-receipt-amount">{entry.kind === "received" ? "+" : "−"}{money(entry.amount)}</strong>

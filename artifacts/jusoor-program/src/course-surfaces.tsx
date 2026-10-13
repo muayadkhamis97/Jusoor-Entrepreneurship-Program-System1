@@ -8,6 +8,7 @@ import {
 } from '@workspace/api-client-react';
 import type { CourseMaterial, CourseMaterialInput, CourseMaterialKind, CourseMaterialRole, CourseModule, CourseModuleInput } from '@workspace/api-client-react';
 import './course-learning.css';
+import { currentLanguage, t, useAppLanguage } from './language';
 import {
   ArrowDownToLine, ArrowUpRight, BookOpen, CalendarClock, Check, CircleAlert,
   ClipboardList, FileAudio, FileText, Film, Link2, Pencil, Plus, Presentation,
@@ -16,12 +17,12 @@ import {
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const roles: CourseMaterialRole[] = ['participant', 'trainer', 'coordinator'];
-const dateLabel = (date?: string | null) => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No release date';
+const dateLabel = (date?: string | null) => date ? new Date(date).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('No release date');
 const sizeLabel = (size?: number | null) => {
   if (!size) return '';
   return size > 1024 * 1024 ? `${(size / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
 };
-const kindLabel = (kind: CourseMaterialKind) => ({ video: 'Video', document: 'Document', slides: 'Slides', audio: 'Audio', link: 'External link' })[kind];
+const kindLabel = (kind: CourseMaterialKind) => t(({ video: 'Video', document: 'Document', slides: 'Slides', audio: 'Audio', link: 'External link' })[kind]);
 const kindIcon = (kind: CourseMaterialKind) => ({ video: Film, document: FileText, slides: Presentation, audio: FileAudio, link: Link2 })[kind];
 const toLocalDate = (value?: string | null) => {
   if (!value) return '';
@@ -31,15 +32,17 @@ const toLocalDate = (value?: string | null) => {
 };
 
 function CourseModal({ title, children, onClose, testId }: { title: string; children: React.ReactNode; onClose: () => void; testId: string }) {
+  useAppLanguage();
   return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="modal-card" role="dialog" aria-modal="true" aria-label={title} data-testid={testId}>
-      <div className="modal-head"><div><div className="eyebrow">JUSOOR LEARNING / COURSE CONTENT</div><h2 className="app-title">{title}</h2></div><button className="icon-button" type="button" aria-label="Close dialog" onClick={onClose} data-testid="button-close-course-dialog"><X size={17} /></button></div>
+      <div className="modal-head"><div><div className="eyebrow">{t('JUSOOR LEARNING / COURSE CONTENT')}</div><h2 className="app-title">{t(title)}</h2></div><button className="icon-button" type="button" aria-label={t('Close dialog')} onClick={onClose} data-testid="button-close-course-dialog"><X size={17} /></button></div>
       {children}
     </section>
   </div>;
 }
 
 export function CourseManagementPage() {
+  useAppLanguage();
   const query = useGetCourseManagement({ query: { queryKey: getGetCourseManagementQueryKey(), refetchOnWindowFocus: true } });
   const client = useQueryClient();
   const createModule = useCreateCourseModule();
@@ -140,22 +143,22 @@ export function CourseManagementPage() {
 
   return <div className="course-hub">
     <header className="course-hero" data-testid="course-management-header">
-      <div><div className="eyebrow">COHORT DELIVERY / GUIDED LEARNING</div><h1>Learning, in sequence.</h1><p>Shape each cohort’s learning path: release modules when they are ready, give every resource a clear home, and set who can see what.</p></div>
-      <div className="course-summary"><div><b>{programs.length}</b><span>PROGRAMS</span></div><div><b>{programs.reduce((sum, item) => sum + item.modules.length, 0)}</b><span>MODULES</span></div><div><b>{totalMaterials}</b><span>RESOURCES</span></div></div>
+      <div><div className="eyebrow">{t('COHORT DELIVERY / GUIDED LEARNING')}</div><h1>{t('Learning, in sequence.')}</h1><p>{t('Shape each cohort’s learning path: release modules when they are ready, give every resource a clear home, and set who can see what.')}</p></div>
+      <div className="course-summary"><div><b>{programs.length}</b><span>{t('PROGRAMS')}</span></div><div><b>{programs.reduce((sum, item) => sum + item.modules.length, 0)}</b><span>{t('MODULES')}</span></div><div><b>{totalMaterials}</b><span>{t('RESOURCES')}</span></div></div>
     </header>
-    <div className="page-heading"><div><div className="eyebrow">COURSE MANAGEMENT / PROGRAM CONTENT</div><h1 className="app-title">Program learning</h1><p>Build the path from first workshop to pitch-ready founder.</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">{t('COURSE MANAGEMENT / PROGRAM CONTENT')}</div><h1 className="app-title">{t('Program learning')}</h1><p>{t('Build the path from first workshop to pitch-ready founder.')}</p></div></div>
     {success && <div className="course-success" role="status" data-testid="status-course-success"><Check size={14} /> {success}</div>}
-    {query.isLoading ? <div className="loading-panel" aria-label="Loading course programs" data-testid="loading-course-management"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
-    : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={21} /></span><h3>Learning plans couldn’t load.</h3><p>Your course content is unchanged. Retry to reconnect to program delivery.</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-course-management">Retry connection</button></div>
-    : programs.length === 0 ? <div className="panel empty-panel course-empty" data-testid="empty-course-programs"><span className="empty-icon"><BookOpen size={21} /></span><h3>No manageable programs yet.</h3><p>When a program is available to your staff role, its learning path will appear here.</p></div>
+    {query.isLoading ? <div className="loading-panel" aria-label={t('Loading course programs')} data-testid="loading-course-management"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
+    : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={21} /></span><h3>{t('Learning plans couldn’t load.')}</h3><p>{t('Your course content is unchanged. Retry to reconnect to program delivery.')}</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-course-management">{t('Retry connection')}</button></div>
+    : programs.length === 0 ? <div className="panel empty-panel course-empty" data-testid="empty-course-programs"><span className="empty-icon"><BookOpen size={21} /></span><h3>{t('No manageable programs yet.')}</h3><p>{t('When a program is available to your staff role, its learning path will appear here.')}</p></div>
     : <>
-      <div className="course-controls"><label className="course-select-wrap" htmlFor="course-program-select"><span>PROGRAM</span><select id="course-program-select" className="form-control" value={selectedProgram?.id || ''} onChange={event => setProgramId(Number(event.target.value))} data-testid="select-course-program">{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label><button className="button button-primary" onClick={() => { setModuleDialog('new'); setSuccess(''); }} data-testid="button-add-course-module"><Plus size={15} /> Add module</button></div>
+      <div className="course-controls"><label className="course-select-wrap" htmlFor="course-program-select"><span>{t('PROGRAM')}</span><select id="course-program-select" className="form-control" value={selectedProgram?.id || ''} onChange={event => setProgramId(Number(event.target.value))} data-testid="select-course-program">{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label><button className="button button-primary" onClick={() => { setModuleDialog('new'); setSuccess(''); }} data-testid="button-add-course-module"><Plus size={15} /> {t('Add module')}</button></div>
       <div className="course-layout">
-        <section className="course-module-list" aria-label="Program modules" data-testid="course-module-list">
-          {modules.length === 0 ? <div className="panel empty-panel course-empty"><span className="empty-icon"><ClipboardList size={20} /></span><h3>Start with the first module.</h3><p>Give participants a clear next step, then add the material that will help them move.</p><button className="button button-primary" onClick={() => setModuleDialog('new')} data-testid="button-create-first-module"><Plus size={15} /> Create first module</button></div>
+        <section className="course-module-list" aria-label={t('Program modules')} data-testid="course-module-list">
+          {modules.length === 0 ? <div className="panel empty-panel course-empty"><span className="empty-icon"><ClipboardList size={20} /></span><h3>{t('Start with the first module.')}</h3><p>{t('Give participants a clear next step, then add the material that will help them move.')}</p><button className="button button-primary" onClick={() => setModuleDialog('new')} data-testid="button-create-first-module"><Plus size={15} /> {t('Create first module')}</button></div>
           : modules.map((module, index) => <article className="course-module-card" key={module.id} data-testid={`card-course-module-${module.id}`}>
-            <div className="course-module-head"><span className="course-module-index">{String(index + 1).padStart(2, '0')}</span><div className="course-module-copy"><h2 data-testid={`text-module-title-${module.id}`}>{module.title}</h2>{module.description && <p>{module.description}</p>}<div className="course-meta"><span className={`badge ${module.isPublished ? 'badge-good' : 'badge-neutral'}`} data-testid={`status-module-published-${module.id}`}><span />{module.isPublished ? 'Published' : 'Draft'}</span><span className="course-meta-label"><CalendarClock size={11} /> {dateLabel(module.releaseAt)}</span><span className="course-meta-label">{module.materials.length} {module.materials.length === 1 ? 'resource' : 'resources'}</span></div></div><div className="course-module-actions"><button className="icon-button" type="button" aria-label={`Edit ${module.title}`} onClick={() => { setModuleDialog(module); setSuccess(''); }} data-testid={`button-edit-course-module-${module.id}`}><Pencil size={14} /></button><button className="icon-button icon-danger" type="button" aria-label={`Delete ${module.title}`} onClick={() => setDeleteTarget({ type: 'module', id: module.id, name: module.title })} data-testid={`button-delete-course-module-${module.id}`}><Trash2 size={14} /></button></div></div>
-            <div className="course-materials">{module.materials.length === 0 ? <div className="course-material-empty">No materials in this module yet.</div> : module.materials.map(material => {
+            <div className="course-module-head"><span className="course-module-index">{String(index + 1).padStart(2, '0')}</span><div className="course-module-copy"><h2 data-testid={`text-module-title-${module.id}`}>{module.title}</h2>{module.description && <p>{module.description}</p>}<div className="course-meta"><span className={`badge ${module.isPublished ? 'badge-good' : 'badge-neutral'}`} data-testid={`status-module-published-${module.id}`}><span />{t(module.isPublished ? 'Published' : 'Draft')}</span><span className="course-meta-label"><CalendarClock size={11} /> {dateLabel(module.releaseAt)}</span><span className="course-meta-label">{module.materials.length} {t(module.materials.length === 1 ? 'resource' : 'resources')}</span></div></div><div className="course-module-actions"><button className="icon-button" type="button" aria-label={`${t('Edit')} ${module.title}`} onClick={() => { setModuleDialog(module); setSuccess(''); }} data-testid={`button-edit-course-module-${module.id}`}><Pencil size={14} /></button><button className="icon-button icon-danger" type="button" aria-label={`${t('Delete')} ${module.title}`} onClick={() => setDeleteTarget({ type: 'module', id: module.id, name: module.title })} data-testid={`button-delete-course-module-${module.id}`}><Trash2 size={14} /></button></div></div>
+            <div className="course-materials">{module.materials.length === 0 ? <div className="course-material-empty">{t('No materials in this module yet.')}</div> : module.materials.map(material => {
               const Icon = kindIcon(material.kind);
               const href = material.kind === 'link' ? material.externalUrl || undefined : material.objectPath ? `${basePath}/api/courses/materials/${material.id}/file` : undefined;
               return <div className="course-material" key={material.id} data-testid={`row-course-material-${material.id}`}><span className="course-material-icon"><Icon size={14} /></span><div className="course-material-copy"><b>{material.title}</b><span>{kindLabel(material.kind)}{material.fileName ? ` · ${material.fileName}` : ''}{material.fileSize ? ` · ${sizeLabel(material.fileSize)}` : ''} · {material.allowedRoles.map(role => role[0].toUpperCase() + role.slice(1)).join(', ')}</span></div>{href && <a className="course-material-link" href={href} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-course-material-${material.id}`}>{material.kind === 'link' ? <ArrowUpRight size={13} /> : <ArrowDownToLine size={13} />}{material.kind === 'link' ? 'Open' : 'Download'}</a>}<button className="icon-button" type="button" aria-label={`Edit ${material.title}`} onClick={() => setMaterialDialog({ module, material })} data-testid={`button-edit-course-material-${material.id}`}><Pencil size={13} /></button><button className="icon-button icon-danger" type="button" aria-label={`Delete ${material.title}`} onClick={() => setDeleteTarget({ type: 'material', id: material.id, name: material.title })} data-testid={`button-delete-course-material-${material.id}`}><Trash2 size={13} /></button></div>;
