@@ -35,9 +35,11 @@ import type { ParticipantAccess } from "../middlewares/participantAccess";
 import { isCourseModuleReleased } from "../lib/courseAccess";
 import {
   gradeCourseQuizAttempt,
+  formatCourseQuizGrade,
   isValidQuizSubmissionValue,
   shuffleQuizChoices,
   validateCourseQuizQuestions,
+  validateLetterGradeScale,
   type CourseQuizWriteInput,
   type GradeableQuestion,
   type QuizSubmissionValue,
@@ -85,6 +87,9 @@ function mapQuiz(quiz: CourseQuiz, questions: CourseQuizQuestion[]) {
     title: quiz.title,
     description: quiz.description,
     language: quiz.language,
+    assessmentType: quiz.assessmentType,
+    gradingFormat: quiz.gradingFormat,
+    letterGradeScale: quiz.letterGradeScale,
     isPublished: quiz.isPublished,
     questions: questions.map((question) => ({
       id: question.id,
@@ -111,11 +116,14 @@ function parseQuizBody(body: unknown, update = false): CourseQuizWriteInput | nu
     : CreateCourseQuizBody.safeParse(body);
   if (!generated.success) return null;
   const parsed = generated.data as unknown as CourseQuizWriteInput;
-  if (validateCourseQuizQuestions(parsed.questions)) return null;
+  if (validateCourseQuizQuestions(parsed.questions) || validateLetterGradeScale(parsed.letterGradeScale)) return null;
   return {
     ...parsed,
     title: parsed.title.trim(),
     description: parsed.description?.trim() || null,
+    letterGradeScale: parsed.letterGradeScale
+      .map((band) => ({ grade: band.grade.trim(), minimumPercent: band.minimumPercent }))
+      .sort((a, b) => b.minimumPercent - a.minimumPercent),
     questions: parsed.questions.map((question) => ({
       ...question,
       prompt: question.prompt.trim(),
@@ -189,6 +197,9 @@ staffCourseQuizRouter.post("/modules/:id/quizzes", async (req, res): Promise<voi
       title: body.title,
       description: body.description,
       language: body.language ?? "en",
+      assessmentType: body.assessmentType,
+      gradingFormat: body.gradingFormat,
+      letterGradeScale: body.letterGradeScale,
       isPublished: body.isPublished,
       createdByStaffId: staff.id,
     }).returning();
@@ -229,6 +240,9 @@ staffCourseQuizRouter.patch("/quizzes/:id", async (req, res): Promise<void> => {
       title: body.title,
       description: body.description,
       language: body.language ?? "en",
+      assessmentType: body.assessmentType,
+      gradingFormat: body.gradingFormat,
+      letterGradeScale: body.letterGradeScale,
       isPublished: body.isPublished,
     }).where(eq(courseQuizzesTable.id, existing.quiz.id)).returning();
     await tx.delete(courseQuizQuestionsTable)
@@ -282,6 +296,13 @@ staffCourseQuizRouter.get("/quizzes/:id/attempts", async (req, res): Promise<voi
     participantName: businessName || "Program participant",
     score: attempt.score,
     totalQuestions: attempt.totalQuestions,
+    gradeFormat: quizAndModule.quiz.gradingFormat,
+    gradeValue: formatCourseQuizGrade(
+      attempt.score,
+      attempt.totalQuestions,
+      quizAndModule.quiz.gradingFormat,
+      quizAndModule.quiz.letterGradeScale,
+    ),
     submittedAt: attempt.submittedAt,
     answers: attempt.answers,
   }))));
@@ -302,12 +323,19 @@ async function findAcceptedApplication(participant: ParticipantAccess, programId
   return application ?? null;
 }
 
-function mapAttempt(attempt: CourseQuizAttempt) {
+function mapAttempt(attempt: CourseQuizAttempt, quiz: CourseQuiz) {
   return {
     id: attempt.id,
     quizId: attempt.quizId,
     score: attempt.score,
     totalQuestions: attempt.totalQuestions,
+    gradeFormat: quiz.gradingFormat,
+    gradeValue: formatCourseQuizGrade(
+      attempt.score,
+      attempt.totalQuestions,
+      quiz.gradingFormat,
+      quiz.letterGradeScale,
+    ),
     submittedAt: attempt.submittedAt,
     answers: attempt.answers,
   };
@@ -377,9 +405,12 @@ participantCourseQuizRouter.get("/modules/:id/quizzes", async (req, res): Promis
         title: quiz.title,
         description: quiz.description,
         language: quiz.language,
+        assessmentType: quiz.assessmentType,
+        gradingFormat: quiz.gradingFormat,
+        letterGradeScale: quiz.letterGradeScale,
         questionCount: quizQuestions.length,
         attemptCount: quizAttempts.length,
-        latestAttempt: quizAttempts[0] ? mapAttempt(quizAttempts[0]) : null,
+        latestAttempt: quizAttempts[0] ? mapAttempt(quizAttempts[0], quiz) : null,
         questions: quizQuestions.map((question) => ({
           id: question.id,
           position: question.position,
@@ -450,6 +481,8 @@ participantCourseQuizRouter.post("/quizzes/:id/attempts", async (req, res): Prom
     totalQuestions: graded.totalQuestions,
     answers: graded.answers,
   }).returning();
-  res.status(201).json(SubmitParticipantCourseQuizAttemptResponse.parse(mapAttempt(attempt)));
+  res.status(201).json(SubmitParticipantCourseQuizAttemptResponse.parse(
+    mapAttempt(attempt, quizAndModule.quiz),
+  ));
 });
 

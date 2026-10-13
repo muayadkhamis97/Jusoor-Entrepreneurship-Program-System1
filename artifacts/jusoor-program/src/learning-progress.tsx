@@ -12,7 +12,7 @@ import {
   useRecordParticipantCourseActivity,
   useRecordParticipantModuleProgress,
 } from '@workspace/api-client-react';
-import type { CourseProgressModule, CourseReminderFailure, LearningProgressParticipant, LearningProgressProgram, ParticipantLearningProgram } from '@workspace/api-client-react';
+import type { CourseProgressModule, CourseProgressQuiz, CourseReminderFailure, LearningProgressParticipant, LearningProgressProgram, ParticipantLearningProgram } from '@workspace/api-client-react';
 import {
   Activity, Award, BookOpen, CalendarClock, Check, CircleAlert, Clock3,
   Download, FileCheck2, Hourglass, Medal, RefreshCw, Sparkles,
@@ -34,6 +34,33 @@ const fmtTime = (seconds: number) => {
 };
 const progressStatus = (module: CourseProgressModule) => module.completionStatus === 'completed' ? t('Complete') : module.completionStatus === 'in_progress' ? t('In progress') : t('Not started');
 const packageState = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase())) : t('Not started');
+const assessmentText = (type: string) => t(({ knowledge_check: 'Knowledge check', pre_course: 'Pre-course assessment', post_course: 'Post-course assessment' } as Record<string, string>)[type] || type);
+const gradingText = (format: string) => t(({ numerical: 'Numerical', percentage: 'Percentage', letter: 'Letter grade' } as Record<string, string>)[format] || format);
+function formattedQuizGrade(quiz: CourseProgressQuiz, score: number | null): string {
+  if (score == null || quiz.totalQuestions <= 0) return '—';
+  if (quiz.gradingFormat === 'numerical') return `${score}/${quiz.totalQuestions}`;
+  const percentage = score / quiz.totalQuestions * 100;
+  if (quiz.gradingFormat === 'percentage') return `${Math.round(percentage)}%`;
+  return [...quiz.letterGradeScale].sort((a, b) => b.minimumPercent - a.minimumPercent)
+    .find(band => percentage >= band.minimumPercent)?.grade || '—';
+}
+const hasCourseAssessment = (quizzes: CourseProgressQuiz[]) => quizzes.some(quiz => quiz.assessmentType === 'pre_course' || quiz.assessmentType === 'post_course');
+function firstAssessmentAverage(quizzes: CourseProgressQuiz[], type: 'pre_course' | 'post_course'): number | null {
+  const percentages = quizzes.filter(quiz => quiz.assessmentType === type && quiz.firstScore != null && quiz.totalQuestions > 0)
+    .map(quiz => quiz.firstScore! / quiz.totalQuestions * 100);
+  return percentages.length ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length : null;
+}
+function AssessmentComparison({ quizzes, testId }: { quizzes: CourseProgressQuiz[]; testId: string }) {
+  const pre = firstAssessmentAverage(quizzes, 'pre_course');
+  const post = firstAssessmentAverage(quizzes, 'post_course');
+  const delta = pre == null || post == null ? null : post - pre;
+  const score = (value: number | null) => value == null ? '—' : `${value.toFixed(1)}%`;
+  return <div className="lp-assessment-comparison" data-testid={testId}>
+    <div><span>{t('Pre-course first score')}</span><b data-testid={`${testId}-pre`}>{score(pre)}</b></div>
+    <div><span>{t('Post-course first score')}</span><b data-testid={`${testId}-post`}>{score(post)}</b></div>
+    <div className={delta == null ? '' : delta > 0 ? 'is-gain' : delta < 0 ? 'is-loss' : ''}><span>{t('Percentage-point change')}</span><b data-testid={`${testId}-change`}>{delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} ${t('pp')}`}</b></div>
+  </div>;
+}
 
 function useVisibleActiveTime(programIds: number[]) {
   const mutation = useRecordParticipantCourseActivity();
@@ -195,8 +222,8 @@ function ProgramProgress({ program, onToggle, savingModule }: { program: Partici
     </div>
     <div className="lp-modules">{program.modules.map((module, index) => <ModuleProgressCard key={module.moduleId} module={module} index={index} onToggle={onToggle} pending={savingModule === module.moduleId} />)}</div>
     <div className="lp-lower">
-      <section className="lp-quiz-section"><div className="lp-section-title"><div><span className="lp-eyebrow">{t('ASSESSMENT')}</span><h4>{t('Quiz results')}</h4></div><span>{program.quizzes.length}</span></div>
-        {program.quizzes.length ? program.quizzes.map(quiz => <div className="lp-quiz-row" key={quiz.quizId} data-testid={`row-course-quiz-${quiz.quizId}`}><div><b>{quiz.title}</b><small>{quiz.attempts} {t('attempts')} · {fmtDate(quiz.latestSubmittedAt)}</small></div><strong>{quiz.bestScore == null ? '—' : `${quiz.bestScore}/${quiz.totalQuestions}`}</strong></div>) : <p className="lp-no-quiz">{t('Quiz results will appear here after submission.')}</p>}
+       <section className="lp-quiz-section"><div className="lp-section-title"><div><span className="lp-eyebrow">{t('ASSESSMENT')}</span><h4>{t('Quiz results')}</h4></div><span>{program.quizzes.length}</span></div>
+         {program.quizzes.length ? <>{hasCourseAssessment(program.quizzes) && <AssessmentComparison quizzes={program.quizzes} testId={`assessment-comparison-participant-${program.programId}`} />}{program.quizzes.map(quiz => <div className="lp-quiz-row" key={quiz.quizId} data-testid={`row-course-quiz-${quiz.quizId}`}><div><b>{quiz.title}</b><small>{assessmentText(quiz.assessmentType)} · {gradingText(quiz.gradingFormat)} · {quiz.attempts} {t('attempts')} · {fmtDate(quiz.latestSubmittedAt)}</small></div><strong>{formattedQuizGrade(quiz, quiz.bestScore)}</strong></div>)}</> : <p className="lp-no-quiz">{t('Quiz results will appear here after submission.')}</p>}
       </section>
       {program.certificate ? <CertificateCard certificate={program.certificate} /> : <div className="lp-certificate-pending"><span><Medal size={18} /></span><div><b>{t('Certificate pathway')}</b><p>{program.totalRequiredModules > 0 && program.completedRequiredModules >= program.totalRequiredModules ? t('Your required modules are complete. Your coordinator will review and issue your certificate.') : `${program.completedRequiredModules} ${t('of')} ${program.totalRequiredModules} ${t('required modules complete')}.`}</p></div></div>}
     </div>
@@ -208,7 +235,8 @@ function ParticipantRow({ participant, onIssue, pending }: { participant: Learni
   return <details className="lp-participant" data-testid={`row-learning-participant-${participant.applicationId}`}>
     <summary><span className="lp-person"><i>{participant.founderName.slice(0, 1).toUpperCase()}</i><span><b>{participant.founderName}</b><small>{participant.businessName} · {participant.email}</small></span></span><span className="lp-participant-progress"><b>{Math.round(participant.completionPercent)}%</b><i><span style={{ width: `${Math.max(0, Math.min(100, participant.completionPercent))}%` }} /></i></span><span className="lp-participant-time">{fmtTime(participant.activeSeconds)}</span><span className={`lp-status ${participant.certificate ? 'completed' : certReady ? 'in_progress' : 'not_started'}`}>{participant.certificate ? t('Issued') : certReady ? t('Ready for review') : t('In progress')}</span><span className="lp-detail-chevron">+</span></summary>
     <div className="lp-participant-detail">
-      <div className="lp-detail-facts"><span>{t('Required modules')} <b>{participant.completedRequiredModules}/{participant.totalRequiredModules}</b></span><span>{t('Last activity')} <b>{fmtDateTime(participant.lastActivityAt)}</b></span><span>{t('Best quiz results')} <b>{participant.quizzes.length ? participant.quizzes.map(quiz => quiz.bestScore == null ? '—' : `${quiz.bestScore}/${quiz.totalQuestions}`).join(' · ') : '—'}</b></span></div>
+       <div className="lp-detail-facts"><span>{t('Required modules')} <b>{participant.completedRequiredModules}/{participant.totalRequiredModules}</b></span><span>{t('Last activity')} <b>{fmtDateTime(participant.lastActivityAt)}</b></span><span>{t('Best quiz results')} <b>{participant.quizzes.length ? participant.quizzes.map(quiz => formattedQuizGrade(quiz, quiz.bestScore)).join(' · ') : '—'}</b></span></div>
+        {hasCourseAssessment(participant.quizzes) && <AssessmentComparison quizzes={participant.quizzes} testId={`assessment-comparison-coordinator-${participant.applicationId}`} />}
       {participant.modules.length > 0 && <div className="lp-coordinator-modules">{participant.modules.map(module => <span key={module.moduleId} className={module.completionStatus === 'completed' ? 'is-done' : ''}><i />{module.title}{module.isRequired ? ` · ${t('Required')}` : ` · ${t('Optional')}`}</span>)}</div>}
       {participant.certificate ? <div className="lp-issued"><FileCheck2 size={15} />{t('Certificate')} <b>{participant.certificate.certificateCode}</b> · {fmtDate(participant.certificate.issuedAt)}</div>
         : <button type="button" className="lp-button lp-button-primary" onClick={() => onIssue(participant)} disabled={!certReady || pending} data-testid={`button-issue-certificate-${participant.applicationId}`}>{pending ? t('Issuing…') : <><Award size={14} />{t('Issue certificate')}</>}</button>}

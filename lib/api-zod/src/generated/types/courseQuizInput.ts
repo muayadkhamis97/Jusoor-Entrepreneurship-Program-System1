@@ -5,7 +5,10 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { CourseAssessmentType } from './courseAssessmentType';
+import type { CourseGradingFormat } from './courseGradingFormat';
 import type { CourseLanguage } from './courseLanguage';
+import type { CourseLetterGradeScale } from './courseLetterGradeScale';
 import type { CourseQuizQuestionInput } from './courseQuizQuestionInput';
 
 export interface CourseQuizInput {
@@ -20,6 +23,9 @@ export interface CourseQuizInput {
      */
   description: string | null;
   language?: CourseLanguage;
+  assessmentType: CourseAssessmentType;
+  gradingFormat: CourseGradingFormat;
+  letterGradeScale: CourseLetterGradeScale;
   isPublished: boolean;
   /**
      * @minItems 1

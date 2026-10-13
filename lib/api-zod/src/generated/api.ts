@@ -304,11 +304,23 @@ export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOne
 
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneActiveSecondsMin = 0;
 
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemGradeMax = 8;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemMinimumPercentMin = 0;
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleMin = 2;
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleMax = 12;
+
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemAttemptsMin = 0;
 
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemBestScoreMin = 0;
 
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstScoreMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLatestScoreMin = 0;
 
 
 
@@ -367,9 +379,18 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "quizzes": zod.array(zod.object({
   "quizId": zod.number().int(),
   "title": zod.string(),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemMinimumPercentMax)
+})).min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleMin).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleMax),
   "attempts": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemAttemptsMin),
   "bestScore": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemBestScoreMin).nullable(),
   "totalQuestions": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin),
+  "firstScore": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstScoreMin).nullable(),
+  "latestScore": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLatestScoreMin).nullable(),
+  "firstSubmittedAt": zod.coerce.date().nullable(),
   "latestSubmittedAt": zod.coerce.date().nullable()
 })),
   "certificate": zod.union([zod.object({
@@ -1747,11 +1768,23 @@ export const getParticipantLearningProgressResponseProgramsItemCompletionPercent
 
 export const getParticipantLearningProgressResponseProgramsItemActiveSecondsMin = 0;
 
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemGradeMax = 8;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemMinimumPercentMin = 0;
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleMin = 2;
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleMax = 12;
+
 export const getParticipantLearningProgressResponseProgramsItemQuizzesItemAttemptsMin = 0;
 
 export const getParticipantLearningProgressResponseProgramsItemQuizzesItemBestScoreMin = 0;
 
 export const getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstScoreMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLatestScoreMin = 0;
 
 
 
@@ -1784,9 +1817,18 @@ export const GetParticipantLearningProgressResponse = zod.object({
   "quizzes": zod.array(zod.object({
   "quizId": zod.number().int(),
   "title": zod.string(),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemMinimumPercentMax)
+})).min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleMin).max(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleMax),
   "attempts": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemAttemptsMin),
   "bestScore": zod.number().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemBestScoreMin).nullable(),
   "totalQuestions": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin),
+  "firstScore": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstScoreMin).nullable(),
+  "latestScore": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLatestScoreMin).nullable(),
+  "firstSubmittedAt": zod.coerce.date().nullable(),
   "latestSubmittedAt": zod.coerce.date().nullable()
 })),
   "certificate": zod.union([zod.object({
@@ -3933,6 +3975,14 @@ export const GetCourseModuleQuizzesParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemGradeMax = 8;
+
+export const getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMin = 0;
+export const getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMin = 2;
+export const getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMax = 12;
+
 export const getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemIdMax = 80;
 
 export const getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTextMax = 500;
@@ -3948,6 +3998,12 @@ export const GetCourseModuleQuizzesResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMax)
+})).min(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMin).max(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3977,6 +4033,14 @@ export const createCourseQuizBodyTitleMax = 180;
 export const createCourseQuizBodyDescriptionMax = 2000;
 
 export const createCourseQuizBodyLanguageDefault = `en`;
+export const createCourseQuizBodyLetterGradeScaleItemGradeMax = 8;
+
+export const createCourseQuizBodyLetterGradeScaleItemMinimumPercentMin = 0;
+export const createCourseQuizBodyLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const createCourseQuizBodyLetterGradeScaleMin = 2;
+export const createCourseQuizBodyLetterGradeScaleMax = 12;
+
 export const createCourseQuizBodyQuestionsItemPromptMax = 1500;
 
 export const createCourseQuizBodyQuestionsItemChoicesItemIdMax = 80;
@@ -3996,6 +4060,12 @@ export const CreateCourseQuizBody = zod.object({
   "title": zod.string().min(1).max(createCourseQuizBodyTitleMax),
   "description": zod.string().max(createCourseQuizBodyDescriptionMax).nullable(),
   "language": zod.enum(['en', 'ar']).default(createCourseQuizBodyLanguageDefault),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(createCourseQuizBodyLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(createCourseQuizBodyLetterGradeScaleItemMinimumPercentMin).max(createCourseQuizBodyLetterGradeScaleItemMinimumPercentMax)
+})).min(createCourseQuizBodyLetterGradeScaleMin).max(createCourseQuizBodyLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
@@ -4009,6 +4079,14 @@ export const CreateCourseQuizBody = zod.object({
 })).min(1).max(createCourseQuizBodyQuestionsMax)
 })
 
+export const createCourseQuizResponseLetterGradeScaleItemGradeMax = 8;
+
+export const createCourseQuizResponseLetterGradeScaleItemMinimumPercentMin = 0;
+export const createCourseQuizResponseLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const createCourseQuizResponseLetterGradeScaleMin = 2;
+export const createCourseQuizResponseLetterGradeScaleMax = 12;
+
 export const createCourseQuizResponseQuestionsItemChoicesItemIdMax = 80;
 
 export const createCourseQuizResponseQuestionsItemChoicesItemTextMax = 500;
@@ -4021,6 +4099,12 @@ export const CreateCourseQuizResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(createCourseQuizResponseLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(createCourseQuizResponseLetterGradeScaleItemMinimumPercentMin).max(createCourseQuizResponseLetterGradeScaleItemMinimumPercentMax)
+})).min(createCourseQuizResponseLetterGradeScaleMin).max(createCourseQuizResponseLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "id": zod.number().int(),
@@ -4049,6 +4133,14 @@ export const updateCourseQuizBodyTitleMax = 180;
 export const updateCourseQuizBodyDescriptionMax = 2000;
 
 export const updateCourseQuizBodyLanguageDefault = `en`;
+export const updateCourseQuizBodyLetterGradeScaleItemGradeMax = 8;
+
+export const updateCourseQuizBodyLetterGradeScaleItemMinimumPercentMin = 0;
+export const updateCourseQuizBodyLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const updateCourseQuizBodyLetterGradeScaleMin = 2;
+export const updateCourseQuizBodyLetterGradeScaleMax = 12;
+
 export const updateCourseQuizBodyQuestionsItemPromptMax = 1500;
 
 export const updateCourseQuizBodyQuestionsItemChoicesItemIdMax = 80;
@@ -4068,6 +4160,12 @@ export const UpdateCourseQuizBody = zod.object({
   "title": zod.string().min(1).max(updateCourseQuizBodyTitleMax),
   "description": zod.string().max(updateCourseQuizBodyDescriptionMax).nullable(),
   "language": zod.enum(['en', 'ar']).default(updateCourseQuizBodyLanguageDefault),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(updateCourseQuizBodyLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(updateCourseQuizBodyLetterGradeScaleItemMinimumPercentMin).max(updateCourseQuizBodyLetterGradeScaleItemMinimumPercentMax)
+})).min(updateCourseQuizBodyLetterGradeScaleMin).max(updateCourseQuizBodyLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
@@ -4081,6 +4179,14 @@ export const UpdateCourseQuizBody = zod.object({
 })).min(1).max(updateCourseQuizBodyQuestionsMax)
 })
 
+export const updateCourseQuizResponseLetterGradeScaleItemGradeMax = 8;
+
+export const updateCourseQuizResponseLetterGradeScaleItemMinimumPercentMin = 0;
+export const updateCourseQuizResponseLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const updateCourseQuizResponseLetterGradeScaleMin = 2;
+export const updateCourseQuizResponseLetterGradeScaleMax = 12;
+
 export const updateCourseQuizResponseQuestionsItemChoicesItemIdMax = 80;
 
 export const updateCourseQuizResponseQuestionsItemChoicesItemTextMax = 500;
@@ -4093,6 +4199,12 @@ export const UpdateCourseQuizResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(updateCourseQuizResponseLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(updateCourseQuizResponseLetterGradeScaleItemMinimumPercentMin).max(updateCourseQuizResponseLetterGradeScaleItemMinimumPercentMax)
+})).min(updateCourseQuizResponseLetterGradeScaleMin).max(updateCourseQuizResponseLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "id": zod.number().int(),
@@ -4122,6 +4234,8 @@ export const GetCourseQuizAttemptsResponseItem = zod.object({
   "participantName": zod.string(),
   "score": zod.number().int(),
   "totalQuestions": zod.number().int(),
+  "gradeFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "gradeValue": zod.string(),
   "submittedAt": zod.coerce.date(),
   "answers": zod.array(zod.object({
   "questionId": zod.number().int(),
@@ -4142,6 +4256,14 @@ export const GetParticipantCourseModuleQuizzesParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemGradeMax = 8;
+
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMin = 0;
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMax = 100;
+
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMin = 2;
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMax = 12;
+
 export const getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemIdMax = 80;
 
 export const getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTextMax = 500;
@@ -4157,6 +4279,12 @@ export const GetParticipantCourseModuleQuizzesResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
+  "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
+  "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "letterGradeScale": zod.array(zod.object({
+  "grade": zod.string().min(1).max(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemGradeMax),
+  "minimumPercent": zod.number().min(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMax)
+})).min(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMin).max(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMax),
   "questionCount": zod.number().int(),
   "attemptCount": zod.number().int(),
   "latestAttempt": zod.union([zod.object({
@@ -4164,6 +4292,8 @@ export const GetParticipantCourseModuleQuizzesResponse = zod.object({
   "quizId": zod.number().int(),
   "score": zod.number().int(),
   "totalQuestions": zod.number().int(),
+  "gradeFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "gradeValue": zod.string(),
   "submittedAt": zod.coerce.date(),
   "answers": zod.array(zod.object({
   "questionId": zod.number().int(),
@@ -4211,6 +4341,8 @@ export const SubmitParticipantCourseQuizAttemptResponse = zod.object({
   "quizId": zod.number().int(),
   "score": zod.number().int(),
   "totalQuestions": zod.number().int(),
+  "gradeFormat": zod.enum(['numerical', 'percentage', 'letter']),
+  "gradeValue": zod.string(),
   "submittedAt": zod.coerce.date(),
   "answers": zod.array(zod.object({
   "questionId": zod.number().int(),

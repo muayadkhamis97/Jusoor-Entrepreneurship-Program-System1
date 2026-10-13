@@ -62,6 +62,7 @@
 .lp-section-title>span { min-width:23px; text-align:center; padding:4px; border-radius:20px; background:var(--lp-card); color:var(--lp-muted); font:9px var(--app-font-mono); }
 .lp-quiz-row { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--lp-line); padding:8px 0 2px; }
 .lp-quiz-row b { display:block; font-size:10px; }.lp-quiz-row small { display:block; margin-top:3px; color:var(--lp-muted); font-size:8px; }.lp-quiz-row strong { color:var(--lp-teal); font:600 12px var(--app-font-mono); }
+.lp-assessment-comparison{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:9px 0 10px;padding:8px;border:1px solid hsl(var(--primary)/.14);border-radius:6px;background:hsl(var(--primary)/.035)}.lp-assessment-comparison>div{display:grid;gap:4px;min-width:0}.lp-assessment-comparison span{color:var(--lp-muted);font-size:8px;line-height:1.3}.lp-assessment-comparison b{color:var(--lp-ink);font:600 11px var(--app-font-mono)}.lp-assessment-comparison .is-gain b{color:#36765d}.lp-assessment-comparison .is-loss b{color:#a8493d}
 .lp-no-quiz { margin:10px 0 0; color:var(--lp-muted); font-size:9px; }
 .lp-certificate-pending { display:flex; align-items:center; gap:11px; }
 .lp-certificate-pending>span { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; color:#a57b2e; background:hsl(43 65% 90%); flex:none; }
@@ -161,6 +162,7 @@
   .lp-metrics { gap:7px; }.lp-metrics article { padding:10px; }.lp-metrics article>b { font-size:20px; }
   .lp-participant summary { padding:11px 9px; }.lp-person>i { width:27px; height:27px; }
   .lp-program-stats { gap:8px 12px; }
+  .lp-assessment-comparison{grid-template-columns:1fr;gap:7px}.lp-assessment-comparison>div{display:flex;justify-content:space-between;align-items:center}
   .lp-reminders { margin:10px 9px; padding:10px; }.lp-reminders-heading { align-items:flex-start; flex-direction:column; gap:4px; }
   .lp-reminder-failures article { align-items:flex-start; flex-direction:column; }.lp-reminder-failures .lp-button { align-self:flex-start; }
 }

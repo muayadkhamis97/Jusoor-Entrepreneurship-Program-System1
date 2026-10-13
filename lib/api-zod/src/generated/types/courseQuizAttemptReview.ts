@@ -5,6 +5,7 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { CourseGradingFormat } from './courseGradingFormat';
 import type { CourseQuizAnswerResult } from './courseQuizAnswerResult';
 
 export interface CourseQuizAttemptReview {
@@ -13,6 +14,8 @@ export interface CourseQuizAttemptReview {
   participantName: string;
   score: number;
   totalQuestions: number;
+  gradeFormat: CourseGradingFormat;
+  gradeValue: string;
   submittedAt: Date;
   answers: CourseQuizAnswerResult[];
 }

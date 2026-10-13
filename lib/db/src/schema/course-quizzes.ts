@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -7,6 +8,9 @@ import { courseModulesTable } from "./courses";
 import { staffMembersTable } from "./staff";
 
 export type QuizQuestionType = "multiple_choice" | "true_false" | "ordering";
+export type CourseAssessmentType = "knowledge_check" | "pre_course" | "post_course";
+export type CourseGradingFormat = "numerical" | "percentage" | "letter";
+export type CourseLetterGradeBand = { grade: string; minimumPercent: number };
 export type QuizChoice = { id: string; text: string };
 export type QuizCorrectAnswer = string | boolean | string[];
 export type QuizAnswerResult = {
@@ -24,6 +28,11 @@ export const courseQuizzesTable = pgTable("jusoor_course_quizzes", {
   title: text("title").notNull(),
   description: text("description"),
   language: text("language").notNull().default("en"),
+  assessmentType: text("assessment_type").$type<CourseAssessmentType>().notNull().default("knowledge_check"),
+  gradingFormat: text("grading_format").$type<CourseGradingFormat>().notNull().default("numerical"),
+  letterGradeScale: jsonb("letter_grade_scale").$type<CourseLetterGradeBand[]>().notNull().default(
+    sql`'[{"grade":"A","minimumPercent":90},{"grade":"B","minimumPercent":80},{"grade":"C","minimumPercent":70},{"grade":"D","minimumPercent":60},{"grade":"F","minimumPercent":0}]'::jsonb`,
+  ),
   isPublished: boolean("is_published").notNull().default(false),
   createdByStaffId: integer("created_by_staff_id").notNull().references(() => staffMembersTable.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

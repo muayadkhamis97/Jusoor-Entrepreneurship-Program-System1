@@ -124,11 +124,15 @@ function buildProgramProgress(data: ProgressData) {
     }, null);
     const latest = quizAttempts.reduce<(typeof quizAttempts)[number] | null>((current, attempt) =>
       !current || attempt.submittedAt > current.submittedAt ? attempt : current, null);
+    const first = quizAttempts[0] ?? null;
     return {
       quizId,
       attempts: quizAttempts.length,
       bestScore: best?.score ?? null,
       totalQuestions: best?.totalQuestions ?? 0,
+      firstScore: first?.score ?? null,
+      latestScore: latest?.score ?? null,
+      firstSubmittedAt: first?.submittedAt ?? null,
       latestSubmittedAt: latest?.submittedAt ?? null,
     };
   };
@@ -176,9 +180,15 @@ function buildProgramProgress(data: ProgressData) {
     return {
       quizId: quiz.id,
       title: quiz.title,
+      assessmentType: quiz.assessmentType,
+      gradingFormat: quiz.gradingFormat,
+      letterGradeScale: quiz.letterGradeScale,
       attempts: result.attempts,
       bestScore: result.bestScore,
       totalQuestions: result.totalQuestions,
+      firstScore: result.firstScore,
+      latestScore: result.latestScore,
+      firstSubmittedAt: result.firstSubmittedAt,
       latestSubmittedAt: result.latestSubmittedAt,
     };
   });

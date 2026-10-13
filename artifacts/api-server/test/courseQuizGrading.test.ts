@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  formatCourseQuizGrade,
   gradeCourseQuizAttempt,
   isValidQuizSubmissionValue,
   shuffleQuizChoices,
   validateCourseQuizQuestions,
+  validateLetterGradeScale,
   type GradeableQuestion,
 } from "../src/lib/courseQuizGrading";
+import type { CourseLetterGradeBand } from "@workspace/db";
 
 const questions: GradeableQuestion[] = [
   {
@@ -95,4 +98,35 @@ test("choice shuffling does not mutate the authored answer order", () => {
 
   assert.deepEqual(shuffled, ["two", "three", "one"]);
   assert.deepEqual(authored, ["one", "two", "three"]);
+});
+
+test("formats numerical, percentage, and configurable letter grades", () => {
+  const scale: CourseLetterGradeBand[] = [
+    { grade: "A", minimumPercent: 90 },
+    { grade: "B", minimumPercent: 80 },
+    { grade: "C", minimumPercent: 70 },
+    { grade: "F", minimumPercent: 0 },
+  ];
+
+  assert.equal(formatCourseQuizGrade(3, 4, "numerical", scale), "3/4");
+  assert.equal(formatCourseQuizGrade(3, 4, "percentage", scale), "75%");
+  assert.equal(formatCourseQuizGrade(9, 10, "letter", scale), "A");
+  assert.equal(formatCourseQuizGrade(8, 10, "letter", scale), "B");
+  assert.equal(formatCourseQuizGrade(0, 10, "letter", scale), "F");
+});
+
+test("letter grade scales require unique thresholds and a zero-percent band", () => {
+  assert.equal(validateLetterGradeScale([
+    { grade: "Pass", minimumPercent: 50 },
+    { grade: "Fail", minimumPercent: 0 },
+  ]), null);
+  assert.match(validateLetterGradeScale([
+    { grade: "A", minimumPercent: 90 },
+    { grade: "B", minimumPercent: 90 },
+    { grade: "F", minimumPercent: 0 },
+  ]) ?? "", /unique/i);
+  assert.match(validateLetterGradeScale([
+    { grade: "A", minimumPercent: 90 },
+    { grade: "B", minimumPercent: 50 },
+  ]) ?? "", /0 percent/i);
 });

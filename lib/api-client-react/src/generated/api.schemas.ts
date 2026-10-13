@@ -427,9 +427,49 @@ export interface CourseProgressModule {
   packages: CourseProgressPackage[];
 }
 
+export type CourseAssessmentType = typeof CourseAssessmentType[keyof typeof CourseAssessmentType];
+
+
+export const CourseAssessmentType = {
+  knowledge_check: 'knowledge_check',
+  pre_course: 'pre_course',
+  post_course: 'post_course',
+} as const;
+
+export type CourseGradingFormat = typeof CourseGradingFormat[keyof typeof CourseGradingFormat];
+
+
+export const CourseGradingFormat = {
+  numerical: 'numerical',
+  percentage: 'percentage',
+  letter: 'letter',
+} as const;
+
+export interface CourseLetterGradeBand {
+  /**
+     * @minLength 1
+     * @maxLength 8
+     */
+  grade: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  minimumPercent: number;
+}
+
+/**
+ * @minItems 2
+ * @maxItems 12
+ */
+export type CourseLetterGradeScale = CourseLetterGradeBand[];
+
 export interface CourseProgressQuiz {
   quizId: number;
   title: string;
+  assessmentType: CourseAssessmentType;
+  gradingFormat: CourseGradingFormat;
+  letterGradeScale: CourseLetterGradeScale;
   /** @minimum 0 */
   attempts: number;
   /**
@@ -439,6 +479,18 @@ export interface CourseProgressQuiz {
   bestScore: number | null;
   /** @minimum 0 */
   totalQuestions: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  firstScore: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  latestScore: number | null;
+  /** @nullable */
+  firstSubmittedAt: string | null;
   /** @nullable */
   latestSubmittedAt: string | null;
 }
@@ -785,6 +837,9 @@ export interface CourseQuizInput {
      */
   description: string | null;
   language?: CourseLanguage;
+  assessmentType: CourseAssessmentType;
+  gradingFormat: CourseGradingFormat;
+  letterGradeScale: CourseLetterGradeScale;
   isPublished: boolean;
   /**
      * @minItems 1
@@ -819,6 +874,9 @@ export interface CourseQuiz {
   /** @nullable */
   description: string | null;
   language: CourseLanguage;
+  assessmentType: CourseAssessmentType;
+  gradingFormat: CourseGradingFormat;
+  letterGradeScale: CourseLetterGradeScale;
   isPublished: boolean;
   questions: CourseQuizStaffQuestion[];
 }
@@ -855,6 +913,8 @@ export interface CourseQuizAttempt {
   quizId: number;
   score: number;
   totalQuestions: number;
+  gradeFormat: CourseGradingFormat;
+  gradeValue: string;
   submittedAt: string;
   answers: CourseQuizAnswerResult[];
 }
@@ -865,6 +925,8 @@ export interface CourseQuizAttemptReview {
   participantName: string;
   score: number;
   totalQuestions: number;
+  gradeFormat: CourseGradingFormat;
+  gradeValue: string;
   submittedAt: string;
   answers: CourseQuizAnswerResult[];
 }
@@ -876,6 +938,9 @@ export interface ParticipantCourseQuiz {
   /** @nullable */
   description: string | null;
   language: CourseLanguage;
+  assessmentType: CourseAssessmentType;
+  gradingFormat: CourseGradingFormat;
+  letterGradeScale: CourseLetterGradeScale;
   questionCount: number;
   attemptCount: number;
   latestAttempt: CourseQuizAttempt | null;

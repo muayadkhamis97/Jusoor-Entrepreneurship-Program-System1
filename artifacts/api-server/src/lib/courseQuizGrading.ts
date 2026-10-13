@@ -1,4 +1,12 @@
-import type { QuizAnswerResult, QuizChoice, QuizCorrectAnswer, QuizQuestionType } from "@workspace/db";
+import type {
+  CourseAssessmentType,
+  CourseGradingFormat,
+  CourseLetterGradeBand,
+  QuizAnswerResult,
+  QuizChoice,
+  QuizCorrectAnswer,
+  QuizQuestionType,
+} from "@workspace/db";
 
 export type CourseQuizQuestionWriteInput = {
   questionType: QuizQuestionType;
@@ -11,10 +19,49 @@ export type CourseQuizWriteInput = {
   title: string;
   description: string | null;
   language?: "en" | "ar";
+  assessmentType: CourseAssessmentType;
+  gradingFormat: CourseGradingFormat;
+  letterGradeScale: CourseLetterGradeBand[];
   isPublished: boolean;
   questions: CourseQuizQuestionWriteInput[];
 };
 export type QuizSubmissionValue = string | boolean | string[];
+
+export function validateLetterGradeScale(scale: CourseLetterGradeBand[]): string | null {
+  if (scale.length < 2 || scale.length > 12) return "A letter grade scale needs between two and twelve bands.";
+  const labels = new Set<string>();
+  const thresholds = new Set<number>();
+  for (const band of scale) {
+    const grade = band.grade.trim();
+    if (!grade || grade.length > 8 || labels.has(grade.toLowerCase())) {
+      return "Letter grade labels must be non-empty and unique.";
+    }
+    if (!Number.isFinite(band.minimumPercent) || band.minimumPercent < 0 || band.minimumPercent > 100 ||
+        thresholds.has(band.minimumPercent)) {
+      return "Letter grade thresholds must be unique whole percentages from 0 to 100.";
+    }
+    labels.add(grade.toLowerCase());
+    thresholds.add(band.minimumPercent);
+  }
+  if (!thresholds.has(0)) return "The lowest letter grade must begin at 0 percent.";
+  return null;
+}
+
+export function formatCourseQuizGrade(
+  score: number,
+  totalQuestions: number,
+  format: CourseGradingFormat,
+  scale: CourseLetterGradeBand[],
+): string {
+  if (totalQuestions <= 0) return "—";
+  if (format === "numerical") return `${score}/${totalQuestions}`;
+  const percent = (score / totalQuestions) * 100;
+  if (format === "percentage") return `${Math.round(percent)}%`;
+  const band = [...scale]
+    .sort((a, b) => b.minimumPercent - a.minimumPercent)
+    .find((candidate) => percent >= candidate.minimumPercent);
+  return band?.grade ?? "—";
+}
 
 export type GradeableQuestion = {
   id: number;

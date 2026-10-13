@@ -2830,11 +2830,17 @@ components:
       properties:
         quizId: { type: integer }
         title: { type: string }
+        assessmentType: { $ref: "#/components/schemas/CourseAssessmentType" }
+        gradingFormat: { $ref: "#/components/schemas/CourseGradingFormat" }
+        letterGradeScale: { $ref: "#/components/schemas/CourseLetterGradeScale" }
         attempts: { type: integer, minimum: 0 }
         bestScore: { type: ["number", "null"], minimum: 0 }
         totalQuestions: { type: integer, minimum: 0 }
+        firstScore: { type: ["integer", "null"], minimum: 0 }
+        latestScore: { type: ["integer", "null"], minimum: 0 }
+        firstSubmittedAt: { type: ["string", "null"], format: date-time }
         latestSubmittedAt: { type: ["string", "null"], format: date-time }
-      required: [quizId, title, attempts, bestScore, totalQuestions, latestSubmittedAt]
+      required: [quizId, title, assessmentType, gradingFormat, letterGradeScale, attempts, bestScore, totalQuestions, firstScore, latestScore, firstSubmittedAt, latestSubmittedAt]
     CourseCertificate:
       type: object
       properties:
@@ -3104,6 +3110,23 @@ components:
     QuizQuestionType:
       type: string
       enum: [multiple_choice, true_false, ordering]
+    CourseAssessmentType:
+      type: string
+      enum: [knowledge_check, pre_course, post_course]
+    CourseGradingFormat:
+      type: string
+      enum: [numerical, percentage, letter]
+    CourseLetterGradeBand:
+      type: object
+      properties:
+        grade: { type: string, minLength: 1, maxLength: 8 }
+        minimumPercent: { type: number, minimum: 0, maximum: 100 }
+      required: [grade, minimumPercent]
+    CourseLetterGradeScale:
+      type: array
+      minItems: 2
+      maxItems: 12
+      items: { $ref: "#/components/schemas/CourseLetterGradeBand" }
     CourseQuizChoice:
       type: object
       properties:
@@ -3133,13 +3156,16 @@ components:
         title: { type: string, minLength: 1, maxLength: 180 }
         description: { type: ["string", "null"], maxLength: 2000 }
         language: { $ref: "#/components/schemas/CourseLanguage", default: en }
+        assessmentType: { $ref: "#/components/schemas/CourseAssessmentType" }
+        gradingFormat: { $ref: "#/components/schemas/CourseGradingFormat" }
+        letterGradeScale: { $ref: "#/components/schemas/CourseLetterGradeScale" }
         isPublished: { type: boolean }
         questions:
           type: array
           minItems: 1
           maxItems: 50
           items: { $ref: "#/components/schemas/CourseQuizQuestionInput" }
-      required: [title, description, isPublished, questions]
+      required: [title, description, assessmentType, gradingFormat, letterGradeScale, isPublished, questions]
     CourseQuizStaffQuestion:
       type: object
       properties:
@@ -3176,11 +3202,14 @@ components:
         title: { type: string }
         description: { type: ["string", "null"] }
         language: { $ref: "#/components/schemas/CourseLanguage" }
+        assessmentType: { $ref: "#/components/schemas/CourseAssessmentType" }
+        gradingFormat: { $ref: "#/components/schemas/CourseGradingFormat" }
+        letterGradeScale: { $ref: "#/components/schemas/CourseLetterGradeScale" }
         isPublished: { type: boolean }
         questions:
           type: array
           items: { $ref: "#/components/schemas/CourseQuizStaffQuestion" }
-      required: [id, moduleId, title, description, language, isPublished, questions]
+      required: [id, moduleId, title, description, language, assessmentType, gradingFormat, letterGradeScale, isPublished, questions]
     CourseQuizManagementResponse:
       type: object
       properties:
@@ -3225,11 +3254,13 @@ components:
         quizId: { type: integer }
         score: { type: integer }
         totalQuestions: { type: integer }
+        gradeFormat: { $ref: "#/components/schemas/CourseGradingFormat" }
+        gradeValue: { type: string }
         submittedAt: { type: string, format: date-time }
         answers:
           type: array
           items: { $ref: "#/components/schemas/CourseQuizAnswerResult" }
-      required: [id, quizId, score, totalQuestions, submittedAt, answers]
+      required: [id, quizId, score, totalQuestions, gradeFormat, gradeValue, submittedAt, answers]
     CourseQuizAttemptReview:
       type: object
       properties:
@@ -3238,11 +3269,13 @@ components:
         participantName: { type: string }
         score: { type: integer }
         totalQuestions: { type: integer }
+        gradeFormat: { $ref: "#/components/schemas/CourseGradingFormat" }
+        gradeValue: { type: string }
         submittedAt: { type: string, format: date-time }
         answers:
           type: array
           items: { $ref: "#/components/schemas/CourseQuizAnswerResult" }
-      required: [id, quizId, participantName, score, totalQuestions, submittedAt, answers]
+      required: [id, quizId, participantName, score, totalQuestions, gradeFormat, gradeValue, submittedAt, answers]
     ParticipantCourseQuiz:
       type: object
       properties:
@@ -3251,6 +3284,9 @@ components:
         title: { type: string }
         description: { type: ["string", "null"] }
         language: { $ref: "#/components/schemas/CourseLanguage" }
+        assessmentType: { $ref: "#/components/schemas/CourseAssessmentType" }
+        gradingFormat: { $ref: "#/components/schemas/CourseGradingFormat" }
+        letterGradeScale: { $ref: "#/components/schemas/CourseLetterGradeScale" }
         questionCount: { type: integer }
         attemptCount: { type: integer }
         latestAttempt:
@@ -3260,7 +3296,7 @@ components:
         questions:
           type: array
           items: { $ref: "#/components/schemas/ParticipantCourseQuizQuestion" }
-      required: [id, moduleId, title, description, language, questionCount, attemptCount, latestAttempt, questions]
+      required: [id, moduleId, title, description, language, assessmentType, gradingFormat, letterGradeScale, questionCount, attemptCount, latestAttempt, questions]
     ParticipantCourseQuizResponse:
       type: object
       properties:
