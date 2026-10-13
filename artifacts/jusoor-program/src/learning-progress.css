@@ -69,6 +69,29 @@
 .learning-certificate { display:flex; align-items:center; gap:12px; background:linear-gradient(120deg,hsl(43 67% 94%),hsl(var(--card))); border-color:hsl(43 48% 77%); }
 .certificate-seal { width:37px; height:37px; display:grid; place-items:center; flex:none; border:1px solid hsl(43 48% 70%); border-radius:50%; color:#9e792d; }
 .certificate-copy { flex:1; min-width:0; }.certificate-copy h3 { margin:3px 0; font:700 12px 'Manrope',sans-serif; }.certificate-copy p { margin:0; font-size:9px; color:var(--lp-muted); }.certificate-meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:8px; color:var(--lp-muted); font:8px var(--app-font-mono); }.certificate-meta b { color:var(--lp-ink); }
+.certificate-download-error { flex-basis:100%; margin:0 0 0 49px; color:hsl(var(--destructive)); font-size:9px; }
+.certificate-pdf-page { position:fixed; z-index:-1; top:0; left:-12000px; box-sizing:border-box; width:1122px; height:794px; padding:28px; background:#fffdf7; color:#233b38; opacity:.01; pointer-events:none; font-family:'DM Sans',Arial,sans-serif; }
+.certificate-pdf-frame { position:relative; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; width:100%; height:100%; padding:34px 54px 27px; border:2px solid #b79a52; outline:1px solid #d7c99f; outline-offset:-10px; text-align:center; }
+.certificate-pdf-brand { display:grid; gap:5px; color:#38685e; font-size:12px; font-weight:700; letter-spacing:.13em; }
+.certificate-pdf-wordmark { font:800 23px/1 'Manrope','DM Sans',Arial,sans-serif; letter-spacing:.12em; }.certificate-pdf-wordmark i { margin-left:7px; font:600 22px/1 Arial,sans-serif; letter-spacing:0; }
+.certificate-pdf-brand>span:last-child { font-size:10px; letter-spacing:.1em; }.certificate-pdf-brand b,.certificate-pdf-kicker b,.certificate-pdf-intro span,.certificate-pdf-program-label span,.certificate-pdf-footer span b { color:#b18e3c; }
+.certificate-pdf-content { display:flex; flex:1; flex-direction:column; justify-content:center; align-items:center; width:100%; padding:10px 0; }
+.certificate-pdf-kicker { margin-bottom:13px; color:#b18e3c; font-size:11px; font-weight:700; letter-spacing:.18em; }
+.certificate-pdf-content h1 { margin:0; color:#24483f; font:700 34px/1.2 'Manrope','DM Sans',Arial,sans-serif; letter-spacing:.1em; }
+.certificate-pdf-content h2 { margin:7px 0 20px; color:#24483f; font:600 28px/1.3 Arial,sans-serif; }
+.certificate-pdf-intro,.certificate-pdf-program-label { display:flex; align-items:center; gap:12px; margin:0; color:#687771; font-size:15px; }
+.certificate-pdf-intro span,.certificate-pdf-program-label span { font-family:Arial,sans-serif; font-size:16px; }
+.certificate-pdf-participant { margin-top:12px; color:#24483f; font:700 34px/1.2 'Manrope','DM Sans',Arial,sans-serif; }
+.certificate-pdf-business { min-height:20px; margin:5px 0 18px; color:#63756f; font-size:17px; }
+.certificate-pdf-program-label { margin-bottom:7px; font-size:13px; }
+.certificate-pdf-program-label span { font-size:14px; }
+.certificate-pdf-program { max-width:92%; color:#38685e; font:700 22px/1.25 'Manrope','DM Sans',Arial,sans-serif; }
+.certificate-pdf-footer { display:flex; align-items:flex-end; justify-content:space-between; width:100%; padding-top:14px; border-top:1px solid #d9cfb4; text-align:left; }
+.certificate-pdf-footer>div:not(.certificate-pdf-seal) { display:grid; gap:5px; min-width:250px; }
+.certificate-pdf-footer span { color:#718078; font-size:9px; font-weight:700; letter-spacing:.1em; }
+.certificate-pdf-footer strong { color:#24483f; font-size:14px; letter-spacing:.04em; }.certificate-pdf-footer small { color:#63756f; font:12px Arial,sans-serif; }
+.certificate-pdf-seal { display:grid; place-items:center; width:50px; height:50px; border:2px solid #b79a52; border-radius:50%; color:#a48335; font:700 27px 'Manrope',sans-serif; }
+.certificate-pdf-code { text-align:right; }.certificate-pdf-code strong { font:600 12px 'IBM Plex Mono',monospace; }
 .lp-state { display:flex; align-items:center; gap:12px; padding:18px; border:1px dashed var(--lp-line); border-radius:8px; background:var(--lp-card); color:var(--lp-teal); }
 .lp-state>div { flex:1; }.lp-state b { display:block; color:var(--lp-ink); font:700 12px 'Manrope',sans-serif; }.lp-state span { display:block; color:var(--lp-muted); font-size:10px; margin-top:3px; }
 .lp-error { border-color:hsl(4 56% 55% / .35); color:#a8493d; }
@@ -144,9 +167,4 @@
 @media print {
   .lp-live,.print-hide,.lp-analytics { display:none !important; }
   .learning-certificate { break-inside:avoid; }
-  body.printing-certificate * { visibility:hidden !important; }
-  body.printing-certificate .learning-certificate,
-  body.printing-certificate .learning-certificate * { visibility:visible !important; }
-  body.printing-certificate .learning-certificate { position:absolute; inset:12mm; display:flex; min-height:150mm; align-items:center; padding:20mm; border:2px solid #b79a52; background:#fbf7eb; color:#273b39; box-shadow:none; }
-  body.printing-certificate .learning-certificate:before { content:'JUSOOR ENTREPRENEURSHIP PROGRAM  /  CERTIFICATE OF COMPLETION'; position:absolute; top:22mm; left:20mm; right:20mm; text-align:center; color:#497c70; font:700 11px 'DM Sans',sans-serif; letter-spacing:.16em; }
 }

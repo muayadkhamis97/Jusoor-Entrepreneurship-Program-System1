@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import {
   getGetLearningProgressAnalyticsQueryKey,
   getGetParticipantLearningProgressQueryKey,
@@ -81,15 +83,67 @@ function useVisibleActiveTime(programIds: number[]) {
 }
 
 function CertificateCard({ certificate }: { certificate: NonNullable<ParticipantLearningProgram['certificate']> }) {
-  const printCertificate = () => {
-    document.body.classList.add('printing-certificate');
-    window.addEventListener('afterprint', () => document.body.classList.remove('printing-certificate'), { once: true });
-    window.print();
+  const certificateRef = useRef<HTMLElement>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
+  const downloadCertificate = async () => {
+    const certificateElement = certificateRef.current;
+    if (!certificateElement || downloading) return;
+    setDownloading(true);
+    setDownloadFailed(false);
+    try {
+      await document.fonts.ready;
+      const canvas = await html2canvas(certificateElement, {
+        backgroundColor: '#fffdf7',
+        scale: 2,
+        logging: false,
+        onclone: (clonedDocument) => {
+          const clonedCertificate = clonedDocument.querySelector<HTMLElement>('.certificate-pdf-page');
+          if (clonedCertificate) {
+            clonedCertificate.style.left = '0';
+            clonedCertificate.style.top = '0';
+            clonedCertificate.style.opacity = '1';
+          }
+        },
+      });
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 297, 210, undefined, 'FAST');
+      pdf.save(`Jusoor-Certificate-${certificate.certificateCode}.pdf`);
+    } catch (error) {
+      console.error('Could not generate the certificate PDF.', error);
+      setDownloadFailed(true);
+    } finally {
+      setDownloading(false);
+    }
   };
   return <article className="learning-certificate" data-testid={`card-certificate-${certificate.id}`}>
     <div className="certificate-seal"><Award size={21} /></div>
     <div className="certificate-copy"><span className="lp-eyebrow">{t('CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span></div></div>
-    <button type="button" className="lp-button lp-button-outline print-hide" onClick={printCertificate} data-testid={`button-download-certificate-${certificate.id}`}><Download size={15} />{t('Download / print')}</button>
+    <button type="button" className="lp-button lp-button-outline print-hide" onClick={downloadCertificate} disabled={downloading} data-testid={`button-download-certificate-${certificate.id}`}><Download size={15} />{downloading ? t('Preparing PDF…') : t('Download PDF')}</button>
+    {downloadFailed && <p className="certificate-download-error" role="alert">{t('Certificate PDF could not be downloaded. Please try again.')}</p>}
+    <section ref={certificateRef} className="certificate-pdf-page" aria-hidden="true">
+      <div className="certificate-pdf-frame">
+        <header className="certificate-pdf-brand">
+          <span className="certificate-pdf-wordmark">JUSOOR <i>جسور</i></span>
+          <span>ENTREPRENEURSHIP PROGRAM <b>·</b> برنامج ريادة الأعمال</span>
+        </header>
+        <div className="certificate-pdf-content">
+          <span className="certificate-pdf-kicker">PROGRAM ACHIEVEMENT <b>·</b> إنجاز البرنامج</span>
+          <h1>CERTIFICATE OF COMPLETION</h1>
+          <h2 lang="ar" dir="rtl">شهادة إتمام البرنامج</h2>
+          <p className="certificate-pdf-intro">This certificate is proudly presented to <span lang="ar" dir="rtl">تُمنح هذه الشهادة بكل فخر إلى</span></p>
+          <strong className="certificate-pdf-participant">{certificate.participantName}</strong>
+          <div className="certificate-pdf-business">{certificate.businessName}</div>
+          <p className="certificate-pdf-program-label">for completing the program <span lang="ar" dir="rtl">لإتمام برنامج</span></p>
+          <strong className="certificate-pdf-program">{certificate.programName}</strong>
+        </div>
+        <footer className="certificate-pdf-footer">
+          <div><span>ISSUE DATE <b>·</b> تاريخ الإصدار</span><strong>{fmtDate(certificate.issuedAt)}</strong><small lang="ar" dir="rtl">{new Date(certificate.issuedAt).toLocaleDateString('ar-JO', { day: 'numeric', month: 'long', year: 'numeric' })}</small></div>
+          <div className="certificate-pdf-seal" aria-hidden="true">J</div>
+          <div className="certificate-pdf-code"><span>CERTIFICATE CODE <b>·</b> رمز الشهادة</span><strong>{certificate.certificateCode}</strong></div>
+        </footer>
+      </div>
+    </section>
   </article>;
 }
 
