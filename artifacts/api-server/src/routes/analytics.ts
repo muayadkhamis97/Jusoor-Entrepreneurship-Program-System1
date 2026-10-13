@@ -106,6 +106,22 @@ type SessionInteractionTrendPoint = {
   responseRateChange: number | null;
 };
 
+export function buildSessionInteractionResponseMetrics(
+  status: string,
+  responseCount: number,
+  eligibleBusinesses: number,
+  responseRateThreshold: number,
+): { responseRate: number | null; needsFollowUp: boolean } {
+  const hasRate = (status === "open" || status === "closed") && eligibleBusinesses > 0;
+  const responseRate = hasRate
+    ? Math.round(responseCount / eligibleBusinesses * 1000) / 10
+    : null;
+  return {
+    responseRate,
+    needsFollowUp: responseRate !== null && responseRate < responseRateThreshold,
+  };
+}
+
 export function buildSessionInteractionTrend(
   from: string,
   to: string,
@@ -603,6 +619,12 @@ router.get("/analytics/session-interactions", async (req, res): Promise<void> =>
     if (!session) return [];
     const eligibleBusinesses = eligibleByProgram.get(session.programId)?.size ?? 0;
     const responseCount = responseCountByActivity.get(activity.id) ?? 0;
+    const responseMetrics = buildSessionInteractionResponseMetrics(
+      activity.status,
+      responseCount,
+      eligibleBusinesses,
+      parsed.data.responseRateThreshold,
+    );
     return [{
       programId: session.programId,
       programName: session.programName,
@@ -615,9 +637,7 @@ router.get("/analytics/session-interactions", async (req, res): Promise<void> =>
       status: activity.status,
       responseCount,
       eligibleBusinesses,
-      responseRate: activity.status !== "draft" && eligibleBusinesses > 0
-        ? Math.round(responseCount / eligibleBusinesses * 1000) / 10
-        : null,
+      ...responseMetrics,
     }];
   });
   const trend = buildSessionInteractionTrend(

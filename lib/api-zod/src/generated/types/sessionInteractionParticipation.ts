@@ -23,4 +23,5 @@ export interface SessionInteractionParticipation {
   eligibleBusinesses: number;
   /** @nullable */
   responseRate: number | null;
+  needsFollowUp: boolean;
 }

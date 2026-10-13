@@ -122,6 +122,7 @@
 .ana-interaction-title { display:inline; }
 .ana-interaction-error { justify-content:flex-start;gap:9px; }
 .ana-interaction-error button { border:0;background:transparent;color:hsl(var(--primary));font-family:inherit;font-size:9px;font-weight:700;text-decoration:underline;cursor:pointer; }
+.ana-follow-up-flag { display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:3px 6px;border-radius:5px;background:hsl(var(--accent)/.13);color:hsl(var(--accent));font-size:8px;font-weight:700; }
 .ana-session-panel,.ana-kpi-panel { padding:17px 18px 13px; }
 .ana-count-tag { padding:5px 8px;border-radius:5px;background:hsl(var(--background));color:hsl(var(--muted-foreground));font:8px var(--app-font-mono);white-space:nowrap; }
 .ana-session-list { margin-top:13px; }.ana-session { display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid hsl(var(--border)/.64); }

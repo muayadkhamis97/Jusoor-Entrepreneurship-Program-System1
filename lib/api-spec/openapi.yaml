@@ -111,6 +111,11 @@ paths:
           required: false
           description: Limit the interaction report to polls, surveys, or both
           schema: { type: string, enum: [all, poll, survey], default: all }
+        - name: responseRateThreshold
+          in: query
+          required: false
+          description: Flag open or closed activities with response rates below this percentage
+          schema: { type: number, minimum: 0, maximum: 100, default: 30 }
       responses:
         "200":
           description: Aggregate poll and survey participation without answer details
@@ -4193,7 +4198,8 @@ components:
         responseCount: { type: integer }
         eligibleBusinesses: { type: integer }
         responseRate: { type: ["number", "null"] }
-      required: [programId, programName, sessionId, sessionTitle, sessionDate, activityId, activityTitle, type, status, responseCount, eligibleBusinesses, responseRate]
+        needsFollowUp: { type: boolean }
+      required: [programId, programName, sessionId, sessionTitle, sessionDate, activityId, activityTitle, type, status, responseCount, eligibleBusinesses, responseRate, needsFollowUp]
     ProgramSessionInteractionAnalytics:
       type: object
       properties:

@@ -1,6 +1,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+test("session follow-up flags require an open or closed activity and an available rate below the threshold", async () => {
+  process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  process.env.NODE_ENV = "test";
+  const { buildSessionInteractionResponseMetrics } = await import("../src/routes/analytics");
+
+  assert.deepEqual(buildSessionInteractionResponseMetrics("open", 2, 10, 30), {
+    responseRate: 20,
+    needsFollowUp: true,
+  });
+  assert.deepEqual(buildSessionInteractionResponseMetrics("closed", 3, 10, 30), {
+    responseRate: 30,
+    needsFollowUp: false,
+  });
+  assert.deepEqual(buildSessionInteractionResponseMetrics("draft", 0, 10, 30), {
+    responseRate: null,
+    needsFollowUp: false,
+  });
+  assert.deepEqual(buildSessionInteractionResponseMetrics("open", 0, 0, 30), {
+    responseRate: null,
+    needsFollowUp: false,
+  });
+});
+
 test("weekly poll and survey trends compare adjacent eligible periods and skip draft or ineligible activity", async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";

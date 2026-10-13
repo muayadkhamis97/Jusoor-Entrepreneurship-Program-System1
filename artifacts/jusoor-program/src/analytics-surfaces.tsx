@@ -75,6 +75,7 @@ export function ProgramAnalyticsPage() {
   const [to, setTo] = useState(today);
   const [interactionPeriod, setInteractionPeriod] = useState<"weekly" | "monthly">("weekly");
   const [interactionType, setInteractionType] = useState<"all" | "poll" | "survey">("all");
+  const [interactionThreshold, setInteractionThreshold] = useState(30);
   const queryParams = useMemo(() => ({
     ...(programChoice ? { programId: Number(programChoice) } : {}),
     ...(from ? { from } : {}),
@@ -84,7 +85,8 @@ export function ProgramAnalyticsPage() {
     ...queryParams,
     period: interactionPeriod,
     activityType: interactionType,
-  }), [queryParams, interactionPeriod, interactionType]);
+    responseRateThreshold: interactionThreshold,
+  }), [queryParams, interactionPeriod, interactionType, interactionThreshold]);
   const analyticsQuery = useGetProgramAnalytics(queryParams);
   const interactionAnalyticsQuery = useGetProgramSessionInteractionAnalytics(interactionQueryParams);
   const data = analyticsQuery.data;
@@ -341,6 +343,9 @@ export function ProgramAnalyticsPage() {
               <label>{t("Period")}<select value={interactionPeriod} onChange={(event) => setInteractionPeriod(event.target.value as typeof interactionPeriod)}>
                 <option value="weekly">{t("Weekly")}</option><option value="monthly">{t("Monthly")}</option>
               </select></label>
+              <label>{t("Flag below")}<select data-testid="select-response-rate-threshold" aria-label={t("Flag activities below this response rate")} value={interactionThreshold} onChange={(event) => setInteractionThreshold(Number(event.target.value))}>
+                {[20, 30, 40, 50].map((threshold) => <option key={threshold} value={threshold}>{threshold}%</option>)}
+              </select></label>
               <ExportButton rows={(interactionAnalyticsQuery.data?.trend ?? []).map((period) => ({
                 period: trendPeriodLabel(period.periodStart, period.periodEnd),
                 activities: period.activityCount,
@@ -360,6 +365,7 @@ export function ProgramAnalyticsPage() {
                 responses: activity.status === "draft" || activity.eligibleBusinesses === 0 ? "Unavailable" : activity.responseCount,
                 eligibleBusinesses: activity.eligibleBusinesses || "Unavailable",
                 responseRate: activity.responseRate == null ? "Unavailable" : `${activity.responseRate.toFixed(1)}%`,
+                needsFollowUp: activity.needsFollowUp ? "Yes" : "No",
               }))} filename="poll-survey-participation.csv" label={t("Export activity CSV")} />
             </div>
           </div>
@@ -396,15 +402,15 @@ export function ProgramAnalyticsPage() {
                     <td>{signed(point.responseRateChange, " pp")}</td>
                   </tr>)}</tbody></table></div>
                 </> : <div className="ana-inline-empty"><Activity size={18} /><span>{t("No opened polls or surveys with eligible businesses match this period.")}</span></div>}
-                {interactionAnalyticsQuery.data?.activities.length ? <div className="ana-table-scroll"><table className="ana-table ana-interactions-table"><thead><tr><th>{t("Program / cohort")}</th><th>{t("Session")}</th><th>{t("Activity")}</th><th>{t("Responses")}</th><th>{t("Response rate")}</th></tr></thead><tbody>{interactionAnalyticsQuery.data.activities.map((activity) => <tr key={activity.activityId}>
+                {interactionAnalyticsQuery.data?.activities.length ? <div className="ana-table-scroll"><table className="ana-table ana-interactions-table"><thead><tr><th>{t("Program / cohort")}</th><th>{t("Session")}</th><th>{t("Activity")}</th><th>{t("Responses")}</th><th>{t("Response rate")}</th></tr></thead><tbody>{interactionAnalyticsQuery.data.activities.map((activity) => <tr key={activity.activityId} data-testid={`row-session-activity-${activity.activityId}`}>
                 <td><b>{activity.programName}</b></td>
                 <td><span className="ana-interaction-session">{activity.sessionTitle}</span><small>{dateLabel(activity.sessionDate)}</small></td>
                 <td><span className={`ana-interaction-kind ana-kind-${activity.type}`}>{t(activity.type)}</span><span className="ana-interaction-title">{activity.activityTitle}</span><small>{t(activity.status)}</small></td>
                 <td>{activity.status === "draft" || activity.eligibleBusinesses === 0 ? <span className="ana-missing">{t(activity.status === "draft" ? "Not opened" : "No eligible businesses")}</span> : <><b>{fmt(activity.responseCount)}</b><span className="ana-table-muted"> / {fmt(activity.eligibleBusinesses)}</span></>}</td>
-                <td>{activity.responseRate == null ? <span className="ana-missing">{t(activity.status === "draft" ? "Not opened" : "Unavailable")}</span> : <span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(activity.responseRate, 100))}%` } as React.CSSProperties} />{activity.responseRate.toFixed(1)}%</span>}</td>
+                <td>{activity.responseRate == null ? <span className="ana-missing">{t(activity.status === "draft" ? "Not opened" : "Unavailable")}</span> : <><span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(activity.responseRate, 100))}%` } as React.CSSProperties} />{activity.responseRate.toFixed(1)}%</span>{activity.needsFollowUp ? <span className="ana-follow-up-flag" data-testid={`status-low-response-${activity.activityId}`}><CircleAlert size={12} />{t("Needs follow-up")}</span> : null}</>}</td>
               </tr>)}</tbody></table></div> : null}
               </>}
-          <div className="ana-panel-foot">{t("Rates are weighted by accepted-business activity opportunities. Draft activities and periods without eligible businesses are excluded from the trend, not counted as zero. This view contains aggregate counts only; survey answers remain available only in authorized session reviews.")}</div>
+          <div className="ana-panel-foot">{t("Activities below")} {interactionThreshold}% {t("are flagged for follow-up. Only open or closed activities with an available rate can be flagged.")} {t("Rates are weighted by accepted-business activity opportunities. Draft activities and periods without eligible businesses are excluded from the trend, not counted as zero. This view contains aggregate counts only; survey answers remain available only in authorized session reviews.")}</div>
         </section>
 
         <section className="ana-lower-grid">

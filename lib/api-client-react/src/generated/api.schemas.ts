@@ -2479,6 +2479,7 @@ export interface SessionInteractionParticipation {
   eligibleBusinesses: number;
   /** @nullable */
   responseRate: number | null;
+  needsFollowUp: boolean;
 }
 
 export interface SessionInteractionTrendPoint {
@@ -2679,6 +2680,12 @@ period?: GetProgramSessionInteractionAnalyticsPeriod;
  * Limit the interaction report to polls, surveys, or both
  */
 activityType?: GetProgramSessionInteractionAnalyticsActivityType;
+/**
+ * Flag open or closed activities with response rates below this percentage
+ * @minimum 0
+ * @maximum 100
+ */
+responseRateThreshold?: number;
 };
 
 export type GetProgramSessionInteractionAnalyticsPeriod = typeof GetProgramSessionInteractionAnalyticsPeriod[keyof typeof GetProgramSessionInteractionAnalyticsPeriod];

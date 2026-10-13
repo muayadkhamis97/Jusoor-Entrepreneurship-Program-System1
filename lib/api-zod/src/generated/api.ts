@@ -162,13 +162,19 @@ export const getProgramSessionInteractionAnalyticsQueryFromRegExp = new RegExp('
 export const getProgramSessionInteractionAnalyticsQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getProgramSessionInteractionAnalyticsQueryPeriodDefault = `weekly`;
 export const getProgramSessionInteractionAnalyticsQueryActivityTypeDefault = `all`;
+export const getProgramSessionInteractionAnalyticsQueryResponseRateThresholdDefault = 30;
+export const getProgramSessionInteractionAnalyticsQueryResponseRateThresholdMin = 0;
+export const getProgramSessionInteractionAnalyticsQueryResponseRateThresholdMax = 100;
+
+
 
 export const GetProgramSessionInteractionAnalyticsQueryParams = zod.object({
   "programId": zod.coerce.number().int().optional(),
   "from": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryFromRegExp).optional(),
   "to": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryToRegExp).optional(),
   "period": zod.enum(['weekly', 'monthly']).default(getProgramSessionInteractionAnalyticsQueryPeriodDefault).describe('Calendar period used to group the response trend'),
-  "activityType": zod.enum(['all', 'poll', 'survey']).default(getProgramSessionInteractionAnalyticsQueryActivityTypeDefault).describe('Limit the interaction report to polls, surveys, or both')
+  "activityType": zod.enum(['all', 'poll', 'survey']).default(getProgramSessionInteractionAnalyticsQueryActivityTypeDefault).describe('Limit the interaction report to polls, surveys, or both'),
+  "responseRateThreshold": zod.coerce.number().min(getProgramSessionInteractionAnalyticsQueryResponseRateThresholdMin).max(getProgramSessionInteractionAnalyticsQueryResponseRateThresholdMax).default(getProgramSessionInteractionAnalyticsQueryResponseRateThresholdDefault).describe('Flag open or closed activities with response rates below this percentage')
 })
 
 export const getProgramSessionInteractionAnalyticsResponseFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
@@ -201,7 +207,8 @@ export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
   "status": zod.enum(['draft', 'open', 'closed']),
   "responseCount": zod.number().int(),
   "eligibleBusinesses": zod.number().int(),
-  "responseRate": zod.number().nullable()
+  "responseRate": zod.number().nullable(),
+  "needsFollowUp": zod.boolean()
 })),
   "trend": zod.array(zod.object({
   "periodStart": zod.string().regex(getProgramSessionInteractionAnalyticsResponseTrendItemPeriodStartRegExp),
