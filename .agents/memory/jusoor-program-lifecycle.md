@@ -13,6 +13,12 @@ Mentor booking: each mentor authorizes their own Calendly account. Keep Calendly
 
 **How to apply:** Keep bootcamp or hackathon selection distinct from incubation, pitch-day qualification, and demo-day grant decisions. Preserve role-specific views and access when adding workflows.
 
+Each program is one cohort. A startup is assigned to the program selected in its application, and coordinators can classify the cohort roster by the startup's industry.
+
+**Why:** The coordinator chose one group per program and asked to classify participants based on their startup; the existing industry field is the platform's startup classification.
+
+**How to apply:** Keep cohort membership program-scoped and industry as a classification filter. Accepted applications determine course access; do not add a parallel group-membership model unless requested.
+
 **Why:** The coordinator chose per-mentor booking accounts and Calendly for direct founder scheduling. Event sync needs to verify asynchronous bookings without ongoing API access to the mentor's Calendly account.
 
 **How to apply:** Preserve individual mentor ownership; do not use a shared account or persist Calendly OAuth tokens. Store only per-mentor webhook routing and signing material encrypted with `SESSION_SECRET`, and reconnect Calendly if that secret rotates.
