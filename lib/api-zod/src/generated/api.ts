@@ -18,6 +18,51 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get the public program branding settings
+ */
+export const getProgramBrandingResponsePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const getProgramBrandingResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+
+
+export const GetProgramBrandingResponse = zod.object({
+  "brandName": zod.string(),
+  "logoUrl": zod.string().url().nullable(),
+  "primaryColor": zod.string().regex(getProgramBrandingResponsePrimaryColorRegExp),
+  "accentColor": zod.string().regex(getProgramBrandingResponseAccentColorRegExp)
+})
+
+
+/**
+ * @summary Update program branding as a coordinator
+ */
+export const updateProgramBrandingBodyBrandNameMax = 80;
+
+export const updateProgramBrandingBodyLogoUrlMax = 2048;
+
+export const updateProgramBrandingBodyPrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateProgramBrandingBodyAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+
+
+export const UpdateProgramBrandingBody = zod.object({
+  "brandName": zod.string().min(1).max(updateProgramBrandingBodyBrandNameMax),
+  "logoUrl": zod.string().url().max(updateProgramBrandingBodyLogoUrlMax).nullable(),
+  "primaryColor": zod.string().regex(updateProgramBrandingBodyPrimaryColorRegExp),
+  "accentColor": zod.string().regex(updateProgramBrandingBodyAccentColorRegExp)
+})
+
+export const updateProgramBrandingResponsePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateProgramBrandingResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+
+
+export const UpdateProgramBrandingResponse = zod.object({
+  "brandName": zod.string(),
+  "logoUrl": zod.string().url().nullable(),
+  "primaryColor": zod.string().regex(updateProgramBrandingResponsePrimaryColorRegExp),
+  "accentColor": zod.string().regex(updateProgramBrandingResponseAccentColorRegExp)
+})
+
+
+/**
  * @summary Get program dashboard overview
  */
 export const getDashboardResponseUpcomingSessionsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
@@ -1600,6 +1645,16 @@ export const GetParticipantCourseMaterialFileParams = zod.object({
 })
 
 export const GetParticipantCourseMaterialFileResponse = zod.unknown()
+
+
+/**
+ * @summary Download a private course file for offline learning after checking enrollment, release, and role access
+ */
+export const DownloadParticipantCourseMaterialFileParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DownloadParticipantCourseMaterialFileResponse = zod.unknown()
 
 
 /**

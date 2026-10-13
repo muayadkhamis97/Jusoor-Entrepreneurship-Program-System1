@@ -44,6 +44,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /branding:
+    get:
+      operationId: getProgramBranding
+      tags: [staff]
+      summary: Get the public program branding settings
+      responses:
+        "200":
+          description: Program name, logo, and brand colors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgramBranding"
+    put:
+      operationId: updateProgramBranding
+      tags: [staff]
+      summary: Update program branding as a coordinator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramBrandingInput"
+      responses:
+        "200":
+          description: Updated program branding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgramBranding"
+        "400":
+          description: Invalid branding settings
+        "403":
+          description: Coordinator access required
   /dashboard:
     get:
       operationId: getDashboard
@@ -881,6 +914,25 @@ paths:
       responses:
         "200":
           description: Private course file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Participant is not enrolled or the material is restricted
+        "404":
+          description: File not found
+  /participant/courses/materials/{id}/download:
+    get:
+      operationId: downloadParticipantCourseMaterialFile
+      tags: [courses]
+      summary: Download a private course file for offline learning after checking enrollment, release, and role access
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Private course file download
           content:
             application/octet-stream:
               schema:
@@ -2520,6 +2572,22 @@ components:
           type: string
       required:
         - status
+    ProgramBranding:
+      type: object
+      properties:
+        brandName: { type: string }
+        logoUrl: { type: ["string", "null"], format: uri }
+        primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+      required: [brandName, logoUrl, primaryColor, accentColor]
+    ProgramBrandingInput:
+      type: object
+      properties:
+        brandName: { type: string, minLength: 1, maxLength: 80 }
+        logoUrl: { type: ["string", "null"], format: uri, maxLength: 2048 }
+        primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+      required: [brandName, logoUrl, primaryColor, accentColor]
     ApplicationStatus:
       type: string
       enum: [submitted, under_review, accepted, declined]

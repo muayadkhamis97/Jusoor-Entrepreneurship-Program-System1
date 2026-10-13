@@ -9,6 +9,33 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface ProgramBranding {
+  brandName: string;
+  /** @nullable */
+  logoUrl: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  primaryColor: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor: string;
+}
+
+export interface ProgramBrandingInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  brandName: string;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  logoUrl: string | null;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  primaryColor: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor: string;
+}
+
 export type ApplicationStatus = typeof ApplicationStatus[keyof typeof ApplicationStatus];
 
 

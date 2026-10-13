@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-orm";
 import {
   AskTrainingQuestionBody,
@@ -128,7 +128,11 @@ router.get("/courses", async (_req, res): Promise<void> => {
   res.json(GetParticipantCoursesResponse.parse({ programs: [...programs.values()] }));
 });
 
-router.get("/courses/materials/:id/file", async (req, res): Promise<void> => {
+async function handleParticipantCourseMaterialFile(
+  req: Request,
+  res: Response,
+  download: boolean,
+): Promise<void> {
   const participant = res.locals.participant as ParticipantAccess;
   const params = GetParticipantCourseMaterialFileParams.safeParse(req.params);
   if (!participant) {
@@ -176,7 +180,16 @@ router.get("/courses/materials/:id/file", async (req, res): Promise<void> => {
     record.material.objectPath,
     record.material.fileName,
     record.material.contentType,
+    download,
   );
+}
+
+router.get("/courses/materials/:id/file", async (req, res): Promise<void> => {
+  await handleParticipantCourseMaterialFile(req, res, false);
+});
+
+router.get("/courses/materials/:id/download", async (req, res): Promise<void> => {
+  await handleParticipantCourseMaterialFile(req, res, true);
 });
 
 router.get("/dashboard", async (_req, res): Promise<void> => {

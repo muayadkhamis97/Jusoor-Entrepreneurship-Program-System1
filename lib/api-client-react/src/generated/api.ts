@@ -113,6 +113,8 @@ import type {
   PostXapiActivityStateParams,
   Program,
   ProgramAnalytics,
+  ProgramBranding,
+  ProgramBrandingInput,
   ProgramInput,
   ProgramSessionInteractionAnalytics,
   ProgramUpdate,
@@ -261,6 +263,171 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getGetProgramBrandingUrl = () => {
+
+
+
+
+  return `/api/branding`
+}
+
+/**
+ * @summary Get the public program branding settings
+ */
+export const getProgramBranding = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProgramBranding> => {
+
+  return customFetch<ProgramBranding>(getGetProgramBrandingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProgramBrandingQueryKey = () => {
+    return [
+    `/api/branding`
+    ] as const;
+    }
+
+
+export const getGetProgramBrandingQueryOptions = <TData = Awaited<ReturnType<typeof getProgramBranding>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProgramBrandingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgramBranding>>> = ({ signal }) => getProgramBranding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProgramBranding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProgramBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getProgramBranding>>>
+export type GetProgramBrandingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the public program branding settings
+ */
+
+export function useGetProgramBranding<TData = Awaited<ReturnType<typeof getProgramBranding>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramBranding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProgramBrandingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateProgramBrandingUrl = () => {
+
+
+
+
+  return `/api/branding`
+}
+
+/**
+ * @summary Update program branding as a coordinator
+ */
+export const updateProgramBranding = async (programBrandingInput: ProgramBrandingInput, options?: Parameters<typeof customFetch>[1]): Promise<ProgramBranding> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProgramBranding>(getUpdateProgramBrandingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(programBrandingInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProgramBrandingMutationKey = () => ['updateProgramBranding'] as const;
+
+export const getUpdateProgramBrandingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramBranding>>, TError,UpdateProgramBrandingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProgramBranding>>, TError,UpdateProgramBrandingMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProgramBrandingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProgramBranding>>, UpdateProgramBrandingMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProgramBranding(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProgramBrandingMutationResult = NonNullable<Awaited<ReturnType<typeof updateProgramBranding>>>
+    export type UpdateProgramBrandingMutationBody = BodyType<ProgramBrandingInput>
+    export type UpdateProgramBrandingMutationError = ErrorType<void>
+    export type UpdateProgramBrandingMutationVariables = {data: BodyType<ProgramBrandingInput>}
+
+    /**
+ * @summary Update program branding as a coordinator
+ */
+export const useUpdateProgramBranding = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramBranding>>, TError,UpdateProgramBrandingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProgramBranding>>,
+        TError,
+        UpdateProgramBrandingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProgramBrandingMutationOptions(options));
+    }
 
 export const getGetDashboardUrl = () => {
 
@@ -3708,6 +3875,83 @@ export function useGetParticipantCourseMaterialFile<TData = Awaited<ReturnType<t
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetParticipantCourseMaterialFileQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadParticipantCourseMaterialFileUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/materials/${id}/download`
+}
+
+/**
+ * @summary Download a private course file for offline learning after checking enrollment, release, and role access
+ */
+export const downloadParticipantCourseMaterialFile = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadParticipantCourseMaterialFileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadParticipantCourseMaterialFileQueryKey = (id: number,) => {
+    return [
+    `/api/participant/courses/materials/${id}/download`
+    ] as const;
+    }
+
+
+export const getDownloadParticipantCourseMaterialFileQueryOptions = <TData = Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadParticipantCourseMaterialFileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>> = ({ signal }) => downloadParticipantCourseMaterialFile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadParticipantCourseMaterialFileQueryResult = NonNullable<Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>>
+export type DownloadParticipantCourseMaterialFileQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download a private course file for offline learning after checking enrollment, release, and role access
+ */
+
+export function useDownloadParticipantCourseMaterialFile<TData = Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadParticipantCourseMaterialFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadParticipantCourseMaterialFileQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

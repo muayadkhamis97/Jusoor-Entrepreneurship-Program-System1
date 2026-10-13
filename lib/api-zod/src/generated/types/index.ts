@@ -164,6 +164,8 @@ export * from './pitchUpdate';
 export * from './postXapiActivityStateParams';
 export * from './program';
 export * from './programAnalytics';
+export * from './programBranding';
+export * from './programBrandingInput';
 export * from './programFormat';
 export * from './programInput';
 export * from './programInputFormat';

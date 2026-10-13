@@ -26,6 +26,7 @@ import { ParticipantSessionInteractions } from './session-interactions';
 import { ParticipantModuleQuizzes } from './course-quizzes';
 import { CoursePackagePlayer } from './course-package-player';
 import { ParticipantLearningProgress } from './learning-progress';
+import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -62,7 +63,9 @@ const meetingDateTime = (value: string, timezone?: string | null) => {
   }
 };
 function IntakeBrand() {
-  return <Link href="/" className="intake-brand" data-testid="link-jusoor-home"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</small></span></Link>;
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const brand = brandingQuery.data;
+  return <Link href="/" className="intake-brand" data-testid="link-jusoor-home">{brand?.logoUrl ? <img className="intake-logo-image" src={brand.logoUrl} alt="" /> : <span className="brand-mark">{brand?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{brand?.brandName || 'Jusoor'}</b><small>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</small></span></Link>;
 }
 
 function IntakeFrame({ children }: { children: React.ReactNode }) {
@@ -238,15 +241,17 @@ function ParticipantProgramLearning() {
    if (!programs.length) return <section className="participant-section participant-course-section" data-testid="empty-participant-courses"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div><div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h3>{t('Your learning path is being prepared.')}</h3><p>{t('Once released by your program team, modules and resources for your accepted cohort will appear here.')}</p></div></section>;
   return <><section className="participant-section participant-course-section" data-testid="participant-course-learning">
      <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('A guided sequence of released modules and useful materials.')}</p></div><span className="badge badge-neutral">{programs.reduce((total, program) => total + program.modules.length, 0)} {t('released modules')}</span></div>
-    {programs.map(program => {
+     <div className="offline-learning-note" role="note"><Download size={16} /><div><b>{t('Prepare materials for offline study')}</b><span>{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</span></div></div>
+     {programs.map(program => {
       const modules = program.modules.filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now).sort((a, b) => a.position - b.position);
       return <article className="participant-course-program" key={program.programId} data-testid={`participant-course-program-${program.programId}`}>
          <header className="participant-course-banner"><span className="participant-course-icon"><BookOpen size={17} /></span><div><h3>{program.programName}</h3><span>{modules.length} {t('learning')} {t(modules.length === 1 ? 'module' : 'modules')} {t('available')}</span></div></header>
          {!modules.length ? <div className="empty-panel"><p>{t('Your next module will appear here when your cohort releases it.')}</p></div> : modules.map((module, index) => <section className="participant-course-module" key={module.id} data-testid={`participant-course-module-${module.id}`}><span className="participant-course-number">{String(index + 1).padStart(2, '0')}</span><div><h4>{module.title}</h4>{module.description && <p>{module.description}</p>}<div className="participant-course-items">{module.materials.map(material => {
-          const href = material.kind === 'link' ? material.externalUrl || undefined : `${participantBasePath}/api/participant/courses/materials/${material.id}/file`;
+          const isUploadedFile = material.kind !== 'link' && material.kind !== 'scorm' && material.kind !== 'xapi' && Boolean(material.fileName);
+          const href = material.kind === 'link' ? material.externalUrl || undefined : isUploadedFile ? `${participantBasePath}/api/participant/courses/materials/${material.id}/download` : undefined;
            const languageTag = material.language === 'ar' ? 'العربية' : 'English';
-           if (material.kind === 'scorm' || material.kind === 'xapi') return <button className="participant-course-item participant-package-launch" type="button" key={material.id} onClick={() => setActivePackage({ id: material.id, title: material.title })} data-testid={`button-launch-course-package-${material.id}`}><Play size={13} />{material.title}<span className="participant-content-language">{languageTag}</span></button>;
-           return href ? <a className="participant-course-item" key={material.id} href={href} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-participant-course-material-${material.id}`}>{material.kind === 'link' ? <ExternalLinkIcon size={13} /> : <Download size={13} />}{material.title}<span className="participant-content-language">{languageTag}</span></a> : <span className="participant-course-item" key={material.id} data-testid={`text-participant-course-material-${material.id}`}><BookOpen size={13} />{material.title}<span className="participant-content-language">{languageTag}</span></span>;
+           if (material.kind === 'scorm' || material.kind === 'xapi') return <button className="participant-course-item participant-package-launch" type="button" key={material.id} onClick={() => setActivePackage({ id: material.id, title: material.title })} data-testid={`button-launch-course-package-${material.id}`}><Play size={13} />{material.title}<span className="participant-content-language">{languageTag}</span><span className="participant-material-mode">{t('Online only')}</span></button>;
+           return href ? <a className="participant-course-item" key={material.id} href={href} download={isUploadedFile ? true : undefined} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-participant-course-material-${material.id}`}>{material.kind === 'link' ? <ExternalLinkIcon size={13} /> : <Download size={13} />}{material.title}<span className="participant-content-language">{languageTag}</span><span className="participant-material-mode">{t(material.kind === 'link' ? 'Internet required' : 'Save to device')}</span></a> : <span className="participant-course-item" key={material.id} data-testid={`text-participant-course-material-${material.id}`}><BookOpen size={13} />{material.title}<span className="participant-content-language">{languageTag}</span></span>;
           })}</div><ParticipantModuleQuizzes moduleId={module.id} /><CourseDiscussion moduleId={module.id} participant /></div></section>)}
       </article>;
     })}

@@ -28,3 +28,24 @@
 .participant-questions{display:grid;gap:10px}.participant-question{padding:10px 0;border-top:1px solid hsl(var(--border) / .7)}.participant-question:first-child{border-top:0;padding-top:0}.question-context{color:hsl(var(--accent));font:8px var(--app-font-mono);text-transform:uppercase;letter-spacing:.06em}.participant-question>p{margin:6px 0 8px;font-size:10px;line-height:1.55}.question-reply{padding:9px;background:hsl(var(--primary) / .07);border-radius:6px}.question-reply b{font-size:9px;color:hsl(var(--primary))}.question-reply p{margin:4px 0 0;color:hsl(var(--muted-foreground));font-size:10px;line-height:1.5}
 .participant-support-note{display:flex;gap:9px;align-items:flex-start;margin-top:15px;padding:12px 14px;border-radius:7px;color:hsl(var(--muted-foreground));background:hsl(var(--accent) / .08);font-size:9px;line-height:1.55}.participant-support-note svg{flex:0 0 auto;color:hsl(var(--accent))}.participant-support-note b{color:hsl(var(--foreground))}
 @media(max-width:700px){.role-topbar{padding:13px 17px}.role-top-actions{gap:8px}.role-user{display:none}.role-main{padding:28px 17px 20px}.role-heading{align-items:flex-start;flex-direction:column;gap:13px}.role-feature-grid{grid-template-columns:1fr}.role-feature{min-height:160px}.role-feature h2{margin-top:16px}.role-form-grid{grid-template-columns:1fr}.role-form-grid .field-wide{grid-column:auto}.role-row{flex-wrap:wrap;padding:12px 0}.role-row .badge{margin-left:auto}.role-reply-form{grid-template-columns:1fr}.judge-assignment-row{grid-template-columns:1fr}.judge-assignment-actions{width:100%}.judge-assignment-actions .form-control{flex:1}.score-submit-row{align-items:flex-start;flex-direction:column}.role-footer{padding:14px 17px 20px;flex-direction:column;gap:7px}}
+@media(max-width:700px){
+  .role-workspace{overflow-x:clip}
+  .role-main{width:100%;min-width:0;padding:24px 15px 20px}
+  .role-topbar{min-height:64px;padding:10px 14px;gap:10px}
+  .role-topbar .brand{min-width:0}
+  .role-topbar .brand b{max-width:45vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .role-top-actions{flex:0 0 auto}
+  .role-heading h1{font-size:clamp(31px,9vw,44px);overflow-wrap:anywhere}
+  .role-count{max-width:100%;white-space:normal}
+  .role-feature,.role-note,.role-assignment-section,.answer-card{min-width:0;padding:16px}
+  .role-list{padding:0 13px}
+  .role-date{flex:0 0 auto}
+  .role-row-copy{flex-basis:calc(100% - 95px)}
+  .role-reply-form textarea,.participant-answer-form textarea,.participant-question-form textarea,.participant-question-form select,.role-form-grid .form-control{font-size:16px}
+  .pitch-judge-controls{margin:13px 0;padding:12px}
+  .judge-assignment-actions{flex-direction:column;align-items:stretch}
+  .judge-assignment-actions .button{min-height:40px}
+  .assignment-heading{flex-wrap:wrap}
+  .role-button-row .button,.role-form-grid .button{min-height:42px}
+  .role-footer{width:100%;padding:13px 15px 18px}
+}

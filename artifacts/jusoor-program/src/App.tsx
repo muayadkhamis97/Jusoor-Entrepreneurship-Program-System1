@@ -15,7 +15,7 @@ import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
-  getListZoomRecordingAlertsQueryKey,
+   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, useGetProgramBranding,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
@@ -35,7 +35,7 @@ import {
   Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign,
   CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
   FileText, Filter, Handshake, LayoutDashboard, MapPin,
-  Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X,
+   Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { ApplicationsReviewPage, ApplyPage, ParticipantDashboardPage } from './intake-surfaces';
@@ -51,6 +51,7 @@ import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
+import { BrandingPage } from './branding-surfaces';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -132,11 +133,13 @@ function ConfirmDialog({ item, onCancel, onConfirm, loading, error }: { item: st
 function Shell({ children, staff, displayName }: { children: ReactNode; staff: StaffMember; displayName: string }) {
   const [path] = useLocation();
   const { signOut } = useClerk();
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const branding = brandingQuery.data;
   const nav = [
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
     { href: '/programs', label: 'Programs', icon: Activity },
-    ...(staff.role === 'coordinator' ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }] : []),
+    ...(staff.role === 'coordinator' ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }, { href: '/branding', label: 'Branding', icon: Palette }] : []),
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     ...(staff.role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
     { href: '/support', label: 'Support', icon: Handshake },
@@ -149,7 +152,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
     <aside className="sidebar">
-      <Link href="/" className="brand" data-testid="link-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></Link>
+       <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>PROGRAM HUB</small></span></Link>
        <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
       <nav className="side-nav" aria-label="Main navigation">{nav.map(item => {
         const Icon = item.icon; const active = path === item.href;
@@ -793,6 +796,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/businesses" component={BusinessesPage} />
     <Route path="/programs" component={ProgramsPage} />
     <Route path="/analytics">{() => staff.role === 'coordinator' ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
+    <Route path="/branding" component={staff.role === 'coordinator' ? BrandingPage : NotFoundPage} />
     <Route path="/courses">{() => staff.role === 'coordinator' ? <CourseManagementPage /> : staff.role === 'staff' ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
     <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} staffId={staff.id} />}</Route>
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />
@@ -809,8 +813,10 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
 
 function AuthLanding() {
   useAppLanguage();
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const branding = brandingQuery.data;
   return <main className="auth-page">
-    <div className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></div>
+    <div className="auth-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></div>
     <LanguageToggle className="auth-language-toggle" />
     <section className="auth-welcome">
       <div className="eyebrow">{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</div>
@@ -825,9 +831,11 @@ function AuthLanding() {
 
 function AuthPage({ mode, participantRedirect = false }: { mode: 'sign-in' | 'sign-up'; participantRedirect?: boolean }) {
   useAppLanguage();
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const branding = brandingQuery.data;
   const isSignIn = mode === 'sign-in';
   return <main className="auth-page auth-form-page">
-    <Link href="/" className="auth-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></Link>
+    <Link href="/" className="auth-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></Link>
     <LanguageToggle className="auth-language-toggle" />
     <div className="auth-form-content"><div className="eyebrow">{t(isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}</div><h1 className="app-title">{t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}</h1><p>{t(isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require coordinator approval.')}</p>
       <div className="clerk-card">{isSignIn
@@ -869,7 +877,7 @@ function AuthenticatedWorkspace() {
     if (staff.role === 'mentor' || staff.role === 'judge') return path === roleHome(staff.role);
     if (path === '/trainer' || path === '/mentor' || path === '/judge' || path === '/participant') return false;
     if (staff.role !== 'coordinator' && (path === '/applications' || path === '/mentor-booking' || path === '/team' || path === '/access')) return false;
-    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/communications', '/courses', '/applications', '/mentor-booking', '/team', '/access', '/grants'] : [])].includes(path);
+    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/communications', '/courses', '/applications', '/mentor-booking', '/team', '/access', '/grants', '/branding'] : [])].includes(path);
   };
   const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {
@@ -906,19 +914,53 @@ function ClerkQueryClientCacheInvalidator() {
 
 function ClerkApp() {
   const { language } = useAppLanguage();
+  return <QueryClientProvider client={queryClient}><ConfiguredClerkApp language={language} /></QueryClientProvider>;
+}
+
+function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
   const [, setLocation] = useLocation();
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const branding = brandingQuery.data;
+  const brandName = branding?.brandName || 'Jusoor Entrepreneurship Program';
+  const primaryColor = branding?.primaryColor || '#28665a';
+  useEffect(() => {
+    if (!branding) return;
+    const toHsl = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+      let h = 0, s = 0; const l = (max + min) / 2;
+      if (delta) { s = delta / (1 - Math.abs(2 * l - 1)); h = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4; h *= 60; if (h < 0) h += 360; }
+      return `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+    };
+    const primaryHsl = toHsl(branding.primaryColor);
+    const accentHsl = toHsl(branding.accentColor);
+    const rgb = [1, 3, 5].map(offset => parseInt(branding.primaryColor.slice(offset, offset + 2), 16) / 255);
+    const luminance = rgb.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+      .reduce((total, value, index) => total + value * [0.2126, 0.7152, 0.0722][index], 0);
+    const darkTextLuminance = 0.035;
+    const darkContrast = (luminance + 0.05) / (darkTextLuminance + 0.05);
+    const lightContrast = 1.05 / (luminance + 0.05);
+    const foreground = darkContrast >= lightContrast ? '203 28% 19%' : '0 0% 100%';
+    document.documentElement.style.setProperty('--primary', primaryHsl);
+    document.documentElement.style.setProperty('--ring', primaryHsl);
+    document.documentElement.style.setProperty('--accent', accentHsl);
+    document.documentElement.style.setProperty('--primary-foreground', foreground);
+    document.documentElement.style.setProperty('--sidebar-primary', primaryHsl);
+    document.documentElement.style.setProperty('--sidebar-primary-foreground', foreground);
+    document.title = `${brandName} · Program Hub`;
+  }, [branding, brandName]);
   const appearance = {
     theme: shadcn,
     cssLayerName: 'clerk',
     options: {
       logoPlacement: 'inside' as const,
       logoLinkUrl: basePath || '/',
-      logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+      logoImageUrl: branding?.logoUrl || `${window.location.origin}${basePath}/logo.svg`,
       socialButtonsPlacement: 'bottom' as const,
       socialButtonsVariant: 'blockButton' as const,
     },
     variables: {
-      colorPrimary: '#28665a',
+      colorPrimary: primaryColor,
       colorForeground: '#203744',
       colorMutedForeground: '#687c82',
       colorDanger: '#b85042',
@@ -954,17 +996,15 @@ function ClerkApp() {
     signInUrl={`${basePath}/sign-in`}
     signUpUrl={`${basePath}/sign-up`}
     localization={language === 'ar' ? arSA : {
-      signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your Jusoor workspace' } },
-      signUp: { start: { title: 'Create your Jusoor account', subtitle: 'Founders: use the email on your application' } },
+      signIn: { start: { title: 'Welcome back', subtitle: `Sign in to access your ${brandName} workspace` } },
+      signUp: { start: { title: `Create your ${brandName} account`, subtitle: 'Founders: use the email on your application' } },
     }}
     routerPush={to => setLocation(stripBase(to))}
     routerReplace={to => setLocation(stripBase(to), { replace: true })}
   >
-    <QueryClientProvider client={queryClient}>
-      <ClerkQueryClientCacheInvalidator />
-      <AuthRouter />
-      <Toaster />
-    </QueryClientProvider>
+    <ClerkQueryClientCacheInvalidator />
+    <AuthRouter />
+    <Toaster />
   </ClerkProvider>;
 }
 

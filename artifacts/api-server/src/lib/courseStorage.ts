@@ -75,6 +75,7 @@ export async function streamCourseMaterialFile(
   objectPath: string,
   fileName: string | null,
   contentType: string | null,
+  download = false,
 ): Promise<void> {
   try {
     const file = await getCourseMaterialFile(objectPath);
@@ -83,7 +84,8 @@ export async function streamCourseMaterialFile(
       .replace(/[\r\n"]/g, "")
       .slice(0, 250);
     res.setHeader("Content-Type", contentType || metadata.contentType || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(safeName)}`);
+    const disposition = download ? "attachment" : "inline";
+    res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(safeName)}`);
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     if (metadata.size) res.setHeader("Content-Length", String(metadata.size));

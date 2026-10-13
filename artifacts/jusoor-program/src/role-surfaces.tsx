@@ -9,6 +9,7 @@ import {
   useReplyTrainingQuestion, useGetMentorDashboard, useUpdateAssignedMentoring,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
   useStartGoogleCalendarConnection, useUpdateMentorBookingSettings,
+  getGetProgramBrandingQueryKey, useGetProgramBranding,
 } from '@workspace/api-client-react';
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
@@ -28,10 +29,12 @@ export function RoleFrame({ role, name, children }: { role: string; name: string
   useAppLanguage();
   const { signOut } = useClerk();
   const [location] = useLocation();
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const branding = brandingQuery.data;
   const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="role-workspace">
     <header className="role-topbar">
-      <Link href={`/${role}`} className="brand" data-testid="link-role-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></Link>
+      <Link href={`/${role}`} className="brand" data-testid="link-role-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></Link>
       <div className="role-top-actions">{role === 'trainer' && <><Link href={location === '/sessions' ? '/trainer' : '/sessions'} className="button button-quiet" data-testid="link-trainer-sessions"><CalendarDays size={14} />{t(location === '/sessions' ? 'Training workspace' : 'Live sessions')}</Link><Link href={location === '/courses' ? '/trainer' : '/courses'} className="button button-quiet" data-testid="link-trainer-learning"><BookOpen size={14} />{t(location === '/courses' ? 'Training workspace' : 'Course learning')}</Link></>}<span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button></div>
     </header>
     <main className="role-main page-enter">{children}</main>
