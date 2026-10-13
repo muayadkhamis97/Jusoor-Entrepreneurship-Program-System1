@@ -47,6 +47,12 @@ import type {
   CourseModule,
   CourseModuleInput,
   CourseModuleUpdate,
+  CourseQuiz,
+  CourseQuizAttempt,
+  CourseQuizAttemptReview,
+  CourseQuizInput,
+  CourseQuizManagementResponse,
+  CourseQuizSubmissionInput,
   CourseUploadInput,
   CourseUploadUrl,
   Dashboard,
@@ -77,6 +83,7 @@ import type {
   MentorDashboard,
   MentorEngagement,
   MentorEngagementUpdate,
+  ParticipantCourseQuizResponse,
   ParticipantCourses,
   ParticipantDashboard,
   ParticipantQuestion,
@@ -7820,5 +7827,503 @@ export const useDeleteStaff = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteStaffMutationOptions(options));
+    }
+
+export const getGetCourseModuleQuizzesUrl = (id: number,) => {
+
+
+
+
+  return `/api/courses/modules/${id}/quizzes`
+}
+
+/**
+ * @summary List quizzes for coordinators and trainers assigned to the module
+ */
+export const getCourseModuleQuizzes = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CourseQuizManagementResponse> => {
+
+  return customFetch<CourseQuizManagementResponse>(getGetCourseModuleQuizzesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCourseModuleQuizzesQueryKey = (id: number,) => {
+    return [
+    `/api/courses/modules/${id}/quizzes`
+    ] as const;
+    }
+
+
+export const getGetCourseModuleQuizzesQueryOptions = <TData = Awaited<ReturnType<typeof getCourseModuleQuizzes>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCourseModuleQuizzes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCourseModuleQuizzesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCourseModuleQuizzes>>> = ({ signal }) => getCourseModuleQuizzes(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCourseModuleQuizzes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCourseModuleQuizzesQueryResult = NonNullable<Awaited<ReturnType<typeof getCourseModuleQuizzes>>>
+export type GetCourseModuleQuizzesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List quizzes for coordinators and trainers assigned to the module
+ */
+
+export function useGetCourseModuleQuizzes<TData = Awaited<ReturnType<typeof getCourseModuleQuizzes>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCourseModuleQuizzes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCourseModuleQuizzesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCourseQuizUrl = (id: number,) => {
+
+
+
+
+  return `/api/courses/modules/${id}/quizzes`
+}
+
+/**
+ * @summary Create a quiz as a coordinator
+ */
+export const createCourseQuiz = async (id: number,
+    courseQuizInput: CourseQuizInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseQuiz> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseQuiz>(getCreateCourseQuizUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseQuizInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCourseQuizMutationKey = () => ['createCourseQuiz'] as const;
+
+export const getCreateCourseQuizMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCourseQuiz>>, TError,CreateCourseQuizMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCourseQuiz>>, TError,CreateCourseQuizMutationVariables, TContext> => {
+
+const mutationKey = getCreateCourseQuizMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCourseQuiz>>, CreateCourseQuizMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createCourseQuiz(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCourseQuizMutationResult = NonNullable<Awaited<ReturnType<typeof createCourseQuiz>>>
+    export type CreateCourseQuizMutationBody = BodyType<CourseQuizInput>
+    export type CreateCourseQuizMutationError = ErrorType<void>
+    export type CreateCourseQuizMutationVariables = {id: number;data: BodyType<CourseQuizInput>}
+
+    /**
+ * @summary Create a quiz as a coordinator
+ */
+export const useCreateCourseQuiz = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCourseQuiz>>, TError,CreateCourseQuizMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCourseQuiz>>,
+        TError,
+        CreateCourseQuizMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCourseQuizMutationOptions(options));
+    }
+
+export const getUpdateCourseQuizUrl = (id: number,) => {
+
+
+
+
+  return `/api/courses/quizzes/${id}`
+}
+
+/**
+ * @summary Update or publish a quiz as a coordinator
+ */
+export const updateCourseQuiz = async (id: number,
+    courseQuizInput: CourseQuizInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseQuiz> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseQuiz>(getUpdateCourseQuizUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseQuizInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCourseQuizMutationKey = () => ['updateCourseQuiz'] as const;
+
+export const getUpdateCourseQuizMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCourseQuiz>>, TError,UpdateCourseQuizMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCourseQuiz>>, TError,UpdateCourseQuizMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCourseQuizMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCourseQuiz>>, UpdateCourseQuizMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCourseQuiz(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCourseQuizMutationResult = NonNullable<Awaited<ReturnType<typeof updateCourseQuiz>>>
+    export type UpdateCourseQuizMutationBody = BodyType<CourseQuizInput>
+    export type UpdateCourseQuizMutationError = ErrorType<void>
+    export type UpdateCourseQuizMutationVariables = {id: number;data: BodyType<CourseQuizInput>}
+
+    /**
+ * @summary Update or publish a quiz as a coordinator
+ */
+export const useUpdateCourseQuiz = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCourseQuiz>>, TError,UpdateCourseQuizMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCourseQuiz>>,
+        TError,
+        UpdateCourseQuizMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCourseQuizMutationOptions(options));
+    }
+
+export const getGetCourseQuizAttemptsUrl = (id: number,) => {
+
+
+
+
+  return `/api/courses/quizzes/${id}/attempts`
+}
+
+/**
+ * @summary Review quiz attempts as a coordinator or assigned trainer
+ */
+export const getCourseQuizAttempts = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CourseQuizAttemptReview[]> => {
+
+  return customFetch<CourseQuizAttemptReview[]>(getGetCourseQuizAttemptsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCourseQuizAttemptsQueryKey = (id: number,) => {
+    return [
+    `/api/courses/quizzes/${id}/attempts`
+    ] as const;
+    }
+
+
+export const getGetCourseQuizAttemptsQueryOptions = <TData = Awaited<ReturnType<typeof getCourseQuizAttempts>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCourseQuizAttempts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCourseQuizAttemptsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCourseQuizAttempts>>> = ({ signal }) => getCourseQuizAttempts(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCourseQuizAttempts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCourseQuizAttemptsQueryResult = NonNullable<Awaited<ReturnType<typeof getCourseQuizAttempts>>>
+export type GetCourseQuizAttemptsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Review quiz attempts as a coordinator or assigned trainer
+ */
+
+export function useGetCourseQuizAttempts<TData = Awaited<ReturnType<typeof getCourseQuizAttempts>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCourseQuizAttempts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCourseQuizAttemptsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetParticipantCourseModuleQuizzesUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/modules/${id}/quizzes`
+}
+
+/**
+ * @summary List published quizzes for a released module in the participant's accepted cohort
+ */
+export const getParticipantCourseModuleQuizzes = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantCourseQuizResponse> => {
+
+  return customFetch<ParticipantCourseQuizResponse>(getGetParticipantCourseModuleQuizzesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantCourseModuleQuizzesQueryKey = (id: number,) => {
+    return [
+    `/api/participant/courses/modules/${id}/quizzes`
+    ] as const;
+    }
+
+
+export const getGetParticipantCourseModuleQuizzesQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantCourseModuleQuizzesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>> = ({ signal }) => getParticipantCourseModuleQuizzes(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantCourseModuleQuizzesQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>>
+export type GetParticipantCourseModuleQuizzesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List published quizzes for a released module in the participant's accepted cohort
+ */
+
+export function useGetParticipantCourseModuleQuizzes<TData = Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantCourseModuleQuizzes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantCourseModuleQuizzesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitParticipantCourseQuizAttemptUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/quizzes/${id}/attempts`
+}
+
+/**
+ * @summary Submit a quiz attempt and receive immediate feedback
+ */
+export const submitParticipantCourseQuizAttempt = async (id: number,
+    courseQuizSubmissionInput: CourseQuizSubmissionInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseQuizAttempt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseQuizAttempt>(getSubmitParticipantCourseQuizAttemptUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseQuizSubmissionInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitParticipantCourseQuizAttemptMutationKey = () => ['submitParticipantCourseQuizAttempt'] as const;
+
+export const getSubmitParticipantCourseQuizAttemptMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitParticipantCourseQuizAttempt>>, TError,SubmitParticipantCourseQuizAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitParticipantCourseQuizAttempt>>, TError,SubmitParticipantCourseQuizAttemptMutationVariables, TContext> => {
+
+const mutationKey = getSubmitParticipantCourseQuizAttemptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitParticipantCourseQuizAttempt>>, SubmitParticipantCourseQuizAttemptMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitParticipantCourseQuizAttempt(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitParticipantCourseQuizAttemptMutationResult = NonNullable<Awaited<ReturnType<typeof submitParticipantCourseQuizAttempt>>>
+    export type SubmitParticipantCourseQuizAttemptMutationBody = BodyType<CourseQuizSubmissionInput>
+    export type SubmitParticipantCourseQuizAttemptMutationError = ErrorType<void>
+    export type SubmitParticipantCourseQuizAttemptMutationVariables = {id: number;data: BodyType<CourseQuizSubmissionInput>}
+
+    /**
+ * @summary Submit a quiz attempt and receive immediate feedback
+ */
+export const useSubmitParticipantCourseQuizAttempt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitParticipantCourseQuizAttempt>>, TError,SubmitParticipantCourseQuizAttemptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitParticipantCourseQuizAttempt>>,
+        TError,
+        SubmitParticipantCourseQuizAttemptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitParticipantCourseQuizAttemptMutationOptions(options));
     }
 

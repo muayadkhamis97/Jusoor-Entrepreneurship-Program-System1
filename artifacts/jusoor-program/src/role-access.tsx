@@ -4,6 +4,7 @@ import {
   FileText, Handshake, LockKeyhole, MessageCircle, Presentation, Shield,
   UserRound, Users, Video, X,
 } from 'lucide-react';
+import { t, useAppLanguage } from './language';
 
 type RoleKey = 'coordinator' | 'staff' | 'participant' | 'trainer' | 'mentor' | 'judge';
 type Access = 'full' | 'limited' | 'none';
@@ -25,6 +26,7 @@ const matrix: MatrixRow[] = [
   { area: 'Programs & businesses', detail: 'Operate cohorts and venture records', icon: BriefcaseBusiness, access: { coordinator: 'full', staff: 'full', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Sessions & recordings', detail: 'Operate sessions; access assigned learning', icon: CalendarDays, access: { coordinator: 'full', staff: 'full', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Course materials', detail: 'Released materials follow each resource’s role allowlist', icon: BookOpen, access: { coordinator: 'full', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
+  { area: 'Course quizzes', detail: 'Coordinators author and review all; trainers review assigned, released attempts; participants take published quizzes in accepted, released modules', icon: ClipboardCheck, access: { coordinator: 'full', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Module release schedule', detail: 'Program staff set dates; coordinators manage module content', icon: CalendarDays, access: { coordinator: 'full', staff: 'limited', participant: 'none', trainer: 'none', mentor: 'none', judge: 'none' } },
   { area: 'Support engagements', detail: 'Operate support; work assigned engagements', icon: Handshake, access: { coordinator: 'full', staff: 'full', participant: 'limited', trainer: 'none', mentor: 'limited', judge: 'none' } },
   { area: 'Pitch evaluations', detail: 'Record event results and judge feedback', icon: Presentation, access: { coordinator: 'full', staff: 'full', participant: 'none', trainer: 'none', mentor: 'none', judge: 'limited' } },
@@ -103,6 +105,7 @@ function AccessMark({ value }: { value: Access }) {
 }
 
 export function RoleAccessPage() {
+  useAppLanguage();
   const [selected, setSelected] = useState<RoleKey>('coordinator');
   const role = roles.find(item => item.id === selected)!;
   const preview = previewData[selected];
@@ -128,7 +131,7 @@ export function RoleAccessPage() {
           <tbody>{matrix.map(row => {
             const Icon = row.icon;
             return <tr key={row.area} data-testid={`row-access-${slug(row.area)}`}>
-              <th scope="row"><span className="matrix-area"><i><Icon size={15} /></i><span><b>{row.area}</b><small>{row.detail}</small></span></span></th>
+              <th scope="row"><span className="matrix-area"><i><Icon size={15} /></i><span><b>{t(row.area)}</b><small>{t(row.detail)}</small></span></span></th>
               {roles.map(item => <td key={item.id} data-testid={`access-cell-${item.id}-${slug(row.area)}`}><AccessMark value={row.access[item.id]} /></td>)}
             </tr>;
           })}</tbody>

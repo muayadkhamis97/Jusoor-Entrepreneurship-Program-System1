@@ -19,6 +19,10 @@ import {
   staffCourseDiscussionRouter,
 } from "./routes/courseDiscussions";
 import {
+  participantCourseQuizRouter,
+  staffCourseQuizRouter,
+} from "./routes/courseQuizzes";
+import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
   getClerkProxyHost,
@@ -71,7 +75,9 @@ app.use("/api", healthRouter);
 app.use("/api", publicApplicationsRouter);
 app.use("/api/participant", requireParticipant, participantRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseDiscussionRouter);
+app.use("/api/participant/courses", requireParticipant, participantCourseQuizRouter);
 app.use("/api/courses", requireStaff, staffCourseDiscussionRouter);
+app.use("/api/courses", requireStaff, staffCourseQuizRouter);
 app.use("/api/courses", requireStaff, coursesRouter);
 app.use("/api/mentor/calendly", calendlyOAuthRouter);
 app.use("/api/mentor/google-calendar", googleCalendarOAuthRouter);

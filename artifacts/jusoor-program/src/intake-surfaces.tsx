@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import './course-learning.css';
 import { CourseDiscussion } from './course-discussion';
+import { ParticipantModuleQuizzes } from './course-quizzes';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -240,7 +241,7 @@ function ParticipantProgramLearning() {
          {!modules.length ? <div className="empty-panel"><p>{t('Your next module will appear here when your cohort releases it.')}</p></div> : modules.map((module, index) => <section className="participant-course-module" key={module.id} data-testid={`participant-course-module-${module.id}`}><span className="participant-course-number">{String(index + 1).padStart(2, '0')}</span><div><h4>{module.title}</h4>{module.description && <p>{module.description}</p>}<div className="participant-course-items">{module.materials.map(material => {
           const href = material.kind === 'link' ? material.externalUrl || undefined : `${participantBasePath}/api/participant/courses/materials/${material.id}/file`;
           return href ? <a className="participant-course-item" key={material.id} href={href} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-participant-course-material-${material.id}`}>{material.kind === 'link' ? <ExternalLinkIcon size={13} /> : <Download size={13} />}{material.title}</a> : <span className="participant-course-item" key={material.id} data-testid={`text-participant-course-material-${material.id}`}><BookOpen size={13} />{material.title}</span>;
-         })}</div><CourseDiscussion moduleId={module.id} participant /></div></section>)}
+          })}</div><ParticipantModuleQuizzes moduleId={module.id} /><CourseDiscussion moduleId={module.id} participant /></div></section>)}
       </article>;
     })}
   </section>;

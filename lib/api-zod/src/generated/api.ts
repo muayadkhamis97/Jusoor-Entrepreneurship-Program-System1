@@ -2807,3 +2807,292 @@ export const DeleteStaffParams = zod.object({
 export const DeleteStaffResponse = zod.void()
 
 
+/**
+ * @summary List quizzes for coordinators and trainers assigned to the module
+ */
+export const GetCourseModuleQuizzesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemIdMax = 80;
+
+export const getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTextMax = 500;
+
+
+
+export const GetCourseModuleQuizzesResponse = zod.object({
+  "moduleId": zod.number().int(),
+  "moduleTitle": zod.string(),
+  "quizzes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "isPublished": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
+  "prompt": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.string().min(1).max(getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemIdMax),
+  "text": zod.string().min(1).max(getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTextMax)
+})),
+  "correctAnswer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())]),
+  "explanation": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * @summary Create a quiz as a coordinator
+ */
+export const CreateCourseQuizParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const createCourseQuizBodyTitleMax = 180;
+
+export const createCourseQuizBodyDescriptionMax = 2000;
+
+export const createCourseQuizBodyQuestionsItemPromptMax = 1500;
+
+export const createCourseQuizBodyQuestionsItemChoicesItemIdMax = 80;
+
+export const createCourseQuizBodyQuestionsItemChoicesItemTextMax = 500;
+
+export const createCourseQuizBodyQuestionsItemChoicesMin = 2;
+export const createCourseQuizBodyQuestionsItemChoicesMax = 10;
+
+export const createCourseQuizBodyQuestionsItemExplanationMax = 2000;
+
+export const createCourseQuizBodyQuestionsMax = 50;
+
+
+
+export const CreateCourseQuizBody = zod.object({
+  "title": zod.string().min(1).max(createCourseQuizBodyTitleMax),
+  "description": zod.string().max(createCourseQuizBodyDescriptionMax).nullable(),
+  "isPublished": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
+  "prompt": zod.string().min(1).max(createCourseQuizBodyQuestionsItemPromptMax),
+  "choices": zod.array(zod.object({
+  "id": zod.string().min(1).max(createCourseQuizBodyQuestionsItemChoicesItemIdMax),
+  "text": zod.string().min(1).max(createCourseQuizBodyQuestionsItemChoicesItemTextMax)
+})).min(createCourseQuizBodyQuestionsItemChoicesMin).max(createCourseQuizBodyQuestionsItemChoicesMax),
+  "correctAnswer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())]),
+  "explanation": zod.string().max(createCourseQuizBodyQuestionsItemExplanationMax).nullish()
+})).min(1).max(createCourseQuizBodyQuestionsMax)
+})
+
+export const createCourseQuizResponseQuestionsItemChoicesItemIdMax = 80;
+
+export const createCourseQuizResponseQuestionsItemChoicesItemTextMax = 500;
+
+
+
+export const CreateCourseQuizResponse = zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "isPublished": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
+  "prompt": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.string().min(1).max(createCourseQuizResponseQuestionsItemChoicesItemIdMax),
+  "text": zod.string().min(1).max(createCourseQuizResponseQuestionsItemChoicesItemTextMax)
+})),
+  "correctAnswer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())]),
+  "explanation": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Update or publish a quiz as a coordinator
+ */
+export const UpdateCourseQuizParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateCourseQuizBodyTitleMax = 180;
+
+export const updateCourseQuizBodyDescriptionMax = 2000;
+
+export const updateCourseQuizBodyQuestionsItemPromptMax = 1500;
+
+export const updateCourseQuizBodyQuestionsItemChoicesItemIdMax = 80;
+
+export const updateCourseQuizBodyQuestionsItemChoicesItemTextMax = 500;
+
+export const updateCourseQuizBodyQuestionsItemChoicesMin = 2;
+export const updateCourseQuizBodyQuestionsItemChoicesMax = 10;
+
+export const updateCourseQuizBodyQuestionsItemExplanationMax = 2000;
+
+export const updateCourseQuizBodyQuestionsMax = 50;
+
+
+
+export const UpdateCourseQuizBody = zod.object({
+  "title": zod.string().min(1).max(updateCourseQuizBodyTitleMax),
+  "description": zod.string().max(updateCourseQuizBodyDescriptionMax).nullable(),
+  "isPublished": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
+  "prompt": zod.string().min(1).max(updateCourseQuizBodyQuestionsItemPromptMax),
+  "choices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateCourseQuizBodyQuestionsItemChoicesItemIdMax),
+  "text": zod.string().min(1).max(updateCourseQuizBodyQuestionsItemChoicesItemTextMax)
+})).min(updateCourseQuizBodyQuestionsItemChoicesMin).max(updateCourseQuizBodyQuestionsItemChoicesMax),
+  "correctAnswer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())]),
+  "explanation": zod.string().max(updateCourseQuizBodyQuestionsItemExplanationMax).nullish()
+})).min(1).max(updateCourseQuizBodyQuestionsMax)
+})
+
+export const updateCourseQuizResponseQuestionsItemChoicesItemIdMax = 80;
+
+export const updateCourseQuizResponseQuestionsItemChoicesItemTextMax = 500;
+
+
+
+export const UpdateCourseQuizResponse = zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "isPublished": zod.boolean(),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
+  "prompt": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateCourseQuizResponseQuestionsItemChoicesItemIdMax),
+  "text": zod.string().min(1).max(updateCourseQuizResponseQuestionsItemChoicesItemTextMax)
+})),
+  "correctAnswer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())]),
+  "explanation": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Review quiz attempts as a coordinator or assigned trainer
+ */
+export const GetCourseQuizAttemptsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetCourseQuizAttemptsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "quizId": zod.number().int(),
+  "participantName": zod.string(),
+  "score": zod.number().int(),
+  "totalQuestions": zod.number().int(),
+  "submittedAt": zod.coerce.date(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number().int(),
+  "prompt": zod.string(),
+  "submittedAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "isCorrect": zod.boolean(),
+  "explanation": zod.string().nullable()
+}))
+})
+export const GetCourseQuizAttemptsResponse = zod.array(GetCourseQuizAttemptsResponseItem)
+
+
+/**
+ * @summary List published quizzes for a released module in the participant's accepted cohort
+ */
+export const GetParticipantCourseModuleQuizzesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemIdMax = 80;
+
+export const getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTextMax = 500;
+
+
+
+export const GetParticipantCourseModuleQuizzesResponse = zod.object({
+  "moduleId": zod.number().int(),
+  "moduleTitle": zod.string(),
+  "quizzes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "questionCount": zod.number().int(),
+  "attemptCount": zod.number().int(),
+  "latestAttempt": zod.union([zod.object({
+  "id": zod.number().int(),
+  "quizId": zod.number().int(),
+  "score": zod.number().int(),
+  "totalQuestions": zod.number().int(),
+  "submittedAt": zod.coerce.date(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number().int(),
+  "prompt": zod.string(),
+  "submittedAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "isCorrect": zod.boolean(),
+  "explanation": zod.string().nullable()
+}))
+}),zod.null()]),
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "position": zod.number().int(),
+  "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
+  "prompt": zod.string(),
+  "choices": zod.array(zod.object({
+  "id": zod.string().min(1).max(getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemIdMax),
+  "text": zod.string().min(1).max(getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTextMax)
+}))
+}))
+}))
+})
+
+
+/**
+ * @summary Submit a quiz attempt and receive immediate feedback
+ */
+export const SubmitParticipantCourseQuizAttemptParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+
+
+
+export const SubmitParticipantCourseQuizAttemptBody = zod.object({
+  "answers": zod.array(zod.object({
+  "questionId": zod.number().int().min(1),
+  "answer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())])
+})).min(1)
+})
+
+export const SubmitParticipantCourseQuizAttemptResponse = zod.object({
+  "id": zod.number().int(),
+  "quizId": zod.number().int(),
+  "score": zod.number().int(),
+  "totalQuestions": zod.number().int(),
+  "submittedAt": zod.coerce.date(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number().int(),
+  "prompt": zod.string(),
+  "submittedAnswer": zod.string(),
+  "correctAnswer": zod.string(),
+  "isCorrect": zod.boolean(),
+  "explanation": zod.string().nullable()
+}))
+})
+
+

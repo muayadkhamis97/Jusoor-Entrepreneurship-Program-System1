@@ -1811,6 +1811,157 @@ paths:
           description: Staff member not found
         "403":
           description: Coordinator role required
+  /courses/modules/{id}/quizzes:
+    get:
+      operationId: getCourseModuleQuizzes
+      tags: [courses]
+      summary: List quizzes for coordinators and trainers assigned to the module
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Module quizzes and their answer keys
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseQuizManagementResponse"
+        "403":
+          description: Role is not allowed or trainer is not assigned to this cohort
+        "404":
+          description: Course module not found
+    post:
+      operationId: createCourseQuiz
+      tags: [courses]
+      summary: Create a quiz as a coordinator
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseQuizInput"
+      responses:
+        "201":
+          description: Quiz created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseQuiz"
+        "400":
+          description: Invalid quiz or question
+        "403":
+          description: Coordinator access is required
+        "404":
+          description: Course module not found
+  /courses/quizzes/{id}:
+    patch:
+      operationId: updateCourseQuiz
+      tags: [courses]
+      summary: Update or publish a quiz as a coordinator
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseQuizInput"
+      responses:
+        "200":
+          description: Updated quiz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseQuiz"
+        "400":
+          description: Invalid quiz or question
+        "403":
+          description: Coordinator access is required
+        "404":
+          description: Quiz not found
+  /courses/quizzes/{id}/attempts:
+    get:
+      operationId: getCourseQuizAttempts
+      tags: [courses]
+      summary: Review quiz attempts as a coordinator or assigned trainer
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Recent participant quiz attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CourseQuizAttemptReview"
+        "403":
+          description: Role is not allowed or trainer is not assigned to this cohort
+        "404":
+          description: Quiz not found
+  /participant/courses/modules/{id}/quizzes:
+    get:
+      operationId: getParticipantCourseModuleQuizzes
+      tags: [courses]
+      summary: List published quizzes for a released module in the participant's accepted cohort
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Published quizzes without answer keys
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantCourseQuizResponse"
+        "403":
+          description: Participant is not enrolled in this module's cohort
+        "404":
+          description: Released course module not found
+  /participant/courses/quizzes/{id}/attempts:
+    post:
+      operationId: submitParticipantCourseQuizAttempt
+      tags: [courses]
+      summary: Submit a quiz attempt and receive immediate feedback
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseQuizSubmissionInput"
+      responses:
+        "201":
+          description: Scored attempt with answer feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseQuizAttempt"
+        "400":
+          description: Quiz answers are incomplete or invalid
+        "403":
+          description: Participant is not enrolled in this quiz's cohort
+        "404":
+          description: Published quiz not found
 components:
   parameters:
     Id:
@@ -2050,6 +2201,172 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ParticipantCourseProgram" }
       required: [programs]
+    QuizQuestionType:
+      type: string
+      enum: [multiple_choice, true_false, ordering]
+    CourseQuizChoice:
+      type: object
+      properties:
+        id: { type: string, minLength: 1, maxLength: 80 }
+        text: { type: string, minLength: 1, maxLength: 500 }
+      required: [id, text]
+    CourseQuizQuestionInput:
+      type: object
+      properties:
+        questionType: { $ref: "#/components/schemas/QuizQuestionType" }
+        prompt: { type: string, minLength: 1, maxLength: 1500 }
+        choices:
+          type: array
+          minItems: 2
+          maxItems: 10
+          items: { $ref: "#/components/schemas/CourseQuizChoice" }
+        correctAnswer:
+          oneOf:
+            - { type: string }
+            - { type: boolean }
+            - { type: array, items: { type: string } }
+        explanation: { type: ["string", "null"], maxLength: 2000 }
+      required: [questionType, prompt, choices, correctAnswer]
+    CourseQuizInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: ["string", "null"], maxLength: 2000 }
+        isPublished: { type: boolean }
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/CourseQuizQuestionInput" }
+      required: [title, description, isPublished, questions]
+    CourseQuizStaffQuestion:
+      type: object
+      properties:
+        id: { type: integer }
+        position: { type: integer }
+        questionType: { $ref: "#/components/schemas/QuizQuestionType" }
+        prompt: { type: string }
+        choices:
+          type: array
+          items: { $ref: "#/components/schemas/CourseQuizChoice" }
+        correctAnswer:
+          oneOf:
+            - { type: string }
+            - { type: boolean }
+            - { type: array, items: { type: string } }
+        explanation: { type: ["string", "null"] }
+      required: [id, position, questionType, prompt, choices, correctAnswer, explanation]
+    ParticipantCourseQuizQuestion:
+      type: object
+      properties:
+        id: { type: integer }
+        position: { type: integer }
+        questionType: { $ref: "#/components/schemas/QuizQuestionType" }
+        prompt: { type: string }
+        choices:
+          type: array
+          items: { $ref: "#/components/schemas/CourseQuizChoice" }
+      required: [id, position, questionType, prompt, choices]
+    CourseQuiz:
+      type: object
+      properties:
+        id: { type: integer }
+        moduleId: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        isPublished: { type: boolean }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/CourseQuizStaffQuestion" }
+      required: [id, moduleId, title, description, isPublished, questions]
+    CourseQuizManagementResponse:
+      type: object
+      properties:
+        moduleId: { type: integer }
+        moduleTitle: { type: string }
+        quizzes:
+          type: array
+          items: { $ref: "#/components/schemas/CourseQuiz" }
+      required: [moduleId, moduleTitle, quizzes]
+    CourseQuizAnswerInput:
+      type: object
+      properties:
+        questionId: { type: integer, minimum: 1 }
+        answer:
+          oneOf:
+            - { type: string }
+            - { type: boolean }
+            - { type: array, items: { type: string } }
+      required: [questionId, answer]
+    CourseQuizSubmissionInput:
+      type: object
+      properties:
+        answers:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/CourseQuizAnswerInput" }
+      required: [answers]
+    CourseQuizAnswerResult:
+      type: object
+      properties:
+        questionId: { type: integer }
+        prompt: { type: string }
+        submittedAnswer: { type: string }
+        correctAnswer: { type: string }
+        isCorrect: { type: boolean }
+        explanation: { type: ["string", "null"] }
+      required: [questionId, prompt, submittedAnswer, correctAnswer, isCorrect, explanation]
+    CourseQuizAttempt:
+      type: object
+      properties:
+        id: { type: integer }
+        quizId: { type: integer }
+        score: { type: integer }
+        totalQuestions: { type: integer }
+        submittedAt: { type: string, format: date-time }
+        answers:
+          type: array
+          items: { $ref: "#/components/schemas/CourseQuizAnswerResult" }
+      required: [id, quizId, score, totalQuestions, submittedAt, answers]
+    CourseQuizAttemptReview:
+      type: object
+      properties:
+        id: { type: integer }
+        quizId: { type: integer }
+        participantName: { type: string }
+        score: { type: integer }
+        totalQuestions: { type: integer }
+        submittedAt: { type: string, format: date-time }
+        answers:
+          type: array
+          items: { $ref: "#/components/schemas/CourseQuizAnswerResult" }
+      required: [id, quizId, participantName, score, totalQuestions, submittedAt, answers]
+    ParticipantCourseQuiz:
+      type: object
+      properties:
+        id: { type: integer }
+        moduleId: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        questionCount: { type: integer }
+        attemptCount: { type: integer }
+        latestAttempt:
+          anyOf:
+            - { $ref: "#/components/schemas/CourseQuizAttempt" }
+            - { type: "null" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantCourseQuizQuestion" }
+      required: [id, moduleId, title, description, questionCount, attemptCount, latestAttempt, questions]
+    ParticipantCourseQuizResponse:
+      type: object
+      properties:
+        moduleId: { type: integer }
+        moduleTitle: { type: string }
+        quizzes:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantCourseQuiz" }
+      required: [moduleId, moduleTitle, quizzes]
     CourseDiscussionPostInput:
       type: object
       properties:

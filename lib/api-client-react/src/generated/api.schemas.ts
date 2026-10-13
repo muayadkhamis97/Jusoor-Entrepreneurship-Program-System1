@@ -378,6 +378,160 @@ export interface ParticipantCourses {
   programs: ParticipantCourseProgram[];
 }
 
+export type QuizQuestionType = typeof QuizQuestionType[keyof typeof QuizQuestionType];
+
+
+export const QuizQuestionType = {
+  multiple_choice: 'multiple_choice',
+  true_false: 'true_false',
+  ordering: 'ordering',
+} as const;
+
+export interface CourseQuizChoice {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  text: string;
+}
+
+export interface CourseQuizQuestionInput {
+  questionType: QuizQuestionType;
+  /**
+     * @minLength 1
+     * @maxLength 1500
+     */
+  prompt: string;
+  /**
+     * @minItems 2
+     * @maxItems 10
+     */
+  choices: CourseQuizChoice[];
+  correctAnswer: string | boolean | string[];
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  explanation?: string | null;
+}
+
+export interface CourseQuizInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description: string | null;
+  isPublished: boolean;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  questions: CourseQuizQuestionInput[];
+}
+
+export interface CourseQuizStaffQuestion {
+  id: number;
+  position: number;
+  questionType: QuizQuestionType;
+  prompt: string;
+  choices: CourseQuizChoice[];
+  correctAnswer: string | boolean | string[];
+  /** @nullable */
+  explanation: string | null;
+}
+
+export interface ParticipantCourseQuizQuestion {
+  id: number;
+  position: number;
+  questionType: QuizQuestionType;
+  prompt: string;
+  choices: CourseQuizChoice[];
+}
+
+export interface CourseQuiz {
+  id: number;
+  moduleId: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  isPublished: boolean;
+  questions: CourseQuizStaffQuestion[];
+}
+
+export interface CourseQuizManagementResponse {
+  moduleId: number;
+  moduleTitle: string;
+  quizzes: CourseQuiz[];
+}
+
+export interface CourseQuizAnswerInput {
+  /** @minimum 1 */
+  questionId: number;
+  answer: string | boolean | string[];
+}
+
+export interface CourseQuizSubmissionInput {
+  /** @minItems 1 */
+  answers: CourseQuizAnswerInput[];
+}
+
+export interface CourseQuizAnswerResult {
+  questionId: number;
+  prompt: string;
+  submittedAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  /** @nullable */
+  explanation: string | null;
+}
+
+export interface CourseQuizAttempt {
+  id: number;
+  quizId: number;
+  score: number;
+  totalQuestions: number;
+  submittedAt: string;
+  answers: CourseQuizAnswerResult[];
+}
+
+export interface CourseQuizAttemptReview {
+  id: number;
+  quizId: number;
+  participantName: string;
+  score: number;
+  totalQuestions: number;
+  submittedAt: string;
+  answers: CourseQuizAnswerResult[];
+}
+
+export interface ParticipantCourseQuiz {
+  id: number;
+  moduleId: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  questionCount: number;
+  attemptCount: number;
+  latestAttempt: CourseQuizAttempt | null;
+  questions: ParticipantCourseQuizQuestion[];
+}
+
+export interface ParticipantCourseQuizResponse {
+  moduleId: number;
+  moduleTitle: string;
+  quizzes: ParticipantCourseQuiz[];
+}
+
 export interface CourseDiscussionPostInput {
   /**
      * @minimum 1

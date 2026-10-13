@@ -21,6 +21,7 @@ before(async () => {
   process.env.NODE_ENV = "test";
   const { default: coursesRouter } = await import("../src/routes/courses");
   const { staffCourseDiscussionRouter } = await import("../src/routes/courseDiscussions");
+  const { staffCourseQuizRouter } = await import("../src/routes/courseQuizzes");
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => {
@@ -31,6 +32,7 @@ before(async () => {
   });
   app.use("/api/courses", coursesRouter);
   app.use("/api/courses", staffCourseDiscussionRouter);
+  app.use("/api/courses", staffCourseQuizRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 });
@@ -164,4 +166,23 @@ test("course discussions reject staff without course access and validate module 
     body: JSON.stringify({ title: "Question", body: "A valid discussion message." }),
   });
   assert.deepEqual([invalidIdRead.status, invalidIdPost.status], [400, 400]);
+});
+
+test("quiz authoring is coordinator-only and program staff cannot access quiz content", async () => {
+  role = "staff";
+  const read = await request("/api/courses/modules/1/quizzes");
+  const create = await request("/api/courses/modules/1/quizzes", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  role = "trainer";
+  const update = await request("/api/courses/quizzes/1", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  assert.deepEqual([read.status, create.status, update.status], [403, 403, 403]);
 });
