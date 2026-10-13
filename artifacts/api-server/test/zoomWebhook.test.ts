@@ -9,11 +9,12 @@ const nativeFetch = globalThis.fetch;
 let server: Server;
 let db: typeof import("@workspace/db").db;
 let sessionsTable: typeof import("@workspace/db").sessionsTable;
+let zoomAttendanceSyncsTable: typeof import("@workspace/db").zoomAttendanceSyncsTable;
 let verifyZoomWebhookSignature: typeof import("../src/lib/zoom").verifyZoomWebhookSignature;
 let createZoomWebhookValidationResponse: typeof import("../src/lib/zoom").createZoomWebhookValidationResponse;
 
 function replaceDbMethod(
-  name: "select",
+  name: "select" | "insert",
   replacement: (...args: never[]) => unknown,
 ): () => void {
   const original = Object.getOwnPropertyDescriptor(db, name);
@@ -39,6 +40,7 @@ before(async () => {
   const database = await import("@workspace/db");
   db = database.db;
   sessionsTable = database.sessionsTable;
+  zoomAttendanceSyncsTable = database.zoomAttendanceSyncsTable;
   const zoom = await import("../src/lib/zoom");
   verifyZoomWebhookSignature = zoom.verifyZoomWebhookSignature;
   createZoomWebhookValidationResponse = zoom.createZoomWebhookValidationResponse;
@@ -48,6 +50,7 @@ before(async () => {
   app.use((req, _res, next) => {
     Object.assign(req, {
       log: {
+        info: () => undefined,
         error: () => undefined,
       },
     });
@@ -138,6 +141,77 @@ test("acknowledges valid Zoom events that do not require recording sync", async 
   const body = JSON.stringify({ event: "meeting.started", payload: {} });
   const response = await postWebhook(body);
   assert.equal(response.status, 200);
+});
+
+test("queues attendance when a signed Zoom meeting-ended event matches a program session", async () => {
+  let selectCount = 0;
+  const restoreSelect = replaceDbMethod("select", (() => {
+    let selectedTable: unknown;
+    const query = {
+      from(table: unknown) {
+        selectedTable = table;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async limit() {
+        if (selectedTable === sessionsTable) {
+          selectCount += 1;
+          return selectCount === 1
+            ? [{ id: 71 }]
+            : [{ id: 71, zoomMeetingId: "987654321" }];
+        }
+        assert.equal(selectedTable, zoomAttendanceSyncsTable);
+        return [];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  let queuedSessionId: number | undefined;
+  const restoreInsert = replaceDbMethod("insert", (() => {
+    const insert = {
+      values(value: { sessionId: number }) {
+        queuedSessionId = value.sessionId;
+        return insert;
+      },
+      onConflictDoNothing() {
+        return insert;
+      },
+      async returning() {
+        return [{
+          id: 1,
+          sessionId: queuedSessionId,
+          status: "queued",
+          attempts: 0,
+          participantCount: 0,
+          matchedCount: 0,
+          unmatchedCount: 0,
+          lastAttemptAt: null,
+          nextAttemptAt: new Date(),
+          syncedAt: null,
+          lastError: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }];
+      },
+    };
+    return insert;
+  }) as (...args: never[]) => unknown);
+
+  try {
+    const body = JSON.stringify({
+      event: "meeting.ended",
+      payload: { object: { id: 987654321 } },
+    });
+    const response = await postWebhook(body);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { received: true });
+    assert.equal(queuedSessionId, 71);
+  } finally {
+    restoreInsert();
+    restoreSelect();
+  }
 });
 
 test("acknowledges signed recording-ready events without calling Zoom recording APIs", async () => {

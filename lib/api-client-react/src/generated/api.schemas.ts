@@ -851,6 +851,102 @@ export interface TrainerDashboard {
   questions: TrainerQuestion[];
 }
 
+export type AttendanceStatus = typeof AttendanceStatus[keyof typeof AttendanceStatus];
+
+
+export const AttendanceStatus = {
+  present: 'present',
+  absent: 'absent',
+  excused: 'excused',
+} as const;
+
+export type AttendanceSource = typeof AttendanceSource[keyof typeof AttendanceSource];
+
+
+export const AttendanceSource = {
+  manual: 'manual',
+  zoom: 'zoom',
+} as const;
+
+export interface AttendanceRosterEntry {
+  businessId: number;
+  businessName: string;
+  status: AttendanceStatus | null;
+  /** @nullable */
+  notes: string | null;
+  /** @nullable */
+  markedAt: string | null;
+  source: AttendanceSource | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  attendedSeconds: number | null;
+  /** @nullable */
+  firstJoinedAt: string | null;
+  /** @nullable */
+  lastLeftAt: string | null;
+}
+
+export type ZoomAttendanceSyncStatus = typeof ZoomAttendanceSyncStatus[keyof typeof ZoomAttendanceSyncStatus];
+
+
+export const ZoomAttendanceSyncStatus = {
+  queued: 'queued',
+  syncing: 'syncing',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface ZoomAttendanceSync {
+  status: ZoomAttendanceSyncStatus;
+  /** @minimum 0 */
+  attempts: number;
+  /** @minimum 0 */
+  participantCount: number;
+  /** @minimum 0 */
+  matchedCount: number;
+  /** @minimum 0 */
+  unmatchedCount: number;
+  /** @nullable */
+  lastAttemptAt: string | null;
+  /** @nullable */
+  syncedAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+}
+
+export interface ZoomAttendanceParticipant {
+  id: number;
+  displayName: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  joinTime: string | null;
+  /** @nullable */
+  leaveTime: string | null;
+  /** @minimum 0 */
+  durationSeconds: number;
+  /** @nullable */
+  matchedBusinessId: number | null;
+  /** @nullable */
+  matchedBusinessName: string | null;
+  /** @nullable */
+  ignoredAt: string | null;
+}
+
+export interface TrainerAttendanceReport {
+  sessionId: number;
+  sessionTitle: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  scheduledDate: string;
+  attendance: AttendanceRosterEntry[];
+  zoomSync: ZoomAttendanceSync | null;
+  unmatchedParticipants: ZoomAttendanceParticipant[];
+}
+
+export type TrainerAttendanceReports = TrainerAttendanceReport[];
+
 export interface MentorEngagement {
   id: number;
   businessId: number;
@@ -1607,23 +1703,10 @@ export interface ProgramAnalytics {
   sessions: AnalyticsSession[];
 }
 
-export type AttendanceStatus = typeof AttendanceStatus[keyof typeof AttendanceStatus];
-
-
-export const AttendanceStatus = {
-  present: 'present',
-  absent: 'absent',
-  excused: 'excused',
-} as const;
-
-export interface AttendanceRosterEntry {
-  businessId: number;
-  businessName: string;
-  status: AttendanceStatus | null;
+export interface ZoomAttendanceParticipantResolutionInput {
   /** @nullable */
-  notes: string | null;
-  /** @nullable */
-  markedAt: string | null;
+  businessId: number | null;
+  ignore: boolean;
 }
 
 export type SessionAttendanceRegisterSession = {
@@ -1633,11 +1716,15 @@ export type SessionAttendanceRegisterSession = {
   title: string;
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   scheduledDate: string;
+  /** @nullable */
+  zoomMeetingId: string | null;
 };
 
 export interface SessionAttendanceRegister {
   session: SessionAttendanceRegisterSession;
   roster: AttendanceRosterEntry[];
+  zoomSync: ZoomAttendanceSync | null;
+  unmatchedParticipants: ZoomAttendanceParticipant[];
 }
 
 export interface SessionAttendanceRecordInput {

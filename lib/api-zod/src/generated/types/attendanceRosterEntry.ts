@@ -5,6 +5,7 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { AttendanceSource } from './attendanceSource';
 import type { AttendanceStatus } from './attendanceStatus';
 
 export interface AttendanceRosterEntry {
@@ -15,4 +16,14 @@ export interface AttendanceRosterEntry {
   notes: string | null;
   /** @nullable */
   markedAt: Date | null;
+  source: AttendanceSource | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  attendedSeconds: number | null;
+  /** @nullable */
+  firstJoinedAt: Date | null;
+  /** @nullable */
+  lastLeftAt: Date | null;
 }

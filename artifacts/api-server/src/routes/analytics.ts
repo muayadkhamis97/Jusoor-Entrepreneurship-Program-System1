@@ -20,6 +20,11 @@ import {
   ImpactKpiDirection,
   ListProgramImpactKpisQueryParams,
   ListProgramImpactKpisResponse,
+  QueueZoomAttendanceSyncParams,
+  QueueZoomAttendanceSyncResponse,
+  ResolveZoomAttendanceParticipantBody,
+  ResolveZoomAttendanceParticipantParams,
+  ResolveZoomAttendanceParticipantResponse,
   SaveProgramImpactKpiValuesBody,
   SaveProgramImpactKpiValuesParams,
   SaveProgramImpactKpiValuesResponse,
@@ -44,8 +49,14 @@ import {
   trainingAssignmentsTable,
   trainingQuestionsTable,
   trainingSubmissionsTable,
+  zoomAttendanceParticipantsTable,
 } from "@workspace/db";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
+import {
+  getZoomAttendanceReport,
+  queueZoomAttendanceSync,
+  resolveZoomAttendanceParticipant,
+} from "../lib/zoom-attendance";
 
 const router: IRouter = Router();
 router.use(requireCoordinator);
@@ -75,44 +86,7 @@ function addDays(date: Date, days: number): Date {
 }
 
 async function getAttendanceRegister(sessionId: number) {
-  const [session] = await db.select({
-    id: sessionsTable.id,
-    programId: sessionsTable.programId,
-    title: sessionsTable.title,
-    scheduledDate: sessionsTable.scheduledDate,
-  }).from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
-  if (!session) return null;
-
-  const businesses = session.programId === null
-    ? []
-    : await db.select({
-      id: businessesTable.id,
-      businessName: businessesTable.businessName,
-    }).from(businessesTable)
-      .where(eq(businessesTable.programId, session.programId))
-      .orderBy(asc(businessesTable.businessName));
-  const records = await db.select({
-    businessId: sessionAttendanceTable.businessId,
-    status: sessionAttendanceTable.status,
-    notes: sessionAttendanceTable.notes,
-    markedAt: sessionAttendanceTable.markedAt,
-  }).from(sessionAttendanceTable)
-    .where(eq(sessionAttendanceTable.sessionId, sessionId));
-  const byBusiness = new Map(records.map((record) => [record.businessId, record]));
-
-  return {
-    session,
-    roster: businesses.map((business) => {
-      const record = byBusiness.get(business.id);
-      return {
-        businessId: business.id,
-        businessName: business.businessName,
-        status: record?.status ?? null,
-        notes: record?.notes ?? null,
-        markedAt: record?.markedAt ?? null,
-      };
-    }),
-  };
+  return getZoomAttendanceReport(sessionId);
 }
 
 async function getImpactKpis(programId: number) {
@@ -458,6 +432,80 @@ router.get("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
   res.json(GetSessionAttendanceRegisterResponse.parse(register));
 });
 
+router.post("/analytics/attendance/:sessionId", async (req, res): Promise<void> => {
+  const params = QueueZoomAttendanceSyncParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [session] = await db.select({
+    id: sessionsTable.id,
+    zoomMeetingId: sessionsTable.zoomMeetingId,
+  }).from(sessionsTable).where(eq(sessionsTable.id, params.data.sessionId)).limit(1);
+  if (!session) {
+    res.status(404).json({ error: "Session not found." });
+    return;
+  }
+  if (!session.zoomMeetingId) {
+    res.status(400).json({ error: "This session has no Zoom meeting." });
+    return;
+  }
+  try {
+    const sync = await queueZoomAttendanceSync(params.data.sessionId, true);
+    res.json(QueueZoomAttendanceSyncResponse.parse(sync));
+  } catch (error) {
+    req.log.warn({ sessionId: params.data.sessionId }, "Could not queue Zoom attendance sync");
+    res.status(400).json({ error: error instanceof Error ? error.message : "Could not queue Zoom attendance sync." });
+  }
+});
+
+router.patch("/analytics/attendance-participants/:participantId", async (req, res): Promise<void> => {
+  const params = ResolveZoomAttendanceParticipantParams.safeParse(req.params);
+  const body = ResolveZoomAttendanceParticipantBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const { businessId, ignore } = body.data;
+  if ((ignore && businessId !== null) || (!ignore && businessId === null)) {
+    res.status(400).json({ error: "Choose a business to match or explicitly ignore this attendee." });
+    return;
+  }
+  const [participant] = await db.select({
+    id: zoomAttendanceParticipantsTable.id,
+    sessionId: zoomAttendanceParticipantsTable.sessionId,
+  }).from(zoomAttendanceParticipantsTable)
+    .where(eq(zoomAttendanceParticipantsTable.id, params.data.participantId))
+    .limit(1);
+  if (!participant) {
+    res.status(404).json({ error: "Zoom attendee not found." });
+    return;
+  }
+  const [session] = await db.select({
+    id: sessionsTable.id,
+    programId: sessionsTable.programId,
+  }).from(sessionsTable).where(eq(sessionsTable.id, participant.sessionId)).limit(1);
+  if (!session) {
+    res.status(404).json({ error: "Session not found." });
+    return;
+  }
+  if (businessId !== null) {
+    const [business] = await db.select({ id: businessesTable.id }).from(businessesTable)
+      .where(and(
+        eq(businessesTable.id, businessId),
+        eq(businessesTable.programId, session.programId ?? -1),
+      )).limit(1);
+    if (!business) {
+      res.status(400).json({ error: "Choose a business from this session's cohort." });
+      return;
+    }
+  }
+  const staff = res.locals.staff as StaffAccess;
+  await resolveZoomAttendanceParticipant(params.data.participantId, { businessId, ignore }, staff.id);
+  const register = await getAttendanceRegister(participant.sessionId);
+  res.json(ResolveZoomAttendanceParticipantResponse.parse(register));
+});
+
 router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> => {
   const params = SaveSessionAttendanceParams.safeParse(req.params);
   const body = SaveSessionAttendanceBody.safeParse(req.body);
@@ -498,12 +546,20 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
           status: record.status,
           notes: record.notes,
           recordedByStaffId: staff.id,
+          source: "manual",
+          attendedSeconds: null,
+          firstJoinedAt: null,
+          lastLeftAt: null,
         }).onConflictDoUpdate({
           target: [sessionAttendanceTable.sessionId, sessionAttendanceTable.businessId],
           set: {
             status: record.status,
             notes: record.notes,
             recordedByStaffId: staff.id,
+            source: "manual",
+            attendedSeconds: null,
+            firstJoinedAt: null,
+            lastLeftAt: null,
             markedAt: new Date(),
           },
         });

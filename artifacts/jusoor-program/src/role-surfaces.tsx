@@ -4,6 +4,7 @@ import { useClerk } from '@clerk/react';
 import { Link, useLocation } from 'wouter';
 import {
   getGetTrainerDashboardQueryKey, getGetMentorDashboardQueryKey, getGetJudgeDashboardQueryKey,
+  getGetTrainerAttendanceReportsQueryKey, useGetTrainerAttendanceReports,
   useGetTrainerDashboard, useCreateTrainingAssignment, useReviewTrainingAnswer,
   useReplyTrainingQuestion, useGetMentorDashboard, useUpdateAssignedMentoring,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
@@ -14,8 +15,9 @@ import type {
   MentorEngagementUpdate, JudgeScorecardInput, StaffMember,
   MentorBookingProvider, MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
-import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, LogOut, MessageCircle, Video } from 'lucide-react';
+import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
 import { SessionRecordingPlayer } from './session-recording-player';
+import './attendance-reports.css';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
@@ -47,6 +49,9 @@ const invalid = (client: ReturnType<typeof useQueryClient>, key: readonly unknow
 
 export function TrainerDashboardPage({ name }: { name: string }) {
   const query = useGetTrainerDashboard({ query: { queryKey: getGetTrainerDashboardQueryKey(), refetchOnWindowFocus: true } });
+  const attendanceQuery = useGetTrainerAttendanceReports({
+    query: { queryKey: getGetTrainerAttendanceReportsQueryKey(), refetchOnWindowFocus: true, refetchInterval: 15_000 },
+  });
   const client = useQueryClient();
   const create = useCreateTrainingAssignment();
   const review = useReviewTrainingAnswer();
@@ -93,6 +98,26 @@ export function TrainerDashboardPage({ name }: { name: string }) {
       </section>
       <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">TEACHING CALENDAR</div><h2>Assigned sessions</h2></div></div>
          {sessions.length === 0 ? <div className="empty-panel"><h3>No sessions assigned.</h3><p>Your coordinator will attach you to a cohort session.</p></div> : <div className="role-list">{sessions.map(session => <article className="role-row" key={session.id} data-testid={`trainer-session-${session.id}`}><span className="role-date"><CalendarDays size={17} /></span><div className="role-row-copy"><b>{session.title}</b><span>{dateText(session.scheduledDate)} · {word(session.type)} · {session.startTime || 'Time TBD'}</span>{session.recordingUrl && <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />}</div><span className={`badge badge-${session.status === 'scheduled' ? 'good' : 'neutral'}`}><span />{word(session.status)}</span>{session.zoomUrl && <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link">Join <ArrowRight size={13} /></a>}</article>)}</div>}
+      </section>
+      <section className="role-section" data-testid="trainer-attendance-reports">
+        <div className="role-section-title"><div><div className="eyebrow">SESSION REPORTS</div><h2>Training attendance</h2></div></div>
+        <p>Zoom attendance is limited to sessions assigned to you. Unmatched attendees are flagged for coordinator review.</p>
+        {attendanceQuery.isLoading ? <div className="role-inline-note">Loading attendance reports…</div> : attendanceQuery.isError ? <div className="role-inline-note" role="alert">Attendance reports could not be loaded. Refresh the page to try again.</div> : attendanceQuery.data?.length ? <div className="role-list">
+          {attendanceQuery.data.map(report => {
+            const present = report.attendance.filter(person => person.status === 'present').length;
+            const unknown = report.unmatchedParticipants.length;
+            return <article className="role-row role-attendance-row" key={report.sessionId} data-testid={`trainer-attendance-${report.sessionId}`}>
+              <span className="role-date"><Clock3 size={17} /></span>
+              <div className="role-row-copy">
+                <b>{report.sessionTitle}</b>
+                <span>{dateText(report.scheduledDate)} · {present} businesses present</span>
+                {report.zoomSync ? <small>Zoom sync: {word(report.zoomSync.status)} · {report.zoomSync.matchedCount} matched · {report.zoomSync.unmatchedCount} to review</small> : <small>Waiting for a Zoom attendance report.</small>}
+                {unknown > 0 && <div className="role-unmatched-list"><b>{unknown} attendee{unknown === 1 ? '' : 's'} need review</b>{report.unmatchedParticipants.map(attendee => <span key={attendee.id}>{attendee.displayName}{attendee.email ? ` · ${attendee.email}` : ''} · {Math.round(attendee.durationSeconds / 60)} min</span>)}</div>}
+              </div>
+              <span className={`badge badge-${report.zoomSync?.status === 'completed' && unknown === 0 ? 'good' : 'neutral'}`}><span />{report.zoomSync ? word(report.zoomSync.status) : 'Waiting'}</span>
+            </article>;
+          })}
+        </div> : <div className="empty-panel"><h3>No assigned training sessions.</h3><p>Attendance reports appear after a Zoom session is assigned to you.</p></div>}
       </section>
       <section className="role-section role-assignment-section"><div className="role-section-title"><div><div className="eyebrow">MAKE THE LEARNING PRACTICAL</div><h2>Create a cohort assignment</h2></div></div>
         {programs.length === 0 ? <div className="role-inline-note">Assignments become available after a session is assigned to your trainer account.</div> : <form className="role-form-grid" onSubmit={submitAssignment}>

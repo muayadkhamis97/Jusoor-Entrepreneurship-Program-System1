@@ -94,6 +94,7 @@ import type {
   SupportEngagement,
   SupportInput,
   SupportUpdate,
+  TrainerAttendanceReports,
   TrainerDashboard,
   TrainingAnswerInput,
   TrainingAnswerReview,
@@ -102,6 +103,8 @@ import type {
   TrainingQuestionInput,
   TrainingQuestionReply,
   TrainingSubmission,
+  ZoomAttendanceParticipantResolutionInput,
+  ZoomAttendanceSync,
   ZoomConnectionInput,
   ZoomRecordingAlert,
   ZoomRecordingAlertList,
@@ -451,6 +454,80 @@ export function useGetSessionAttendanceRegister<TData = Awaited<ReturnType<typeo
 
 
 
+export const getQueueZoomAttendanceSyncUrl = (sessionId: number,) => {
+
+
+
+
+  return `/api/analytics/attendance/${sessionId}`
+}
+
+/**
+ * @summary Queue a Zoom attendance report refresh
+ */
+export const queueZoomAttendanceSync = async (sessionId: number, options?: Parameters<typeof customFetch>[1]): Promise<ZoomAttendanceSync> => {
+
+  return customFetch<ZoomAttendanceSync>(getQueueZoomAttendanceSyncUrl(sessionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getQueueZoomAttendanceSyncMutationKey = () => ['queueZoomAttendanceSync'] as const;
+
+export const getQueueZoomAttendanceSyncMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueZoomAttendanceSync>>, TError,QueueZoomAttendanceSyncMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof queueZoomAttendanceSync>>, TError,QueueZoomAttendanceSyncMutationVariables, TContext> => {
+
+const mutationKey = getQueueZoomAttendanceSyncMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof queueZoomAttendanceSync>>, QueueZoomAttendanceSyncMutationVariables> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  queueZoomAttendanceSync(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QueueZoomAttendanceSyncMutationResult = NonNullable<Awaited<ReturnType<typeof queueZoomAttendanceSync>>>
+
+    export type QueueZoomAttendanceSyncMutationError = ErrorType<void>
+    export type QueueZoomAttendanceSyncMutationVariables = {sessionId: number}
+
+    /**
+ * @summary Queue a Zoom attendance report refresh
+ */
+export const useQueueZoomAttendanceSync = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueZoomAttendanceSync>>, TError,QueueZoomAttendanceSyncMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof queueZoomAttendanceSync>>,
+        TError,
+        QueueZoomAttendanceSyncMutationVariables,
+        TContext
+      > => {
+      return useMutation(getQueueZoomAttendanceSyncMutationOptions(options));
+    }
+
 export const getSaveSessionAttendanceUrl = (sessionId: number,) => {
 
 
@@ -538,6 +615,95 @@ export const useSaveSessionAttendance = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSaveSessionAttendanceMutationOptions(options));
+    }
+
+export const getResolveZoomAttendanceParticipantUrl = (participantId: number,) => {
+
+
+
+
+  return `/api/analytics/attendance-participants/${participantId}`
+}
+
+/**
+ * @summary Match an unmatched Zoom attendee to a business or ignore the attendee
+ */
+export const resolveZoomAttendanceParticipant = async (participantId: number,
+    zoomAttendanceParticipantResolutionInput: ZoomAttendanceParticipantResolutionInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionAttendanceRegister> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SessionAttendanceRegister>(getResolveZoomAttendanceParticipantUrl(participantId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(zoomAttendanceParticipantResolutionInput)
+  }
+);}
+
+
+
+
+
+export const getResolveZoomAttendanceParticipantMutationKey = () => ['resolveZoomAttendanceParticipant'] as const;
+
+export const getResolveZoomAttendanceParticipantMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>, TError,ResolveZoomAttendanceParticipantMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>, TError,ResolveZoomAttendanceParticipantMutationVariables, TContext> => {
+
+const mutationKey = getResolveZoomAttendanceParticipantMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>, ResolveZoomAttendanceParticipantMutationVariables> = (props) => {
+          const {participantId,data} = props ?? {};
+
+          return  resolveZoomAttendanceParticipant(participantId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveZoomAttendanceParticipantMutationResult = NonNullable<Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>>
+    export type ResolveZoomAttendanceParticipantMutationBody = BodyType<ZoomAttendanceParticipantResolutionInput>
+    export type ResolveZoomAttendanceParticipantMutationError = ErrorType<void>
+    export type ResolveZoomAttendanceParticipantMutationVariables = {participantId: number;data: BodyType<ZoomAttendanceParticipantResolutionInput>}
+
+    /**
+ * @summary Match an unmatched Zoom attendee to a business or ignore the attendee
+ */
+export const useResolveZoomAttendanceParticipant = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>, TError,ResolveZoomAttendanceParticipantMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>,
+        TError,
+        ResolveZoomAttendanceParticipantMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveZoomAttendanceParticipantMutationOptions(options));
     }
 
 export const getListProgramImpactKpisUrl = (params: ListProgramImpactKpisParams,) => {
@@ -3327,6 +3493,83 @@ export function useGetTrainerDashboard<TData = Awaited<ReturnType<typeof getTrai
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTrainerDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTrainerAttendanceReportsUrl = () => {
+
+
+
+
+  return `/api/trainer/attendance`
+}
+
+/**
+ * @summary Get Zoom attendance reports for the trainer's assigned sessions
+ */
+export const getTrainerAttendanceReports = async ( options?: Parameters<typeof customFetch>[1]): Promise<TrainerAttendanceReports> => {
+
+  return customFetch<TrainerAttendanceReports>(getGetTrainerAttendanceReportsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTrainerAttendanceReportsQueryKey = () => {
+    return [
+    `/api/trainer/attendance`
+    ] as const;
+    }
+
+
+export const getGetTrainerAttendanceReportsQueryOptions = <TData = Awaited<ReturnType<typeof getTrainerAttendanceReports>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTrainerAttendanceReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTrainerAttendanceReportsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTrainerAttendanceReports>>> = ({ signal }) => getTrainerAttendanceReports({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTrainerAttendanceReports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTrainerAttendanceReportsQueryResult = NonNullable<Awaited<ReturnType<typeof getTrainerAttendanceReports>>>
+export type GetTrainerAttendanceReportsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get Zoom attendance reports for the trainer's assigned sessions
+ */
+
+export function useGetTrainerAttendanceReports<TData = Awaited<ReturnType<typeof getTrainerAttendanceReports>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTrainerAttendanceReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTrainerAttendanceReportsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

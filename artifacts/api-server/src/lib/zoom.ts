@@ -305,6 +305,45 @@ async function zoomRequest<T>(
   return result as T;
 }
 
+export type ZoomPastMeetingParticipant = {
+  id?: string | number;
+  user_id?: string | number;
+  name?: string;
+  user_name?: string;
+  user_email?: string;
+  join_time?: string;
+  leave_time?: string;
+  duration?: number;
+};
+
+type ZoomPastMeetingParticipantsResponse = {
+  participants?: ZoomPastMeetingParticipant[];
+  next_page_token?: string;
+};
+
+export async function getPastMeetingParticipants(
+  meetingId: string,
+): Promise<ZoomPastMeetingParticipant[]> {
+  const participants: ZoomPastMeetingParticipant[] = [];
+  let nextPageToken: string | undefined;
+  do {
+    const query = new URLSearchParams({ page_size: "300" });
+    if (nextPageToken) query.set("next_page_token", nextPageToken);
+    const page = await zoomRequest<ZoomPastMeetingParticipantsResponse>(
+      `/past_meetings/${encodeURIComponent(meetingId)}/participants?${query}`,
+    );
+    if (page.participants !== undefined && !Array.isArray(page.participants)) {
+      throw new ZoomIntegrationError(
+        "Zoom returned an invalid attendance report.",
+        502,
+      );
+    }
+    participants.push(...(page.participants ?? []));
+    nextPageToken = page.next_page_token || undefined;
+  } while (nextPageToken);
+  return participants;
+}
+
 function validateJoinUrl(value: unknown): string {
   if (typeof value !== "string") {
     throw new ZoomIntegrationError(

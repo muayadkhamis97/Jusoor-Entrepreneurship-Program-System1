@@ -27,6 +27,7 @@ import {
 import { requireStaff } from "../middlewares/staffAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { requireRole } from "../middlewares/requireRole";
+import { queueZoomAttendanceSyncForMeeting } from "../lib/zoom-attendance";
 import {
   createZoomWebhookValidationResponse,
   createOrUpdateZoomMeeting,
@@ -237,6 +238,23 @@ router.post("/webhook", async (req, res): Promise<void> => {
     } catch (error) {
       sendZoomError(res, error);
     }
+    return;
+  }
+
+  if (envelope.event === "meeting.ended") {
+    const payload = isRecord(envelope.payload) ? envelope.payload : null;
+    const meeting = payload && isRecord(payload.object) ? payload.object : null;
+    const rawMeetingId = meeting?.id;
+    const meetingId = typeof rawMeetingId === "string" || typeof rawMeetingId === "number"
+      ? String(rawMeetingId)
+      : "";
+    if (!meetingId) {
+      res.status(400).json({ error: "Invalid Zoom meeting-ended event." });
+      return;
+    }
+    const queued = await queueZoomAttendanceSyncForMeeting(meetingId);
+    if (queued) req.log.info("Queued Zoom attendance sync after meeting ended");
+    res.status(200).json({ received: true });
     return;
   }
 

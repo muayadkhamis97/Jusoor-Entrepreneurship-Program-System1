@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   CreateTrainingAssignmentBody,
   CreateTrainingAssignmentResponse,
+  GetTrainerAttendanceReportsResponse,
   GetTrainerDashboardResponse,
   ReplyTrainingQuestionBody,
   ReplyTrainingQuestionParams,
@@ -22,6 +23,7 @@ import {
   trainingSubmissionsTable,
 } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
+import { getZoomAttendanceReport } from "../lib/zoom-attendance";
 
 const router: IRouter = Router();
 
@@ -97,6 +99,30 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     .orderBy(desc(trainingQuestionsTable.createdAt));
 
   res.json(GetTrainerDashboardResponse.parse({ sessions, assignments, submissions, questions }));
+});
+
+router.get("/attendance", async (_req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const sessions = await db.select({
+    id: sessionsTable.id,
+    title: sessionsTable.title,
+    scheduledDate: sessionsTable.scheduledDate,
+  }).from(sessionsTable)
+    .where(eq(sessionsTable.trainerStaffId, staff.id))
+    .orderBy(desc(sessionsTable.scheduledDate), asc(sessionsTable.startTime));
+  const reports = await Promise.all(sessions.map(async (session) => {
+    const report = await getZoomAttendanceReport(session.id);
+    if (!report) return null;
+    return {
+      sessionId: session.id,
+      sessionTitle: session.title,
+      scheduledDate: session.scheduledDate,
+      attendance: report.roster,
+      zoomSync: report.zoomSync,
+      unmatchedParticipants: report.unmatchedParticipants,
+    };
+  }));
+  res.json(GetTrainerAttendanceReportsResponse.parse(reports.filter((report) => report !== null)));
 });
 
 router.post("/assignments", async (req, res): Promise<void> => {

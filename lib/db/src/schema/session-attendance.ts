@@ -14,6 +14,10 @@ export const sessionAttendanceTable = pgTable(
     status: text("status").notNull(),
     notes: text("notes"),
     recordedByStaffId: integer("recorded_by_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
+    source: text("source").notNull().default("manual"),
+    attendedSeconds: integer("attended_seconds"),
+    firstJoinedAt: timestamp("first_joined_at", { withTimezone: true }),
+    lastLeftAt: timestamp("last_left_at", { withTimezone: true }),
     markedAt: timestamp("marked_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

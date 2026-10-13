@@ -7,8 +7,12 @@
  */
 import type { AttendanceRosterEntry } from './attendanceRosterEntry';
 import type { SessionAttendanceRegisterSession } from './sessionAttendanceRegisterSession';
+import type { ZoomAttendanceParticipant } from './zoomAttendanceParticipant';
+import type { ZoomAttendanceSync } from './zoomAttendanceSync';
 
 export interface SessionAttendanceRegister {
   session: SessionAttendanceRegisterSession;
   roster: AttendanceRosterEntry[];
+  zoomSync: ZoomAttendanceSync | null;
+  unmatchedParticipants: ZoomAttendanceParticipant[];
 }

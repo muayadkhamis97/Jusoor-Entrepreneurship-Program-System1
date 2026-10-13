@@ -163,6 +163,18 @@ export const GetSessionAttendanceRegisterParams = zod.object({
 })
 
 export const getSessionAttendanceRegisterResponseSessionScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getSessionAttendanceRegisterResponseRosterItemAttendedSecondsMin = 0;
+
+export const getSessionAttendanceRegisterResponseZoomSyncOneAttemptsMin = 0;
+
+export const getSessionAttendanceRegisterResponseZoomSyncOneParticipantCountMin = 0;
+
+export const getSessionAttendanceRegisterResponseZoomSyncOneMatchedCountMin = 0;
+
+export const getSessionAttendanceRegisterResponseZoomSyncOneUnmatchedCountMin = 0;
+
+export const getSessionAttendanceRegisterResponseUnmatchedParticipantsItemDurationSecondsMin = 0;
+
 
 
 export const GetSessionAttendanceRegisterResponse = zod.object({
@@ -170,15 +182,70 @@ export const GetSessionAttendanceRegisterResponse = zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullable(),
   "title": zod.string(),
-  "scheduledDate": zod.string().regex(getSessionAttendanceRegisterResponseSessionScheduledDateRegExp)
+  "scheduledDate": zod.string().regex(getSessionAttendanceRegisterResponseSessionScheduledDateRegExp),
+  "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
   "businessId": zod.number().int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().nullable(),
-  "markedAt": zod.coerce.date().nullable()
+  "markedAt": zod.coerce.date().nullable(),
+  "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
+  "attendedSeconds": zod.number().int().min(getSessionAttendanceRegisterResponseRosterItemAttendedSecondsMin).nullable(),
+  "firstJoinedAt": zod.coerce.date().nullable(),
+  "lastLeftAt": zod.coerce.date().nullable()
+})),
+  "zoomSync": zod.union([zod.object({
+  "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
+  "attempts": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneUnmatchedCountMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "syncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
+}),zod.null()]),
+  "unmatchedParticipants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string(),
+  "email": zod.string().nullable(),
+  "joinTime": zod.coerce.date().nullable(),
+  "leaveTime": zod.coerce.date().nullable(),
+  "durationSeconds": zod.number().int().min(getSessionAttendanceRegisterResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedBusinessId": zod.number().int().nullable(),
+  "matchedBusinessName": zod.string().nullable(),
+  "ignoredAt": zod.coerce.date().nullable()
 }))
+})
+
+
+/**
+ * @summary Queue a Zoom attendance report refresh
+ */
+export const QueueZoomAttendanceSyncParams = zod.object({
+  "sessionId": zod.coerce.number().int()
+})
+
+export const queueZoomAttendanceSyncResponseAttemptsMin = 0;
+
+export const queueZoomAttendanceSyncResponseParticipantCountMin = 0;
+
+export const queueZoomAttendanceSyncResponseMatchedCountMin = 0;
+
+export const queueZoomAttendanceSyncResponseUnmatchedCountMin = 0;
+
+
+
+export const QueueZoomAttendanceSyncResponse = zod.object({
+  "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
+  "attempts": zod.number().int().min(queueZoomAttendanceSyncResponseAttemptsMin),
+  "participantCount": zod.number().int().min(queueZoomAttendanceSyncResponseParticipantCountMin),
+  "matchedCount": zod.number().int().min(queueZoomAttendanceSyncResponseMatchedCountMin),
+  "unmatchedCount": zod.number().int().min(queueZoomAttendanceSyncResponseUnmatchedCountMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "syncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
 })
 
 
@@ -202,6 +269,18 @@ export const SaveSessionAttendanceBody = zod.object({
 })
 
 export const saveSessionAttendanceResponseSessionScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const saveSessionAttendanceResponseRosterItemAttendedSecondsMin = 0;
+
+export const saveSessionAttendanceResponseZoomSyncOneAttemptsMin = 0;
+
+export const saveSessionAttendanceResponseZoomSyncOneParticipantCountMin = 0;
+
+export const saveSessionAttendanceResponseZoomSyncOneMatchedCountMin = 0;
+
+export const saveSessionAttendanceResponseZoomSyncOneUnmatchedCountMin = 0;
+
+export const saveSessionAttendanceResponseUnmatchedParticipantsItemDurationSecondsMin = 0;
+
 
 
 export const SaveSessionAttendanceResponse = zod.object({
@@ -209,14 +288,110 @@ export const SaveSessionAttendanceResponse = zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullable(),
   "title": zod.string(),
-  "scheduledDate": zod.string().regex(saveSessionAttendanceResponseSessionScheduledDateRegExp)
+  "scheduledDate": zod.string().regex(saveSessionAttendanceResponseSessionScheduledDateRegExp),
+  "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
   "businessId": zod.number().int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().nullable(),
-  "markedAt": zod.coerce.date().nullable()
+  "markedAt": zod.coerce.date().nullable(),
+  "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
+  "attendedSeconds": zod.number().int().min(saveSessionAttendanceResponseRosterItemAttendedSecondsMin).nullable(),
+  "firstJoinedAt": zod.coerce.date().nullable(),
+  "lastLeftAt": zod.coerce.date().nullable()
+})),
+  "zoomSync": zod.union([zod.object({
+  "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
+  "attempts": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneUnmatchedCountMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "syncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
+}),zod.null()]),
+  "unmatchedParticipants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string(),
+  "email": zod.string().nullable(),
+  "joinTime": zod.coerce.date().nullable(),
+  "leaveTime": zod.coerce.date().nullable(),
+  "durationSeconds": zod.number().int().min(saveSessionAttendanceResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedBusinessId": zod.number().int().nullable(),
+  "matchedBusinessName": zod.string().nullable(),
+  "ignoredAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Match an unmatched Zoom attendee to a business or ignore the attendee
+ */
+export const ResolveZoomAttendanceParticipantParams = zod.object({
+  "participantId": zod.coerce.number().int()
+})
+
+export const ResolveZoomAttendanceParticipantBody = zod.object({
+  "businessId": zod.number().int().nullable(),
+  "ignore": zod.boolean()
+})
+
+export const resolveZoomAttendanceParticipantResponseSessionScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const resolveZoomAttendanceParticipantResponseRosterItemAttendedSecondsMin = 0;
+
+export const resolveZoomAttendanceParticipantResponseZoomSyncOneAttemptsMin = 0;
+
+export const resolveZoomAttendanceParticipantResponseZoomSyncOneParticipantCountMin = 0;
+
+export const resolveZoomAttendanceParticipantResponseZoomSyncOneMatchedCountMin = 0;
+
+export const resolveZoomAttendanceParticipantResponseZoomSyncOneUnmatchedCountMin = 0;
+
+export const resolveZoomAttendanceParticipantResponseUnmatchedParticipantsItemDurationSecondsMin = 0;
+
+
+
+export const ResolveZoomAttendanceParticipantResponse = zod.object({
+  "session": zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int().nullable(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(resolveZoomAttendanceParticipantResponseSessionScheduledDateRegExp),
+  "zoomMeetingId": zod.string().nullable()
+}),
+  "roster": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
+  "notes": zod.string().nullable(),
+  "markedAt": zod.coerce.date().nullable(),
+  "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
+  "attendedSeconds": zod.number().int().min(resolveZoomAttendanceParticipantResponseRosterItemAttendedSecondsMin).nullable(),
+  "firstJoinedAt": zod.coerce.date().nullable(),
+  "lastLeftAt": zod.coerce.date().nullable()
+})),
+  "zoomSync": zod.union([zod.object({
+  "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
+  "attempts": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneUnmatchedCountMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "syncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
+}),zod.null()]),
+  "unmatchedParticipants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string(),
+  "email": zod.string().nullable(),
+  "joinTime": zod.coerce.date().nullable(),
+  "leaveTime": zod.coerce.date().nullable(),
+  "durationSeconds": zod.number().int().min(resolveZoomAttendanceParticipantResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedBusinessId": zod.number().int().nullable(),
+  "matchedBusinessName": zod.string().nullable(),
+  "ignoredAt": zod.coerce.date().nullable()
 }))
 })
 
@@ -1346,6 +1521,64 @@ export const GetTrainerDashboardResponse = zod.object({
   "programName": zod.string()
 })))
 })
+
+
+/**
+ * @summary Get Zoom attendance reports for the trainer's assigned sessions
+ */
+export const getTrainerAttendanceReportsResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getTrainerAttendanceReportsResponseAttendanceItemAttendedSecondsMin = 0;
+
+export const getTrainerAttendanceReportsResponseZoomSyncOneAttemptsMin = 0;
+
+export const getTrainerAttendanceReportsResponseZoomSyncOneParticipantCountMin = 0;
+
+export const getTrainerAttendanceReportsResponseZoomSyncOneMatchedCountMin = 0;
+
+export const getTrainerAttendanceReportsResponseZoomSyncOneUnmatchedCountMin = 0;
+
+export const getTrainerAttendanceReportsResponseUnmatchedParticipantsItemDurationSecondsMin = 0;
+
+
+
+export const GetTrainerAttendanceReportsResponseItem = zod.object({
+  "sessionId": zod.number().int(),
+  "sessionTitle": zod.string(),
+  "scheduledDate": zod.string().regex(getTrainerAttendanceReportsResponseScheduledDateRegExp),
+  "attendance": zod.array(zod.object({
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
+  "notes": zod.string().nullable(),
+  "markedAt": zod.coerce.date().nullable(),
+  "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
+  "attendedSeconds": zod.number().int().min(getTrainerAttendanceReportsResponseAttendanceItemAttendedSecondsMin).nullable(),
+  "firstJoinedAt": zod.coerce.date().nullable(),
+  "lastLeftAt": zod.coerce.date().nullable()
+})),
+  "zoomSync": zod.union([zod.object({
+  "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
+  "attempts": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneUnmatchedCountMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "syncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable()
+}),zod.null()]),
+  "unmatchedParticipants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "displayName": zod.string(),
+  "email": zod.string().nullable(),
+  "joinTime": zod.coerce.date().nullable(),
+  "leaveTime": zod.coerce.date().nullable(),
+  "durationSeconds": zod.number().int().min(getTrainerAttendanceReportsResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedBusinessId": zod.number().int().nullable(),
+  "matchedBusinessName": zod.string().nullable(),
+  "ignoredAt": zod.coerce.date().nullable()
+}))
+})
+export const GetTrainerAttendanceReportsResponse = zod.array(GetTrainerAttendanceReportsResponseItem)
 
 
 /**

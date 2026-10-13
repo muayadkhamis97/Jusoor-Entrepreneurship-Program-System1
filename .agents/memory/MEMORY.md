@@ -1,4 +1,5 @@
 - [Jusoor program lifecycle](jusoor-program-lifecycle.md) — Cohort intake leads through in-person bootcamp/hackathon, online incubation support, pitch-day selection, and demo-day grants.
 - [Zoom authorization](zoom-authorization.md) — Coordinators connect Zoom from the live Jusoor platform; account authorization should not happen through chat.
+- [Zoom attendance matching](zoom-attendance.md) — Match only a unique report email to a business; leave missing or ambiguous attendees for staff review.
 - [Date-only API fields](date-only-api-fields.md) — Keep calendar dates as `YYYY-MM-DD` strings; generated Zod schemas coerce OpenAPI `format: date` values into `Date`.
 - [Jusoor analytics tracking](analytics-tracking.md) — Coordinators need attendance records and customizable impact KPIs, with missing data kept distinct from zero.
