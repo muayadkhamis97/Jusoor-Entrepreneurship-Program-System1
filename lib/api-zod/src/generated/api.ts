@@ -2380,6 +2380,85 @@ export const DeleteSupportResponse = zod.void()
 
 
 /**
+ * @summary List coordinator grant awards and receipt ledgers
+ */
+export const listGrantAwardsResponseEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listGrantAwardsResponseReceiptsItemAmountExclusiveMin = 0;
+
+export const listGrantAwardsResponseReceiptsItemReceivedOnRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListGrantAwardsResponseItem = zod.object({
+  "pitchId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "founderName": zod.string().nullable(),
+  "programName": zod.string().nullable(),
+  "eventType": zod.enum(['pitch_day', 'demo_day']),
+  "eventDate": zod.string().regex(listGrantAwardsResponseEventDateRegExp),
+  "grantAmount": zod.number().nullable(),
+  "totalReceived": zod.number(),
+  "remainingAmount": zod.number().nullable(),
+  "status": zod.enum(['amount_needed', 'not_received', 'partially_received', 'received', 'over_received']),
+  "receipts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "pitchId": zod.number().int(),
+  "kind": zod.enum(['received', 'reversal']),
+  "amount": zod.number().gt(listGrantAwardsResponseReceiptsItemAmountExclusiveMin),
+  "receivedOn": zod.string().regex(listGrantAwardsResponseReceiptsItemReceivedOnRegExp),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "recordedBy": zod.string().nullish(),
+  "recordedAt": zod.coerce.date()
+}))
+})
+export const ListGrantAwardsResponse = zod.array(ListGrantAwardsResponseItem)
+
+
+/**
+ * @summary Record a grant receipt or a correction reversal
+ */
+export const CreateGrantReceiptParams = zod.object({
+  "pitchId": zod.coerce.number().int()
+})
+
+export const createGrantReceiptBodyAmountExclusiveMin = 0;
+export const createGrantReceiptBodyAmountMax = 1000000000;
+
+export const createGrantReceiptBodyReceivedOnRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createGrantReceiptBodyReferenceMax = 120;
+
+export const createGrantReceiptBodyNotesMax = 2000;
+
+
+
+export const CreateGrantReceiptBody = zod.object({
+  "kind": zod.enum(['received', 'reversal']),
+  "amount": zod.number().gt(createGrantReceiptBodyAmountExclusiveMin).max(createGrantReceiptBodyAmountMax),
+  "receivedOn": zod.string().regex(createGrantReceiptBodyReceivedOnRegExp),
+  "reference": zod.string().max(createGrantReceiptBodyReferenceMax).nullish(),
+  "notes": zod.string().max(createGrantReceiptBodyNotesMax).nullish()
+})
+
+export const createGrantReceiptResponseAmountExclusiveMin = 0;
+
+export const createGrantReceiptResponseReceivedOnRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateGrantReceiptResponse = zod.object({
+  "id": zod.number().int(),
+  "pitchId": zod.number().int(),
+  "kind": zod.enum(['received', 'reversal']),
+  "amount": zod.number().gt(createGrantReceiptResponseAmountExclusiveMin),
+  "receivedOn": zod.string().regex(createGrantReceiptResponseReceivedOnRegExp),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "recordedBy": zod.string().nullish(),
+  "recordedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List pitch-day and demo-day evaluations and grant decisions
  */
 export const ListPitchesQueryParams = zod.object({

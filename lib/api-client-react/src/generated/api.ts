@@ -51,6 +51,9 @@ import type {
   EntrepreneurApplicationInput,
   GetProgramAnalyticsParams,
   GoogleCalendarAuthorizationInput,
+  GrantAwardRecord,
+  GrantReceiptInput,
+  GrantReceiptRecord,
   HealthStatus,
   ImpactKpi,
   ImpactKpiInput,
@@ -6410,6 +6413,172 @@ export const useDeleteSupport = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteSupportMutationOptions(options));
+    }
+
+export const getListGrantAwardsUrl = () => {
+
+
+
+
+  return `/api/grants`
+}
+
+/**
+ * @summary List coordinator grant awards and receipt ledgers
+ */
+export const listGrantAwards = async ( options?: Parameters<typeof customFetch>[1]): Promise<GrantAwardRecord[]> => {
+
+  return customFetch<GrantAwardRecord[]>(getListGrantAwardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGrantAwardsQueryKey = () => {
+    return [
+    `/api/grants`
+    ] as const;
+    }
+
+
+export const getListGrantAwardsQueryOptions = <TData = Awaited<ReturnType<typeof listGrantAwards>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGrantAwards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGrantAwardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGrantAwards>>> = ({ signal }) => listGrantAwards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGrantAwards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGrantAwardsQueryResult = NonNullable<Awaited<ReturnType<typeof listGrantAwards>>>
+export type ListGrantAwardsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List coordinator grant awards and receipt ledgers
+ */
+
+export function useListGrantAwards<TData = Awaited<ReturnType<typeof listGrantAwards>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGrantAwards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGrantAwardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateGrantReceiptUrl = (pitchId: number,) => {
+
+
+
+
+  return `/api/grants/${pitchId}/receipts`
+}
+
+/**
+ * @summary Record a grant receipt or a correction reversal
+ */
+export const createGrantReceipt = async (pitchId: number,
+    grantReceiptInput: GrantReceiptInput, options?: Parameters<typeof customFetch>[1]): Promise<GrantReceiptRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<GrantReceiptRecord>(getCreateGrantReceiptUrl(pitchId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(grantReceiptInput)
+  }
+);}
+
+
+
+
+
+export const getCreateGrantReceiptMutationKey = () => ['createGrantReceipt'] as const;
+
+export const getCreateGrantReceiptMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGrantReceipt>>, TError,CreateGrantReceiptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGrantReceipt>>, TError,CreateGrantReceiptMutationVariables, TContext> => {
+
+const mutationKey = getCreateGrantReceiptMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGrantReceipt>>, CreateGrantReceiptMutationVariables> = (props) => {
+          const {pitchId,data} = props ?? {};
+
+          return  createGrantReceipt(pitchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGrantReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof createGrantReceipt>>>
+    export type CreateGrantReceiptMutationBody = BodyType<GrantReceiptInput>
+    export type CreateGrantReceiptMutationError = ErrorType<void>
+    export type CreateGrantReceiptMutationVariables = {pitchId: number;data: BodyType<GrantReceiptInput>}
+
+    /**
+ * @summary Record a grant receipt or a correction reversal
+ */
+export const useCreateGrantReceipt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGrantReceipt>>, TError,CreateGrantReceiptMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGrantReceipt>>,
+        TError,
+        CreateGrantReceiptMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateGrantReceiptMutationOptions(options));
     }
 
 export const getListPitchesUrl = (params?: ListPitchesParams,) => {

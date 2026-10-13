@@ -1605,6 +1605,83 @@ export interface PitchUpdate {
   feedback?: string | null;
 }
 
+export type GrantReceiptKind = typeof GrantReceiptKind[keyof typeof GrantReceiptKind];
+
+
+export const GrantReceiptKind = {
+  received: 'received',
+  reversal: 'reversal',
+} as const;
+
+export type GrantReceiptStatus = typeof GrantReceiptStatus[keyof typeof GrantReceiptStatus];
+
+
+export const GrantReceiptStatus = {
+  amount_needed: 'amount_needed',
+  not_received: 'not_received',
+  partially_received: 'partially_received',
+  received: 'received',
+  over_received: 'over_received',
+} as const;
+
+export interface GrantReceiptRecord {
+  id: number;
+  pitchId: number;
+  kind: GrantReceiptKind;
+  /** @exclusiveMinimum 0 */
+  amount: number;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  receivedOn: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  recordedBy?: string | null;
+  recordedAt: string;
+}
+
+export interface GrantReceiptInput {
+  kind: GrantReceiptKind;
+  /**
+     * @maximum 1000000000
+     * @exclusiveMinimum 0
+     */
+  amount: number;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  receivedOn: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  reference?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export interface GrantAwardRecord {
+  pitchId: number;
+  businessId: number;
+  businessName: string;
+  /** @nullable */
+  founderName: string | null;
+  /** @nullable */
+  programName: string | null;
+  eventType: PitchEventType;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  eventDate: string;
+  /** @nullable */
+  grantAmount: number | null;
+  totalReceived: number;
+  /** @nullable */
+  remainingAmount: number | null;
+  status: GrantReceiptStatus;
+  receipts: GrantReceiptRecord[];
+}
+
 export interface StageCount {
   stage: BusinessStage;
   count: number;

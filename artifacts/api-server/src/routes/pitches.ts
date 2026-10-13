@@ -16,8 +16,9 @@ import {
   UpdatePitchParams,
   UpdatePitchResponse,
 } from "@workspace/api-zod";
-import { db, pitchJudgesTable, pitchesTable, staffMembersTable } from "@workspace/db";
-import { requireCoordinator } from "../middlewares/staffAccess";
+import { db, grantReceiptsTable, pitchJudgesTable, pitchesTable, staffMembersTable } from "@workspace/db";
+import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
+import { cents, totalGrantReceived } from "../lib/grant-ledger";
 
 const router: IRouter = Router();
 
@@ -111,13 +112,23 @@ router.get("/pitches", async (req, res): Promise<void> => {
   const records = await db.select().from(pitchesTable)
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(pitchesTable.eventDate));
-  res.json(ListPitchesResponse.parse(records));
+  const staff = res.locals.staff as StaffAccess | undefined;
+  const visibleRecords = staff?.role === "coordinator"
+    ? records
+    : records.map((record) => ({ ...record, grantDecision: "pending", grantAmount: null }));
+  res.json(ListPitchesResponse.parse(visibleRecords));
 });
 
 router.post("/pitches", async (req, res): Promise<void> => {
   const parsed = CreatePitchBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess | undefined;
+  if (staff?.role !== "coordinator"
+    && (parsed.data.grantDecision !== undefined || parsed.data.grantAmount !== undefined)) {
+    res.status(403).json({ error: "Coordinator access is required to change grant awards." });
     return;
   }
   const [record] = await db.insert(pitchesTable).values(parsed.data).returning();
@@ -131,13 +142,45 @@ router.patch("/pitches/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
   }
-  const [record] = await db.update(pitchesTable).set(body.data)
-    .where(eq(pitchesTable.id, params.data.id)).returning();
-  if (!record) {
+  const staff = res.locals.staff as StaffAccess | undefined;
+  if (staff?.role !== "coordinator"
+    && (body.data.grantDecision !== undefined || body.data.grantAmount !== undefined)) {
+    res.status(403).json({ error: "Coordinator access is required to change grant awards." });
+    return;
+  }
+  const result = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(pitchesTable)
+      .where(eq(pitchesTable.id, params.data.id)).for("update").limit(1);
+    if (!current) return { kind: "not_found" as const };
+
+    const existingReceipts = await tx.select({
+      kind: grantReceiptsTable.kind,
+      amount: grantReceiptsTable.amount,
+    }).from(grantReceiptsTable)
+      .where(eq(grantReceiptsTable.pitchId, current.id));
+    if (existingReceipts.length > 0) {
+      const received = totalGrantReceived(existingReceipts);
+      const nextAwardAmount = body.data.grantAmount === undefined ? current.grantAmount : body.data.grantAmount;
+      if ((body.data.grantDecision !== undefined && body.data.grantDecision !== "awarded")
+        || (body.data.businessId !== undefined && body.data.businessId !== current.businessId)
+        || nextAwardAmount === null
+        || cents(nextAwardAmount) < cents(received)) {
+        return { kind: "ledger_conflict" as const };
+      }
+    }
+    const [record] = await tx.update(pitchesTable).set(body.data)
+      .where(eq(pitchesTable.id, current.id)).returning();
+    return record ? { kind: "updated" as const, record } : { kind: "not_found" as const };
+  });
+  if (result.kind === "not_found") {
     res.status(404).json({ error: "Pitch record not found" });
     return;
   }
-  res.json(UpdatePitchResponse.parse(record));
+  if (result.kind === "ledger_conflict") {
+    res.status(409).json({ error: "This award has receipts. Keep it awarded to the same business and do not lower its amount below funds received." });
+    return;
+  }
+  res.json(UpdatePitchResponse.parse(result.record));
 });
 
 router.delete("/pitches/:id", async (req, res): Promise<void> => {
@@ -146,9 +189,22 @@ router.delete("/pitches/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [record] = await db.delete(pitchesTable).where(eq(pitchesTable.id, params.data.id)).returning();
-  if (!record) {
+  const result = await db.transaction(async (tx) => {
+    const [current] = await tx.select({ id: pitchesTable.id }).from(pitchesTable)
+      .where(eq(pitchesTable.id, params.data.id)).for("update").limit(1);
+    if (!current) return { kind: "not_found" as const };
+    const [receipt] = await tx.select({ id: grantReceiptsTable.id }).from(grantReceiptsTable)
+      .where(eq(grantReceiptsTable.pitchId, current.id)).limit(1);
+    if (receipt) return { kind: "has_receipts" as const };
+    await tx.delete(pitchesTable).where(eq(pitchesTable.id, current.id));
+    return { kind: "deleted" as const };
+  });
+  if (result.kind === "not_found") {
     res.status(404).json({ error: "Pitch record not found" });
+    return;
+  }
+  if (result.kind === "has_receipts") {
+    res.status(409).json({ error: "This award has a receipt ledger. Preserve its funding history instead of deleting the award." });
     return;
   }
   res.sendStatus(204);

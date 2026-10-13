@@ -1474,6 +1474,48 @@ paths:
           description: Support engagement deleted
         "404":
           description: Support engagement not found
+  /grants:
+    get:
+      operationId: listGrantAwards
+      tags: [grants]
+      summary: List coordinator grant awards and receipt ledgers
+      responses:
+        "200":
+          description: Awarded grant records with their received-funds ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrantAwardRecord"
+  /grants/{pitchId}/receipts:
+    post:
+      operationId: createGrantReceipt
+      tags: [grants]
+      summary: Record a grant receipt or a correction reversal
+      parameters:
+        - name: pitchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantReceiptInput"
+      responses:
+        "201":
+          description: Receipt recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrantReceiptRecord"
+        "404":
+          description: Awarded grant not found
+        "409":
+          description: Receipt conflicts with the award or current ledger
   /pitches:
     get:
       operationId: listPitches
@@ -2627,6 +2669,53 @@ components:
         grantDecision: { $ref: "#/components/schemas/GrantDecision" }
         grantAmount: { type: ["number", "null"], minimum: 0 }
         feedback: { type: ["string", "null"] }
+    GrantReceiptKind:
+      type: string
+      enum: [received, reversal]
+    GrantReceiptStatus:
+      type: string
+      enum: [amount_needed, not_received, partially_received, received, over_received]
+    GrantReceiptRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        pitchId: { type: integer }
+        kind: { $ref: "#/components/schemas/GrantReceiptKind" }
+        amount: { type: number, exclusiveMinimum: 0 }
+        receivedOn: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        reference: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        recordedBy: { type: ["string", "null"] }
+        recordedAt: { type: string, format: date-time }
+      required: [id, pitchId, kind, amount, receivedOn, recordedAt]
+    GrantReceiptInput:
+      type: object
+      properties:
+        kind: { $ref: "#/components/schemas/GrantReceiptKind" }
+        amount: { type: number, exclusiveMinimum: 0, maximum: 1000000000 }
+        receivedOn: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        reference: { type: ["string", "null"], maxLength: 120 }
+        notes: { type: ["string", "null"], maxLength: 2000 }
+      required: [kind, amount, receivedOn]
+    GrantAwardRecord:
+      type: object
+      properties:
+        pitchId: { type: integer }
+        businessId: { type: integer }
+        businessName: { type: string }
+        founderName: { type: ["string", "null"] }
+        programName: { type: ["string", "null"] }
+        eventType: { $ref: "#/components/schemas/PitchEventType" }
+        eventDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        grantAmount: { type: ["number", "null"] }
+        totalReceived: { type: number }
+        remainingAmount: { type: ["number", "null"] }
+        status: { $ref: "#/components/schemas/GrantReceiptStatus" }
+        receipts:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrantReceiptRecord"
+      required: [pitchId, businessId, businessName, founderName, programName, eventType, eventDate, grantAmount, totalReceived, remainingAmount, status, receipts]
     Dashboard:
       type: object
       properties:

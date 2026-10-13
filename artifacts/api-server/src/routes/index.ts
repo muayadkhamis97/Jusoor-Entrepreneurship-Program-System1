@@ -9,6 +9,7 @@ import staffRouter from "./staff";
 import applicationsRouter from "./applications";
 import communicationsRouter from "./communications";
 import analyticsRouter from "./analytics";
+import grantsRouter from "./grants";
 import { requireOperationsStaff } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
@@ -24,5 +25,6 @@ router.use(businessesRouter);
 router.use(sessionsRouter);
 router.use(supportRouter);
 router.use(pitchesRouter);
+router.use(grantsRouter);
 
 export default router;

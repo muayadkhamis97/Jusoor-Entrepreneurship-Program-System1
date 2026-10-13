@@ -35,3 +35,4 @@ export * from "./announcements";
 export * from "./calendly-meetings";
 export * from "./zoom-recording-alerts";
 export * from "./zoom-attendance";
+export * from "./grant-receipts";

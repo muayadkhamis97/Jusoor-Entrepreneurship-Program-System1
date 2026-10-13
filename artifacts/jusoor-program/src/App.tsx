@@ -30,7 +30,7 @@ import type {
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
-  Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness,
+  Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign,
   CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
   FileText, Filter, Handshake, LayoutDashboard, MapPin,
   Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X,
@@ -44,6 +44,7 @@ import { SessionCalendar } from './session-calendar';
 import { CommunicationsPage } from './communications-surfaces';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { ProgramAnalyticsPage } from './analytics-surfaces';
+import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
@@ -134,6 +135,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     ...(staff.role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
     { href: '/support', label: 'Support', icon: Handshake },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
+    ...(staff.role === 'coordinator' ? [{ href: '/grants', label: 'Grant tracking', icon: CircleDollarSign }] : []),
     ...(staff.role === 'coordinator' ? [{ href: '/courses', label: 'Learning', icon: BookOpen }, { href: '/applications', label: 'Applications', icon: FileText }, { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck }, { href: '/team', label: 'Team access', icon: Shield }, { href: '/access', label: 'Role access', icon: Shield }] : []),
   ];
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
@@ -267,14 +269,16 @@ const supportFields = (businesses: Business[], mentors: StaffMember[] = [], incl
   { name: 'scheduledDate', label: 'Scheduled date', kind: 'date' },
   { name: 'notes', label: 'Engagement notes', kind: 'textarea', wide: true },
 ];
-const pitchFields = (businesses: Business[]): Field[] => [
+const pitchFields = (businesses: Business[], coordinator: boolean): Field[] => [
   { name: 'businessId', label: 'Business', kind: 'select', required: true, options: businesses.map(b => ({ value: String(b.id), label: b.businessName })) },
   { name: 'eventType', label: 'Event', kind: 'select', required: true, options: [{ value: 'pitch_day', label: 'Pitch day' }, { value: 'demo_day', label: 'Demo day' }] },
   { name: 'eventDate', label: 'Event date', kind: 'date', required: true },
   { name: 'score', label: 'Score (0–100)', kind: 'number' },
   { name: 'judges', label: 'Judges', wide: true, placeholder: 'Names separated by commas' },
-  { name: 'grantDecision', label: 'Grant decision', kind: 'select', options: ['pending', 'awarded', 'not_awarded'].map(v => ({ value: v, label: display(v) })) },
-  { name: 'grantAmount', label: 'Grant amount (USD)', kind: 'number' },
+  ...(coordinator ? [
+    { name: 'grantDecision', label: 'Grant decision', kind: 'select' as const, options: ['pending', 'awarded', 'not_awarded'].map(v => ({ value: v, label: display(v) })) },
+    { name: 'grantAmount', label: 'Grant amount (USD)', kind: 'number' as const },
+  ] : []),
   { name: 'feedback', label: 'Evaluation feedback', kind: 'textarea', wide: true },
 ];
 const staffRoleOptions = [
@@ -582,7 +586,7 @@ function PitchesPage({ coordinator = false }: { coordinator?: boolean }) {
   const judges = coordinator ? (staffQuery.data || []).filter(person => person.role === 'judge' && person.status === 'active') : [];
   const create = useCreatePitch(); const update = useUpdatePitch(); const remove = useDeletePitch();
   const save = (v: Values) => {
-    const data: PitchInput = { businessId: Number(v.businessId), eventType: (v.eventType || 'pitch_day') as PitchInput['eventType'], eventDate: v.eventDate, judges: v.judges || null, score: v.score === '' ? null : Number(v.score), grantDecision: (v.grantDecision || 'pending') as PitchInput['grantDecision'], grantAmount: v.grantAmount === '' ? null : Number(v.grantAmount), feedback: v.feedback || null };
+    const data: PitchInput = { businessId: Number(v.businessId), eventType: (v.eventType || 'pitch_day') as PitchInput['eventType'], eventDate: v.eventDate, judges: v.judges || null, score: v.score === '' ? null : Number(v.score), ...(coordinator ? { grantDecision: (v.grantDecision || 'pending') as PitchInput['grantDecision'], grantAmount: v.grantAmount === '' ? null : Number(v.grantAmount) } : {}), feedback: v.feedback || null };
     const done = () => { invalidate(client, [getListPitchesQueryKey(), getGetDashboardQueryKey()]); setEditing(undefined); };
     if (editing) update.mutate({ id: editing.id, data: data as PitchUpdate }, { onSuccess: done }); else create.mutate({ data }, { onSuccess: done });
   };
@@ -592,14 +596,14 @@ function PitchesPage({ coordinator = false }: { coordinator?: boolean }) {
   return <>
     <PageHeading kicker="PITCH DAY / DECISIONS" title="Pitch & grants" summary="Keep evaluations, judge feedback and funding decisions connected." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-pitch"><Plus size={16} /> Add evaluation</button>} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Judge assignments are temporarily unavailable.</b><span>Retry team access records before assigning scorecards.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-judges">Retry</button></div>}
-    <section className="grant-summary"><div className="grant-emblem"><Trophy size={21} /></div><div className="grant-copy"><div className="eyebrow">FROM THE STAGE TO THE NEXT CHAPTER</div><b>Make each decision legible and grounded.</b><span>Scores, feedback and grant outcomes stay with the founder record.</span></div><div className="grant-stat"><b>{awarded.length}</b><span>GRANTS AWARDED</span></div><div className="grant-stat grant-amount"><b>{money(awardedTotal)}</b><span>TRACKED HERE</span></div></section>
+     {coordinator && <section className="grant-summary"><div className="grant-emblem"><Trophy size={21} /></div><div className="grant-copy"><div className="eyebrow">FROM THE STAGE TO THE NEXT CHAPTER</div><b>Make each decision legible and grounded.</b><span>Scores, feedback and grant outcomes stay with the founder record.</span></div><div className="grant-stat"><b>{awarded.length}</b><span>GRANTS AWARDED</span></div><div className="grant-stat grant-amount"><b>{money(awardedTotal)}</b><span>TRACKED HERE</span></div></section>}
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={eventType} aria-label="Filter pitch evaluations by event" onChange={e => setEventType(e.target.value)} data-testid="select-pitch-event"><option value="">Pitch + demo day</option><option value="pitch_day">Pitch day</option><option value="demo_day">Demo day</option></select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{pitches.length}</b> evaluations</div></div>
     {query.isLoading || businessQuery.isLoading ? <LoadingState /> : query.isError || businessQuery.isError ? <ErrorState retry={() => { void query.refetch(); void businessQuery.refetch(); }} /> : pitches.length === 0 ? <EmptyState title="The stage is set for your first evaluation." body="Record a pitch or demo day score, capture judge notes and track the grant decision." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Add an evaluation</button>} /> :
-    <section className="panel pitch-panel"><div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>EVENT</th><th>JUDGES</th><th>SCORE</th><th>GRANT DECISION</th><th>AMOUNT</th><th className="align-right">ACTIONS</th></tr></thead><tbody>{pitches.map(pitch => { const business = businesses.find(b => b.id === pitch.businessId); return <tr key={pitch.id} data-testid={`row-pitch-${pitch.id}`}><td><div className="company-cell"><span className="company-monogram monogram-coral">{business?.businessName?.slice(0, 1).toUpperCase() || 'B'}</span><span><b>{business?.businessName || `Business ${pitch.businessId}`}</b><small>{dateLabel(pitch.eventDate)}</small></span></div></td><td><span className="event-chip">{display(pitch.eventType)}</span></td><td><div className="judge-text">{pitch.judges || '—'}</div></td><td><span className="score-value">{pitch.score ?? '—'}{pitch.score !== null && pitch.score !== undefined && <small>/100</small>}</span></td><td><Badge value={pitch.grantDecision} /></td><td className="grant-value">{pitch.grantDecision === 'awarded' ? money(pitch.grantAmount) : '—'}</td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(pitch)} aria-label={`Edit ${business?.businessName || 'pitch evaluation'}`} data-testid={`button-edit-pitch-${pitch.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(pitch)} aria-label="Delete pitch evaluation" data-testid={`button-delete-pitch-${pitch.id}`}><Trash2 size={15} /></button></div></td></tr>; })}</tbody></table></div>
+     <section className="panel pitch-panel"><div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>EVENT</th><th>JUDGES</th><th>SCORE</th>{coordinator && <><th>GRANT DECISION</th><th>AMOUNT</th></>}<th className="align-right">ACTIONS</th></tr></thead><tbody>{pitches.map(pitch => { const business = businesses.find(b => b.id === pitch.businessId); return <tr key={pitch.id} data-testid={`row-pitch-${pitch.id}`}><td><div className="company-cell"><span className="company-monogram monogram-coral">{business?.businessName?.slice(0, 1).toUpperCase() || 'B'}</span><span><b>{business?.businessName || `Business ${pitch.businessId}`}</b><small>{dateLabel(pitch.eventDate)}</small></span></div></td><td><span className="event-chip">{display(pitch.eventType)}</span></td><td><div className="judge-text">{pitch.judges || '—'}</div></td><td><span className="score-value">{pitch.score ?? '—'}{pitch.score !== null && pitch.score !== undefined && <small>/100</small>}</span></td>{coordinator && <><td><Badge value={pitch.grantDecision} /></td><td className="grant-value">{pitch.grantDecision === 'awarded' ? money(pitch.grantAmount) : '—'}</td></>}<td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(pitch)} aria-label={`Edit ${business?.businessName || 'pitch evaluation'}`} data-testid={`button-edit-pitch-${pitch.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(pitch)} aria-label="Delete pitch evaluation" data-testid={`button-delete-pitch-${pitch.id}`}><Trash2 size={15} /></button></div></td></tr>; })}</tbody></table></div>
       {coordinator && pitches.length > 0 && <div className="pitch-judge-controls"><div className="eyebrow">INDIVIDUAL JUDGE ASSIGNMENTS</div>{pitches.map(pitch => <PitchJudgeControl key={pitch.id} pitchId={pitch.id} pitchLabel={`${businesses.find(b => b.id === pitch.businessId)?.businessName || `Business ${pitch.businessId}`} · ${display(pitch.eventType)}`} judges={judges} client={client} />)}</div>}
       <div className="pitch-feedback">{pitches.filter(p => p.feedback).slice(0, 2).map(p => <div className="feedback-note" key={p.id}><span className="quote-mark">“</span><div><b>{businesses.find(b => b.id === p.businessId)?.businessName || `Business ${p.businessId}`}</b><p>{p.feedback}</p></div></div>)}</div>
     </section>}
-    {editing !== undefined && <FormDialog title={editing ? 'Edit evaluation' : 'Record an evaluation'} description="Capture the room's view and the decision that follows." fields={pitchFields(businesses)} initial={editing ? { businessId: String(editing.businessId), eventType: editing.eventType, eventDate: valueOf(editing.eventDate), judges: editing.judges || '', score: valueOf(editing.score), grantDecision: editing.grantDecision, grantAmount: valueOf(editing.grantAmount), feedback: editing.feedback || '' } : { eventType: 'pitch_day', grantDecision: 'pending', ...(businesses[0] ? { businessId: String(businesses[0].id) } : {}) }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this evaluation. Check the required fields.' : undefined} />}
+    {editing !== undefined && <FormDialog title={editing ? 'Edit evaluation' : 'Record an evaluation'} description="Capture the room's view and the decision that follows." fields={pitchFields(businesses, coordinator)} initial={editing ? { businessId: String(editing.businessId), eventType: editing.eventType, eventDate: valueOf(editing.eventDate), judges: editing.judges || '', score: valueOf(editing.score), ...(coordinator ? { grantDecision: editing.grantDecision, grantAmount: valueOf(editing.grantAmount) } : {}), feedback: editing.feedback || '' } : { eventType: 'pitch_day', ...(coordinator ? { grantDecision: 'pending' } : {}), ...(businesses[0] ? { businessId: String(businesses[0].id) } : {}) }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this evaluation. Check the required fields.' : undefined} />}
     {deleting && <ConfirmDialog item={`${display(deleting.eventType)} evaluation`} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}
   </>;
 }
@@ -785,6 +789,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />
     <Route path="/support">{() => <SupportPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={staff.role === 'coordinator'} />}</Route>
+    <Route path="/grants" component={staff.role === 'coordinator' ? GrantManagementPage : NotFoundPage} />
     <Route path="/applications" component={staff.role === 'coordinator' ? ApplicationsReviewPage : NotFoundPage} />
     <Route path="/mentor-booking" component={staff.role === 'coordinator' ? MentorBookingStatusPage : NotFoundPage} />
     <Route path="/team" component={staff.role === 'coordinator' ? TeamPage : NotFoundPage} />
@@ -849,7 +854,7 @@ function AuthenticatedWorkspace() {
     if (staff.role === 'mentor' || staff.role === 'judge') return path === roleHome(staff.role);
     if (path === '/trainer' || path === '/mentor' || path === '/judge' || path === '/participant') return false;
     if (staff.role !== 'coordinator' && (path === '/applications' || path === '/mentor-booking' || path === '/team' || path === '/access')) return false;
-    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/communications', '/courses', '/applications', '/mentor-booking', '/team', '/access'] : [])].includes(path);
+    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/communications', '/courses', '/applications', '/mentor-booking', '/team', '/access', '/grants'] : [])].includes(path);
   };
   const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {
