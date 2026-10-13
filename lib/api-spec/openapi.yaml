@@ -110,6 +110,47 @@ paths:
                 $ref: "#/components/schemas/ProgramSessionInteractionAnalytics"
         "403":
           description: Coordinator access required
+  /analytics/learning-progress:
+    get:
+      operationId: getLearningProgressAnalytics
+      tags: [dashboard]
+      summary: Get coordinator-only participant course progress and learning analytics
+      parameters:
+        - name: programId
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Completion, active time, quiz performance, and certificate status by participant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningProgressAnalytics"
+        "403":
+          description: Coordinator access required
+  /analytics/learning-progress/applications/{id}/certificate:
+    post:
+      operationId: issueCourseCertificate
+      tags: [dashboard]
+      summary: Coordinator approves and issues a certificate for a participant who completed all required modules
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201":
+          description: Certificate issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseCertificate"
+        "400":
+          description: Participant has not completed all required modules
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Accepted participant application not found
+        "409":
+          description: A certificate has already been issued for this application
   /analytics/attendance/{sessionId}:
     get:
       operationId: getSessionAttendanceRegister
@@ -852,6 +893,66 @@ paths:
           description: Participant is not enrolled or the material is restricted
         "404":
           description: Released package not found
+  /participant/courses/progress:
+    get:
+      operationId: getParticipantLearningProgress
+      tags: [courses]
+      summary: Get the signed-in participant's course progress, time, quiz results, and certificates
+      responses:
+        "200":
+          description: Progress scoped to the participant's accepted applications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantLearningProgress"
+        "403":
+          description: Participant access required
+  /participant/courses/modules/{id}/progress:
+    post:
+      operationId: recordParticipantModuleProgress
+      tags: [courses]
+      summary: Record module completion or a bounded active-time heartbeat for the signed-in participant
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseProgressInput"
+      responses:
+        "200":
+          description: Updated participant module progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseModuleProgress"
+        "403":
+          description: Participant is not enrolled in the released module
+        "404":
+          description: Released course module not found
+  /participant/courses/programs/{id}/activity:
+    post:
+      operationId: recordParticipantCourseActivity
+      tags: [courses]
+      summary: Record a bounded active-time interval for the signed-in participant's accepted program
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseActivityInput"
+      responses:
+        "200":
+          description: Updated course activity total
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseActivityResult"
+        "403":
+          description: Participant is not accepted into this program
   /participant/courses/materials/{id}/package/{filePath}:
     get:
       operationId: getParticipantCoursePackageFile
@@ -2484,6 +2585,8 @@ components:
         description: { type: ["string", "null"], maxLength: 3000 }
         position: { type: integer, minimum: 0, default: 0 }
         releaseAt: { type: ["string", "null"], format: date-time }
+        dueAt: { type: ["string", "null"], format: date-time }
+        isRequired: { type: boolean, default: true }
         isPublished: { type: boolean, default: false }
       required: [programId, title]
     CourseModuleUpdate:
@@ -2494,6 +2597,8 @@ components:
         description: { type: ["string", "null"], maxLength: 3000 }
         position: { type: integer, minimum: 0 }
         releaseAt: { type: ["string", "null"], format: date-time }
+        dueAt: { type: ["string", "null"], format: date-time }
+        isRequired: { type: boolean }
         isPublished: { type: boolean }
     CourseMaterialInput:
       type: object
@@ -2562,11 +2667,147 @@ components:
         description: { type: ["string", "null"] }
         position: { type: integer }
         releaseAt: { type: ["string", "null"], format: date-time }
+        dueAt: { type: ["string", "null"], format: date-time }
+        isRequired: { type: boolean }
         isPublished: { type: boolean }
         materials:
           type: array
           items: { $ref: "#/components/schemas/CourseMaterial" }
-      required: [id, programId, title, description, position, releaseAt, isPublished, materials]
+      required: [id, programId, title, description, position, releaseAt, dueAt, isRequired, isPublished, materials]
+    CourseModuleProgress:
+      type: object
+      properties:
+        moduleId: { type: integer }
+        completedAt: { type: ["string", "null"], format: date-time }
+        lastActivityAt: { type: ["string", "null"], format: date-time }
+      required: [moduleId, completedAt, lastActivityAt]
+    CourseProgressInput:
+      type: object
+      properties:
+        completed: { type: boolean }
+      required: [completed]
+    CourseActivityInput:
+      type: object
+      properties:
+        activeSeconds: { type: integer, minimum: 1, maximum: 120 }
+      required: [activeSeconds]
+    CourseActivityResult:
+      type: object
+      properties:
+        programId: { type: integer }
+        activeSeconds: { type: integer, minimum: 0 }
+        lastActivityAt: { type: ["string", "null"], format: date-time }
+      required: [programId, activeSeconds, lastActivityAt]
+    CourseProgressModule:
+      type: object
+      properties:
+        moduleId: { type: integer }
+        title: { type: string }
+        isRequired: { type: boolean }
+        dueAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        completionStatus: { type: string, enum: [not_started, in_progress, completed] }
+        packages:
+          type: array
+          items: { $ref: "#/components/schemas/CourseProgressPackage" }
+      required: [moduleId, title, isRequired, dueAt, completedAt, completionStatus, packages]
+    CourseProgressPackage:
+      type: object
+      properties:
+        materialId: { type: integer }
+        title: { type: string }
+        format: { $ref: "#/components/schemas/CoursePackageFormat" }
+        completionStatus: { type: string }
+        successStatus: { type: string }
+        scoreScaled: { type: ["number", "null"] }
+        updatedAt: { type: ["string", "null"], format: date-time }
+      required: [materialId, title, format, completionStatus, successStatus, scoreScaled, updatedAt]
+    CourseProgressQuiz:
+      type: object
+      properties:
+        quizId: { type: integer }
+        title: { type: string }
+        attempts: { type: integer, minimum: 0 }
+        bestScore: { type: ["number", "null"], minimum: 0 }
+        totalQuestions: { type: integer, minimum: 0 }
+        latestSubmittedAt: { type: ["string", "null"], format: date-time }
+      required: [quizId, title, attempts, bestScore, totalQuestions, latestSubmittedAt]
+    CourseCertificate:
+      type: object
+      properties:
+        id: { type: integer }
+        applicationId: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        participantName: { type: string }
+        businessName: { type: string }
+        certificateCode: { type: string }
+        issuedAt: { type: string, format: date-time }
+        issuedByName: { type: string }
+      required: [id, applicationId, programId, programName, participantName, businessName, certificateCode, issuedAt, issuedByName]
+    ParticipantLearningProgram:
+      type: object
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        completedRequiredModules: { type: integer, minimum: 0 }
+        totalRequiredModules: { type: integer, minimum: 0 }
+        completionPercent: { type: number, minimum: 0, maximum: 100 }
+        activeSeconds: { type: integer, minimum: 0 }
+        lastActivityAt: { type: ["string", "null"], format: date-time }
+        modules:
+          type: array
+          items: { $ref: "#/components/schemas/CourseProgressModule" }
+        quizzes:
+          type: array
+          items: { $ref: "#/components/schemas/CourseProgressQuiz" }
+        certificate:
+          oneOf:
+            - { $ref: "#/components/schemas/CourseCertificate" }
+            - { type: "null" }
+      required: [programId, programName, completedRequiredModules, totalRequiredModules, completionPercent, activeSeconds, lastActivityAt, modules, quizzes, certificate]
+    ParticipantLearningProgress:
+      type: object
+      properties:
+        programs:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantLearningProgram" }
+      required: [programs]
+    LearningProgressParticipant:
+      allOf:
+        - { $ref: "#/components/schemas/ParticipantLearningProgram" }
+        - type: object
+          properties:
+            applicationId: { type: integer }
+            founderName: { type: string }
+            businessName: { type: string }
+            email: { type: string, format: email }
+          required: [applicationId, founderName, businessName, email]
+    LearningProgressProgram:
+      type: object
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        participantCount: { type: integer, minimum: 0 }
+        completedParticipants: { type: integer, minimum: 0 }
+        averageCompletionPercent: { type: number, minimum: 0, maximum: 100 }
+        averageActiveSeconds: { type: integer, minimum: 0 }
+        averageQuizPercent:
+          type: ["number", "null"]
+          minimum: 0
+          maximum: 100
+        certificatesIssued: { type: integer, minimum: 0 }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/LearningProgressParticipant" }
+      required: [programId, programName, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, certificatesIssued, participants]
+    LearningProgressAnalytics:
+      type: object
+      properties:
+        programs:
+          type: array
+          items: { $ref: "#/components/schemas/LearningProgressProgram" }
+      required: [programs]
     CourseProgram:
       type: object
       properties:
@@ -2700,10 +2941,12 @@ components:
         description: { type: ["string", "null"] }
         position: { type: integer }
         releaseAt: { type: ["string", "null"], format: date-time }
+        dueAt: { type: ["string", "null"], format: date-time }
+        isRequired: { type: boolean }
         materials:
           type: array
           items: { $ref: "#/components/schemas/ParticipantCourseMaterial" }
-      required: [id, title, description, position, releaseAt, materials]
+      required: [id, title, description, position, releaseAt, dueAt, isRequired, materials]
     ParticipantCourseProgram:
       type: object
       properties:

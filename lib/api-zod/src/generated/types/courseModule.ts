@@ -16,6 +16,9 @@ export interface CourseModule {
   position: number;
   /** @nullable */
   releaseAt: Date | null;
+  /** @nullable */
+  dueAt: Date | null;
+  isRequired: boolean;
   isPublished: boolean;
   materials: CourseMaterial[];
 }

@@ -20,9 +20,12 @@ export function canViewCourseMaterialFile(role: StaffAccess["role"]): boolean {
 
 export function isScheduleOnlyModuleUpdate(update: Record<string, unknown>): boolean {
   const keys = Object.keys(update);
-  return keys.length === 1 &&
-    keys[0] === "releaseAt" &&
-    (typeof update.releaseAt === "string" || update.releaseAt instanceof Date);
+  return keys.length > 0 &&
+    keys.every((key) => key === "releaseAt" || key === "dueAt") &&
+    keys.every((key) => {
+      const value = update[key];
+      return value === null || typeof value === "string" || value instanceof Date;
+    });
 }
 
 export function canAccessCourseMaterial(

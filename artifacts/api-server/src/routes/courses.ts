@@ -142,6 +142,8 @@ router.get("/management", async (req, res): Promise<void> => {
     moduleDescription: courseModulesTable.description,
     modulePosition: courseModulesTable.position,
     moduleReleaseAt: courseModulesTable.releaseAt,
+    moduleDueAt: courseModulesTable.dueAt,
+    moduleIsRequired: courseModulesTable.isRequired,
     moduleIsPublished: courseModulesTable.isPublished,
     material: courseMaterialsTable,
   })
@@ -161,6 +163,8 @@ router.get("/management", async (req, res): Promise<void> => {
       description: string | null;
       position: number;
       releaseAt: string | null;
+      dueAt: string | null;
+      isRequired: boolean;
       isPublished: boolean;
       materials: ReturnType<typeof mapMaterial>[];
     }>;
@@ -191,6 +195,8 @@ router.get("/management", async (req, res): Promise<void> => {
         description: staff.role === "staff" ? null : row.moduleDescription,
         position: row.modulePosition,
         releaseAt: row.moduleReleaseAt?.toISOString() ?? null,
+        dueAt: row.moduleDueAt?.toISOString() ?? null,
+        isRequired: row.moduleIsRequired ?? true,
         isPublished: row.moduleIsPublished ?? false,
         materials: [],
       };
@@ -235,12 +241,15 @@ router.post("/modules", async (req, res): Promise<void> => {
     description: body.data.description ?? null,
     position: body.data.position,
     releaseAt: body.data.releaseAt ? new Date(body.data.releaseAt) : null,
+    dueAt: body.data.dueAt ? new Date(body.data.dueAt) : null,
+    isRequired: body.data.isRequired,
     isPublished: body.data.isPublished,
     createdByStaffId: staff.id,
   }).returning();
   res.status(201).json(CreateCourseModuleResponse.parse({
     ...module,
     releaseAt: module.releaseAt?.toISOString() ?? null,
+    dueAt: module.dueAt?.toISOString() ?? null,
     materials: [],
   }));
 });
@@ -275,6 +284,8 @@ router.patch("/modules/:id", async (req, res): Promise<void> => {
   if (body.data.description !== undefined) values.description = body.data.description ?? null;
   if (body.data.position !== undefined) values.position = body.data.position;
   if (body.data.releaseAt !== undefined) values.releaseAt = body.data.releaseAt ? new Date(body.data.releaseAt) : null;
+  if (body.data.dueAt !== undefined) values.dueAt = body.data.dueAt ? new Date(body.data.dueAt) : null;
+  if (body.data.isRequired !== undefined) values.isRequired = body.data.isRequired;
   if (body.data.isPublished !== undefined) values.isPublished = body.data.isPublished;
   const [module] = await db.update(courseModulesTable).set(values)
     .where(eq(courseModulesTable.id, existing.id)).returning();
@@ -285,6 +296,7 @@ router.patch("/modules/:id", async (req, res): Promise<void> => {
     ...module,
     description: staff.role === "staff" ? null : module.description,
     releaseAt: module.releaseAt?.toISOString() ?? null,
+    dueAt: module.dueAt?.toISOString() ?? null,
     materials: staff.role === "staff" ? [] : materials.map(mapMaterial),
   }));
 });

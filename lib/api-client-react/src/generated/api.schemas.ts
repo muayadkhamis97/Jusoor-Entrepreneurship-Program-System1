@@ -183,6 +183,9 @@ export interface CourseModuleInput {
   position?: number;
   /** @nullable */
   releaseAt?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  isRequired?: boolean;
   isPublished?: boolean;
 }
 
@@ -201,6 +204,9 @@ export interface CourseModuleUpdate {
   position?: number;
   /** @nullable */
   releaseAt?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  isRequired?: boolean;
   isPublished?: boolean;
 }
 
@@ -326,8 +332,161 @@ export interface CourseModule {
   position: number;
   /** @nullable */
   releaseAt: string | null;
+  /** @nullable */
+  dueAt: string | null;
+  isRequired: boolean;
   isPublished: boolean;
   materials: CourseMaterial[];
+}
+
+export interface CourseModuleProgress {
+  moduleId: number;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  lastActivityAt: string | null;
+}
+
+export interface CourseProgressInput {
+  completed: boolean;
+}
+
+export interface CourseActivityInput {
+  /**
+     * @minimum 1
+     * @maximum 120
+     */
+  activeSeconds: number;
+}
+
+export interface CourseActivityResult {
+  programId: number;
+  /** @minimum 0 */
+  activeSeconds: number;
+  /** @nullable */
+  lastActivityAt: string | null;
+}
+
+export type CourseProgressModuleCompletionStatus = typeof CourseProgressModuleCompletionStatus[keyof typeof CourseProgressModuleCompletionStatus];
+
+
+export const CourseProgressModuleCompletionStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  completed: 'completed',
+} as const;
+
+export interface CourseProgressPackage {
+  materialId: number;
+  title: string;
+  format: CoursePackageFormat;
+  completionStatus: string;
+  successStatus: string;
+  /** @nullable */
+  scoreScaled: number | null;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface CourseProgressModule {
+  moduleId: number;
+  title: string;
+  isRequired: boolean;
+  /** @nullable */
+  dueAt: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  completionStatus: CourseProgressModuleCompletionStatus;
+  packages: CourseProgressPackage[];
+}
+
+export interface CourseProgressQuiz {
+  quizId: number;
+  title: string;
+  /** @minimum 0 */
+  attempts: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  bestScore: number | null;
+  /** @minimum 0 */
+  totalQuestions: number;
+  /** @nullable */
+  latestSubmittedAt: string | null;
+}
+
+export interface CourseCertificate {
+  id: number;
+  applicationId: number;
+  programId: number;
+  programName: string;
+  participantName: string;
+  businessName: string;
+  certificateCode: string;
+  issuedAt: string;
+  issuedByName: string;
+}
+
+export interface ParticipantLearningProgram {
+  programId: number;
+  programName: string;
+  /** @minimum 0 */
+  completedRequiredModules: number;
+  /** @minimum 0 */
+  totalRequiredModules: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  completionPercent: number;
+  /** @minimum 0 */
+  activeSeconds: number;
+  /** @nullable */
+  lastActivityAt: string | null;
+  modules: CourseProgressModule[];
+  quizzes: CourseProgressQuiz[];
+  certificate: CourseCertificate | null;
+}
+
+export interface ParticipantLearningProgress {
+  programs: ParticipantLearningProgram[];
+}
+
+export type LearningProgressParticipant = ParticipantLearningProgram & {
+  applicationId: number;
+  founderName: string;
+  businessName: string;
+  email: string;
+};
+
+export interface LearningProgressProgram {
+  programId: number;
+  programName: string;
+  /** @minimum 0 */
+  participantCount: number;
+  /** @minimum 0 */
+  completedParticipants: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  averageCompletionPercent: number;
+  /** @minimum 0 */
+  averageActiveSeconds: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  averageQuizPercent: number | null;
+  /** @minimum 0 */
+  certificatesIssued: number;
+  participants: LearningProgressParticipant[];
+}
+
+export interface LearningProgressAnalytics {
+  programs: LearningProgressProgram[];
 }
 
 export interface CourseProgram {
@@ -491,6 +650,9 @@ export interface ParticipantCourseModule {
   position: number;
   /** @nullable */
   releaseAt: string | null;
+  /** @nullable */
+  dueAt: string | null;
+  isRequired: boolean;
   materials: ParticipantCourseMaterial[];
 }
 
@@ -2480,6 +2642,10 @@ from?: string;
  * @pattern ^\d{4}-\d{2}-\d{2}$
  */
 to?: string;
+};
+
+export type GetLearningProgressAnalyticsParams = {
+programId?: number;
 };
 
 export type ListProgramImpactKpisParams = {

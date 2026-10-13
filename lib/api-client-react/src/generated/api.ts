@@ -37,6 +37,9 @@ import type {
   CompleteCalendlyConnectionParams,
   CompleteGoogleCalendarConnectionParams,
   CompleteZoomConnectionParams,
+  CourseActivityInput,
+  CourseActivityResult,
+  CourseCertificate,
   CourseDiscussion,
   CourseDiscussionPost,
   CourseDiscussionPostInput,
@@ -46,8 +49,10 @@ import type {
   CourseMaterialUpdate,
   CourseModule,
   CourseModuleInput,
+  CourseModuleProgress,
   CourseModuleUpdate,
   CoursePackageLaunch,
+  CourseProgressInput,
   CourseQuiz,
   CourseQuizAttempt,
   CourseQuizAttemptReview,
@@ -62,6 +67,7 @@ import type {
   DeleteXapiActivityStateParams,
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
+  GetLearningProgressAnalyticsParams,
   GetProgramAnalyticsParams,
   GetProgramSessionInteractionAnalyticsParams,
   GetXapiActivityState200,
@@ -79,6 +85,7 @@ import type {
   JudgeDashboard,
   JudgePitch,
   JudgeScorecardInput,
+  LearningProgressAnalytics,
   ListBusinessesParams,
   ListPitchesParams,
   ListProgramImpactKpisParams,
@@ -94,6 +101,7 @@ import type {
   ParticipantCourseQuizResponse,
   ParticipantCourses,
   ParticipantDashboard,
+  ParticipantLearningProgress,
   ParticipantQuestion,
   ParticipantSessionInteractiveActivitiesResponse,
   ParticipantSessionInteractiveActivity,
@@ -498,6 +506,164 @@ export function useGetProgramSessionInteractionAnalytics<TData = Awaited<ReturnT
 
 
 
+
+export const getGetLearningProgressAnalyticsUrl = (params?: GetLearningProgressAnalyticsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/learning-progress?${stringifiedParams}` : `/api/analytics/learning-progress`
+}
+
+/**
+ * @summary Get coordinator-only participant course progress and learning analytics
+ */
+export const getLearningProgressAnalytics = async (params?: GetLearningProgressAnalyticsParams, options?: Parameters<typeof customFetch>[1]): Promise<LearningProgressAnalytics> => {
+
+  return customFetch<LearningProgressAnalytics>(getGetLearningProgressAnalyticsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLearningProgressAnalyticsQueryKey = (params?: GetLearningProgressAnalyticsParams,) => {
+    return [
+    `/api/analytics/learning-progress`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLearningProgressAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getLearningProgressAnalytics>>, TError = ErrorType<void>>(params?: GetLearningProgressAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLearningProgressAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLearningProgressAnalyticsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLearningProgressAnalytics>>> = ({ signal }) => getLearningProgressAnalytics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLearningProgressAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLearningProgressAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getLearningProgressAnalytics>>>
+export type GetLearningProgressAnalyticsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get coordinator-only participant course progress and learning analytics
+ */
+
+export function useGetLearningProgressAnalytics<TData = Awaited<ReturnType<typeof getLearningProgressAnalytics>>, TError = ErrorType<void>>(
+ params?: GetLearningProgressAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLearningProgressAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLearningProgressAnalyticsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getIssueCourseCertificateUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/learning-progress/applications/${id}/certificate`
+}
+
+/**
+ * @summary Coordinator approves and issues a certificate for a participant who completed all required modules
+ */
+export const issueCourseCertificate = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CourseCertificate> => {
+
+  return customFetch<CourseCertificate>(getIssueCourseCertificateUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getIssueCourseCertificateMutationKey = () => ['issueCourseCertificate'] as const;
+
+export const getIssueCourseCertificateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueCourseCertificate>>, TError,IssueCourseCertificateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueCourseCertificate>>, TError,IssueCourseCertificateMutationVariables, TContext> => {
+
+const mutationKey = getIssueCourseCertificateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueCourseCertificate>>, IssueCourseCertificateMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  issueCourseCertificate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueCourseCertificateMutationResult = NonNullable<Awaited<ReturnType<typeof issueCourseCertificate>>>
+
+    export type IssueCourseCertificateMutationError = ErrorType<void>
+    export type IssueCourseCertificateMutationVariables = {id: number}
+
+    /**
+ * @summary Coordinator approves and issues a certificate for a participant who completed all required modules
+ */
+export const useIssueCourseCertificate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueCourseCertificate>>, TError,IssueCourseCertificateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issueCourseCertificate>>,
+        TError,
+        IssueCourseCertificateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getIssueCourseCertificateMutationOptions(options));
+    }
 
 export const getGetSessionAttendanceRegisterUrl = (sessionId: number,) => {
 
@@ -3630,6 +3796,261 @@ export function useLaunchParticipantCoursePackage<TData = Awaited<ReturnType<typ
 
 
 
+
+export const getGetParticipantLearningProgressUrl = () => {
+
+
+
+
+  return `/api/participant/courses/progress`
+}
+
+/**
+ * @summary Get the signed-in participant's course progress, time, quiz results, and certificates
+ */
+export const getParticipantLearningProgress = async ( options?: Parameters<typeof customFetch>[1]): Promise<ParticipantLearningProgress> => {
+
+  return customFetch<ParticipantLearningProgress>(getGetParticipantLearningProgressUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantLearningProgressQueryKey = () => {
+    return [
+    `/api/participant/courses/progress`
+    ] as const;
+    }
+
+
+export const getGetParticipantLearningProgressQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantLearningProgress>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantLearningProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantLearningProgressQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantLearningProgress>>> = ({ signal }) => getParticipantLearningProgress({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantLearningProgress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantLearningProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantLearningProgress>>>
+export type GetParticipantLearningProgressQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the signed-in participant's course progress, time, quiz results, and certificates
+ */
+
+export function useGetParticipantLearningProgress<TData = Awaited<ReturnType<typeof getParticipantLearningProgress>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantLearningProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantLearningProgressQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordParticipantModuleProgressUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/modules/${id}/progress`
+}
+
+/**
+ * @summary Record module completion or a bounded active-time heartbeat for the signed-in participant
+ */
+export const recordParticipantModuleProgress = async (id: number,
+    courseProgressInput: CourseProgressInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseModuleProgress> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseModuleProgress>(getRecordParticipantModuleProgressUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseProgressInput)
+  }
+);}
+
+
+
+
+
+export const getRecordParticipantModuleProgressMutationKey = () => ['recordParticipantModuleProgress'] as const;
+
+export const getRecordParticipantModuleProgressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordParticipantModuleProgress>>, TError,RecordParticipantModuleProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordParticipantModuleProgress>>, TError,RecordParticipantModuleProgressMutationVariables, TContext> => {
+
+const mutationKey = getRecordParticipantModuleProgressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordParticipantModuleProgress>>, RecordParticipantModuleProgressMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordParticipantModuleProgress(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordParticipantModuleProgressMutationResult = NonNullable<Awaited<ReturnType<typeof recordParticipantModuleProgress>>>
+    export type RecordParticipantModuleProgressMutationBody = BodyType<CourseProgressInput>
+    export type RecordParticipantModuleProgressMutationError = ErrorType<void>
+    export type RecordParticipantModuleProgressMutationVariables = {id: number;data: BodyType<CourseProgressInput>}
+
+    /**
+ * @summary Record module completion or a bounded active-time heartbeat for the signed-in participant
+ */
+export const useRecordParticipantModuleProgress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordParticipantModuleProgress>>, TError,RecordParticipantModuleProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordParticipantModuleProgress>>,
+        TError,
+        RecordParticipantModuleProgressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordParticipantModuleProgressMutationOptions(options));
+    }
+
+export const getRecordParticipantCourseActivityUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/programs/${id}/activity`
+}
+
+/**
+ * @summary Record a bounded active-time interval for the signed-in participant's accepted program
+ */
+export const recordParticipantCourseActivity = async (id: number,
+    courseActivityInput: CourseActivityInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseActivityResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseActivityResult>(getRecordParticipantCourseActivityUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseActivityInput)
+  }
+);}
+
+
+
+
+
+export const getRecordParticipantCourseActivityMutationKey = () => ['recordParticipantCourseActivity'] as const;
+
+export const getRecordParticipantCourseActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordParticipantCourseActivity>>, TError,RecordParticipantCourseActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordParticipantCourseActivity>>, TError,RecordParticipantCourseActivityMutationVariables, TContext> => {
+
+const mutationKey = getRecordParticipantCourseActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordParticipantCourseActivity>>, RecordParticipantCourseActivityMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordParticipantCourseActivity(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordParticipantCourseActivityMutationResult = NonNullable<Awaited<ReturnType<typeof recordParticipantCourseActivity>>>
+    export type RecordParticipantCourseActivityMutationBody = BodyType<CourseActivityInput>
+    export type RecordParticipantCourseActivityMutationError = ErrorType<void>
+    export type RecordParticipantCourseActivityMutationVariables = {id: number;data: BodyType<CourseActivityInput>}
+
+    /**
+ * @summary Record a bounded active-time interval for the signed-in participant's accepted program
+ */
+export const useRecordParticipantCourseActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordParticipantCourseActivity>>, TError,RecordParticipantCourseActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordParticipantCourseActivity>>,
+        TError,
+        RecordParticipantCourseActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRecordParticipantCourseActivityMutationOptions(options));
+    }
 
 export const getGetParticipantCoursePackageFileUrl = (id: number,
     filePath: string,) => {

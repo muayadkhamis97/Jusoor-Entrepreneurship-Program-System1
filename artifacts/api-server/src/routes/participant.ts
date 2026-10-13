@@ -63,6 +63,8 @@ router.get("/courses", async (_req, res): Promise<void> => {
       description: string | null;
       position: number;
       releaseAt: string | null;
+      dueAt: string | null;
+      isRequired: boolean;
       materials: Array<{
         id: number;
         title: string;
@@ -105,6 +107,8 @@ router.get("/courses", async (_req, res): Promise<void> => {
       description: module.description,
       position: module.position,
       releaseAt: module.releaseAt?.toISOString() ?? null,
+      dueAt: module.dueAt?.toISOString() ?? null,
+      isRequired: module.isRequired,
       materials: materials
         .filter((material) => material.moduleId === module.id && material.allowedRoles.includes("participant"))
         .map((material) => ({

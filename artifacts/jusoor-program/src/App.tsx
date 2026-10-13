@@ -46,6 +46,7 @@ import { SessionCalendar } from './session-calendar';
 import { CommunicationsPage } from './communications-surfaces';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { ProgramAnalyticsPage } from './analytics-surfaces';
+import { LearningProgressAnalytics } from './learning-progress';
 import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
@@ -791,7 +792,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/" component={Overview} />
     <Route path="/businesses" component={BusinessesPage} />
     <Route path="/programs" component={ProgramsPage} />
-    <Route path="/analytics" component={staff.role === 'coordinator' ? ProgramAnalyticsPage : NotFoundPage} />
+    <Route path="/analytics">{() => staff.role === 'coordinator' ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
     <Route path="/courses">{() => staff.role === 'coordinator' ? <CourseManagementPage /> : staff.role === 'staff' ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
     <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} staffId={staff.id} />}</Route>
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />

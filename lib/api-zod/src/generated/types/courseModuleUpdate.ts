@@ -21,5 +21,8 @@ export interface CourseModuleUpdate {
   position?: number;
   /** @nullable */
   releaseAt?: Date | null;
+  /** @nullable */
+  dueAt?: Date | null;
+  isRequired?: boolean;
   isPublished?: boolean;
 }

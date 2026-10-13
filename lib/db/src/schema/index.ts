@@ -33,6 +33,7 @@ export * from "./courses";
 export * from "./course-discussions";
 export * from "./course-quizzes";
 export * from "./course-packages";
+export * from "./course-progress";
 export * from "./session-interactions";
 export * from "./zoom-connections";
 export * from "./announcements";

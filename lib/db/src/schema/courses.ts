@@ -12,6 +12,8 @@ export const courseModulesTable = pgTable("jusoor_course_modules", {
   description: text("description"),
   position: integer("position").notNull().default(0),
   releaseAt: timestamp("release_at", { withTimezone: true }),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  isRequired: boolean("is_required").notNull().default(true),
   isPublished: boolean("is_published").notNull().default(false),
   createdByStaffId: integer("created_by_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

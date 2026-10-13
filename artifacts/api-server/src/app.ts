@@ -23,6 +23,10 @@ import {
   staffCourseQuizRouter,
 } from "./routes/courseQuizzes";
 import { participantCoursePackageRouter } from "./routes/coursePackages";
+import {
+  participantCourseProgressRouter,
+  staffLearningProgressRouter,
+} from "./routes/courseProgress";
 import xapiRouter from "./routes/xapi";
 import {
   participantSessionInteractionsRouter,
@@ -84,6 +88,7 @@ app.use("/api/participant", participantSessionInteractionsRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseDiscussionRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseQuizRouter);
 app.use("/api/participant/courses", requireParticipant, participantCoursePackageRouter);
+app.use("/api/participant/courses", requireParticipant, participantCourseProgressRouter);
 app.use("/api/courses", requireStaff, staffCourseDiscussionRouter);
 app.use("/api/courses", requireStaff, staffCourseQuizRouter);
 app.use("/api/courses", requireStaff, coursesRouter);
@@ -94,6 +99,7 @@ app.use("/api/xapi", xapiRouter);
 app.use("/api/trainer", requireStaff, requireRole("trainer"), trainerRouter);
 app.use("/api/mentor", requireStaff, requireRole("mentor"), mentorRouter);
 app.use("/api/judge", requireStaff, requireRole("judge"), judgeRouter);
+app.use("/api", requireStaff, staffLearningProgressRouter);
 app.use("/api", requireStaff);
 app.use("/api", staffSessionInteractionsRouter);
 app.use("/api", router);

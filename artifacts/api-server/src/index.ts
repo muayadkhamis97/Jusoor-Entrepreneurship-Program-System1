@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startZoomAttendanceSyncWorker } from "./lib/zoom-attendance";
+import { startCourseReminderWorker } from "./lib/course-reminders";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startZoomAttendanceSyncWorker();
+  startCourseReminderWorker();
 });

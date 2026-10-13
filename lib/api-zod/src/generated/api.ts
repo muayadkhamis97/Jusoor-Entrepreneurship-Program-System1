@@ -194,6 +194,128 @@ export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
 
 
 /**
+ * @summary Get coordinator-only participant course progress and learning analytics
+ */
+export const GetLearningProgressAnalyticsQueryParams = zod.object({
+  "programId": zod.coerce.number().int().optional()
+})
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantCountMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemCompletedParticipantsMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMin = 0;
+export const getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMax = 100;
+
+export const getLearningProgressAnalyticsResponseProgramsItemAverageActiveSecondsMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMin = 0;
+export const getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMax = 100;
+
+export const getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletedRequiredModulesMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneTotalRequiredModulesMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletionPercentMin = 0;
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletionPercentMax = 100;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneActiveSecondsMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemAttemptsMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemBestScoreMin = 0;
+
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin = 0;
+
+
+
+export const GetLearningProgressAnalyticsResponse = zod.object({
+  "programs": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "participantCount": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantCountMin),
+  "completedParticipants": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCompletedParticipantsMin),
+  "averageCompletionPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMax),
+  "averageActiveSeconds": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAverageActiveSecondsMin),
+  "averageQuizPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMax).nullable(),
+  "certificatesIssued": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin),
+  "participants": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "completedRequiredModules": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletedRequiredModulesMin),
+  "totalRequiredModules": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneTotalRequiredModulesMin),
+  "completionPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletionPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletionPercentMax),
+  "activeSeconds": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneActiveSecondsMin),
+  "lastActivityAt": zod.coerce.date().nullable(),
+  "modules": zod.array(zod.object({
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "isRequired": zod.boolean(),
+  "dueAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "completionStatus": zod.enum(['not_started', 'in_progress', 'completed']),
+  "packages": zod.array(zod.object({
+  "materialId": zod.number().int(),
+  "title": zod.string(),
+  "format": zod.enum(['scorm12', 'scorm2004', 'xapi']),
+  "completionStatus": zod.string(),
+  "successStatus": zod.string(),
+  "scoreScaled": zod.number().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+}))
+})),
+  "quizzes": zod.array(zod.object({
+  "quizId": zod.number().int(),
+  "title": zod.string(),
+  "attempts": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemAttemptsMin),
+  "bestScore": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemBestScoreMin).nullable(),
+  "totalQuestions": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin),
+  "latestSubmittedAt": zod.coerce.date().nullable()
+})),
+  "certificate": zod.union([zod.object({
+  "id": zod.number().int(),
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "participantName": zod.string(),
+  "businessName": zod.string(),
+  "certificateCode": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "issuedByName": zod.string()
+}),zod.null()])
+}).and(zod.object({
+  "applicationId": zod.number().int(),
+  "founderName": zod.string(),
+  "businessName": zod.string(),
+  "email": zod.string().email()
+})))
+}))
+})
+
+
+/**
+ * @summary Coordinator approves and issues a certificate for a participant who completed all required modules
+ */
+export const IssueCourseCertificateParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const IssueCourseCertificateResponse = zod.object({
+  "id": zod.number().int(),
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "participantName": zod.string(),
+  "businessName": zod.string(),
+  "certificateCode": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "issuedByName": zod.string()
+})
+
+
+/**
  * @summary Get a session attendance register
  */
 export const GetSessionAttendanceRegisterParams = zod.object({
@@ -999,6 +1121,8 @@ export const GetCourseManagementResponse = zod.object({
   "description": zod.string().nullable(),
   "position": zod.number().int(),
   "releaseAt": zod.coerce.date().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "isRequired": zod.boolean(),
   "isPublished": zod.boolean(),
   "materials": zod.array(zod.object({
   "id": zod.number().int(),
@@ -1031,6 +1155,7 @@ export const createCourseModuleBodyDescriptionMax = 3000;
 export const createCourseModuleBodyPositionDefault = 0;
 export const createCourseModuleBodyPositionMin = 0;
 
+export const createCourseModuleBodyIsRequiredDefault = true;
 export const createCourseModuleBodyIsPublishedDefault = false;
 
 export const CreateCourseModuleBody = zod.object({
@@ -1039,6 +1164,8 @@ export const CreateCourseModuleBody = zod.object({
   "description": zod.string().max(createCourseModuleBodyDescriptionMax).nullish(),
   "position": zod.number().int().min(createCourseModuleBodyPositionMin).default(createCourseModuleBodyPositionDefault),
   "releaseAt": zod.coerce.date().nullish(),
+  "dueAt": zod.coerce.date().nullish(),
+  "isRequired": zod.boolean().default(createCourseModuleBodyIsRequiredDefault),
   "isPublished": zod.boolean().default(createCourseModuleBodyIsPublishedDefault)
 })
 
@@ -1049,6 +1176,8 @@ export const CreateCourseModuleResponse = zod.object({
   "description": zod.string().nullable(),
   "position": zod.number().int(),
   "releaseAt": zod.coerce.date().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "isRequired": zod.boolean(),
   "isPublished": zod.boolean(),
   "materials": zod.array(zod.object({
   "id": zod.number().int(),
@@ -1089,6 +1218,8 @@ export const UpdateCourseModuleBody = zod.object({
   "description": zod.string().max(updateCourseModuleBodyDescriptionMax).nullish(),
   "position": zod.number().int().min(updateCourseModuleBodyPositionMin).optional(),
   "releaseAt": zod.coerce.date().nullish(),
+  "dueAt": zod.coerce.date().nullish(),
+  "isRequired": zod.boolean().optional(),
   "isPublished": zod.boolean().optional()
 })
 
@@ -1099,6 +1230,8 @@ export const UpdateCourseModuleResponse = zod.object({
   "description": zod.string().nullable(),
   "position": zod.number().int(),
   "releaseAt": zod.coerce.date().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "isRequired": zod.boolean(),
   "isPublished": zod.boolean(),
   "materials": zod.array(zod.object({
   "id": zod.number().int(),
@@ -1357,6 +1490,8 @@ export const GetParticipantCoursesResponse = zod.object({
   "description": zod.string().nullable(),
   "position": zod.number().int(),
   "releaseAt": zod.coerce.date().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "isRequired": zod.boolean(),
   "materials": zod.array(zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -1476,6 +1611,119 @@ export const LaunchParticipantCoursePackageResponse = zod.object({
   "registration": zod.string().uuid(),
   "activityId": zod.string().url()
 }),zod.null()])
+})
+
+
+/**
+ * @summary Get the signed-in participant's course progress, time, quiz results, and certificates
+ */
+export const getParticipantLearningProgressResponseProgramsItemCompletedRequiredModulesMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemTotalRequiredModulesMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemCompletionPercentMin = 0;
+export const getParticipantLearningProgressResponseProgramsItemCompletionPercentMax = 100;
+
+export const getParticipantLearningProgressResponseProgramsItemActiveSecondsMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemAttemptsMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemBestScoreMin = 0;
+
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin = 0;
+
+
+
+export const GetParticipantLearningProgressResponse = zod.object({
+  "programs": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "completedRequiredModules": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemCompletedRequiredModulesMin),
+  "totalRequiredModules": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemTotalRequiredModulesMin),
+  "completionPercent": zod.number().min(getParticipantLearningProgressResponseProgramsItemCompletionPercentMin).max(getParticipantLearningProgressResponseProgramsItemCompletionPercentMax),
+  "activeSeconds": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemActiveSecondsMin),
+  "lastActivityAt": zod.coerce.date().nullable(),
+  "modules": zod.array(zod.object({
+  "moduleId": zod.number().int(),
+  "title": zod.string(),
+  "isRequired": zod.boolean(),
+  "dueAt": zod.coerce.date().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "completionStatus": zod.enum(['not_started', 'in_progress', 'completed']),
+  "packages": zod.array(zod.object({
+  "materialId": zod.number().int(),
+  "title": zod.string(),
+  "format": zod.enum(['scorm12', 'scorm2004', 'xapi']),
+  "completionStatus": zod.string(),
+  "successStatus": zod.string(),
+  "scoreScaled": zod.number().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+}))
+})),
+  "quizzes": zod.array(zod.object({
+  "quizId": zod.number().int(),
+  "title": zod.string(),
+  "attempts": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemAttemptsMin),
+  "bestScore": zod.number().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemBestScoreMin).nullable(),
+  "totalQuestions": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin),
+  "latestSubmittedAt": zod.coerce.date().nullable()
+})),
+  "certificate": zod.union([zod.object({
+  "id": zod.number().int(),
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "participantName": zod.string(),
+  "businessName": zod.string(),
+  "certificateCode": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "issuedByName": zod.string()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Record module completion or a bounded active-time heartbeat for the signed-in participant
+ */
+export const RecordParticipantModuleProgressParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RecordParticipantModuleProgressBody = zod.object({
+  "completed": zod.boolean()
+})
+
+export const RecordParticipantModuleProgressResponse = zod.object({
+  "moduleId": zod.number().int(),
+  "completedAt": zod.coerce.date().nullable(),
+  "lastActivityAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Record a bounded active-time interval for the signed-in participant's accepted program
+ */
+export const RecordParticipantCourseActivityParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const recordParticipantCourseActivityBodyActiveSecondsMax = 120;
+
+
+
+export const RecordParticipantCourseActivityBody = zod.object({
+  "activeSeconds": zod.number().int().min(1).max(recordParticipantCourseActivityBodyActiveSecondsMax)
+})
+
+export const recordParticipantCourseActivityResponseActiveSecondsMin = 0;
+
+
+
+export const RecordParticipantCourseActivityResponse = zod.object({
+  "programId": zod.number().int(),
+  "activeSeconds": zod.number().int().min(recordParticipantCourseActivityResponseActiveSecondsMin),
+  "lastActivityAt": zod.coerce.date().nullable()
 })
 
 
