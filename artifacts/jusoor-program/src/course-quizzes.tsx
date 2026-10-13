@@ -20,7 +20,7 @@ import { currentLanguage, t, useAppLanguage } from './language';
 import './course-quizzes.css';
 
 type DraftQuestion = CourseQuizQuestionInput & { key: string };
-type QuizDraft = { title: string; description: string; isPublished: boolean; questions: DraftQuestion[] };
+type QuizDraft = { title: string; description: string; language: 'en' | 'ar'; isPublished: boolean; questions: DraftQuestion[] };
 
 const makeQuestion = (index = 0): DraftQuestion => ({
   key: `question-${Date.now()}-${index}`,
@@ -36,9 +36,10 @@ const makeQuestion = (index = 0): DraftQuestion => ({
 const cleanDraft = (quiz?: CourseQuiz): QuizDraft => quiz ? ({
   title: quiz.title,
   description: quiz.description || '',
+  language: quiz.language || 'en',
   isPublished: quiz.isPublished,
   questions: quiz.questions.map(question => ({ ...question, key: `saved-${question.id}` })),
-}) : ({ title: '', description: '', isPublished: false, questions: [makeQuestion()] });
+}) : ({ title: '', description: '', language: 'en', isPublished: false, questions: [makeQuestion()] });
 
 function Feedback({ attempt }: { attempt: CourseQuizAttempt }) {
   return <div className="quiz-feedback-list">
@@ -105,7 +106,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
       if (question.questionType === 'ordering' && (!Array.isArray(question.correctAnswer) || question.correctAnswer.length !== question.choices.length)) { setError(`${t('Set the correct order for question')} ${index + 1}.`); return; }
     }
     const data: CourseQuizInput = {
-      title, description: draft.description.trim() || null, isPublished: draft.isPublished,
+      title, description: draft.description.trim() || null, language: draft.language, isPublished: draft.isPublished,
       questions: draft.questions.map(question => ({
         questionType: question.questionType, prompt: question.prompt.trim(),
         choices: question.choices.map(choice => ({ ...choice, text: choice.text.trim() })),
@@ -131,6 +132,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
       <div className="quiz-editor-scroll">
         <label className="quiz-field">{t('Quiz title')}<input value={draft.title} maxLength={180} onChange={event => setDraft(current => ({ ...current, title: event.target.value }))} placeholder={t('e.g. Customer discovery check-in')} data-testid="input-quiz-title" /></label>
         <label className="quiz-field">{t('Description')}<textarea rows={2} maxLength={2000} value={draft.description} onChange={event => setDraft(current => ({ ...current, description: event.target.value }))} placeholder={t('What should founders take away?')} data-testid="input-quiz-description" /></label>
+         <label className="quiz-field">{t('Content language')}<select value={draft.language} onChange={event => setDraft(current => ({ ...current, language: event.target.value as 'en' | 'ar' }))} data-testid="select-quiz-language"><option value="en">English</option><option value="ar">العربية / Arabic</option></select></label>
         <div className="quiz-editor-section-head"><div><span className="eyebrow">{t('QUESTIONS')}</span><p>{t('Multiple-choice questions need two options; ordering questions need three items.')}</p></div><button className="button button-outline quiz-add-question" type="button" disabled={draft.questions.length >= 50} onClick={() => setDraft(current => ({ ...current, questions: [...current.questions, makeQuestion(current.questions.length)] }))} data-testid="button-add-quiz-question"><Plus size={14} />{t('Add question')}</button></div>
          {draft.questions.map((question, index) => <article className="quiz-question-editor" key={question.key} data-testid={`quiz-editor-question-${index}`}>
           <div className="quiz-question-editor-top"><span>{t('Question')} {String(index + 1).padStart(2, '0')}</span><button className="quiz-remove-question" type="button" disabled={draft.questions.length <= 1} onClick={() => setDraft(current => ({ ...current, questions: current.questions.filter(item => item.key !== question.key) }))}>{t('Remove question')}</button></div>
@@ -168,7 +170,7 @@ export function CourseQuizManagement({ moduleId, readOnly = false }: { moduleId:
   const update = useUpdateCourseQuiz();
   const quizzes = query.data?.quizzes || [];
   const setPublished = (quiz: CourseQuiz) => {
-    const data: CourseQuizInput = { title: quiz.title, description: quiz.description, isPublished: !quiz.isPublished, questions: quiz.questions.map(question => ({ questionType: question.questionType, prompt: question.prompt, choices: question.choices, correctAnswer: question.correctAnswer, explanation: question.explanation })) };
+    const data: CourseQuizInput = { title: quiz.title, description: quiz.description, language: quiz.language, isPublished: !quiz.isPublished, questions: quiz.questions.map(question => ({ questionType: question.questionType, prompt: question.prompt, choices: question.choices, correctAnswer: question.correctAnswer, explanation: question.explanation })) };
     setError(''); setSuccess('');
     update.mutate({ id: quiz.id, data }, { onSuccess: () => { void Promise.all([client.invalidateQueries({ queryKey: getGetCourseModuleQuizzesQueryKey(moduleId) }), client.invalidateQueries({ queryKey: getGetCourseQuizAttemptsQueryKey(quiz.id) }), client.invalidateQueries({ queryKey: getGetParticipantCourseModuleQuizzesQueryKey(moduleId) }), client.invalidateQueries({ queryKey: getGetParticipantCoursesQueryKey() })]); setSuccess(t(data.isPublished ? 'Quiz published.' : 'Quiz unpublished. Saved attempts are kept.')); }, onError: () => setError(t('Quiz status could not be changed. Try again.')) });
   };
@@ -180,7 +182,7 @@ export function CourseQuizManagement({ moduleId, readOnly = false }: { moduleId:
       : query.isError ? <div className="quiz-inline-error" role="alert"><AlertCircle size={15} />{t('Quizzes could not load.')} <button type="button" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
       : !quizzes.length ? <div className="quiz-management-empty"><ShieldCheck size={17} /><span><b>{t('No quizzes in this module yet.')}</b><small>{t(readOnly ? 'A coordinator’s published assessments will appear here.' : 'Add a quiz when this module is ready for a knowledge check.')}</small></span></div>
       : <div className="course-quiz-list">{quizzes.map(quiz => <article className="course-quiz-item" key={quiz.id} data-testid={`course-quiz-${quiz.id}`}>
-          <div className="course-quiz-item-main"><span className={`quiz-status ${quiz.isPublished ? 'published' : 'draft'}`}><i />{t(quiz.isPublished ? 'Published' : 'Unpublished')}</span><h4>{quiz.title}</h4>{quiz.description && <p>{quiz.description}</p>}<span className="quiz-item-meta">{quiz.questions.length} {t(quiz.questions.length === 1 ? 'question' : 'questions')}</span></div>
+           <div className="course-quiz-item-main"><span className={`quiz-status ${quiz.isPublished ? 'published' : 'draft'}`}><i />{t(quiz.isPublished ? 'Published' : 'Unpublished')}</span><h4>{quiz.title}</h4>{quiz.description && <p>{quiz.description}</p>}<span className="quiz-item-meta">{quiz.language === 'ar' ? 'العربية' : 'English'} · {quiz.questions.length} {t(quiz.questions.length === 1 ? 'question' : 'questions')}</span></div>
           <div className="course-quiz-item-actions">{!readOnly && <><button type="button" className="quiz-action" onClick={() => { setEditing(quiz); setError(''); }} data-testid={`button-edit-quiz-${quiz.id}`}><Pencil size={13} />{t('Edit')}</button><button type="button" className={`quiz-action ${quiz.isPublished ? 'unpublish' : 'publish'}`} disabled={update.isPending} onClick={() => setPublished(quiz)} data-testid={`button-toggle-publish-quiz-${quiz.id}`}>{quiz.isPublished ? t('Unpublish') : t('Publish')}</button></>}<button type="button" className="quiz-action review" aria-expanded={reviewingId === quiz.id} onClick={() => setReviewingId(current => current === quiz.id ? null : quiz.id)} data-testid={`button-review-quiz-attempts-${quiz.id}`}>{t(reviewingId === quiz.id ? 'Close attempts' : 'Review attempts')}<ChevronDown size={13} /></button></div>
           {reviewingId === quiz.id && <div className="quiz-review-panel"><div className="quiz-review-heading"><b>{t('Participant attempts')}</b><span>{t('Business names, answers and explanations')}</span></div><QuizAttemptList quizId={quiz.id} /></div>}
         </article>)}</div>}
@@ -258,7 +260,7 @@ function ParticipantQuizCard({ quiz }: { quiz: ParticipantCourseQuiz }) {
     order.splice(from, 1); order.splice(to, 0, dragged); choose(questionId, order); setOrderDrag(null);
   };
   return <article className="participant-quiz-card" data-testid={`participant-quiz-${quiz.id}`}>
-    <div className="participant-quiz-top"><span className="participant-quiz-icon"><ClipboardCheck size={15} /></span><div className="participant-quiz-copy"><h4>{quiz.title}</h4>{quiz.description && <p>{quiz.description}</p>}<span>{quiz.questionCount} {t(quiz.questionCount === 1 ? 'question' : 'questions')} · {quiz.attemptCount} {t(quiz.attemptCount === 1 ? 'attempt' : 'attempts')}</span></div><button type="button" className="button button-outline participant-quiz-open" onClick={toggleQuiz} aria-expanded={open} data-testid={`button-open-quiz-${quiz.id}`}>{t(open ? 'Close quiz' : latest ? 'Retake quiz' : 'Start quiz')}<ChevronDown size={14} /></button></div>
+     <div className="participant-quiz-top"><span className="participant-quiz-icon"><ClipboardCheck size={15} /></span><div className="participant-quiz-copy"><h4>{quiz.title}</h4>{quiz.description && <p>{quiz.description}</p>}<span>{quiz.language === 'ar' ? 'العربية' : 'English'} · {quiz.questionCount} {t(quiz.questionCount === 1 ? 'question' : 'questions')} · {quiz.attemptCount} {t(quiz.attemptCount === 1 ? 'attempt' : 'attempts')}</span></div><button type="button" className="button button-outline participant-quiz-open" onClick={toggleQuiz} aria-expanded={open} data-testid={`button-open-quiz-${quiz.id}`}>{t(open ? 'Close quiz' : latest ? 'Retake quiz' : 'Start quiz')}<ChevronDown size={14} /></button></div>
     {latest && !open && <div className="latest-quiz-result" data-testid={`latest-quiz-result-${quiz.id}`}><span className="quiz-result-score"><b>{latest.score}</b> / {latest.totalQuestions}</span><span><strong>{t('Latest result')}</strong><small>{new Date(latest.submittedAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</small></span><button type="button" className="quiz-action" onClick={() => setFeedbackVisible(value => !value)}>{t(feedbackVisible ? 'Hide feedback' : 'View feedback')}</button></div>}
     {feedbackVisible && !open && latest && <Feedback attempt={latest} />}
     {open && <div className="participant-quiz-body"><div className="quiz-answer-notice"><LockKeyhole size={14} />{t('Your answers and feedback appear after you submit.')}</div>

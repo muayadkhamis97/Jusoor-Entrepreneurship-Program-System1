@@ -108,6 +108,7 @@ import type {
   ProgramUpdate,
   PutXapiActivityStateParams,
   PutXapiStatementParams,
+  ScormCommitResult,
   Session,
   SessionAttendanceInput,
   SessionAttendanceRegister,
@@ -3713,6 +3714,95 @@ export const useSaveParticipantScormProgress = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSaveParticipantScormProgressMutationOptions(options));
+    }
+
+export const getCommitParticipantScormProgressUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/materials/${id}/scorm-progress`
+}
+
+/**
+ * @summary Accept a SCORM runtime commit and acknowledge it using the SCORM response format
+ */
+export const commitParticipantScormProgress = async (id: number,
+    courseScormProgressInput: CourseScormProgressInput, options?: Parameters<typeof customFetch>[1]): Promise<ScormCommitResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ScormCommitResult>(getCommitParticipantScormProgressUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseScormProgressInput)
+  }
+);}
+
+
+
+
+
+export const getCommitParticipantScormProgressMutationKey = () => ['commitParticipantScormProgress'] as const;
+
+export const getCommitParticipantScormProgressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commitParticipantScormProgress>>, TError,CommitParticipantScormProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof commitParticipantScormProgress>>, TError,CommitParticipantScormProgressMutationVariables, TContext> => {
+
+const mutationKey = getCommitParticipantScormProgressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof commitParticipantScormProgress>>, CommitParticipantScormProgressMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  commitParticipantScormProgress(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CommitParticipantScormProgressMutationResult = NonNullable<Awaited<ReturnType<typeof commitParticipantScormProgress>>>
+    export type CommitParticipantScormProgressMutationBody = BodyType<CourseScormProgressInput>
+    export type CommitParticipantScormProgressMutationError = ErrorType<void>
+    export type CommitParticipantScormProgressMutationVariables = {id: number;data: BodyType<CourseScormProgressInput>}
+
+    /**
+ * @summary Accept a SCORM runtime commit and acknowledge it using the SCORM response format
+ */
+export const useCommitParticipantScormProgress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commitParticipantScormProgress>>, TError,CommitParticipantScormProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof commitParticipantScormProgress>>,
+        TError,
+        CommitParticipantScormProgressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCommitParticipantScormProgressMutationOptions(options));
     }
 
 export const getGetXapiAboutUrl = () => {

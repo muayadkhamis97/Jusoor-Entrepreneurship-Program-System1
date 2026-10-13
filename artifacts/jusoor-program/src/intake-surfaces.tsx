@@ -18,12 +18,13 @@ import { SessionCalendar } from './session-calendar';
 import { SessionRecordingPlayer } from './session-recording-player';
 import {
   ArrowRight, CalendarDays, Check, CircleAlert, Clock3, ExternalLink,
-  FileText, Handshake, MapPin, ShieldCheck, Video, BookOpen, Download, ExternalLink as ExternalLinkIcon,
+  FileText, Handshake, MapPin, ShieldCheck, Video, BookOpen, Download, ExternalLink as ExternalLinkIcon, Play,
 } from 'lucide-react';
 import './course-learning.css';
 import { CourseDiscussion } from './course-discussion';
 import { ParticipantSessionInteractions } from './session-interactions';
 import { ParticipantModuleQuizzes } from './course-quizzes';
+import { CoursePackagePlayer } from './course-package-player';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
@@ -228,12 +229,13 @@ const participantBasePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 function ParticipantProgramLearning() {
   useAppLanguage();
   const query = useGetParticipantCourses({ query: { queryKey: getGetParticipantCoursesQueryKey(), refetchOnWindowFocus: true } });
+  const [activePackage, setActivePackage] = useState<{ id: number; title: string } | null>(null);
   const now = Date.now();
   if (query.isLoading) return <section className="participant-section participant-course-section" data-testid="participant-courses-loading"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Loading your released learning path.')}</p></div></div><div className="loading-panel"><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div></section>;
   if (query.isError) return <section className="participant-section participant-course-section"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div><div className="empty-panel error-panel" data-testid="error-participant-courses"><span className="empty-icon"><CircleAlert size={20} /></span><h3>{t('Your learning path couldn’t load.')}</h3><p>{t('Try reconnecting. Your cohort progress and materials remain private.')}</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant-courses">{t('Retry learning')}</button></div></section>;
   const programs = query.data?.programs || [];
    if (!programs.length) return <section className="participant-section participant-course-section" data-testid="empty-participant-courses"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div><div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h3>{t('Your learning path is being prepared.')}</h3><p>{t('Once released by your program team, modules and resources for your accepted cohort will appear here.')}</p></div></section>;
-  return <section className="participant-section participant-course-section" data-testid="participant-course-learning">
+  return <><section className="participant-section participant-course-section" data-testid="participant-course-learning">
      <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('A guided sequence of released modules and useful materials.')}</p></div><span className="badge badge-neutral">{programs.reduce((total, program) => total + program.modules.length, 0)} {t('released modules')}</span></div>
     {programs.map(program => {
       const modules = program.modules.filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now).sort((a, b) => a.position - b.position);
@@ -241,11 +243,13 @@ function ParticipantProgramLearning() {
          <header className="participant-course-banner"><span className="participant-course-icon"><BookOpen size={17} /></span><div><h3>{program.programName}</h3><span>{modules.length} {t('learning')} {t(modules.length === 1 ? 'module' : 'modules')} {t('available')}</span></div></header>
          {!modules.length ? <div className="empty-panel"><p>{t('Your next module will appear here when your cohort releases it.')}</p></div> : modules.map((module, index) => <section className="participant-course-module" key={module.id} data-testid={`participant-course-module-${module.id}`}><span className="participant-course-number">{String(index + 1).padStart(2, '0')}</span><div><h4>{module.title}</h4>{module.description && <p>{module.description}</p>}<div className="participant-course-items">{module.materials.map(material => {
           const href = material.kind === 'link' ? material.externalUrl || undefined : `${participantBasePath}/api/participant/courses/materials/${material.id}/file`;
-          return href ? <a className="participant-course-item" key={material.id} href={href} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-participant-course-material-${material.id}`}>{material.kind === 'link' ? <ExternalLinkIcon size={13} /> : <Download size={13} />}{material.title}</a> : <span className="participant-course-item" key={material.id} data-testid={`text-participant-course-material-${material.id}`}><BookOpen size={13} />{material.title}</span>;
+           const languageTag = material.language === 'ar' ? 'العربية' : 'English';
+           if (material.kind === 'scorm' || material.kind === 'xapi') return <button className="participant-course-item participant-package-launch" type="button" key={material.id} onClick={() => setActivePackage({ id: material.id, title: material.title })} data-testid={`button-launch-course-package-${material.id}`}><Play size={13} />{material.title}<span className="participant-content-language">{languageTag}</span></button>;
+           return href ? <a className="participant-course-item" key={material.id} href={href} target={material.kind === 'link' ? '_blank' : undefined} rel={material.kind === 'link' ? 'noreferrer' : undefined} data-testid={`link-participant-course-material-${material.id}`}>{material.kind === 'link' ? <ExternalLinkIcon size={13} /> : <Download size={13} />}{material.title}<span className="participant-content-language">{languageTag}</span></a> : <span className="participant-course-item" key={material.id} data-testid={`text-participant-course-material-${material.id}`}><BookOpen size={13} />{material.title}<span className="participant-content-language">{languageTag}</span></span>;
           })}</div><ParticipantModuleQuizzes moduleId={module.id} /><CourseDiscussion moduleId={module.id} participant /></div></section>)}
       </article>;
     })}
-  </section>;
+   </section>{activePackage && <CoursePackagePlayer materialId={activePackage.id} title={activePackage.title} onClose={() => setActivePackage(null)} />}</>;
 }
 
 function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {

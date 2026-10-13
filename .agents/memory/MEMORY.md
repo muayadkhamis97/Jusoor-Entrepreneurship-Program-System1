@@ -5,3 +5,4 @@
 - [Jusoor analytics tracking](analytics-tracking.md) — Coordinators need attendance records and customizable impact KPIs, with missing data kept distinct from zero.
 - [Grant ledger](grant-ledger.md) — Keep demo-day awards linked to an append-only USD receipt ledger; use correction reversals, not deletion.
 - [Jusoor role boundaries](jusoor-role-access.md) — Keep coordinator administration separate from trainer, mentor, judge, and participant assignment-scoped data.
+- [Internal xAPI LRS](xapi-lrs.md) — Keep Jusoor course-package statements and activity state in the built-in platform LRS; avoid external LRS integrations.

@@ -1,7 +1,8 @@
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 import { and, eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import {
   LaunchParticipantCoursePackageParams,
   LaunchParticipantCoursePackageResponse,
@@ -24,7 +25,7 @@ import { getCoursePackageResource } from "../lib/coursePackageStorage";
 export const participantCoursePackageRouter: IRouter = Router();
 
 const coursePackageRoles = new Set(["participant"]);
-const xapiEndpoint = "/api/xapi";
+const xapiEndpoint = "/api/xapi/";
 
 async function findAccessiblePackage(materialId: number, participant: ParticipantAccess) {
   const [row] = await db.select({
@@ -74,6 +75,10 @@ function stableRegistrationId(materialId: number, userId: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+function xapiActorName(userId: string): string {
+  return `participant-${createHash("sha256").update(userId).digest("hex").slice(0, 24)}`;
+}
+
 participantCoursePackageRouter.get("/materials/:id/package-launch", async (req, res): Promise<void> => {
   const participant = res.locals.participant as ParticipantAccess | undefined;
   const params = LaunchParticipantCoursePackageParams.safeParse(req.params);
@@ -101,23 +106,20 @@ participantCoursePackageRouter.get("/materials/:id/package-launch", async (req, 
       const password = randomBytes(32).toString("base64url");
       const registration = stableRegistrationId(row.material.id, participant.userId);
       const expiresAt = new Date(Date.now() + 90 * 60 * 1000);
-      await db.delete(xapiLaunchTokensTable).where(and(
-        eq(xapiLaunchTokensTable.materialId, row.material.id),
-        eq(xapiLaunchTokensTable.participantClerkUserId, participant.userId),
-      ));
       await db.insert(xapiLaunchTokensTable).values({
         id: credentialId,
         tokenHash: createHash("sha256").update(password).digest("hex"),
         materialId: row.material.id,
         participantClerkUserId: participant.userId,
         businessId: row.application.businessId,
+        applicationId: row.application.id,
         registrationId: registration,
         expiresAt,
       });
       const actor = {
         account: {
           homePage: "urn:jusoor:entrepreneurship-program",
-          name: `business-${row.application.businessId}`,
+          name: xapiActorName(participant.userId),
         },
       };
       xapi = {
@@ -165,7 +167,7 @@ participantCoursePackageRouter.get("/materials/:id/package/*filePath", async (re
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
     res.setHeader("Referrer-Policy", "no-referrer");
-    createReadStream(resource.filePath).pipe(res);
+    await pipeline(createReadStream(resource.filePath), res);
   } catch (error) {
     req.log.warn({ err: error, materialId: parsed.data.id }, "Course package resource was not found");
     if (!res.headersSent) res.status(404).end();
@@ -173,7 +175,7 @@ participantCoursePackageRouter.get("/materials/:id/package/*filePath", async (re
   }
 });
 
-participantCoursePackageRouter.put("/materials/:id/scorm-progress", async (req, res): Promise<void> => {
+async function saveScormProgress(req: Request, res: Response, standardCommitResponse: boolean): Promise<void> {
   const participant = res.locals.participant as ParticipantAccess | undefined;
   const params = SaveParticipantScormProgressParams.safeParse(req.params);
   const body = SaveParticipantScormProgressBody.safeParse(req.body);
@@ -213,5 +215,17 @@ participantCoursePackageRouter.put("/materials/:id/scorm-progress", async (req, 
       updatedAt: new Date(),
     },
   }).returning();
-  res.json(SaveParticipantScormProgressResponse.parse(participantProgress(progress)));
+  if (standardCommitResponse) {
+    res.json({ result: true, errorCode: 0 });
+  } else {
+    res.json(SaveParticipantScormProgressResponse.parse(participantProgress(progress)));
+  }
+}
+
+participantCoursePackageRouter.put("/materials/:id/scorm-progress", async (req, res): Promise<void> => {
+  await saveScormProgress(req, res, false);
+});
+
+participantCoursePackageRouter.post("/materials/:id/scorm-progress", async (req, res): Promise<void> => {
+  await saveScormProgress(req, res, true);
 });

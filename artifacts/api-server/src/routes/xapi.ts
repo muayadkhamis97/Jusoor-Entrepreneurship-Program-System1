@@ -1,6 +1,6 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import {
   applicationsTable,
   courseMaterialsTable,
@@ -20,13 +20,14 @@ interface XapiLaunchContext {
   tokenId: string;
   materialId: number;
   participantClerkUserId: string;
-  businessId: number;
+  businessId: number | null;
+  applicationId: number;
   registrationId: string;
   activityId: string;
   actor: Record<string, unknown>;
 }
 
-function setXapiVersion(res: Parameters<Parameters<IRouter["get"]>[1]>[1]): void {
+function setXapiVersion(res: Response): void {
   res.setHeader("X-Experience-API-Version", xapiVersion);
 }
 
@@ -47,7 +48,7 @@ function parseLaunchActor(value: unknown): Record<string, unknown> | null {
   if (!isRecord(value)) return null;
   const account = value.account;
   if (!isRecord(account) || account.homePage !== actorHomePage ||
-    typeof account.name !== "string" || !/^business-\d+$/.test(account.name)) return null;
+    typeof account.name !== "string" || !/^participant-[0-9a-f]{24}$/.test(account.name)) return null;
   return value;
 }
 
@@ -62,7 +63,7 @@ function parseUuid(value: unknown): string | null {
   return value.toLowerCase();
 }
 
-async function authorizeLaunch(req: Parameters<Parameters<IRouter["get"]>[1]>[0], res: Parameters<Parameters<IRouter["get"]>[1]>[1]): Promise<XapiLaunchContext | null> {
+async function authorizeLaunch(req: Request, res: Response): Promise<XapiLaunchContext | null> {
   setXapiVersion(res);
   if (req.get("X-Experience-API-Version") !== xapiVersion) {
     res.status(400).json({ error: `Send X-Experience-API-Version: ${xapiVersion}.` });
@@ -117,7 +118,7 @@ async function authorizeLaunch(req: Parameters<Parameters<IRouter["get"]>[1]>[0]
     .from(applicationsTable).where(and(
       eq(applicationsTable.clerkUserId, stored.participantClerkUserId),
       eq(applicationsTable.programId, material.module.programId),
-      eq(applicationsTable.businessId, stored.businessId),
+      eq(applicationsTable.id, stored.applicationId),
       eq(applicationsTable.status, "accepted"),
     )).limit(1);
   if (!application) {
@@ -129,19 +130,16 @@ async function authorizeLaunch(req: Parameters<Parameters<IRouter["get"]>[1]>[0]
     materialId: stored.materialId,
     participantClerkUserId: stored.participantClerkUserId,
     businessId: stored.businessId,
+    applicationId: stored.applicationId,
     registrationId: stored.registrationId,
     activityId: material.material.packageActivityId ?? `urn:jusoor:course-material:${stored.materialId}`,
     actor: {
       account: {
         homePage: actorHomePage,
-        name: `business-${stored.businessId}`,
+        name: `participant-${createHash("sha256").update(stored.participantClerkUserId).digest("hex").slice(0, 24)}`,
       },
     },
   };
-}
-
-function rejectIfUnauthenticated(res: Parameters<Parameters<IRouter["get"]>[1]>[1]): void {
-  if (!res.headersSent) res.status(401).json({ error: "A valid package launch credential is required." });
 }
 
 function statementInput(value: unknown, launch: XapiLaunchContext): Record<string, unknown> | null {
@@ -165,7 +163,7 @@ function statementInput(value: unknown, launch: XapiLaunchContext): Record<strin
   };
 }
 
-function queryString(req: Parameters<Parameters<IRouter["get"]>[1]>[0], key: string): string | null {
+function queryString(req: Request, key: string): string | null {
   const value = req.query[key];
   return typeof value === "string" && value.length > 0 ? value : null;
 }
@@ -295,8 +293,8 @@ router.put("/statements", async (req, res): Promise<void> => {
 });
 
 async function parseStateRequest(
-  req: Parameters<Parameters<IRouter["get"]>[1]>[0],
-  res: Parameters<Parameters<IRouter["get"]>[1]>[1],
+  req: Request,
+  res: Response,
   launch: XapiLaunchContext,
 ) {
   const activityId = queryString(req, "activityId");
@@ -348,7 +346,7 @@ router.get("/activities/state", async (req, res): Promise<void> => {
   res.json(rows.map((row) => row.documentId));
 });
 
-async function saveState(req: Parameters<Parameters<IRouter["get"]>[1]>[0], res: Parameters<Parameters<IRouter["get"]>[1]>[1], launch: XapiLaunchContext): Promise<void> {
+async function saveState(req: Request, res: Response, launch: XapiLaunchContext): Promise<void> {
   const stateKey = await parseStateRequest(req, res, launch);
   if (!stateKey) return;
   if (!stateKey.stateId || !isRecord(req.body)) {

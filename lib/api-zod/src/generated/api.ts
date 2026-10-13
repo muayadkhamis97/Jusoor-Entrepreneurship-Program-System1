@@ -1501,6 +1501,38 @@ export const SaveParticipantScormProgressResponse = zod.object({
 
 
 /**
+ * @summary Accept a SCORM runtime commit and acknowledge it using the SCORM response format
+ */
+export const CommitParticipantScormProgressParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const commitParticipantScormProgressBodyScoreScaledMin = -1;
+export const commitParticipantScormProgressBodyScoreScaledMax = 1;
+
+export const commitParticipantScormProgressBodyLocationMax = 1000;
+
+export const commitParticipantScormProgressBodySuspendDataMax = 64000;
+
+
+
+export const CommitParticipantScormProgressBody = zod.object({
+  "state": zod.record(zod.string(), zod.unknown()),
+  "completionStatus": zod.enum(['not_attempted', 'incomplete', 'completed', 'unknown']),
+  "successStatus": zod.enum(['passed', 'failed', 'unknown']),
+  "scoreRaw": zod.number().nullable(),
+  "scoreScaled": zod.number().min(commitParticipantScormProgressBodyScoreScaledMin).max(commitParticipantScormProgressBodyScoreScaledMax).nullable(),
+  "location": zod.string().max(commitParticipantScormProgressBodyLocationMax),
+  "suspendData": zod.string().max(commitParticipantScormProgressBodySuspendDataMax)
+})
+
+export const CommitParticipantScormProgressResponse = zod.object({
+  "result": zod.boolean(),
+  "errorCode": zod.number().int()
+})
+
+
+/**
  * @summary Return internal LRS protocol information
  */
 export const GetXapiAboutResponse = zod.object({

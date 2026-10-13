@@ -426,6 +426,11 @@ export interface CoursePackageLaunch {
   xapi: XapiLaunchContext | null;
 }
 
+export interface ScormCommitResult {
+  result: boolean;
+  errorCode: number;
+}
+
 export interface XapiAbout {
   version: string[];
 }

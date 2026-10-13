@@ -870,6 +870,29 @@ paths:
           description: Participant is not enrolled or the package is restricted
         "404":
           description: Released SCORM package not found
+    post:
+      operationId: commitParticipantScormProgress
+      tags: [courses]
+      summary: Accept a SCORM runtime commit and acknowledge it using the SCORM response format
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseScormProgressInput"
+      responses:
+        "200":
+          description: SCORM runtime commit acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScormCommitResult"
+        "403":
+          description: Participant is not enrolled or the package is restricted
+        "404":
+          description: Released SCORM package not found
   /xapi/about:
     get:
       operationId: getXapiAbout
@@ -2590,6 +2613,12 @@ components:
           properties:
             updatedAt: { type: string, format: date-time }
           required: [updatedAt]
+    ScormCommitResult:
+      type: object
+      properties:
+        result: { type: boolean }
+        errorCode: { type: integer }
+      required: [result, errorCode]
     XapiAbout:
       type: object
       properties:

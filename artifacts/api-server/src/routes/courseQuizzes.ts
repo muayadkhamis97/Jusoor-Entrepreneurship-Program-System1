@@ -84,6 +84,7 @@ function mapQuiz(quiz: CourseQuiz, questions: CourseQuizQuestion[]) {
     moduleId: quiz.moduleId,
     title: quiz.title,
     description: quiz.description,
+    language: quiz.language,
     isPublished: quiz.isPublished,
     questions: questions.map((question) => ({
       id: question.id,
@@ -187,6 +188,7 @@ staffCourseQuizRouter.post("/modules/:id/quizzes", async (req, res): Promise<voi
       moduleId: module.id,
       title: body.title,
       description: body.description,
+      language: body.language ?? "en",
       isPublished: body.isPublished,
       createdByStaffId: staff.id,
     }).returning();
@@ -226,6 +228,7 @@ staffCourseQuizRouter.patch("/quizzes/:id", async (req, res): Promise<void> => {
     const [quiz] = await tx.update(courseQuizzesTable).set({
       title: body.title,
       description: body.description,
+      language: body.language ?? "en",
       isPublished: body.isPublished,
     }).where(eq(courseQuizzesTable.id, existing.quiz.id)).returning();
     await tx.delete(courseQuizQuestionsTable)
@@ -373,6 +376,7 @@ participantCourseQuizRouter.get("/modules/:id/quizzes", async (req, res): Promis
         moduleId: quiz.moduleId,
         title: quiz.title,
         description: quiz.description,
+        language: quiz.language,
         questionCount: quizQuestions.length,
         attemptCount: quizAttempts.length,
         latestAttempt: quizAttempts[0] ? mapAttempt(quizAttempts[0]) : null,

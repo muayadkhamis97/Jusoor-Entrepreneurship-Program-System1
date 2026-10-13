@@ -432,6 +432,8 @@ router.patch("/materials/:id", async (req, res): Promise<void> => {
     return;
   }
   const data = body.data;
+  const nextKind = data.kind ?? current.material.kind;
+  const packageKind: CoursePackageKind | null = nextKind === "scorm" || nextKind === "xapi" ? nextKind : null;
   if (data.allowedRoles && !validRoleList(data.allowedRoles)) {
     res.status(400).json({ error: "Choose at least one supported course role." });
     return;
@@ -481,10 +483,31 @@ router.patch("/materials/:id", async (req, res): Promise<void> => {
       nextFileSize = null;
     }
   }
+  if (packageKind && (nextExternalUrl || !nextObjectPath || !nextFileName || !nextContentType || !nextFileSize ||
+    !/\.zip$/i.test(nextFileName) ||
+    !["application/zip", "application/x-zip-compressed"].includes(nextContentType.toLowerCase()) ||
+    nextFileSize > maxPackageBytes)) {
+    res.status(400).json({ error: "SCORM and Tin Can materials must use an uploaded ZIP package under 100 MB." });
+    return;
+  }
+  if (!packageKind && nextObjectPath && /zip/i.test(nextContentType ?? "")) {
+    res.status(400).json({ error: "Choose SCORM or Tin Can package as the material type for ZIP uploads." });
+    return;
+  }
+  let packageInfo: CoursePackageInfo | null = null;
+  if (packageKind) {
+    try {
+      packageInfo = await prepareCoursePackage(nextObjectPath!, packageKind);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "The course package could not be read." });
+      return;
+    }
+  }
   const values: Partial<typeof courseMaterialsTable.$inferInsert> = {};
   if (data.title !== undefined) values.title = data.title;
   if (data.description !== undefined) values.description = data.description ?? null;
   if (data.kind !== undefined) values.kind = data.kind;
+  if (data.language !== undefined) values.language = data.language;
   if (data.position !== undefined) values.position = data.position;
   if (data.allowedRoles !== undefined) values.allowedRoles = data.allowedRoles;
   if (sourceChanged) {
@@ -494,9 +517,15 @@ router.patch("/materials/:id", async (req, res): Promise<void> => {
     values.contentType = nextContentType;
     values.fileSize = nextFileSize;
   }
+  if (data.kind !== undefined || sourceChanged) {
+    values.packageFormat = packageInfo?.format ?? null;
+    values.packageLaunchPath = packageInfo?.launchPath ?? null;
+    values.packageActivityId = packageInfo?.activityId ?? null;
+  }
   const [material] = await db.update(courseMaterialsTable).set(values)
     .where(eq(courseMaterialsTable.id, current.material.id)).returning();
   if (sourceChanged && current.material.objectPath && current.material.objectPath !== nextObjectPath) {
+    await deleteCoursePackageCache(current.material.objectPath).catch(() => undefined);
     await deleteCourseMaterialFile(current.material.objectPath).catch((error: unknown) => {
       req.log.warn({ err: error, materialId: current.material.id }, "Could not delete replaced course file");
     });
@@ -522,6 +551,7 @@ router.delete("/materials/:id", async (req, res): Promise<void> => {
   }
   await db.delete(courseMaterialsTable).where(eq(courseMaterialsTable.id, current.material.id));
   if (current.material.objectPath) {
+    await deleteCoursePackageCache(current.material.objectPath).catch(() => undefined);
     await deleteCourseMaterialFile(current.material.objectPath).catch((error: unknown) => {
       req.log.warn({ err: error, materialId: current.material.id }, "Could not delete private course file");
     });
@@ -540,8 +570,9 @@ router.post("/uploads/request-url", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
-  if (body.data.size > maxUploadBytes || !isSupportedCourseFile(body.data.contentType)) {
-    res.status(400).json({ error: "Use a supported video, audio, PDF, Word, or presentation file up to 250 MB." });
+  const isPackageArchive = ["application/zip", "application/x-zip-compressed"].includes(body.data.contentType.toLowerCase());
+  if (body.data.size > (isPackageArchive ? maxPackageBytes : maxUploadBytes) || !isSupportedCourseFile(body.data.contentType)) {
+    res.status(400).json({ error: "Use a supported media or document file up to 250 MB, or a course package ZIP up to 100 MB." });
     return;
   }
   const programIds = await manageableProgramIds(staff);

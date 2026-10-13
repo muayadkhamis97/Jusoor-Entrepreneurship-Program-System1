@@ -112,6 +112,8 @@ router.get("/courses", async (_req, res): Promise<void> => {
           title: material.title,
           description: material.description,
           kind: material.kind,
+          language: material.language,
+          packageFormat: material.packageFormat,
           externalUrl: material.externalUrl,
           fileName: material.fileName,
           contentType: material.contentType,
@@ -141,7 +143,7 @@ router.get("/courses/materials/:id/file", async (req, res): Promise<void> => {
     .innerJoin(courseModulesTable, eq(courseMaterialsTable.moduleId, courseModulesTable.id))
     .where(eq(courseMaterialsTable.id, params.data.id))
     .limit(1);
-  if (!record || !record.material.objectPath) {
+  if (!record || !record.material.objectPath || record.material.kind === "scorm" || record.material.kind === "xapi") {
     res.status(404).json({ error: "Course material file not found." });
     return;
   }

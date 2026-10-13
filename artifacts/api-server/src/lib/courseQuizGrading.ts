@@ -10,6 +10,7 @@ export type CourseQuizQuestionWriteInput = {
 export type CourseQuizWriteInput = {
   title: string;
   description: string | null;
+  language?: "en" | "ar";
   isPublished: boolean;
   questions: CourseQuizQuestionWriteInput[];
 };

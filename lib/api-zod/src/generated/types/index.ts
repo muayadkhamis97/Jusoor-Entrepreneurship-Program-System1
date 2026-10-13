@@ -157,6 +157,7 @@ export * from './programUpdateStatus';
 export * from './putXapiActivityStateParams';
 export * from './putXapiStatementParams';
 export * from './quizQuestionType';
+export * from './scormCommitResult';
 export * from './session';
 export * from './sessionActivityAnswer';
 export * from './sessionActivityChoice';
