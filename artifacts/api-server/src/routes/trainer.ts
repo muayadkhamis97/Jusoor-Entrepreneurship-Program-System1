@@ -24,6 +24,7 @@ import {
 } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { getZoomAttendanceReport } from "../lib/zoom-attendance";
+import { canTrainerAccessSessionQuestion } from "../lib/trainer-access";
 
 const router: IRouter = Router();
 
@@ -81,6 +82,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   const questions = await db.select({
     id: trainingQuestionsTable.id,
     programId: trainingQuestionsTable.programId,
+    sessionId: trainingQuestionsTable.sessionId,
     sessionTitle: sessionsTable.title,
     assignmentTitle: trainingAssignmentsTable.title,
     question: trainingQuestionsTable.question,
@@ -98,7 +100,11 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     .where(inArray(trainingQuestionsTable.programId, programIds))
     .orderBy(desc(trainingQuestionsTable.createdAt));
 
-  res.json(GetTrainerDashboardResponse.parse({ sessions, assignments, submissions, questions }));
+  const assignedSessionIds = new Set(sessions.map(({ id }) => id));
+  const visibleQuestions = questions.filter(({ sessionId }) =>
+    canTrainerAccessSessionQuestion(sessionId, assignedSessionIds),
+  );
+  res.json(GetTrainerDashboardResponse.parse({ sessions, assignments, submissions, questions: visibleQuestions }));
 });
 
 router.get("/attendance", async (_req, res): Promise<void> => {

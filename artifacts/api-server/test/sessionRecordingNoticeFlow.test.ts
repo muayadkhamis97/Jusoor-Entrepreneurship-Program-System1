@@ -106,6 +106,15 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+  app.use((_req, res, next) => {
+    res.locals.staff = {
+      id: 1,
+      email: "session-recording-test@example.com",
+      role: "coordinator",
+      status: "active",
+    };
+    next();
+  });
   app.use("/api", router);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
