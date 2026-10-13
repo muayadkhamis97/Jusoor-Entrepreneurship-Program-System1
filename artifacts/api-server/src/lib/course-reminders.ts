@@ -39,6 +39,89 @@ function reminderKindFor(dueAt: Date, now: Date): typeof reminderWindows[number]
     hoursUntil >= window.fromHours && hoursUntil < window.toHours) ?? null;
 }
 
+type ReminderScheduleModule = {
+  moduleId: number;
+  programId: number;
+  dueAt: Date | null;
+  releaseAt: Date | null;
+  createdAt: Date;
+  position: number;
+  isRequired: boolean;
+  isPublished: boolean;
+};
+
+type ReminderScheduleApplication = { id: number; programId: number };
+type ReminderScheduleProgress = {
+  applicationId: number;
+  moduleId: number;
+  completedAt: Date | null;
+};
+type ReminderScheduleActivity = { applicationId: number; lastActivityAt: Date | null };
+
+export type CourseReminderSchedule = {
+  applicationId: number;
+  moduleId: number;
+  dueAt: Date;
+  reminderKind: string;
+};
+
+export function buildCourseReminderSchedule(
+  modules: ReminderScheduleModule[],
+  applications: ReminderScheduleApplication[],
+  progress: ReminderScheduleProgress[],
+  activity: ReminderScheduleActivity[],
+  now: Date,
+): CourseReminderSchedule[] {
+  const completedKeys = new Set(progress.filter((item) => item.completedAt)
+    .map((item) => `${item.applicationId}:${item.moduleId}`));
+  const releasedRequiredModules = modules.filter((module) =>
+    module.isRequired && module.isPublished && (!module.releaseAt || module.releaseAt <= now));
+  const applicationByProgram = new Map<number, ReminderScheduleApplication[]>();
+  for (const application of applications) {
+    const current = applicationByProgram.get(application.programId) ?? [];
+    current.push(application);
+    applicationByProgram.set(application.programId, current);
+  }
+  const scheduled: CourseReminderSchedule[] = [];
+  for (const module of releasedRequiredModules) {
+    if (!module.dueAt) continue;
+    const reminder = reminderKindFor(module.dueAt, now);
+    if (!reminder) continue;
+    for (const application of applicationByProgram.get(module.programId) ?? []) {
+      if (completedKeys.has(`${application.id}:${module.moduleId}`)) continue;
+      scheduled.push({
+        applicationId: application.id,
+        moduleId: module.moduleId,
+        dueAt: module.dueAt,
+        reminderKind: reminder.kind,
+      });
+    }
+  }
+
+  const weekStart = currentWeekStart(now);
+  const inactiveSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const activityByApplication = new Map(activity.map((item) => [item.applicationId, item.lastActivityAt]));
+  for (const application of applications) {
+    const lastActivityAt = activityByApplication.get(application.id);
+    if (lastActivityAt && lastActivityAt >= inactiveSince) continue;
+    const candidate = releasedRequiredModules
+      .filter((module) =>
+        module.programId === application.programId &&
+        (!module.dueAt || module.dueAt <= now) &&
+        (module.dueAt ?? module.releaseAt ?? module.createdAt) <= inactiveSince &&
+        !completedKeys.has(`${application.id}:${module.moduleId}`))
+      .sort((left, right) => left.position - right.position)[0];
+    if (!candidate) continue;
+    scheduled.push({
+      applicationId: application.id,
+      moduleId: candidate.moduleId,
+      dueAt: weekStart,
+      reminderKind: weeklyReminder.kind,
+    });
+  }
+  return scheduled;
+}
+
 function currentWeekStart(now: Date): Date {
   const result = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   result.setUTCDate(result.getUTCDate() - ((result.getUTCDay() + 6) % 7));
@@ -137,54 +220,11 @@ async function queueDueReminders(now: Date): Promise<void> {
       inArray(courseModuleProgressTable.applicationId, applications.map((application) => application.id)),
       inArray(courseModuleProgressTable.moduleId, modules.map((module) => module.moduleId)),
     ));
-  const completedKeys = new Set(progress.filter((item) => item.completedAt)
-    .map((item) => `${item.applicationId}:${item.moduleId}`));
   const activity = await db.select().from(courseProgramActivityTable)
     .where(inArray(courseProgramActivityTable.applicationId, applications.map((application) => application.id)));
-  const activityByApplication = new Map(activity.map((item) => [item.applicationId, item]));
-  const applicationByProgram = new Map<number, typeof applications>();
-  for (const application of applications) {
-    const current = applicationByProgram.get(application.programId) ?? [];
-    current.push(application);
-    applicationByProgram.set(application.programId, current);
-  }
-  for (const module of modules) {
-    if (!module.dueAt) continue;
-    const reminder = reminderKindFor(module.dueAt, now);
-    if (!reminder) continue;
-    for (const application of applicationByProgram.get(module.programId) ?? []) {
-      if (completedKeys.has(`${application.id}:${module.moduleId}`)) continue;
-      await db.insert(courseReminderDeliveriesTable).values({
-        applicationId: application.id,
-        moduleId: module.moduleId,
-        dueAt: module.dueAt,
-        reminderKind: reminder.kind,
-      }).onConflictDoNothing();
-    }
-  }
-
-  const weekStart = currentWeekStart(now);
-  const inactiveSince = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  for (const application of applications) {
-    const lastActivityAt = activityByApplication.get(application.id)?.lastActivityAt;
-    if (lastActivityAt && lastActivityAt >= inactiveSince) continue;
-    const candidate = modules
-      .filter((module) =>
-        module.programId === application.programId &&
-        (!module.dueAt || module.dueAt <= now) &&
-        module.isRequired &&
-        module.isPublished &&
-        (!module.releaseAt || module.releaseAt <= now) &&
-        (module.dueAt ?? module.releaseAt ?? module.createdAt) <= inactiveSince &&
-        !completedKeys.has(`${application.id}:${module.moduleId}`))
-      .sort((left, right) => left.position - right.position)[0];
-    if (!candidate) continue;
-    await db.insert(courseReminderDeliveriesTable).values({
-      applicationId: application.id,
-      moduleId: candidate.moduleId,
-      dueAt: weekStart,
-      reminderKind: weeklyReminder.kind,
-    }).onConflictDoNothing();
+  const schedule = buildCourseReminderSchedule(modules, applications, progress, activity, now);
+  for (const delivery of schedule) {
+    await db.insert(courseReminderDeliveriesTable).values(delivery).onConflictDoNothing();
   }
 }
 

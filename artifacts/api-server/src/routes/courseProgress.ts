@@ -353,31 +353,36 @@ participantCourseProgressRouter.post("/modules/:id/progress", async (req, res): 
     res.status(404).json({ error: "Released course module not found." });
     return;
   }
-  const [application] = await db.select({ id: applicationsTable.id })
-    .from(applicationsTable).where(and(
-      eq(applicationsTable.programId, module.programId),
-      eq(applicationsTable.clerkUserId, participant.userId),
-      eq(applicationsTable.status, "accepted"),
-    )).limit(1);
-  if (!application) {
+  const now = new Date();
+  const outcome = await db.transaction(async (tx) => {
+    const [application] = await tx.select({ id: applicationsTable.id })
+      .from(applicationsTable).where(and(
+        eq(applicationsTable.programId, module.programId),
+        eq(applicationsTable.clerkUserId, participant.userId),
+        eq(applicationsTable.status, "accepted"),
+      )).limit(1).for("update");
+    if (!application) return null;
+    const [progress] = await tx.insert(courseModuleProgressTable).values({
+      moduleId: module.id,
+      applicationId: application.id,
+      participantClerkUserId: participant.userId,
+      completedAt: body.data.completed ? now : null,
+      lastActivityAt: now,
+    }).onConflictDoUpdate({
+      target: [courseModuleProgressTable.applicationId, courseModuleProgressTable.moduleId],
+      set: {
+        completedAt: body.data.completed ? now : null,
+        lastActivityAt: now,
+        updatedAt: now,
+      },
+    }).returning();
+    return { progress };
+  });
+  if (!outcome) {
     res.status(403).json({ error: "This module is not part of your accepted cohort." });
     return;
   }
-  const now = new Date();
-  const [progress] = await db.insert(courseModuleProgressTable).values({
-    moduleId: module.id,
-    applicationId: application.id,
-    participantClerkUserId: participant.userId,
-    completedAt: body.data.completed ? now : null,
-    lastActivityAt: now,
-  }).onConflictDoUpdate({
-    target: [courseModuleProgressTable.applicationId, courseModuleProgressTable.moduleId],
-    set: {
-      completedAt: body.data.completed ? now : null,
-      lastActivityAt: now,
-      updatedAt: now,
-    },
-  }).returning();
+  const { progress } = outcome;
   res.json(RecordParticipantModuleProgressResponse.parse({
     moduleId: progress.moduleId,
     completedAt: progress.completedAt,
@@ -606,72 +611,79 @@ staffLearningProgressRouter.post("/analytics/learning-progress/applications/:id/
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [application] = await db.select({
-    application: applicationsTable,
-    programName: programsTable.name,
-  }).from(applicationsTable)
-    .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
-    .where(and(
-      eq(applicationsTable.id, params.data.id),
-      eq(applicationsTable.status, "accepted"),
-    )).limit(1);
-  if (!application) {
+  const outcome = await db.transaction(async (tx) => {
+    const [application] = await tx.select({
+      application: applicationsTable,
+      programName: programsTable.name,
+    }).from(applicationsTable)
+      .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+      .where(and(
+        eq(applicationsTable.id, params.data.id),
+        eq(applicationsTable.status, "accepted"),
+      )).limit(1).for("update");
+    if (!application) return { kind: "not_found" as const };
+    const [alreadyIssued] = await tx.select({ id: courseCertificatesTable.id })
+      .from(courseCertificatesTable)
+      .where(eq(courseCertificatesTable.applicationId, application.application.id))
+      .limit(1);
+    if (alreadyIssued) return { kind: "already_issued" as const };
+
+    const now = new Date();
+    const requiredModules = await tx.select({ id: courseModulesTable.id })
+      .from(courseModulesTable)
+      .where(and(
+        eq(courseModulesTable.programId, application.application.programId),
+        eq(courseModulesTable.isPublished, true),
+        eq(courseModulesTable.isRequired, true),
+        or(isNull(courseModulesTable.releaseAt), lte(courseModulesTable.releaseAt, now)),
+      ));
+    const completedModules = requiredModules.length
+      ? await tx.select({ moduleId: courseModuleProgressTable.moduleId })
+        .from(courseModuleProgressTable)
+        .where(and(
+          eq(courseModuleProgressTable.applicationId, application.application.id),
+          eq(courseModuleProgressTable.participantClerkUserId, application.application.clerkUserId ?? ""),
+          inArray(courseModuleProgressTable.moduleId, requiredModules.map((module) => module.id)),
+          sql`${courseModuleProgressTable.completedAt} IS NOT NULL`,
+        ))
+      : [];
+    if (!requiredModules.length || completedModules.length !== requiredModules.length) {
+      return { kind: "ineligible" as const };
+    }
+
+    const [issued] = await tx.insert(courseCertificatesTable).values({
+      applicationId: application.application.id,
+      programId: application.application.programId,
+      certificateCode: randomUUID().toUpperCase(),
+      participantName: application.application.founderName,
+      businessName: application.application.businessName,
+      programName: application.programName,
+      issuedByStaffId: staff.id,
+    }).onConflictDoNothing({ target: courseCertificatesTable.applicationId }).returning();
+    return issued ? { kind: "issued" as const, certificate: issued } : { kind: "already_issued" as const };
+  });
+
+  if (outcome.kind === "not_found") {
     res.status(404).json({ error: "Accepted participant application not found." });
     return;
   }
-  const [alreadyIssued] = await db.select({ id: courseCertificatesTable.id })
-    .from(courseCertificatesTable)
-    .where(eq(courseCertificatesTable.applicationId, application.application.id))
-    .limit(1);
-  if (alreadyIssued) {
+  if (outcome.kind === "already_issued") {
     res.status(409).json({ error: "A certificate has already been issued for this participant." });
     return;
   }
-  const now = new Date();
-  const requiredModules = await db.select({ id: courseModulesTable.id })
-    .from(courseModulesTable)
-    .where(and(
-      eq(courseModulesTable.programId, application.application.programId),
-      eq(courseModulesTable.isPublished, true),
-      eq(courseModulesTable.isRequired, true),
-      or(isNull(courseModulesTable.releaseAt), lte(courseModulesTable.releaseAt, now)),
-    ));
-  const completedModules = requiredModules.length
-    ? await db.select({ moduleId: courseModuleProgressTable.moduleId })
-      .from(courseModuleProgressTable)
-      .where(and(
-        eq(courseModuleProgressTable.applicationId, application.application.id),
-        eq(courseModuleProgressTable.participantClerkUserId, application.application.clerkUserId ?? ""),
-        inArray(courseModuleProgressTable.moduleId, requiredModules.map((module) => module.id)),
-        sql`${courseModuleProgressTable.completedAt} IS NOT NULL`,
-      ))
-    : [];
-  if (!requiredModules.length || completedModules.length !== requiredModules.length) {
+  if (outcome.kind === "ineligible") {
     res.status(400).json({ error: "Complete all required published modules before issuing a certificate." });
     return;
   }
-  const [issued] = await db.insert(courseCertificatesTable).values({
-    applicationId: application.application.id,
-    programId: application.application.programId,
-    certificateCode: randomUUID().toUpperCase(),
-    participantName: application.application.founderName,
-    businessName: application.application.businessName,
-    programName: application.programName,
-    issuedByStaffId: staff.id,
-  }).onConflictDoNothing({ target: courseCertificatesTable.applicationId }).returning();
-  if (!issued) {
-    res.status(409).json({ error: "A certificate has already been issued for this participant." });
-    return;
-  }
   res.status(201).json(IssueCourseCertificateResponse.parse({
-    id: issued.id,
-    applicationId: issued.applicationId,
-    programId: issued.programId,
-    programName: issued.programName,
-    participantName: issued.participantName,
-    businessName: issued.businessName,
-    certificateCode: issued.certificateCode,
-    issuedAt: issued.issuedAt,
+    id: outcome.certificate.id,
+    applicationId: outcome.certificate.applicationId,
+    programId: outcome.certificate.programId,
+    programName: outcome.certificate.programName,
+    participantName: outcome.certificate.participantName,
+    businessName: outcome.certificate.businessName,
+    certificateCode: outcome.certificate.certificateCode,
+    issuedAt: outcome.certificate.issuedAt,
     issuedByName: staff.email,
   }));
 });
