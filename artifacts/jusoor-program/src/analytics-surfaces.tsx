@@ -5,6 +5,7 @@ import { currentLanguage, t, useAppLanguage } from "./language";
 import { CSVLink } from "react-csv";
 import {
   useGetProgramAnalytics,
+  useGetProgramSessionInteractionAnalytics,
   useGetSessionAttendanceRegister,
   useSaveSessionAttendance,
   useQueueZoomAttendanceSync,
@@ -72,6 +73,7 @@ export function ProgramAnalyticsPage() {
     ...(to ? { to } : {}),
   }), [programChoice, from, to]);
   const analyticsQuery = useGetProgramAnalytics(queryParams);
+  const interactionAnalyticsQuery = useGetProgramSessionInteractionAnalytics(queryParams);
   const data = analyticsQuery.data;
   const selectedProgram = programChoice ? Number(programChoice) : data?.selectedProgramId ?? undefined;
   const kpiQuery = useListProgramImpactKpis({ programId: selectedProgram ?? 0 }, {
@@ -123,10 +125,11 @@ export function ProgramAnalyticsPage() {
     if (!autoRefresh) return;
     const timer = window.setInterval(() => {
       void analyticsQuery.refetch();
+      void interactionAnalyticsQuery.refetch();
       if (selectedProgram) void kpiQuery.refetch();
     }, Math.max(intervalMs, 5 * 60 * 1000));
     return () => window.clearInterval(timer);
-  }, [autoRefresh, intervalMs, analyticsQuery.refetch, kpiQuery.refetch, selectedProgram]);
+  }, [autoRefresh, intervalMs, analyticsQuery.refetch, interactionAnalyticsQuery.refetch, kpiQuery.refetch, selectedProgram]);
   useEffect(() => {
     if (registerQuery.data) {
       const next: AttendanceState = {};
@@ -192,6 +195,7 @@ export function ProgramAnalyticsPage() {
   }
   const refresh = () => {
     void analyticsQuery.refetch();
+    void interactionAnalyticsQuery.refetch();
     if (selectedProgram) void kpiQuery.refetch();
   };
   function commitKpi(event: FormEvent<HTMLFormElement>) {
@@ -259,7 +263,7 @@ export function ProgramAnalyticsPage() {
 
       <section className="ana-filters print-hide">
         <div className="ana-filter-title"><CalendarDays size={16} /><span>{t("FILTER SCOPE")}</span></div>
-        <label className="ana-field"><span>{t("Program")}</span><select value={programChoice} onChange={(e) => setProgramChoice(e.target.value)}><option value="">{t("All programs")}</option>{data?.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
+        <label className="ana-field"><span>{t("Program / cohort")}</span><select value={programChoice} onChange={(e) => setProgramChoice(e.target.value)}><option value="">{t("All programs")}</option>{data?.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
         <label className="ana-field"><span>{t("From")}</span><input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="ana-field"><span>{t("Through")}</span><input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
         <div className="ana-range-caption"><span className="ana-range-pulse" />{data ? `${dateLabel(data.from)} — ${dateLabel(data.to)}` : t("Loading date range")}</div>
@@ -312,6 +316,34 @@ export function ProgramAnalyticsPage() {
             <td>{fmt(person.assignmentsSubmitted)} <span className="ana-table-muted">/ {fmt(person.assignmentsAvailable)}</span></td><td>{fmt(person.questionsAsked)}</td><td>{fmt(person.supportEngagements)}</td><td>{person.lastActivityAt ? dateLabel(person.lastActivityAt.slice(0, 10)) : <span className="ana-missing">No recent activity</span>}</td>
           </tr>)}</tbody></table></div> : <div className="ana-inline-empty"><Users size={18} /><span>No founder activity records match these filters.</span></div>}
           <div className="ana-panel-foot">A dash means the source contains no record for that metric; it is not treated as zero performance.</div>
+        </section>
+
+        <section className="ana-panel ana-interactions">
+          <div className="ana-panel-head ana-interactions-head">
+            <div><span className="ana-eyebrow">{t("LIVE SESSION ACTIVITIES")}</span><h3>{t("Poll & survey participation")}</h3><p>{t("Compare response counts and rates for activities in the selected programs and date range.")}</p></div>
+            <ExportButton rows={(interactionAnalyticsQuery.data?.activities ?? []).map((activity) => ({
+              program: activity.programName,
+              session: activity.sessionTitle,
+              sessionDate: activity.sessionDate,
+              activity: activity.activityTitle,
+              type: activity.type,
+              status: activity.status,
+              responses: activity.responseCount,
+              eligibleBusinesses: activity.eligibleBusinesses,
+              responseRate: activity.responseRate == null ? "Unavailable" : `${activity.responseRate.toFixed(1)}%`,
+            }))} filename="poll-survey-participation.csv" />
+          </div>
+          {interactionAnalyticsQuery.isLoading ? <div className="ana-table-skeleton"><i /><i /><i /></div> :
+            interactionAnalyticsQuery.isError ? <div className="ana-inline-empty ana-interaction-error"><CircleAlert size={18} /><span>{t("Poll and survey participation could not load.")}</span><button type="button" onClick={() => void interactionAnalyticsQuery.refetch()}>{t("Retry")}</button></div> :
+              interactionAnalyticsQuery.data?.activities.length ? <div className="ana-table-scroll"><table className="ana-table ana-interactions-table"><thead><tr><th>{t("Program / cohort")}</th><th>{t("Session")}</th><th>{t("Activity")}</th><th>{t("Responses")}</th><th>{t("Response rate")}</th></tr></thead><tbody>{interactionAnalyticsQuery.data.activities.map((activity) => <tr key={activity.activityId}>
+                <td><b>{activity.programName}</b></td>
+                <td><span className="ana-interaction-session">{activity.sessionTitle}</span><small>{dateLabel(activity.sessionDate)}</small></td>
+                <td><span className={`ana-interaction-kind ana-kind-${activity.type}`}>{t(activity.type)}</span><span className="ana-interaction-title">{activity.activityTitle}</span><small>{t(activity.status)}</small></td>
+                <td><b>{fmt(activity.responseCount)}</b><span className="ana-table-muted"> / {fmt(activity.eligibleBusinesses)}</span></td>
+                <td>{activity.responseRate == null ? <span className="ana-missing">{t(activity.status === "draft" ? "Not opened" : "Unavailable")}</span> : <span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(activity.responseRate, 100))}%` } as React.CSSProperties} />{activity.responseRate.toFixed(1)}%</span>}</td>
+              </tr>)}</tbody></table></div> :
+                <div className="ana-inline-empty"><Activity size={18} /><span>{t("No polls or surveys match this cohort and reporting period.")}</span></div>}
+          <div className="ana-panel-foot">{t("Rates use distinct accepted businesses in each program. This view contains aggregate counts only; survey answers remain available only in authorized session reviews.")}</div>
         </section>
 
         <section className="ana-lower-grid">
@@ -409,7 +441,7 @@ export function ProgramAnalyticsPage() {
       </div>
     </section></div>}
 
-    <div className="ana-report-print" aria-hidden="true"><div className="ana-print-title"><span>JUSOOR PROGRAM HUB · IMPACT &amp; PROGRESS</span><h1>{reportTitle || "Program progress report"}</h1><p>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"} · {from ? dateLabel(from) : "Start"} — {to ? dateLabel(to) : "Today"}</p></div>
+  <div className="ana-report-print" aria-hidden="true"><div className="ana-print-title"><span>JUSOOR PROGRAM HUB · IMPACT &amp; PROGRESS</span><h1>{reportTitle || "Program progress report"}</h1><p>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"} · {from ? dateLabel(from) : "Start"} — {to ? dateLabel(to) : "Today"}</p></div>
       {reportParts.summary && summary && <section><h2>Program summary</h2><div className="ana-print-stats">{metrics.map((metric) => <div key={metric.title}><span>{metric.title}</span><b>{metric.value}</b><small>{metric.hint}</small></div>)}</div><p>Applications: {fmt(summary.applications)} · Accepted: {fmt(summary.acceptedApplications)} · Sessions: {fmt(summary.sessionsInRange)} · Completed support: {fmt(summary.completedSupport)} · Unanswered questions: {fmt(summary.unansweredQuestions)}</p></section>}
       {reportParts.stages && <section><h2>Founder stage distribution</h2>{stageRows.length ? stageRows.map((row) => <p key={row.stage}>{STAGE_LABELS[row.stage] ?? row.stage}: {fmt(row.count)}</p>) : <p>No stage data recorded.</p>}</section>}
       {reportParts.attendance && <section><h2>Attendance trend and sessions</h2>{hasAttendanceData ? trendRows.map((row) => <p key={row.period}>{row.period}: {row.present === null ? "No attendance marks recorded" : `${row.present} present · ${row.absent} absent · ${row.excused} excused`}</p>) : <p>No attendance data recorded for this range.</p>}{sessions.map((session) => <p key={session.id}>{dateLabel(session.scheduledDate)} · {session.title}: {session.present} present / {session.attendanceMarks} marked</p>)}</section>}

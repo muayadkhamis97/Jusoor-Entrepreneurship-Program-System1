@@ -2285,6 +2285,48 @@ export interface ProgramAnalytics {
   sessions: AnalyticsSession[];
 }
 
+export type SessionInteractionParticipationType = typeof SessionInteractionParticipationType[keyof typeof SessionInteractionParticipationType];
+
+
+export const SessionInteractionParticipationType = {
+  poll: 'poll',
+  survey: 'survey',
+} as const;
+
+export type SessionInteractionParticipationStatus = typeof SessionInteractionParticipationStatus[keyof typeof SessionInteractionParticipationStatus];
+
+
+export const SessionInteractionParticipationStatus = {
+  draft: 'draft',
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface SessionInteractionParticipation {
+  programId: number;
+  programName: string;
+  sessionId: number;
+  sessionTitle: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  sessionDate: string;
+  activityId: number;
+  activityTitle: string;
+  type: SessionInteractionParticipationType;
+  status: SessionInteractionParticipationStatus;
+  responseCount: number;
+  eligibleBusinesses: number;
+  /** @nullable */
+  responseRate: number | null;
+}
+
+export interface ProgramSessionInteractionAnalytics {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  from: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  to: string;
+  activities: SessionInteractionParticipation[];
+}
+
 export interface ZoomAttendanceParticipantResolutionInput {
   /** @nullable */
   businessId: number | null;
@@ -2417,6 +2459,18 @@ export interface ImpactKpiValuesInput {
 }
 
 export type GetProgramAnalyticsParams = {
+programId?: number;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+from?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+to?: string;
+};
+
+export type GetProgramSessionInteractionAnalyticsParams = {
 programId?: number;
 /**
  * @pattern ^\d{4}-\d{2}-\d{2}$

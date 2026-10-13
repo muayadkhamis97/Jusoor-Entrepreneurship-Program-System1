@@ -15,6 +15,8 @@ import {
   DeleteProgramImpactKpiResponse,
   GetProgramAnalyticsQueryParams,
   GetProgramAnalyticsResponse,
+  GetProgramSessionInteractionAnalyticsQueryParams,
+  GetProgramSessionInteractionAnalyticsResponse,
   GetSessionAttendanceRegisterParams,
   GetSessionAttendanceRegisterResponse,
   ImpactKpiDirection,
@@ -44,6 +46,8 @@ import {
   pitchesTable,
   programsTable,
   sessionAttendanceTable,
+  sessionInteractiveActivitiesTable,
+  sessionInteractiveResponsesTable,
   sessionsTable,
   supportTable,
   trainingAssignmentsTable,
@@ -416,6 +420,126 @@ router.get("/analytics", async (req, res): Promise<void> => {
     }),
   };
   res.json(GetProgramAnalyticsResponse.parse(parsedOutput));
+});
+
+router.get("/analytics/session-interactions", async (req, res): Promise<void> => {
+  const parsed = GetProgramSessionInteractionAnalyticsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const today = dateOnly(new Date());
+  const from = parsed.data.from ?? dateOnly(addDays(timestampStart(today), -89));
+  const to = parsed.data.to ?? today;
+  if (!isCalendarDate(from) || !isCalendarDate(to) || from > to) {
+    res.status(400).json({ error: "Choose a valid date range." });
+    return;
+  }
+
+  if (parsed.data.programId !== undefined) {
+    const [program] = await db.select({ id: programsTable.id })
+      .from(programsTable)
+      .where(eq(programsTable.id, parsed.data.programId))
+      .limit(1);
+    if (!program) {
+      res.status(404).json({ error: "Program not found." });
+      return;
+    }
+  }
+
+  const sessionFilters = [
+    gte(sessionsTable.scheduledDate, from),
+    lte(sessionsTable.scheduledDate, to),
+    ...(parsed.data.programId === undefined
+      ? []
+      : [eq(sessionsTable.programId, parsed.data.programId)]),
+  ];
+  const sessions = await db.select({
+    id: sessionsTable.id,
+    programId: programsTable.id,
+    programName: programsTable.name,
+    title: sessionsTable.title,
+    scheduledDate: sessionsTable.scheduledDate,
+  }).from(sessionsTable)
+    .innerJoin(programsTable, eq(sessionsTable.programId, programsTable.id))
+    .where(and(...sessionFilters))
+    .orderBy(asc(sessionsTable.scheduledDate), asc(sessionsTable.title));
+
+  const sessionIds = sessions.map(({ id }) => id);
+  const activities = sessionIds.length
+    ? await db.select({
+      id: sessionInteractiveActivitiesTable.id,
+      sessionId: sessionInteractiveActivitiesTable.sessionId,
+      type: sessionInteractiveActivitiesTable.type,
+      title: sessionInteractiveActivitiesTable.title,
+      status: sessionInteractiveActivitiesTable.status,
+    }).from(sessionInteractiveActivitiesTable)
+      .where(inArray(sessionInteractiveActivitiesTable.sessionId, sessionIds))
+      .orderBy(asc(sessionInteractiveActivitiesTable.createdAt))
+    : [];
+  const activityIds = activities.map(({ id }) => id);
+  const [acceptedBusinesses, responseRows] = await Promise.all([
+    sessionIds.length
+      ? db.select({
+        programId: applicationsTable.programId,
+        businessId: applicationsTable.businessId,
+      }).from(applicationsTable)
+        .where(and(
+          eq(applicationsTable.status, "accepted"),
+          inArray(applicationsTable.programId, [...new Set(sessions.map(({ programId }) => programId))]),
+        ))
+      : Promise.resolve([]),
+    activityIds.length
+      ? db.select({ activityId: sessionInteractiveResponsesTable.activityId })
+        .from(sessionInteractiveResponsesTable)
+        .where(inArray(sessionInteractiveResponsesTable.activityId, activityIds))
+      : Promise.resolve([]),
+  ]);
+
+  const eligibleByProgram = new Map<number, Set<number>>();
+  for (const enrollment of acceptedBusinesses) {
+    if (enrollment.businessId === null) continue;
+    const eligible = eligibleByProgram.get(enrollment.programId) ?? new Set<number>();
+    eligible.add(enrollment.businessId);
+    eligibleByProgram.set(enrollment.programId, eligible);
+  }
+  const responseCountByActivity = new Map<number, number>();
+  for (const response of responseRows) {
+    responseCountByActivity.set(
+      response.activityId,
+      (responseCountByActivity.get(response.activityId) ?? 0) + 1,
+    );
+  }
+  const sessionById = new Map(sessions.map((session) => [session.id, session]));
+  const outputActivities = activities.flatMap((activity) => {
+    if (activity.type !== "poll" && activity.type !== "survey") return [];
+    const session = sessionById.get(activity.sessionId);
+    if (!session) return [];
+    const eligibleBusinesses = eligibleByProgram.get(session.programId)?.size ?? 0;
+    const responseCount = responseCountByActivity.get(activity.id) ?? 0;
+    return [{
+      programId: session.programId,
+      programName: session.programName,
+      sessionId: session.id,
+      sessionTitle: session.title,
+      sessionDate: session.scheduledDate,
+      activityId: activity.id,
+      activityTitle: activity.title,
+      type: activity.type,
+      status: activity.status,
+      responseCount,
+      eligibleBusinesses,
+      responseRate: activity.status !== "draft" && eligibleBusinesses > 0
+        ? Math.round(responseCount / eligibleBusinesses * 1000) / 10
+        : null,
+    }];
+  });
+
+  res.json(GetProgramSessionInteractionAnalyticsResponse.parse({
+    from,
+    to,
+    activities: outputActivities,
+  }));
 });
 
 router.get("/analytics/attendance/:sessionId", async (req, res): Promise<void> => {

@@ -156,6 +156,44 @@ export const GetProgramAnalyticsResponse = zod.object({
 
 
 /**
+ * @summary Compare poll and survey participation by program and session
+ */
+export const getProgramSessionInteractionAnalyticsQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramSessionInteractionAnalyticsQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetProgramSessionInteractionAnalyticsQueryParams = zod.object({
+  "programId": zod.coerce.number().int().optional(),
+  "from": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryFromRegExp).optional(),
+  "to": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryToRegExp).optional()
+})
+
+export const getProgramSessionInteractionAnalyticsResponseFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramSessionInteractionAnalyticsResponseToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramSessionInteractionAnalyticsResponseActivitiesItemSessionDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
+  "from": zod.string().regex(getProgramSessionInteractionAnalyticsResponseFromRegExp),
+  "to": zod.string().regex(getProgramSessionInteractionAnalyticsResponseToRegExp),
+  "activities": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "sessionId": zod.number().int(),
+  "sessionTitle": zod.string(),
+  "sessionDate": zod.string().regex(getProgramSessionInteractionAnalyticsResponseActivitiesItemSessionDateRegExp),
+  "activityId": zod.number().int(),
+  "activityTitle": zod.string(),
+  "type": zod.enum(['poll', 'survey']),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "eligibleBusinesses": zod.number().int(),
+  "responseRate": zod.number().nullable()
+}))
+})
+
+
+/**
  * @summary Get a session attendance register
  */
 export const GetSessionAttendanceRegisterParams = zod.object({

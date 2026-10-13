@@ -63,6 +63,7 @@ import type {
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
   GetProgramAnalyticsParams,
+  GetProgramSessionInteractionAnalyticsParams,
   GetXapiActivityState200,
   GetXapiActivityStateParams,
   GetXapiStatementsParams,
@@ -105,6 +106,7 @@ import type {
   Program,
   ProgramAnalytics,
   ProgramInput,
+  ProgramSessionInteractionAnalytics,
   ProgramUpdate,
   PutXapiActivityStateParams,
   PutXapiStatementParams,
@@ -401,6 +403,90 @@ export function useGetProgramAnalytics<TData = Awaited<ReturnType<typeof getProg
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProgramAnalyticsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProgramSessionInteractionAnalyticsUrl = (params?: GetProgramSessionInteractionAnalyticsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/session-interactions?${stringifiedParams}` : `/api/analytics/session-interactions`
+}
+
+/**
+ * @summary Compare poll and survey participation by program and session
+ */
+export const getProgramSessionInteractionAnalytics = async (params?: GetProgramSessionInteractionAnalyticsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProgramSessionInteractionAnalytics> => {
+
+  return customFetch<ProgramSessionInteractionAnalytics>(getGetProgramSessionInteractionAnalyticsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProgramSessionInteractionAnalyticsQueryKey = (params?: GetProgramSessionInteractionAnalyticsParams,) => {
+    return [
+    `/api/analytics/session-interactions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetProgramSessionInteractionAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>, TError = ErrorType<void>>(params?: GetProgramSessionInteractionAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProgramSessionInteractionAnalyticsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>> = ({ signal }) => getProgramSessionInteractionAnalytics(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProgramSessionInteractionAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>>
+export type GetProgramSessionInteractionAnalyticsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Compare poll and survey participation by program and session
+ */
+
+export function useGetProgramSessionInteractionAnalytics<TData = Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>, TError = ErrorType<void>>(
+ params?: GetProgramSessionInteractionAnalyticsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramSessionInteractionAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProgramSessionInteractionAnalyticsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
