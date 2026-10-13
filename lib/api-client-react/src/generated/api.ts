@@ -87,6 +87,8 @@ import type {
   ParticipantCourses,
   ParticipantDashboard,
   ParticipantQuestion,
+  ParticipantSessionInteractiveActivitiesResponse,
+  ParticipantSessionInteractiveActivity,
   PitchInput,
   PitchJudgeAssignment,
   PitchJudgeInput,
@@ -100,6 +102,12 @@ import type {
   SessionAttendanceInput,
   SessionAttendanceRegister,
   SessionInput,
+  SessionInteractiveActivitiesResponse,
+  SessionInteractiveActivity,
+  SessionInteractiveActivityInput,
+  SessionInteractiveActivityResponseInput,
+  SessionInteractiveActivityUpdateInput,
+  SessionQuestionsResponse,
   SessionUpdate,
   StaffInput,
   StaffMember,
@@ -6421,6 +6429,581 @@ export const useDeleteSession = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteSessionMutationOptions(options));
     }
+
+export const getGetSessionInteractiveActivitiesUrl = (id: number,) => {
+
+
+
+
+  return `/api/sessions/${id}/interactive-activities`
+}
+
+/**
+ * @summary List polls and surveys for a coordinator or assigned trainer
+ */
+export const getSessionInteractiveActivities = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SessionInteractiveActivitiesResponse> => {
+
+  return customFetch<SessionInteractiveActivitiesResponse>(getGetSessionInteractiveActivitiesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSessionInteractiveActivitiesQueryKey = (id: number,) => {
+    return [
+    `/api/sessions/${id}/interactive-activities`
+    ] as const;
+    }
+
+
+export const getGetSessionInteractiveActivitiesQueryOptions = <TData = Awaited<ReturnType<typeof getSessionInteractiveActivities>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSessionInteractiveActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSessionInteractiveActivitiesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSessionInteractiveActivities>>> = ({ signal }) => getSessionInteractiveActivities(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSessionInteractiveActivities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSessionInteractiveActivitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getSessionInteractiveActivities>>>
+export type GetSessionInteractiveActivitiesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List polls and surveys for a coordinator or assigned trainer
+ */
+
+export function useGetSessionInteractiveActivities<TData = Awaited<ReturnType<typeof getSessionInteractiveActivities>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSessionInteractiveActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSessionInteractiveActivitiesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSessionInteractiveActivityUrl = (id: number,) => {
+
+
+
+
+  return `/api/sessions/${id}/interactive-activities`
+}
+
+/**
+ * @summary Create a poll or survey for a session
+ */
+export const createSessionInteractiveActivity = async (id: number,
+    sessionInteractiveActivityInput: SessionInteractiveActivityInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionInteractiveActivity> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SessionInteractiveActivity>(getCreateSessionInteractiveActivityUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sessionInteractiveActivityInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSessionInteractiveActivityMutationKey = () => ['createSessionInteractiveActivity'] as const;
+
+export const getCreateSessionInteractiveActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSessionInteractiveActivity>>, TError,CreateSessionInteractiveActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSessionInteractiveActivity>>, TError,CreateSessionInteractiveActivityMutationVariables, TContext> => {
+
+const mutationKey = getCreateSessionInteractiveActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSessionInteractiveActivity>>, CreateSessionInteractiveActivityMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createSessionInteractiveActivity(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSessionInteractiveActivityMutationResult = NonNullable<Awaited<ReturnType<typeof createSessionInteractiveActivity>>>
+    export type CreateSessionInteractiveActivityMutationBody = BodyType<SessionInteractiveActivityInput>
+    export type CreateSessionInteractiveActivityMutationError = ErrorType<void>
+    export type CreateSessionInteractiveActivityMutationVariables = {id: number;data: BodyType<SessionInteractiveActivityInput>}
+
+    /**
+ * @summary Create a poll or survey for a session
+ */
+export const useCreateSessionInteractiveActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSessionInteractiveActivity>>, TError,CreateSessionInteractiveActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSessionInteractiveActivity>>,
+        TError,
+        CreateSessionInteractiveActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateSessionInteractiveActivityMutationOptions(options));
+    }
+
+export const getUpdateSessionInteractiveActivityUrl = (id: number,) => {
+
+
+
+
+  return `/api/interactive-activities/${id}`
+}
+
+/**
+ * @summary Edit a poll or survey, or open and close it
+ */
+export const updateSessionInteractiveActivity = async (id: number,
+    sessionInteractiveActivityUpdateInput: SessionInteractiveActivityUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionInteractiveActivity> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SessionInteractiveActivity>(getUpdateSessionInteractiveActivityUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sessionInteractiveActivityUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSessionInteractiveActivityMutationKey = () => ['updateSessionInteractiveActivity'] as const;
+
+export const getUpdateSessionInteractiveActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSessionInteractiveActivity>>, TError,UpdateSessionInteractiveActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSessionInteractiveActivity>>, TError,UpdateSessionInteractiveActivityMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSessionInteractiveActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSessionInteractiveActivity>>, UpdateSessionInteractiveActivityMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSessionInteractiveActivity(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSessionInteractiveActivityMutationResult = NonNullable<Awaited<ReturnType<typeof updateSessionInteractiveActivity>>>
+    export type UpdateSessionInteractiveActivityMutationBody = BodyType<SessionInteractiveActivityUpdateInput>
+    export type UpdateSessionInteractiveActivityMutationError = ErrorType<void>
+    export type UpdateSessionInteractiveActivityMutationVariables = {id: number;data: BodyType<SessionInteractiveActivityUpdateInput>}
+
+    /**
+ * @summary Edit a poll or survey, or open and close it
+ */
+export const useUpdateSessionInteractiveActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSessionInteractiveActivity>>, TError,UpdateSessionInteractiveActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSessionInteractiveActivity>>,
+        TError,
+        UpdateSessionInteractiveActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSessionInteractiveActivityMutationOptions(options));
+    }
+
+export const getGetParticipantSessionInteractiveActivitiesUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/sessions/${id}/interactive-activities`
+}
+
+/**
+ * @summary List polls and surveys for an accepted participant session
+ */
+export const getParticipantSessionInteractiveActivities = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantSessionInteractiveActivitiesResponse> => {
+
+  return customFetch<ParticipantSessionInteractiveActivitiesResponse>(getGetParticipantSessionInteractiveActivitiesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantSessionInteractiveActivitiesQueryKey = (id: number,) => {
+    return [
+    `/api/participant/sessions/${id}/interactive-activities`
+    ] as const;
+    }
+
+
+export const getGetParticipantSessionInteractiveActivitiesQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantSessionInteractiveActivitiesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>> = ({ signal }) => getParticipantSessionInteractiveActivities(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantSessionInteractiveActivitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>>
+export type GetParticipantSessionInteractiveActivitiesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List polls and surveys for an accepted participant session
+ */
+
+export function useGetParticipantSessionInteractiveActivities<TData = Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantSessionInteractiveActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantSessionInteractiveActivitiesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitParticipantSessionInteractiveActivityUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/interactive-activities/${id}/responses`
+}
+
+/**
+ * @summary Submit one poll or survey response for the participant's business
+ */
+export const submitParticipantSessionInteractiveActivity = async (id: number,
+    sessionInteractiveActivityResponseInput: SessionInteractiveActivityResponseInput, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantSessionInteractiveActivity> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ParticipantSessionInteractiveActivity>(getSubmitParticipantSessionInteractiveActivityUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sessionInteractiveActivityResponseInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitParticipantSessionInteractiveActivityMutationKey = () => ['submitParticipantSessionInteractiveActivity'] as const;
+
+export const getSubmitParticipantSessionInteractiveActivityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitParticipantSessionInteractiveActivity>>, TError,SubmitParticipantSessionInteractiveActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitParticipantSessionInteractiveActivity>>, TError,SubmitParticipantSessionInteractiveActivityMutationVariables, TContext> => {
+
+const mutationKey = getSubmitParticipantSessionInteractiveActivityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitParticipantSessionInteractiveActivity>>, SubmitParticipantSessionInteractiveActivityMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitParticipantSessionInteractiveActivity(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitParticipantSessionInteractiveActivityMutationResult = NonNullable<Awaited<ReturnType<typeof submitParticipantSessionInteractiveActivity>>>
+    export type SubmitParticipantSessionInteractiveActivityMutationBody = BodyType<SessionInteractiveActivityResponseInput>
+    export type SubmitParticipantSessionInteractiveActivityMutationError = ErrorType<void>
+    export type SubmitParticipantSessionInteractiveActivityMutationVariables = {id: number;data: BodyType<SessionInteractiveActivityResponseInput>}
+
+    /**
+ * @summary Submit one poll or survey response for the participant's business
+ */
+export const useSubmitParticipantSessionInteractiveActivity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitParticipantSessionInteractiveActivity>>, TError,SubmitParticipantSessionInteractiveActivityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitParticipantSessionInteractiveActivity>>,
+        TError,
+        SubmitParticipantSessionInteractiveActivityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitParticipantSessionInteractiveActivityMutationOptions(options));
+    }
+
+export const getGetSessionQuestionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/sessions/${id}/questions`
+}
+
+/**
+ * @summary List live-session questions for a coordinator or assigned trainer
+ */
+export const getSessionQuestions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SessionQuestionsResponse> => {
+
+  return customFetch<SessionQuestionsResponse>(getGetSessionQuestionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSessionQuestionsQueryKey = (id: number,) => {
+    return [
+    `/api/sessions/${id}/questions`
+    ] as const;
+    }
+
+
+export const getGetSessionQuestionsQueryOptions = <TData = Awaited<ReturnType<typeof getSessionQuestions>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSessionQuestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSessionQuestionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSessionQuestions>>> = ({ signal }) => getSessionQuestions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSessionQuestions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSessionQuestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getSessionQuestions>>>
+export type GetSessionQuestionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List live-session questions for a coordinator or assigned trainer
+ */
+
+export function useGetSessionQuestions<TData = Awaited<ReturnType<typeof getSessionQuestions>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSessionQuestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSessionQuestionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetParticipantSessionQuestionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/sessions/${id}/questions`
+}
+
+/**
+ * @summary List live-session questions and replies for an accepted cohort
+ */
+export const getParticipantSessionQuestions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SessionQuestionsResponse> => {
+
+  return customFetch<SessionQuestionsResponse>(getGetParticipantSessionQuestionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantSessionQuestionsQueryKey = (id: number,) => {
+    return [
+    `/api/participant/sessions/${id}/questions`
+    ] as const;
+    }
+
+
+export const getGetParticipantSessionQuestionsQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantSessionQuestions>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantSessionQuestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantSessionQuestionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantSessionQuestions>>> = ({ signal }) => getParticipantSessionQuestions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantSessionQuestions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantSessionQuestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantSessionQuestions>>>
+export type GetParticipantSessionQuestionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List live-session questions and replies for an accepted cohort
+ */
+
+export function useGetParticipantSessionQuestions<TData = Awaited<ReturnType<typeof getParticipantSessionQuestions>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantSessionQuestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantSessionQuestionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListSupportUrl = (params?: ListSupportParams,) => {
   const normalizedParams = new URLSearchParams();

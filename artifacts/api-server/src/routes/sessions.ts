@@ -19,10 +19,16 @@ import {
 } from "@workspace/db";
 import { isGoogleDriveRecordingUrl } from "../lib/zoom-recording-alerts";
 import { getRecordingLinkTransition } from "../lib/participant-recording-notices";
+import type { StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
 
 router.get("/sessions", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role === "mentor" || staff.role === "judge") {
+    res.status(403).json({ error: "Session access is not available for this role." });
+    return;
+  }
   const query = ListSessionsQueryParams.safeParse(req.query);
   if (!query.success) {
     res.status(400).json({ error: query.error.message });
@@ -31,6 +37,7 @@ router.get("/sessions", async (req, res): Promise<void> => {
   const filters = [];
   if (query.data.programId !== undefined) filters.push(eq(sessionsTable.programId, query.data.programId));
   if (query.data.type) filters.push(eq(sessionsTable.type, query.data.type));
+  if (staff.role === "trainer") filters.push(eq(sessionsTable.trainerStaffId, staff.id));
   const sessions = await db.select().from(sessionsTable)
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(asc(sessionsTable.scheduledDate), asc(sessionsTable.startTime));
@@ -38,6 +45,11 @@ router.get("/sessions", async (req, res): Promise<void> => {
 });
 
 router.post("/sessions", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role !== "coordinator" && staff.role !== "staff") {
+    res.status(403).json({ error: "Coordinator or Program Staff access required." });
+    return;
+  }
   const parsed = CreateSessionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -77,6 +89,11 @@ router.post("/sessions", async (req, res): Promise<void> => {
 });
 
 router.patch("/sessions/:id", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role !== "coordinator" && staff.role !== "staff") {
+    res.status(403).json({ error: "Coordinator or Program Staff access required." });
+    return;
+  }
   const params = DeleteSessionParams.safeParse(req.params);
   const body = UpdateSessionBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -151,6 +168,11 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/sessions/:id", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role !== "coordinator" && staff.role !== "staff") {
+    res.status(403).json({ error: "Coordinator or Program Staff access required." });
+    return;
+  }
   const params = UpdateSessionParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

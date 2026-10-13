@@ -49,6 +49,7 @@ import { ProgramAnalyticsPage } from './analytics-surfaces';
 import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { StaffSessionInteractions } from './session-interactions';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -351,7 +352,7 @@ function BusinessesPage() {
   </>;
 }
 
-function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
+function SessionsPage({ coordinator = false, staffId, trainerView = false }: { coordinator?: boolean; staffId?: number; trainerView?: boolean }) {
   const [type, setType] = useState('');
   const [calendarDate, setCalendarDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<Session | null | undefined>(undefined);
@@ -459,7 +460,7 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
         : null;
 
   return <>
-    <PageHeading kicker="PROGRAM DELIVERY / SESSIONS" title="Sessions" summary="Bootcamps, hackathons and online moments that move the cohort forward." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-session"><Plus size={16} /> {t('Schedule session')}</button>} />
+     <PageHeading kicker="PROGRAM DELIVERY / SESSIONS" title="Sessions" summary="Bootcamps, hackathons and online moments that move the cohort forward." action={!trainerView ? <button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-session"><Plus size={16} /> {t('Schedule session')}</button> : undefined} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>Trainer assignments are temporarily unavailable.</b><span>Reload the page to retry team access records before assigning a trainer.</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-trainers">Retry</button></div>}
     {coordinator && <section className="team-callout zoom-connect-panel" data-testid="zoom-connection-panel" aria-live="polite">
       <Video size={18} />
@@ -522,11 +523,12 @@ function SessionsPage({ coordinator = false }: { coordinator?: boolean }) {
           <p>{programs.find(p => p.id === session.programId)?.name || (session.programId ? `Program ${session.programId}` : 'All cohorts')}<span>·</span>{session.startTime || 'Time not set'}<span>·</span>{session.durationMinutes} min<span>·</span>{session.facilitator || 'Facilitator TBD'}</p>
            <div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || 'Location not set'}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> Join Zoom <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? 'In-person session' : 'No meeting link'}</span>}</div>
            <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />
+           <StaffSessionInteractions sessionId={session.id} coordinator={coordinator} staffId={staffId} trainerStaffId={session.trainerStaffId} />
           {coordinator && session.deliveryMode !== 'in_person' && <div className="session-admin-actions">
             <button className="button button-quiet" onClick={() => manageMeeting(session)} disabled={!zoomStatus.data?.connected || createZoomMeeting.isPending} data-testid={`button-zoom-meeting-${session.id}`}><Video size={14} />{meetingPending ? 'Saving…' : session.zoomMeetingId ? 'Update Zoom meeting' : 'Create Zoom meeting'}</button>
           </div>}
         </div>
-        <div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div>
+         {!trainerView && <div className="session-card-actions"><button className="icon-button" onClick={() => setEditing(session)} aria-label={`Edit ${session.title}`} data-testid={`button-edit-session-${session.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(session)} aria-label={`Delete ${session.title}`} data-testid={`button-delete-session-${session.id}`}><Trash2 size={15} /></button></div>}
         <span className={`session-index mono session-index-${i % 2}`}>SESSION / {String(i + 1).padStart(2, '0')}</span>
       </article>;
     })}</div>}
@@ -782,7 +784,7 @@ function NotFoundPage() {
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
   useAppLanguage();
   const [location] = useLocation();
-  if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage readOnly /></RoleFrame> : <RoleNotFound role={staff.role} />;
+  if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage readOnly /></RoleFrame> : location === '/sessions' ? <RoleFrame role="trainer" name={displayName}><SessionsPage staffId={staff.id} trainerView /></RoleFrame> : <RoleNotFound role={staff.role} />;
   if (staff.role === 'mentor') return location === '/mentor' ? <MentorDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
   if (staff.role === 'judge') return location === '/judge' ? <JudgeDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
   return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>
@@ -791,7 +793,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/programs" component={ProgramsPage} />
     <Route path="/analytics" component={staff.role === 'coordinator' ? ProgramAnalyticsPage : NotFoundPage} />
     <Route path="/courses">{() => staff.role === 'coordinator' ? <CourseManagementPage /> : staff.role === 'staff' ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
-    <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} />}</Route>
+    <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} staffId={staff.id} />}</Route>
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />
     <Route path="/support">{() => <SupportPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={staff.role === 'coordinator'} />}</Route>

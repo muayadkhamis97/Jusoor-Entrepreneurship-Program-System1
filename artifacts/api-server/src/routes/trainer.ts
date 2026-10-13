@@ -200,7 +200,17 @@ router.patch("/questions/:id", async (req, res): Promise<void> => {
   const programIds = await getAssignedProgramIds(staff.id);
   const [question] = await db.select().from(trainingQuestionsTable)
     .where(eq(trainingQuestionsTable.id, params.data.id)).limit(1);
-  if (!question || !programIds.includes(question.programId)) {
+  const [assignedSession] = question?.sessionId
+    ? await db.select({
+      id: sessionsTable.id,
+      programId: sessionsTable.programId,
+      trainerStaffId: sessionsTable.trainerStaffId,
+    }).from(sessionsTable).where(eq(sessionsTable.id, question.sessionId)).limit(1)
+    : [];
+  const canReplyToQuestion = question && (question.sessionId !== null
+    ? assignedSession?.trainerStaffId === staff.id && assignedSession.programId === question.programId
+    : programIds.includes(question.programId));
+  if (!question || !canReplyToQuestion) {
     res.status(404).json({ error: "Question not found in your assigned cohort." });
     return;
   }

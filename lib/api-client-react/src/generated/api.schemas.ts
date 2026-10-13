@@ -1688,6 +1688,183 @@ export interface SessionUpdate {
   status?: SessionUpdateStatus;
 }
 
+export type SessionActivityType = typeof SessionActivityType[keyof typeof SessionActivityType];
+
+
+export const SessionActivityType = {
+  poll: 'poll',
+  survey: 'survey',
+} as const;
+
+export type SessionActivityStatus = typeof SessionActivityStatus[keyof typeof SessionActivityStatus];
+
+
+export const SessionActivityStatus = {
+  draft: 'draft',
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export type SessionActivityQuestionType = typeof SessionActivityQuestionType[keyof typeof SessionActivityQuestionType];
+
+
+export const SessionActivityQuestionType = {
+  single_choice: 'single_choice',
+  rating: 'rating',
+  short_text: 'short_text',
+} as const;
+
+export interface SessionActivityChoice {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  label: string;
+}
+
+export interface SessionActivityQuestion {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  type: SessionActivityQuestionType;
+  /**
+     * @minLength 1
+     * @maxLength 1500
+     */
+  prompt: string;
+  /** @maxItems 10 */
+  options?: SessionActivityChoice[];
+}
+
+export interface SessionInteractiveActivityInput {
+  type: SessionActivityType;
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  questions: SessionActivityQuestion[];
+}
+
+export interface SessionInteractiveActivityUpdateInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  title?: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  questions?: SessionActivityQuestion[];
+  status?: SessionActivityStatus;
+}
+
+export interface SessionActivityAnswer {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  questionId: string;
+  value: string | number;
+}
+
+export interface SessionInteractiveActivityResponseInput {
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  answers: SessionActivityAnswer[];
+}
+
+export interface SessionActivityResponse {
+  businessName: string;
+  submittedAt: string;
+  answers: SessionActivityAnswer[];
+}
+
+export interface SessionActivityPollResult {
+  choiceId: string;
+  label: string;
+  /** @minimum 0 */
+  count: number;
+}
+
+export interface SessionInteractiveActivity {
+  id: number;
+  sessionId: number;
+  type: SessionActivityType;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  status: SessionActivityStatus;
+  questions: SessionActivityQuestion[];
+  createdAt: string;
+  /** @minimum 0 */
+  responseCount: number;
+  responses: SessionActivityResponse[];
+}
+
+export interface SessionInteractiveActivitiesResponse {
+  activities: SessionInteractiveActivity[];
+}
+
+export interface ParticipantSessionInteractiveActivity {
+  id: number;
+  sessionId: number;
+  type: SessionActivityType;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  status: SessionActivityStatus;
+  questions: SessionActivityQuestion[];
+  /** @minimum 0 */
+  responseCount: number;
+  hasResponded: boolean;
+  /** @nullable */
+  results: SessionActivityPollResult[] | null;
+}
+
+export interface ParticipantSessionInteractiveActivitiesResponse {
+  activities: ParticipantSessionInteractiveActivity[];
+}
+
+export interface SessionQuestion {
+  id: number;
+  businessName: string;
+  question: string;
+  /** @nullable */
+  reply: string | null;
+  createdAt: string;
+  /** @nullable */
+  repliedAt: string | null;
+}
+
+export interface SessionQuestionsResponse {
+  questions: SessionQuestion[];
+}
+
 export interface SupportEngagement {
   id: number;
   businessId: number;

@@ -32,6 +32,7 @@ export * from "./pitch-judges";
 export * from "./courses";
 export * from "./course-discussions";
 export * from "./course-quizzes";
+export * from "./session-interactions";
 export * from "./zoom-connections";
 export * from "./announcements";
 export * from "./calendly-meetings";

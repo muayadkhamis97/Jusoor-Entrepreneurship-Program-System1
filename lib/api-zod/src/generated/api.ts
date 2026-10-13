@@ -2375,6 +2375,389 @@ export const DeleteSessionResponse = zod.void()
 
 
 /**
+ * @summary List polls and surveys for a coordinator or assigned trainer
+ */
+export const GetSessionInteractiveActivitiesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemIdMax = 80;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemPromptMax = 1500;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemIdMax = 80;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemLabelMax = 300;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsMax = 10;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin = 0;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemResponsesItemAnswersItemQuestionIdMax = 80;
+
+export const getSessionInteractiveActivitiesResponseActivitiesItemResponsesItemAnswersItemValueOneMax = 2000;
+
+
+
+export const GetSessionInteractiveActivitiesResponse = zod.object({
+  "activities": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "type": zod.enum(['poll', 'survey']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemLabelMax)
+})).max(getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsMax).optional()
+})),
+  "createdAt": zod.coerce.date(),
+  "responseCount": zod.number().int().min(getSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin),
+  "responses": zod.array(zod.object({
+  "businessName": zod.string(),
+  "submittedAt": zod.coerce.date(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().min(1).max(getSessionInteractiveActivitiesResponseActivitiesItemResponsesItemAnswersItemQuestionIdMax),
+  "value": zod.union([zod.string().max(getSessionInteractiveActivitiesResponseActivitiesItemResponsesItemAnswersItemValueOneMax),zod.number()])
+}))
+}))
+}))
+})
+
+
+/**
+ * @summary Create a poll or survey for a session
+ */
+export const CreateSessionInteractiveActivityParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const createSessionInteractiveActivityBodyTitleMax = 180;
+
+export const createSessionInteractiveActivityBodyDescriptionMax = 2000;
+
+export const createSessionInteractiveActivityBodyQuestionsItemIdMax = 80;
+
+export const createSessionInteractiveActivityBodyQuestionsItemPromptMax = 1500;
+
+export const createSessionInteractiveActivityBodyQuestionsItemOptionsItemIdMax = 80;
+
+export const createSessionInteractiveActivityBodyQuestionsItemOptionsItemLabelMax = 300;
+
+export const createSessionInteractiveActivityBodyQuestionsItemOptionsMax = 10;
+
+export const createSessionInteractiveActivityBodyQuestionsMax = 20;
+
+
+
+export const CreateSessionInteractiveActivityBody = zod.object({
+  "type": zod.enum(['poll', 'survey']),
+  "title": zod.string().min(1).max(createSessionInteractiveActivityBodyTitleMax),
+  "description": zod.string().max(createSessionInteractiveActivityBodyDescriptionMax).nullable(),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(createSessionInteractiveActivityBodyQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(createSessionInteractiveActivityBodyQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(createSessionInteractiveActivityBodyQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(createSessionInteractiveActivityBodyQuestionsItemOptionsItemLabelMax)
+})).max(createSessionInteractiveActivityBodyQuestionsItemOptionsMax).optional()
+})).min(1).max(createSessionInteractiveActivityBodyQuestionsMax)
+})
+
+export const createSessionInteractiveActivityResponseQuestionsItemIdMax = 80;
+
+export const createSessionInteractiveActivityResponseQuestionsItemPromptMax = 1500;
+
+export const createSessionInteractiveActivityResponseQuestionsItemOptionsItemIdMax = 80;
+
+export const createSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax = 300;
+
+export const createSessionInteractiveActivityResponseQuestionsItemOptionsMax = 10;
+
+export const createSessionInteractiveActivityResponseResponseCountMin = 0;
+
+export const createSessionInteractiveActivityResponseResponsesItemAnswersItemQuestionIdMax = 80;
+
+export const createSessionInteractiveActivityResponseResponsesItemAnswersItemValueOneMax = 2000;
+
+
+
+export const CreateSessionInteractiveActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "type": zod.enum(['poll', 'survey']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(createSessionInteractiveActivityResponseQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(createSessionInteractiveActivityResponseQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(createSessionInteractiveActivityResponseQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(createSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax)
+})).max(createSessionInteractiveActivityResponseQuestionsItemOptionsMax).optional()
+})),
+  "createdAt": zod.coerce.date(),
+  "responseCount": zod.number().int().min(createSessionInteractiveActivityResponseResponseCountMin),
+  "responses": zod.array(zod.object({
+  "businessName": zod.string(),
+  "submittedAt": zod.coerce.date(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().min(1).max(createSessionInteractiveActivityResponseResponsesItemAnswersItemQuestionIdMax),
+  "value": zod.union([zod.string().max(createSessionInteractiveActivityResponseResponsesItemAnswersItemValueOneMax),zod.number()])
+}))
+}))
+})
+
+
+/**
+ * @summary Edit a poll or survey, or open and close it
+ */
+export const UpdateSessionInteractiveActivityParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateSessionInteractiveActivityBodyTitleMax = 180;
+
+export const updateSessionInteractiveActivityBodyDescriptionMax = 2000;
+
+export const updateSessionInteractiveActivityBodyQuestionsItemIdMax = 80;
+
+export const updateSessionInteractiveActivityBodyQuestionsItemPromptMax = 1500;
+
+export const updateSessionInteractiveActivityBodyQuestionsItemOptionsItemIdMax = 80;
+
+export const updateSessionInteractiveActivityBodyQuestionsItemOptionsItemLabelMax = 300;
+
+export const updateSessionInteractiveActivityBodyQuestionsItemOptionsMax = 10;
+
+export const updateSessionInteractiveActivityBodyQuestionsMax = 20;
+
+
+
+export const UpdateSessionInteractiveActivityBody = zod.object({
+  "title": zod.string().min(1).max(updateSessionInteractiveActivityBodyTitleMax).optional(),
+  "description": zod.string().max(updateSessionInteractiveActivityBodyDescriptionMax).nullish(),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateSessionInteractiveActivityBodyQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(updateSessionInteractiveActivityBodyQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateSessionInteractiveActivityBodyQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(updateSessionInteractiveActivityBodyQuestionsItemOptionsItemLabelMax)
+})).max(updateSessionInteractiveActivityBodyQuestionsItemOptionsMax).optional()
+})).min(1).max(updateSessionInteractiveActivityBodyQuestionsMax).optional(),
+  "status": zod.enum(['draft', 'open', 'closed']).optional()
+})
+
+export const updateSessionInteractiveActivityResponseQuestionsItemIdMax = 80;
+
+export const updateSessionInteractiveActivityResponseQuestionsItemPromptMax = 1500;
+
+export const updateSessionInteractiveActivityResponseQuestionsItemOptionsItemIdMax = 80;
+
+export const updateSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax = 300;
+
+export const updateSessionInteractiveActivityResponseQuestionsItemOptionsMax = 10;
+
+export const updateSessionInteractiveActivityResponseResponseCountMin = 0;
+
+export const updateSessionInteractiveActivityResponseResponsesItemAnswersItemQuestionIdMax = 80;
+
+export const updateSessionInteractiveActivityResponseResponsesItemAnswersItemValueOneMax = 2000;
+
+
+
+export const UpdateSessionInteractiveActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "type": zod.enum(['poll', 'survey']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateSessionInteractiveActivityResponseQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(updateSessionInteractiveActivityResponseQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateSessionInteractiveActivityResponseQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(updateSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax)
+})).max(updateSessionInteractiveActivityResponseQuestionsItemOptionsMax).optional()
+})),
+  "createdAt": zod.coerce.date(),
+  "responseCount": zod.number().int().min(updateSessionInteractiveActivityResponseResponseCountMin),
+  "responses": zod.array(zod.object({
+  "businessName": zod.string(),
+  "submittedAt": zod.coerce.date(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().min(1).max(updateSessionInteractiveActivityResponseResponsesItemAnswersItemQuestionIdMax),
+  "value": zod.union([zod.string().max(updateSessionInteractiveActivityResponseResponsesItemAnswersItemValueOneMax),zod.number()])
+}))
+}))
+})
+
+
+/**
+ * @summary List polls and surveys for an accepted participant session
+ */
+export const GetParticipantSessionInteractiveActivitiesParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemIdMax = 80;
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemPromptMax = 1500;
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemIdMax = 80;
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemLabelMax = 300;
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsMax = 10;
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin = 0;
+
+export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemResultsItemCountMin = 0;
+
+
+
+export const GetParticipantSessionInteractiveActivitiesResponse = zod.object({
+  "activities": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "type": zod.enum(['poll', 'survey']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemLabelMax)
+})).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsMax).optional()
+})),
+  "responseCount": zod.number().int().min(getParticipantSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin),
+  "hasResponded": zod.boolean(),
+  "results": zod.array(zod.object({
+  "choiceId": zod.string(),
+  "label": zod.string(),
+  "count": zod.number().int().min(getParticipantSessionInteractiveActivitiesResponseActivitiesItemResultsItemCountMin)
+})).nullable()
+}))
+})
+
+
+/**
+ * @summary Submit one poll or survey response for the participant's business
+ */
+export const SubmitParticipantSessionInteractiveActivityParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const submitParticipantSessionInteractiveActivityBodyAnswersItemQuestionIdMax = 80;
+
+export const submitParticipantSessionInteractiveActivityBodyAnswersItemValueOneMax = 2000;
+
+export const submitParticipantSessionInteractiveActivityBodyAnswersMax = 20;
+
+
+
+export const SubmitParticipantSessionInteractiveActivityBody = zod.object({
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().min(1).max(submitParticipantSessionInteractiveActivityBodyAnswersItemQuestionIdMax),
+  "value": zod.union([zod.string().max(submitParticipantSessionInteractiveActivityBodyAnswersItemValueOneMax),zod.number()])
+})).min(1).max(submitParticipantSessionInteractiveActivityBodyAnswersMax)
+})
+
+export const submitParticipantSessionInteractiveActivityResponseQuestionsItemIdMax = 80;
+
+export const submitParticipantSessionInteractiveActivityResponseQuestionsItemPromptMax = 1500;
+
+export const submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsItemIdMax = 80;
+
+export const submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax = 300;
+
+export const submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsMax = 10;
+
+export const submitParticipantSessionInteractiveActivityResponseResponseCountMin = 0;
+
+export const submitParticipantSessionInteractiveActivityResponseResultsItemCountMin = 0;
+
+
+
+export const SubmitParticipantSessionInteractiveActivityResponse = zod.object({
+  "id": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "type": zod.enum(['poll', 'survey']),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemIdMax),
+  "type": zod.enum(['single_choice', 'rating', 'short_text']),
+  "prompt": zod.string().min(1).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemPromptMax),
+  "options": zod.array(zod.object({
+  "id": zod.string().min(1).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsItemIdMax),
+  "label": zod.string().min(1).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax)
+})).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsMax).optional()
+})),
+  "responseCount": zod.number().int().min(submitParticipantSessionInteractiveActivityResponseResponseCountMin),
+  "hasResponded": zod.boolean(),
+  "results": zod.array(zod.object({
+  "choiceId": zod.string(),
+  "label": zod.string(),
+  "count": zod.number().int().min(submitParticipantSessionInteractiveActivityResponseResultsItemCountMin)
+})).nullable()
+})
+
+
+/**
+ * @summary List live-session questions for a coordinator or assigned trainer
+ */
+export const GetSessionQuestionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetSessionQuestionsResponse = zod.object({
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "businessName": zod.string(),
+  "question": zod.string(),
+  "reply": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "repliedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary List live-session questions and replies for an accepted cohort
+ */
+export const GetParticipantSessionQuestionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetParticipantSessionQuestionsResponse = zod.object({
+  "questions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "businessName": zod.string(),
+  "question": zod.string(),
+  "reply": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "repliedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
  * @summary List mentoring, expert, and agency support
  */
 export const ListSupportQueryParams = zod.object({

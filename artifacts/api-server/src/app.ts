@@ -23,6 +23,10 @@ import {
   staffCourseQuizRouter,
 } from "./routes/courseQuizzes";
 import {
+  participantSessionInteractionsRouter,
+  staffSessionInteractionsRouter,
+} from "./routes/sessionInteractions";
+import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
   getClerkProxyHost,
@@ -74,6 +78,7 @@ app.use(
 app.use("/api", healthRouter);
 app.use("/api", publicApplicationsRouter);
 app.use("/api/participant", requireParticipant, participantRouter);
+app.use("/api/participant", participantSessionInteractionsRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseDiscussionRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseQuizRouter);
 app.use("/api/courses", requireStaff, staffCourseDiscussionRouter);
@@ -86,6 +91,7 @@ app.use("/api/trainer", requireStaff, requireRole("trainer"), trainerRouter);
 app.use("/api/mentor", requireStaff, requireRole("mentor"), mentorRouter);
 app.use("/api/judge", requireStaff, requireRole("judge"), judgeRouter);
 app.use("/api", requireStaff);
+app.use("/api", staffSessionInteractionsRouter);
 app.use("/api", router);
 
 export default app;
