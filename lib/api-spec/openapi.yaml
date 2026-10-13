@@ -101,6 +101,16 @@ paths:
           in: query
           required: false
           schema: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        - name: period
+          in: query
+          required: false
+          description: Calendar period used to group the response trend
+          schema: { type: string, enum: [weekly, monthly], default: weekly }
+        - name: activityType
+          in: query
+          required: false
+          description: Limit the interaction report to polls, surveys, or both
+          schema: { type: string, enum: [all, poll, survey], default: all }
       responses:
         "200":
           description: Aggregate poll and survey participation without answer details
@@ -4192,7 +4202,22 @@ components:
         activities:
           type: array
           items: { $ref: "#/components/schemas/SessionInteractionParticipation" }
-      required: [from, to, activities]
+        trend:
+          type: array
+          items: { $ref: "#/components/schemas/SessionInteractionTrendPoint" }
+      required: [from, to, activities, trend]
+    SessionInteractionTrendPoint:
+      type: object
+      properties:
+        periodStart: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        periodEnd: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        activityCount: { type: integer, minimum: 0 }
+        responseCount: { type: ["integer", "null"], minimum: 0 }
+        eligibleOpportunities: { type: ["integer", "null"], minimum: 0 }
+        responseRate: { type: ["number", "null"], minimum: 0 }
+        responseCountChange: { type: ["integer", "null"] }
+        responseRateChange: { type: ["number", "null"] }
+      required: [periodStart, periodEnd, activityCount, responseCount, eligibleOpportunities, responseRate, responseCountChange, responseRateChange]
     AttendanceStatus:
       type: string
       enum: [present, absent, excused]

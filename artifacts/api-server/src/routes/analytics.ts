@@ -89,6 +89,89 @@ function addDays(date: Date, days: number): Date {
   return result;
 }
 
+type SessionInteractionTrendSource = {
+  sessionDate: string;
+  status: string;
+  responseCount: number;
+  eligibleBusinesses: number;
+};
+type SessionInteractionTrendPoint = {
+  periodStart: string;
+  periodEnd: string;
+  activityCount: number;
+  responseCount: number | null;
+  eligibleOpportunities: number | null;
+  responseRate: number | null;
+  responseCountChange: number | null;
+  responseRateChange: number | null;
+};
+
+export function buildSessionInteractionTrend(
+  from: string,
+  to: string,
+  period: "weekly" | "monthly",
+  activities: SessionInteractionTrendSource[],
+): SessionInteractionTrendPoint[] {
+  const startOfPeriod = (date: Date) => {
+    const start = new Date(date);
+    if (period === "monthly") {
+      start.setUTCDate(1);
+    } else {
+      start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+    }
+    return start;
+  };
+  const nextPeriod = (date: Date) => {
+    const next = new Date(date);
+    if (period === "monthly") next.setUTCMonth(next.getUTCMonth() + 1);
+    else next.setUTCDate(next.getUTCDate() + 7);
+    return next;
+  };
+  const buckets = new Map<string, { activityCount: number; responseCount: number; eligibleOpportunities: number }>();
+  for (let cursor = startOfPeriod(timestampStart(from)); dateOnly(cursor) <= to; cursor = nextPeriod(cursor)) {
+    buckets.set(dateOnly(cursor), { activityCount: 0, responseCount: 0, eligibleOpportunities: 0 });
+  }
+  for (const activity of activities) {
+    if (activity.status === "draft" || activity.eligibleBusinesses <= 0) continue;
+    const key = dateOnly(startOfPeriod(timestampStart(activity.sessionDate)));
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    bucket.activityCount += 1;
+    bucket.responseCount += activity.responseCount;
+    bucket.eligibleOpportunities += activity.eligibleBusinesses;
+  }
+  const points = [...buckets.entries()].map(([key, bucket]) => {
+    const start = timestampStart(key);
+    const periodEnd = period === "monthly"
+      ? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0))
+      : addDays(start, 6);
+    const hasEligibleActivities = bucket.activityCount > 0;
+    return {
+      periodStart: key < from ? from : key,
+      periodEnd: dateOnly(periodEnd) > to ? to : dateOnly(periodEnd),
+      activityCount: bucket.activityCount,
+      responseCount: hasEligibleActivities ? bucket.responseCount : null,
+      eligibleOpportunities: hasEligibleActivities ? bucket.eligibleOpportunities : null,
+      responseRate: hasEligibleActivities
+        ? Math.round(bucket.responseCount / bucket.eligibleOpportunities * 1000) / 10
+        : null,
+      responseCountChange: null,
+      responseRateChange: null,
+    };
+  });
+  return points.map((point, index) => {
+    const previous = points[index - 1];
+    const comparable = point.activityCount > 0 && (previous?.activityCount ?? 0) > 0;
+    return {
+      ...point,
+      responseCountChange: comparable ? point.responseCount! - previous.responseCount! : null,
+      responseRateChange: comparable
+        ? Math.round((point.responseRate! - previous.responseRate!) * 10) / 10
+        : null,
+    };
+  });
+}
+
 async function getAttendanceRegister(sessionId: number) {
   return getZoomAttendanceReport(sessionId);
 }
@@ -477,7 +560,11 @@ router.get("/analytics/session-interactions", async (req, res): Promise<void> =>
       .where(inArray(sessionInteractiveActivitiesTable.sessionId, sessionIds))
       .orderBy(asc(sessionInteractiveActivitiesTable.createdAt))
     : [];
-  const activityIds = activities.map(({ id }) => id);
+  const filteredActivities = activities.filter((activity) =>
+    (activity.type === "poll" || activity.type === "survey")
+    && (parsed.data.activityType === undefined || parsed.data.activityType === "all" || activity.type === parsed.data.activityType),
+  );
+  const activityIds = filteredActivities.map(({ id }) => id);
   const [acceptedBusinesses, responseRows] = await Promise.all([
     sessionIds.length
       ? db.select({
@@ -511,8 +598,7 @@ router.get("/analytics/session-interactions", async (req, res): Promise<void> =>
     );
   }
   const sessionById = new Map(sessions.map((session) => [session.id, session]));
-  const outputActivities = activities.flatMap((activity) => {
-    if (activity.type !== "poll" && activity.type !== "survey") return [];
+  const outputActivities = filteredActivities.flatMap((activity) => {
     const session = sessionById.get(activity.sessionId);
     if (!session) return [];
     const eligibleBusinesses = eligibleByProgram.get(session.programId)?.size ?? 0;
@@ -534,11 +620,23 @@ router.get("/analytics/session-interactions", async (req, res): Promise<void> =>
         : null,
     }];
   });
+  const trend = buildSessionInteractionTrend(
+    from,
+    to,
+    parsed.data.period ?? "weekly",
+    outputActivities.map((activity) => ({
+      sessionDate: activity.sessionDate,
+      status: activity.status,
+      responseCount: activity.responseCount,
+      eligibleBusinesses: activity.eligibleBusinesses,
+    })),
+  );
 
   res.json(GetProgramSessionInteractionAnalyticsResponse.parse({
     from,
     to,
     activities: outputActivities,
+    trend,
   }));
 });
 

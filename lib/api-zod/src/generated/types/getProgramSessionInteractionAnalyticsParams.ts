@@ -5,6 +5,8 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { GetProgramSessionInteractionAnalyticsActivityType } from './getProgramSessionInteractionAnalyticsActivityType';
+import type { GetProgramSessionInteractionAnalyticsPeriod } from './getProgramSessionInteractionAnalyticsPeriod';
 
 export type GetProgramSessionInteractionAnalyticsParams = {
 programId?: number;
@@ -16,4 +18,12 @@ from?: string;
  * @pattern ^\d{4}-\d{2}-\d{2}$
  */
 to?: string;
+/**
+ * Calendar period used to group the response trend
+ */
+period?: GetProgramSessionInteractionAnalyticsPeriod;
+/**
+ * Limit the interaction report to polls, surveys, or both
+ */
+activityType?: GetProgramSessionInteractionAnalyticsActivityType;
 };

@@ -2481,12 +2481,41 @@ export interface SessionInteractionParticipation {
   responseRate: number | null;
 }
 
+export interface SessionInteractionTrendPoint {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  periodStart: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  periodEnd: string;
+  /** @minimum 0 */
+  activityCount: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  responseCount: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  eligibleOpportunities: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  responseRate: number | null;
+  /** @nullable */
+  responseCountChange: number | null;
+  /** @nullable */
+  responseRateChange: number | null;
+}
+
 export interface ProgramSessionInteractionAnalytics {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   from: string;
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   to: string;
   activities: SessionInteractionParticipation[];
+  trend: SessionInteractionTrendPoint[];
 }
 
 export interface ZoomAttendanceParticipantResolutionInput {
@@ -2642,7 +2671,32 @@ from?: string;
  * @pattern ^\d{4}-\d{2}-\d{2}$
  */
 to?: string;
+/**
+ * Calendar period used to group the response trend
+ */
+period?: GetProgramSessionInteractionAnalyticsPeriod;
+/**
+ * Limit the interaction report to polls, surveys, or both
+ */
+activityType?: GetProgramSessionInteractionAnalyticsActivityType;
 };
+
+export type GetProgramSessionInteractionAnalyticsPeriod = typeof GetProgramSessionInteractionAnalyticsPeriod[keyof typeof GetProgramSessionInteractionAnalyticsPeriod];
+
+
+export const GetProgramSessionInteractionAnalyticsPeriod = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export type GetProgramSessionInteractionAnalyticsActivityType = typeof GetProgramSessionInteractionAnalyticsActivityType[keyof typeof GetProgramSessionInteractionAnalyticsActivityType];
+
+
+export const GetProgramSessionInteractionAnalyticsActivityType = {
+  all: 'all',
+  poll: 'poll',
+  survey: 'survey',
+} as const;
 
 export type GetLearningProgressAnalyticsParams = {
 programId?: number;

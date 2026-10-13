@@ -26,7 +26,7 @@ import {
   Users, X, CircleAlert, Plus, Pencil, Trash2,
 } from "lucide-react";
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer,
+  Area, AreaChart, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import "./analytics.css";
@@ -49,10 +49,16 @@ const dateLabel = (value: string) => {
   const [y, m, d] = value.slice(0, 10).split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(currentLanguage() === "ar" ? "ar-JO" : "en", { month: "short", day: "numeric", year: "numeric" });
 };
-function ExportButton({ rows, filename }: { rows: Array<Record<string, unknown>>; filename: string }) {
+const trendPeriodLabel = (start: string, end: string) => start === end
+  ? dateLabel(start)
+  : `${dateLabel(start)} – ${dateLabel(end)}`;
+const signed = (value: number | null, suffix = "") => value == null
+  ? "—"
+  : `${value > 0 ? "+" : ""}${fmt(value)}${suffix}`;
+function ExportButton({ rows, filename, label = t("Export chart data as CSV") }: { rows: Array<Record<string, unknown>>; filename: string; label?: string }) {
   return rows.length
-    ? <CSVLink className="ana-icon-btn print-hide" aria-label={t("Export chart data as CSV")} title={t("Export CSV")} data={rows} filename={filename}><Download size={15} /></CSVLink>
-    : <button className="ana-icon-btn print-hide" aria-label={t("Export chart data as CSV")} title={t("No data to export")} disabled><Download size={15} /></button>;
+    ? <CSVLink className="ana-icon-btn print-hide" aria-label={label} title={label} data={rows} filename={filename}><Download size={15} /></CSVLink>
+    : <button className="ana-icon-btn print-hide" aria-label={label} title={t("No data to export")} disabled><Download size={15} /></button>;
 }
 
 type AttendanceState = Record<number, { status: "present" | "absent" | "excused" | null; notes: string }>;
@@ -67,13 +73,20 @@ export function ProgramAnalyticsPage() {
   const [programChoice, setProgramChoice] = useState("");
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(today);
+  const [interactionPeriod, setInteractionPeriod] = useState<"weekly" | "monthly">("weekly");
+  const [interactionType, setInteractionType] = useState<"all" | "poll" | "survey">("all");
   const queryParams = useMemo(() => ({
     ...(programChoice ? { programId: Number(programChoice) } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
   }), [programChoice, from, to]);
+  const interactionQueryParams = useMemo(() => ({
+    ...queryParams,
+    period: interactionPeriod,
+    activityType: interactionType,
+  }), [queryParams, interactionPeriod, interactionType]);
   const analyticsQuery = useGetProgramAnalytics(queryParams);
-  const interactionAnalyticsQuery = useGetProgramSessionInteractionAnalytics(queryParams);
+  const interactionAnalyticsQuery = useGetProgramSessionInteractionAnalytics(interactionQueryParams);
   const data = analyticsQuery.data;
   const selectedProgram = programChoice ? Number(programChoice) : data?.selectedProgramId ?? undefined;
   const kpiQuery = useListProgramImpactKpis({ programId: selectedProgram ?? 0 }, {
@@ -320,30 +333,78 @@ export function ProgramAnalyticsPage() {
 
         <section className="ana-panel ana-interactions">
           <div className="ana-panel-head ana-interactions-head">
-            <div><span className="ana-eyebrow">{t("LIVE SESSION ACTIVITIES")}</span><h3>{t("Poll & survey participation")}</h3><p>{t("Compare response counts and rates for activities in the selected programs and date range.")}</p></div>
-            <ExportButton rows={(interactionAnalyticsQuery.data?.activities ?? []).map((activity) => ({
-              program: activity.programName,
-              session: activity.sessionTitle,
-              sessionDate: activity.sessionDate,
-              activity: activity.activityTitle,
-              type: activity.type,
-              status: activity.status,
-              responses: activity.responseCount,
-              eligibleBusinesses: activity.eligibleBusinesses,
-              responseRate: activity.responseRate == null ? "Unavailable" : `${activity.responseRate.toFixed(1)}%`,
-            }))} filename="poll-survey-participation.csv" />
+            <div><span className="ana-eyebrow">{t("LIVE SESSION ACTIVITIES")}</span><h3>{t("Poll & survey participation")}</h3><p>{t("Compare weekly or monthly response counts and rates across programs and the selected date range.")}</p></div>
+            <div className="ana-interaction-tools print-hide">
+              <label>{t("Activity type")}<select value={interactionType} onChange={(event) => setInteractionType(event.target.value as typeof interactionType)}>
+                <option value="all">{t("Polls & surveys")}</option><option value="poll">{t("Polls")}</option><option value="survey">{t("Surveys")}</option>
+              </select></label>
+              <label>{t("Period")}<select value={interactionPeriod} onChange={(event) => setInteractionPeriod(event.target.value as typeof interactionPeriod)}>
+                <option value="weekly">{t("Weekly")}</option><option value="monthly">{t("Monthly")}</option>
+              </select></label>
+              <ExportButton rows={(interactionAnalyticsQuery.data?.trend ?? []).map((period) => ({
+                period: trendPeriodLabel(period.periodStart, period.periodEnd),
+                activities: period.activityCount,
+                responses: period.responseCount ?? "Unavailable",
+                eligibleOpportunities: period.eligibleOpportunities ?? "Unavailable",
+                responseRate: period.responseRate == null ? "Unavailable" : `${period.responseRate.toFixed(1)}%`,
+                responseChange: period.responseCountChange == null ? "Unavailable" : signed(period.responseCountChange),
+                responseRateChange: period.responseRateChange == null ? "Unavailable" : signed(period.responseRateChange, " pp"),
+              }))} filename={`poll-survey-trend-${interactionPeriod}.csv`} label={t("Export trend CSV")} />
+              <ExportButton rows={(interactionAnalyticsQuery.data?.activities ?? []).map((activity) => ({
+                program: activity.programName,
+                session: activity.sessionTitle,
+                sessionDate: activity.sessionDate,
+                activity: activity.activityTitle,
+                type: activity.type,
+                status: activity.status,
+                responses: activity.status === "draft" || activity.eligibleBusinesses === 0 ? "Unavailable" : activity.responseCount,
+                eligibleBusinesses: activity.eligibleBusinesses || "Unavailable",
+                responseRate: activity.responseRate == null ? "Unavailable" : `${activity.responseRate.toFixed(1)}%`,
+              }))} filename="poll-survey-participation.csv" label={t("Export activity CSV")} />
+            </div>
           </div>
           {interactionAnalyticsQuery.isLoading ? <div className="ana-table-skeleton"><i /><i /><i /></div> :
             interactionAnalyticsQuery.isError ? <div className="ana-inline-empty ana-interaction-error"><CircleAlert size={18} /><span>{t("Poll and survey participation could not load.")}</span><button type="button" onClick={() => void interactionAnalyticsQuery.refetch()}>{t("Retry")}</button></div> :
-              interactionAnalyticsQuery.data?.activities.length ? <div className="ana-table-scroll"><table className="ana-table ana-interactions-table"><thead><tr><th>{t("Program / cohort")}</th><th>{t("Session")}</th><th>{t("Activity")}</th><th>{t("Responses")}</th><th>{t("Response rate")}</th></tr></thead><tbody>{interactionAnalyticsQuery.data.activities.map((activity) => <tr key={activity.activityId}>
+              <>
+                {interactionAnalyticsQuery.data?.trend.some((point) => point.activityCount > 0) ? <>
+                  <div className="ana-interaction-chart" role="img" aria-label={t("Responses and response rate by reporting period")}>
+                    <ResponsiveContainer width="100%" height={235}>
+                      <ComposedChart data={interactionAnalyticsQuery.data.trend} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 5" vertical={false} stroke={chartGrid} />
+                        <XAxis dataKey="periodStart" tickFormatter={(value: string) => dateLabel(value).replace(/,\s*\d{4}$/, "")} tick={{ fill: chartTicks, fontSize: 8 }} axisLine={false} tickLine={false} minTickGap={20} />
+                        <YAxis yAxisId="responses" allowDecimals={false} tick={{ fill: chartTicks, fontSize: 8 }} axisLine={false} tickLine={false} width={34} />
+                        <YAxis yAxisId="rate" orientation="right" domain={[0, 100]} tickFormatter={(value: number) => `${value}%`} tick={{ fill: chartTicks, fontSize: 8 }} axisLine={false} tickLine={false} width={42} />
+                        <Tooltip labelFormatter={(value) => {
+                          const point = interactionAnalyticsQuery.data?.trend.find((row) => row.periodStart === value);
+                          return point ? trendPeriodLabel(point.periodStart, point.periodEnd) : String(value);
+                        }} formatter={(value, name) => [
+                          value == null ? t("Unavailable") : name === t("Response rate") ? `${Number(value).toFixed(1)}%` : fmt(Number(value)),
+                          name,
+                        ]} />
+                        <Bar yAxisId="responses" dataKey="responseCount" name={t("Responses")} fill={COLORS.teal} radius={[3, 3, 0, 0]} maxBarSize={24} />
+                        <Line yAxisId="rate" dataKey="responseRate" name={t("Response rate")} type="monotone" stroke={COLORS.coral} strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                    <div className="ana-legend"><span><i />{t("Responses")}</span><span><i className="legend-absent" />{t("Response rate")}</span></div>
+                  </div>
+                  <div className="ana-table-scroll ana-interaction-trend-table"><table className="ana-table"><thead><tr><th>{t("Reporting period")}</th><th>{t("Activities")}</th><th>{t("Responses")}</th><th>{t("Change")}</th><th>{t("Response rate")}</th><th>{t("Rate change")}</th></tr></thead><tbody>{interactionAnalyticsQuery.data.trend.map((point) => <tr key={point.periodStart}>
+                    <td>{trendPeriodLabel(point.periodStart, point.periodEnd)}</td>
+                    <td>{point.activityCount ? fmt(point.activityCount) : <span className="ana-missing">{t("No eligible activities")}</span>}</td>
+                    <td>{point.responseCount == null ? <span className="ana-missing">{t("Unavailable")}</span> : fmt(point.responseCount)}</td>
+                    <td>{signed(point.responseCountChange)}</td>
+                    <td>{point.responseRate == null ? <span className="ana-missing">{t("Unavailable")}</span> : `${point.responseRate.toFixed(1)}%`}</td>
+                    <td>{signed(point.responseRateChange, " pp")}</td>
+                  </tr>)}</tbody></table></div>
+                </> : <div className="ana-inline-empty"><Activity size={18} /><span>{t("No opened polls or surveys with eligible businesses match this period.")}</span></div>}
+                {interactionAnalyticsQuery.data?.activities.length ? <div className="ana-table-scroll"><table className="ana-table ana-interactions-table"><thead><tr><th>{t("Program / cohort")}</th><th>{t("Session")}</th><th>{t("Activity")}</th><th>{t("Responses")}</th><th>{t("Response rate")}</th></tr></thead><tbody>{interactionAnalyticsQuery.data.activities.map((activity) => <tr key={activity.activityId}>
                 <td><b>{activity.programName}</b></td>
                 <td><span className="ana-interaction-session">{activity.sessionTitle}</span><small>{dateLabel(activity.sessionDate)}</small></td>
                 <td><span className={`ana-interaction-kind ana-kind-${activity.type}`}>{t(activity.type)}</span><span className="ana-interaction-title">{activity.activityTitle}</span><small>{t(activity.status)}</small></td>
-                <td><b>{fmt(activity.responseCount)}</b><span className="ana-table-muted"> / {fmt(activity.eligibleBusinesses)}</span></td>
+                <td>{activity.status === "draft" || activity.eligibleBusinesses === 0 ? <span className="ana-missing">{t(activity.status === "draft" ? "Not opened" : "No eligible businesses")}</span> : <><b>{fmt(activity.responseCount)}</b><span className="ana-table-muted"> / {fmt(activity.eligibleBusinesses)}</span></>}</td>
                 <td>{activity.responseRate == null ? <span className="ana-missing">{t(activity.status === "draft" ? "Not opened" : "Unavailable")}</span> : <span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(activity.responseRate, 100))}%` } as React.CSSProperties} />{activity.responseRate.toFixed(1)}%</span>}</td>
-              </tr>)}</tbody></table></div> :
-                <div className="ana-inline-empty"><Activity size={18} /><span>{t("No polls or surveys match this cohort and reporting period.")}</span></div>}
-          <div className="ana-panel-foot">{t("Rates use distinct accepted businesses in each program. This view contains aggregate counts only; survey answers remain available only in authorized session reviews.")}</div>
+              </tr>)}</tbody></table></div> : null}
+              </>}
+          <div className="ana-panel-foot">{t("Rates are weighted by accepted-business activity opportunities. Draft activities and periods without eligible businesses are excluded from the trend, not counted as zero. This view contains aggregate counts only; survey answers remain available only in authorized session reviews.")}</div>
         </section>
 
         <section className="ana-lower-grid">

@@ -86,6 +86,8 @@ test("analytics routes validate date and identifier inputs before database acces
   role = "coordinator";
   const impossibleDate = await request("/api/analytics?from=2026-02-31&to=2026-03-01");
   const impossibleInteractionDate = await request("/api/analytics/session-interactions?from=2026-02-31&to=2026-03-01");
+  const invalidInteractionPeriod = await request("/api/analytics/session-interactions?period=daily");
+  const invalidInteractionType = await request("/api/analytics/session-interactions?activityType=workshop");
   const invalidSession = await request("/api/analytics/attendance/not-a-session");
   const invalidProgram = await request("/api/analytics/kpis?programId=not-a-program");
   const invalidGrant = await request("/api/grants/not-a-pitch/receipts", {
@@ -95,6 +97,8 @@ test("analytics routes validate date and identifier inputs before database acces
   });
   assert.equal(impossibleDate.status, 400);
   assert.equal(impossibleInteractionDate.status, 400);
+  assert.equal(invalidInteractionPeriod.status, 400);
+  assert.equal(invalidInteractionType.status, 400);
   assert.equal(invalidSession.status, 400);
   assert.equal(invalidProgram.status, 400);
   assert.equal(invalidGrant.status, 400);

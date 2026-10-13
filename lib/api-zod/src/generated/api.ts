@@ -160,17 +160,30 @@ export const GetProgramAnalyticsResponse = zod.object({
  */
 export const getProgramSessionInteractionAnalyticsQueryFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getProgramSessionInteractionAnalyticsQueryToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
-
+export const getProgramSessionInteractionAnalyticsQueryPeriodDefault = `weekly`;
+export const getProgramSessionInteractionAnalyticsQueryActivityTypeDefault = `all`;
 
 export const GetProgramSessionInteractionAnalyticsQueryParams = zod.object({
   "programId": zod.coerce.number().int().optional(),
   "from": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryFromRegExp).optional(),
-  "to": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryToRegExp).optional()
+  "to": zod.coerce.string().regex(getProgramSessionInteractionAnalyticsQueryToRegExp).optional(),
+  "period": zod.enum(['weekly', 'monthly']).default(getProgramSessionInteractionAnalyticsQueryPeriodDefault).describe('Calendar period used to group the response trend'),
+  "activityType": zod.enum(['all', 'poll', 'survey']).default(getProgramSessionInteractionAnalyticsQueryActivityTypeDefault).describe('Limit the interaction report to polls, surveys, or both')
 })
 
 export const getProgramSessionInteractionAnalyticsResponseFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getProgramSessionInteractionAnalyticsResponseToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getProgramSessionInteractionAnalyticsResponseActivitiesItemSessionDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramSessionInteractionAnalyticsResponseTrendItemPeriodStartRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramSessionInteractionAnalyticsResponseTrendItemPeriodEndRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProgramSessionInteractionAnalyticsResponseTrendItemActivityCountMin = 0;
+
+export const getProgramSessionInteractionAnalyticsResponseTrendItemResponseCountMin = 0;
+
+export const getProgramSessionInteractionAnalyticsResponseTrendItemEligibleOpportunitiesMin = 0;
+
+export const getProgramSessionInteractionAnalyticsResponseTrendItemResponseRateMin = 0;
+
 
 
 export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
@@ -189,6 +202,16 @@ export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
   "responseCount": zod.number().int(),
   "eligibleBusinesses": zod.number().int(),
   "responseRate": zod.number().nullable()
+})),
+  "trend": zod.array(zod.object({
+  "periodStart": zod.string().regex(getProgramSessionInteractionAnalyticsResponseTrendItemPeriodStartRegExp),
+  "periodEnd": zod.string().regex(getProgramSessionInteractionAnalyticsResponseTrendItemPeriodEndRegExp),
+  "activityCount": zod.number().int().min(getProgramSessionInteractionAnalyticsResponseTrendItemActivityCountMin),
+  "responseCount": zod.number().int().min(getProgramSessionInteractionAnalyticsResponseTrendItemResponseCountMin).nullable(),
+  "eligibleOpportunities": zod.number().int().min(getProgramSessionInteractionAnalyticsResponseTrendItemEligibleOpportunitiesMin).nullable(),
+  "responseRate": zod.number().min(getProgramSessionInteractionAnalyticsResponseTrendItemResponseRateMin).nullable(),
+  "responseCountChange": zod.number().int().nullable(),
+  "responseRateChange": zod.number().nullable()
 }))
 })
 

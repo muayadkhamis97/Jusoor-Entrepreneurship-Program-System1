@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SessionInteractionParticipation } from './sessionInteractionParticipation';
+import type { SessionInteractionTrendPoint } from './sessionInteractionTrendPoint';
 
 export interface ProgramSessionInteractionAnalytics {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
@@ -13,4 +14,5 @@ export interface ProgramSessionInteractionAnalytics {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   to: string;
   activities: SessionInteractionParticipation[];
+  trend: SessionInteractionTrendPoint[];
 }
