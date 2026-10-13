@@ -92,6 +92,9 @@
 .participant-announcement-copy p { margin:0; color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.6; white-space:pre-wrap; }
 .participant-announcement-copy time { display:block; margin-top:7px; color:hsl(var(--muted-foreground)); font-size:8px; }
 .participant-announcement.is-unread .participant-announcement-copy h3 { color:hsl(var(--primary)); }
+.recording-session-details { margin-top:6px !important; color:hsl(var(--foreground)) !important; font-weight:600; }
+.participant-recording-action { margin-top:10px; }
+.participant-recording-action .session-recording-player { margin-top:10px; }
 .mark-read-button { align-self:center; min-height:30px; padding:0 9px; font-size:8px; }
 .read-indicator { display:flex; align-items:center; gap:4px; align-self:center; color:hsl(var(--primary)); font-size:8px; white-space:nowrap; }
 .participant-announcement-empty { min-height:170px; padding:20px; }

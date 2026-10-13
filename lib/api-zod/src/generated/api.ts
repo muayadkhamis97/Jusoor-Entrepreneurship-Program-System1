@@ -788,6 +788,7 @@ export const getParticipantDashboardResponseApplicationsItemSessionsItemDuration
 
 export const getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getParticipantDashboardResponseApplicationsItemAssignmentsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getParticipantDashboardResponseAnnouncementsItemSessionDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const GetParticipantDashboardResponse = zod.object({
@@ -867,6 +868,10 @@ export const GetParticipantDashboardResponse = zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullable(),
   "programName": zod.string().nullable(),
+  "sessionId": zod.number().int().nullable(),
+  "sessionTitle": zod.string().nullable(),
+  "sessionDate": zod.string().regex(getParticipantDashboardResponseAnnouncementsItemSessionDateRegExp).nullable(),
+  "recordingUrl": zod.string().nullable(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string(),
   "body": zod.string(),

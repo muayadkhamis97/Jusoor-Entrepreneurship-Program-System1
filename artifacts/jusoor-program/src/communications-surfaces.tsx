@@ -2,7 +2,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetParticipantDashboardQueryKey, getListAnnouncementsQueryKey, getListProgramsQueryKey, useCreateAnnouncement, useDeleteAnnouncement, useListAnnouncements, useListPrograms, useMarkAnnouncementRead } from '@workspace/api-client-react';
 import type { Announcement, AnnouncementInput, ParticipantAnnouncement } from '@workspace/api-client-react';
-import { AlertCircle, Bell, CalendarClock, Check, CheckCheck, Clock3, Megaphone, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, Bell, CalendarClock, Check, CheckCheck, Clock3, Megaphone, Plus, Trash2, Video } from 'lucide-react';
+import { SessionRecordingPlayer } from './session-recording-player';
 import './calendar-communications.css';
 
 const fmtDate = (value: string) => new Date(value).toLocaleString('en', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -87,6 +88,7 @@ export function CommunicationsPage() {
 export function ParticipantAnnouncements({ announcements }: { announcements: ParticipantAnnouncement[] }) {
   const markRead = useMarkAnnouncementRead();
   const client = useQueryClient();
+  const [openRecordingId, setOpenRecordingId] = useState<number | null>(null);
   const published = announcements.filter(item => new Date(item.scheduledFor).getTime() <= Date.now()).sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
   const unread = published.filter(item => !item.readAt).length;
   const readOne = (item: ParticipantAnnouncement) => {
@@ -99,6 +101,21 @@ export function ParticipantAnnouncements({ announcements }: { announcements: Par
     <div className="participant-section-head"><div><div className="eyebrow">FROM YOUR PROGRAM TEAM</div><h2>Updates & reminders</h2><p>Important notes from your cohort, gathered here.</p></div><span className={`badge ${unread ? 'badge-warm' : 'badge-good'}`}>{unread ? `${unread} unread` : 'All caught up'}</span></div>
     {markRead.isError && <div className="form-error" role="alert"><AlertCircle size={15} />We couldn’t update read status. Try again.</div>}
     {!published.length ? <div className="empty-panel participant-announcement-empty"><span className="empty-icon"><Megaphone size={19} /></span><h3>No announcements just yet.</h3><p>When your coordinators share a cohort update or reminder, you’ll find it here.</p></div>
-      : <div className="participant-announcement-list">{published.map(item => <article key={item.id} className={`participant-announcement ${item.readAt ? 'is-read' : 'is-unread'}`} data-testid={`participant-announcement-${item.id}`}><span className={`participant-announcement-icon ${item.kind}`}>{item.kind === 'reminder' ? <Bell size={16} /> : <Megaphone size={16} />}</span><div className="participant-announcement-copy"><div className="announcement-meta"><span>{item.kind === 'reminder' ? 'Reminder' : 'Cohort update'}</span><span>{item.programName || 'All cohorts'}</span></div><h3>{item.title}</h3><p>{item.body}</p><time dateTime={item.scheduledFor}>{fmtDate(item.scheduledFor)}</time></div>{item.readAt ? <span className="read-indicator"><Check size={14} /> Read</span> : <button type="button" className="button button-quiet mark-read-button" onClick={() => readOne(item)} disabled={markRead.isPending} data-testid={`button-mark-announcement-read-${item.id}`}>{markRead.isPending ? 'Saving…' : 'Mark as read'}</button>}</article>)}</div>}
+      : <div className="participant-announcement-list">{published.map(item => <article key={item.id} className={`participant-announcement ${item.readAt ? 'is-read' : 'is-unread'}`} data-testid={`participant-announcement-${item.id}`}>
+        <span className={`participant-announcement-icon ${item.kind}`}>{item.kind === 'reminder' ? <Bell size={16} /> : <Megaphone size={16} />}</span>
+        <div className="participant-announcement-copy">
+          <div className="announcement-meta"><span>{item.sessionId ? 'Recording' : item.kind === 'reminder' ? 'Reminder' : 'Cohort update'}</span><span>{item.programName || 'All cohorts'}</span></div>
+          <h3>{item.title}</h3><p>{item.body}</p>
+          {item.sessionId && item.sessionTitle && item.sessionDate && <p className="recording-session-details">{item.sessionTitle} · {new Date(`${item.sessionDate}T12:00:00`).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
+          <time dateTime={item.scheduledFor}>{fmtDate(item.scheduledFor)}</time>
+          {item.sessionId && item.recordingUrl && item.sessionTitle && <div className="participant-recording-action">
+            <button type="button" className="button button-outline" aria-expanded={openRecordingId === item.id} onClick={() => setOpenRecordingId(openRecordingId === item.id ? null : item.id)} data-testid={`button-watch-recording-${item.id}`}>
+              <Video size={14} />{openRecordingId === item.id ? 'Close recording' : 'Watch recording'}
+            </button>
+            {openRecordingId === item.id && <SessionRecordingPlayer url={item.recordingUrl} title={item.sessionTitle} />}
+          </div>}
+        </div>
+        {item.readAt ? <span className="read-indicator"><Check size={14} /> Read</span> : <button type="button" className="button button-quiet mark-read-button" onClick={() => readOne(item)} disabled={markRead.isPending} data-testid={`button-mark-announcement-read-${item.id}`}>{markRead.isPending ? 'Saving…' : 'Mark as read'}</button>}
+      </article>)}</div>}
   </section>;
 }

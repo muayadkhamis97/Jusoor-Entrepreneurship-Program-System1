@@ -19,6 +19,7 @@ export const sessionsTable = pgTable("jusoor_sessions", {
   zoomUrl: text("zoom_url"),
   zoomMeetingId: text("zoom_meeting_id"),
   recordingUrl: text("recording_url"),
+  recordingVersion: integer("recording_version").notNull().default(0),
   status: text("status").notNull().default("scheduled"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -26,6 +27,7 @@ export const sessionsTable = pgTable("jusoor_sessions", {
 export const insertSessionSchema = createInsertSchema(sessionsTable).omit({
   id: true,
   createdAt: true,
+  recordingVersion: true,
 });
 export type InsertSession = z.infer<typeof insertSessionSchema>;
 export type Session = typeof sessionsTable.$inferSelect;

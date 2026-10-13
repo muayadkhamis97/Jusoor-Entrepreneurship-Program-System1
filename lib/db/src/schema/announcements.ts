@@ -8,6 +8,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { programsTable } from "./programs";
+import { sessionsTable } from "./sessions";
 import { staffMembersTable } from "./staff";
 import { z } from "zod/v4";
 import { createInsertSchema } from "drizzle-zod";
@@ -17,6 +18,8 @@ export const programAnnouncementsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     programId: integer("program_id").references(() => programsTable.id, { onDelete: "set null" }),
+    sessionId: integer("session_id").references(() => sessionsTable.id, { onDelete: "cascade" }),
+    recordingVersion: integer("recording_version"),
     kind: text("kind").notNull().default("update"),
     title: text("title").notNull(),
     body: text("body").notNull(),
@@ -27,6 +30,8 @@ export const programAnnouncementsTable = pgTable(
   (table) => [
     index("jusoor_program_announcements_program_idx").on(table.programId, table.scheduledFor),
     index("jusoor_program_announcements_scheduled_idx").on(table.scheduledFor),
+    uniqueIndex("jusoor_program_announcements_session_recording_version_unique")
+      .on(table.sessionId, table.recordingVersion),
   ],
 );
 

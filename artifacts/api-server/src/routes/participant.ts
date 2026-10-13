@@ -31,6 +31,10 @@ import {
 import type { ParticipantAccess } from "../middlewares/participantAccess";
 import { streamCourseMaterialFile } from "../lib/courseStorage";
 import { getParticipantSupportForBusiness } from "../lib/participantBookingAccess";
+import {
+  canParticipantAccessRecordingNotice,
+  isCurrentRecordingNotice,
+} from "../lib/participant-recording-notices";
 
 const router: IRouter = Router();
 
@@ -189,24 +193,55 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
 
   const eligible = rows.filter(({ application, business }) => application.status === "accepted" && business);
   const programIds = [...new Set(eligible.map(({ application }) => application.programId))];
+  const acceptedProgramIds = [...new Set(rows
+    .filter(({ application }) => application.status === "accepted")
+    .map(({ application }) => application.programId))];
   const businessIds = eligible.flatMap(({ business }) => business ? [business.id] : []);
-  const announcementRows = programIds.length
+  const announcementRows = acceptedProgramIds.length
     ? await db.select({
       announcement: programAnnouncementsTable,
       programName: programsTable.name,
       readAt: announcementReceiptsTable.readAt,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      sessionProgramId: sessionsTable.programId,
+      currentRecordingVersion: sessionsTable.recordingVersion,
+      sessionTitle: sessionsTable.title,
+      sessionDate: sessionsTable.scheduledDate,
+      recordingUrl: sessionsTable.recordingUrl,
     }).from(programAnnouncementsTable)
       .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
       .leftJoin(announcementReceiptsTable, and(
         eq(announcementReceiptsTable.announcementId, programAnnouncementsTable.id),
         eq(announcementReceiptsTable.clerkUserId, participant.userId),
       ))
       .where(and(
         lte(programAnnouncementsTable.scheduledFor, new Date()),
-        or(isNull(programAnnouncementsTable.programId), inArray(programAnnouncementsTable.programId, programIds)),
+        or(isNull(programAnnouncementsTable.programId), inArray(programAnnouncementsTable.programId, acceptedProgramIds)),
       ))
       .orderBy(desc(programAnnouncementsTable.scheduledFor))
     : [];
+  const activeAnnouncementRows = announcementRows.filter((row) => {
+    if (row.sessionId === null) return true;
+    return isCurrentRecordingNotice(
+      {
+        sessionId: row.sessionId,
+        programId: row.announcement.programId,
+        recordingVersion: row.recordingVersion,
+      },
+      row.sessionProgramId !== null &&
+        row.currentRecordingVersion !== null &&
+        row.recordingUrl !== null
+        ? {
+            id: row.sessionId,
+            programId: row.sessionProgramId,
+            recordingVersion: row.currentRecordingVersion,
+            recordingUrl: row.recordingUrl,
+          }
+        : null,
+    );
+  });
 
   const sessions = programIds.length
     ? await db.select({
@@ -354,7 +389,15 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       : [],
   }));
 
-  const announcements = announcementRows.map(({ announcement, programName, readAt }) => ({
+  const announcements = activeAnnouncementRows.map(({
+    announcement,
+    programName,
+    readAt,
+    sessionId,
+    sessionTitle,
+    sessionDate,
+    recordingUrl,
+  }) => ({
     id: announcement.id,
     programId: announcement.programId,
     programName,
@@ -364,6 +407,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     scheduledFor: announcement.scheduledFor,
     createdAt: announcement.createdAt,
     readAt,
+    sessionId,
+    sessionTitle: sessionId === null ? null : sessionTitle,
+    sessionDate: sessionId === null ? null : sessionDate,
+    recordingUrl: sessionId === null ? null : recordingUrl,
   }));
 
   res.json(GetParticipantDashboardResponse.parse({ applications: result, announcements }));
@@ -382,6 +429,24 @@ router.post("/announcements/:id/read", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Announcement not found." });
     return;
   }
+  if (announcement.sessionId !== null) {
+    const [session] = await db.select({
+      id: sessionsTable.id,
+      programId: sessionsTable.programId,
+      recordingVersion: sessionsTable.recordingVersion,
+      recordingUrl: sessionsTable.recordingUrl,
+    }).from(sessionsTable)
+      .where(eq(sessionsTable.id, announcement.sessionId))
+      .limit(1);
+    if (!isCurrentRecordingNotice({
+      sessionId: announcement.sessionId,
+      programId: announcement.programId,
+      recordingVersion: announcement.recordingVersion,
+    }, session)) {
+      res.status(404).json({ error: "Announcement not found." });
+      return;
+    }
+  }
   if (announcement.scheduledFor > new Date()) {
     res.status(403).json({ error: "This announcement has not been published yet." });
     return;
@@ -391,10 +456,17 @@ router.post("/announcements/:id/read", async (req, res): Promise<void> => {
     .where(and(
       eq(applicationsTable.clerkUserId, participant.userId),
       eq(applicationsTable.status, "accepted"),
-      isNotNull(applicationsTable.businessId),
     ));
   const programIds = new Set(acceptedPrograms.map((item) => item.programId));
-  if (!programIds.size || (announcement.programId !== null && !programIds.has(announcement.programId))) {
+  if (
+    !programIds.size ||
+    (announcement.programId !== null && !programIds.has(announcement.programId)) ||
+    (announcement.sessionId !== null && !canParticipantAccessRecordingNotice({
+      sessionId: announcement.sessionId,
+      programId: announcement.programId,
+      recordingVersion: announcement.recordingVersion,
+    }, programIds))
+  ) {
     res.status(403).json({ error: "This announcement is not available to this participant." });
     return;
   }
