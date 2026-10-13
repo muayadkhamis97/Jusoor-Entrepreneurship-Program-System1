@@ -948,7 +948,7 @@ export const ReviewApplicationResponse = zod.object({
 
 
 /**
- * @summary Get course modules and materials for programs the signed-in coordinator or trainer can manage
+ * @summary Get course content for coordinators and assigned trainers, or release-schedule metadata for program staff
  */
 export const GetCourseManagementResponse = zod.object({
   "programs": zod.array(zod.object({
@@ -982,7 +982,7 @@ export const GetCourseManagementResponse = zod.object({
 
 
 /**
- * @summary Create a course module for a manageable program
+ * @summary Create a course module (coordinator only)
  */
 export const createCourseModuleBodyTitleMax = 180;
 
@@ -1028,7 +1028,7 @@ export const CreateCourseModuleResponse = zod.object({
 
 
 /**
- * @summary Update module details, publication status, or release time
+ * @summary Update module details (coordinator) or only the release time (program staff)
  */
 export const UpdateCourseModuleParams = zod.object({
   "id": zod.coerce.number().int()

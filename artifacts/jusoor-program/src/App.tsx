@@ -141,6 +141,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
     ...(staff.role === 'coordinator' ? [{ href: '/grants', label: 'Grant tracking', icon: CircleDollarSign }] : []),
     ...(staff.role === 'coordinator' ? [{ href: '/courses', label: 'Learning', icon: BookOpen }, { href: '/applications', label: 'Applications', icon: FileText }, { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck }, { href: '/team', label: 'Team access', icon: Shield }, { href: '/access', label: 'Role access', icon: Shield }] : []),
+    ...(staff.role === 'staff' ? [{ href: '/courses', label: 'Course schedule', icon: CalendarDays }] : []),
   ];
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
@@ -789,7 +790,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/businesses" component={BusinessesPage} />
     <Route path="/programs" component={ProgramsPage} />
     <Route path="/analytics" component={staff.role === 'coordinator' ? ProgramAnalyticsPage : NotFoundPage} />
-    <Route path="/courses" component={CourseManagementPage} />
+    <Route path="/courses">{() => staff.role === 'coordinator' ? <CourseManagementPage /> : staff.role === 'staff' ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
     <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />
     <Route path="/support">{() => <SupportPage coordinator={staff.role === 'coordinator'} />}</Route>

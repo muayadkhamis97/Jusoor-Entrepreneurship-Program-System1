@@ -5,7 +5,10 @@ import { after, before, test } from "node:test";
 import {
   canAccessCourseMaterial,
   canManageCourseContent,
+  canScheduleCourseRelease,
   canViewCourseManagement,
+  canViewCourseMaterialFile,
+  isScheduleOnlyModuleUpdate,
   isCourseModuleReleased,
 } from "../src/lib/courseAccess";
 
@@ -43,10 +46,10 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
   return nativeFetch(`http://127.0.0.1:${address.port}${path}`, init);
 }
 
-test("course management is visible only to coordinators and trainers", () => {
+test("course management is visible to coordinators, program staff, and trainers", () => {
   assert.equal(canViewCourseManagement("coordinator"), true);
+  assert.equal(canViewCourseManagement("staff"), true);
   assert.equal(canViewCourseManagement("trainer"), true);
-  assert.equal(canViewCourseManagement("staff"), false);
   assert.equal(canViewCourseManagement("mentor"), false);
   assert.equal(canViewCourseManagement("judge"), false);
 });
@@ -54,8 +57,27 @@ test("course management is visible only to coordinators and trainers", () => {
 test("only coordinators can create, edit, or remove course content", () => {
   assert.equal(canManageCourseContent("coordinator"), true);
   assert.equal(canManageCourseContent("trainer"), false);
+  assert.equal(canManageCourseContent("staff"), false);
   assert.equal(canManageCourseContent("mentor"), false);
   assert.equal(canManageCourseContent("judge"), false);
+});
+
+test("program staff can schedule releases but cannot update other module fields", () => {
+  assert.equal(canScheduleCourseRelease("coordinator"), true);
+  assert.equal(canScheduleCourseRelease("staff"), true);
+  assert.equal(canScheduleCourseRelease("trainer"), false);
+  assert.equal(isScheduleOnlyModuleUpdate({ releaseAt: "2026-10-14T09:00:00.000Z" }), true);
+  assert.equal(isScheduleOnlyModuleUpdate({ releaseAt: new Date("2026-10-14T09:00:00.000Z") }), true);
+  assert.equal(isScheduleOnlyModuleUpdate({ releaseAt: null }), false);
+  assert.equal(isScheduleOnlyModuleUpdate({ releaseAt: "2026-10-14T09:00:00.000Z", title: "Changed" }), false);
+  assert.equal(isScheduleOnlyModuleUpdate({ title: "Changed" }), false);
+});
+
+test("only coordinators and trainers can request course files", () => {
+  assert.equal(canViewCourseMaterialFile("coordinator"), true);
+  assert.equal(canViewCourseMaterialFile("trainer"), true);
+  assert.equal(canViewCourseMaterialFile("staff"), false);
+  assert.equal(canViewCourseMaterialFile("mentor"), false);
 });
 
 test("course material access follows its role allowlist", () => {
@@ -96,4 +118,26 @@ test("course routes deny trainer editing and deny other roles course management"
   assert.equal((await request("/api/courses/management")).status, 403);
   role = "judge";
   assert.equal((await request("/api/courses/materials/1/file")).status, 403);
+});
+
+test("program staff can schedule modules but cannot create content, edit module details, or download files", async () => {
+  role = "staff";
+  const create = await request("/api/courses/modules", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  const changeTitle = await request("/api/courses/modules/1", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "Unauthorized title change" }),
+  });
+  const scheduleWithInvalidId = await request("/api/courses/modules/not-an-id", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ releaseAt: "2026-10-14T09:00:00.000Z" }),
+  });
+  const file = await request("/api/courses/materials/1/file");
+
+  assert.deepEqual([create.status, changeTitle.status, scheduleWithInvalidId.status, file.status], [403, 403, 400, 403]);
 });

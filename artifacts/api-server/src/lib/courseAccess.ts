@@ -3,11 +3,26 @@ import type { StaffAccess } from "../middlewares/staffAccess";
 export type CourseAudienceRole = "participant" | "trainer" | "coordinator";
 
 export function canViewCourseManagement(role: StaffAccess["role"]): boolean {
-  return role === "coordinator" || role === "trainer";
+  return role === "coordinator" || role === "staff" || role === "trainer";
 }
 
 export function canManageCourseContent(role: StaffAccess["role"]): boolean {
   return role === "coordinator";
+}
+
+export function canScheduleCourseRelease(role: StaffAccess["role"]): boolean {
+  return role === "coordinator" || role === "staff";
+}
+
+export function canViewCourseMaterialFile(role: StaffAccess["role"]): boolean {
+  return role === "coordinator" || role === "trainer";
+}
+
+export function isScheduleOnlyModuleUpdate(update: Record<string, unknown>): boolean {
+  const keys = Object.keys(update);
+  return keys.length === 1 &&
+    keys[0] === "releaseAt" &&
+    (typeof update.releaseAt === "string" || update.releaseAt instanceof Date);
 }
 
 export function canAccessCourseMaterial(

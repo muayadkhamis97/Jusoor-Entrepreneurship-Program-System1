@@ -31,7 +31,10 @@ import type { StaffAccess } from "../middlewares/staffAccess";
 import {
   canAccessCourseMaterial,
   canManageCourseContent,
+  canScheduleCourseRelease,
   canViewCourseManagement,
+  canViewCourseMaterialFile,
+  isScheduleOnlyModuleUpdate,
   isCourseModuleReleased,
 } from "../lib/courseAccess";
 import {
@@ -49,7 +52,7 @@ const courseMaterialRoles = ["participant", "trainer", "coordinator"] as const;
 type CourseMaterialRole = (typeof courseMaterialRoles)[number];
 
 async function manageableProgramIds(staff: StaffAccess): Promise<number[] | null> {
-  if (staff.role === "coordinator") return null;
+  if (staff.role === "coordinator" || staff.role === "staff") return null;
   if (staff.role !== "trainer") return [];
   const assignments = await db.select({ programId: sessionsTable.programId })
     .from(sessionsTable)
@@ -118,7 +121,7 @@ function mapMaterial(material: CourseMaterial) {
 router.get("/management", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || !canViewCourseManagement(staff.role)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access is required." });
+    res.status(403).json({ error: "Coordinator, program staff, or assigned trainer access is required." });
     return;
   }
   const programIds = await manageableProgramIds(staff);
@@ -181,7 +184,7 @@ router.get("/management", async (req, res): Promise<void> => {
         id: row.moduleId,
         programId: row.programId,
         title: row.moduleTitle,
-        description: row.moduleDescription,
+        description: staff.role === "staff" ? null : row.moduleDescription,
         position: row.modulePosition,
         releaseAt: row.moduleReleaseAt?.toISOString() ?? null,
         isPublished: row.moduleIsPublished ?? false,
@@ -189,7 +192,7 @@ router.get("/management", async (req, res): Promise<void> => {
       };
       program.modules.set(row.moduleId, module);
     }
-    if (row.material) module.materials.push(mapMaterial(row.material));
+    if (row.material && staff.role !== "staff") module.materials.push(mapMaterial(row.material));
   }
   res.json(GetCourseManagementResponse.parse({
     programs: [...programs.values()].map(({ id, name, modules }) => ({
@@ -242,7 +245,7 @@ router.patch("/modules/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = UpdateCourseModuleParams.safeParse(req.params);
   const body = UpdateCourseModuleBody.safeParse(req.body);
-  if (!staff || !canManageCourseContent(staff.role)) {
+  if (!staff || (!canManageCourseContent(staff.role) && !canScheduleCourseRelease(staff.role))) {
     res.status(403).json({ error: "Coordinator access is required to manage course content." });
     return;
   }
@@ -252,6 +255,10 @@ router.patch("/modules/:id", async (req, res): Promise<void> => {
   }
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
+    return;
+  }
+  if (staff.role === "staff" && !isScheduleOnlyModuleUpdate(body.data as Record<string, unknown>)) {
+    res.status(403).json({ error: "Program staff can only set a module release date and time." });
     return;
   }
   const existing = await findManageableModule(params.data.id, staff);
@@ -272,8 +279,9 @@ router.patch("/modules/:id", async (req, res): Promise<void> => {
     .orderBy(asc(courseMaterialsTable.position));
   res.json(UpdateCourseModuleResponse.parse({
     ...module,
+    description: staff.role === "staff" ? null : module.description,
     releaseAt: module.releaseAt?.toISOString() ?? null,
-    materials: materials.map(mapMaterial),
+    materials: staff.role === "staff" ? [] : materials.map(mapMaterial),
   }));
 });
 
@@ -531,7 +539,7 @@ router.post("/uploads/request-url", async (req, res): Promise<void> => {
 router.get("/materials/:id/file", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = GetCourseMaterialFileParams.safeParse(req.params);
-  if (!staff || !canViewCourseManagement(staff.role)) {
+  if (!staff || !canViewCourseMaterialFile(staff.role)) {
     res.status(403).json({ error: "Coordinator or assigned trainer access is required." });
     return;
   }

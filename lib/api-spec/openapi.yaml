@@ -529,21 +529,21 @@ paths:
     get:
       operationId: getCourseManagement
       tags: [courses]
-      summary: Get course modules and materials for programs the signed-in coordinator or trainer can manage
+      summary: Get course content for coordinators and assigned trainers, or release-schedule metadata for program staff
       responses:
         "200":
-          description: Manageable programs and their course content
+          description: Coordinators receive full course content; trainers receive assigned, released, role-allowed content; program staff receive module schedule metadata only
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CourseManagement"
         "403":
-          description: Coordinator or assigned trainer access required
+          description: Coordinator, program staff, or assigned trainer access required
   /courses/modules:
     post:
       operationId: createCourseModule
       tags: [courses]
-      summary: Create a course module for a manageable program
+      summary: Create a course module (coordinator only)
       requestBody:
         required: true
         content:
@@ -558,12 +558,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/CourseModule"
         "403":
-          description: Program is not assigned to this trainer
+          description: Coordinator access is required
   /courses/modules/{id}:
     patch:
       operationId: updateCourseModule
       tags: [courses]
-      summary: Update module details, publication status, or release time
+      summary: Update module details (coordinator) or only the release time (program staff)
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:

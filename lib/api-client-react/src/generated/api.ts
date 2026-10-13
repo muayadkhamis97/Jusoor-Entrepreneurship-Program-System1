@@ -2213,7 +2213,7 @@ export const getGetCourseManagementUrl = () => {
 }
 
 /**
- * @summary Get course modules and materials for programs the signed-in coordinator or trainer can manage
+ * @summary Get course content for coordinators and assigned trainers, or release-schedule metadata for program staff
  */
 export const getCourseManagement = async ( options?: Parameters<typeof customFetch>[1]): Promise<CourseManagement> => {
 
@@ -2260,7 +2260,7 @@ export type GetCourseManagementQueryError = ErrorType<void>
 
 
 /**
- * @summary Get course modules and materials for programs the signed-in coordinator or trainer can manage
+ * @summary Get course content for coordinators and assigned trainers, or release-schedule metadata for program staff
  */
 
 export function useGetCourseManagement<TData = Awaited<ReturnType<typeof getCourseManagement>>, TError = ErrorType<void>>(
@@ -2290,7 +2290,7 @@ export const getCreateCourseModuleUrl = () => {
 }
 
 /**
- * @summary Create a course module for a manageable program
+ * @summary Create a course module (coordinator only)
  */
 export const createCourseModule = async (courseModuleInput: CourseModuleInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseModule> => {
 
@@ -2356,7 +2356,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateCourseModuleMutationVariables = {data: BodyType<CourseModuleInput>}
 
     /**
- * @summary Create a course module for a manageable program
+ * @summary Create a course module (coordinator only)
  */
 export const useCreateCourseModule = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCourseModule>>, TError,CreateCourseModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2378,7 +2378,7 @@ export const getUpdateCourseModuleUrl = (id: number,) => {
 }
 
 /**
- * @summary Update module details, publication status, or release time
+ * @summary Update module details (coordinator) or only the release time (program staff)
  */
 export const updateCourseModule = async (id: number,
     courseModuleUpdate: CourseModuleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<CourseModule> => {
@@ -2445,7 +2445,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateCourseModuleMutationVariables = {id: number;data: BodyType<CourseModuleUpdate>}
 
     /**
- * @summary Update module details, publication status, or release time
+ * @summary Update module details (coordinator) or only the release time (program staff)
  */
 export const useUpdateCourseModule = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCourseModule>>, TError,UpdateCourseModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
