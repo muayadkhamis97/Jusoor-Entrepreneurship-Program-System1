@@ -47,18 +47,25 @@ import type {
   CourseModule,
   CourseModuleInput,
   CourseModuleUpdate,
+  CoursePackageLaunch,
   CourseQuiz,
   CourseQuizAttempt,
   CourseQuizAttemptReview,
   CourseQuizInput,
   CourseQuizManagementResponse,
   CourseQuizSubmissionInput,
+  CourseScormProgress,
+  CourseScormProgressInput,
   CourseUploadInput,
   CourseUploadUrl,
   Dashboard,
+  DeleteXapiActivityStateParams,
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
   GetProgramAnalyticsParams,
+  GetXapiActivityState200,
+  GetXapiActivityStateParams,
+  GetXapiStatementsParams,
   GoogleCalendarAuthorizationInput,
   GrantAwardRecord,
   GrantReceiptInput,
@@ -94,10 +101,13 @@ import type {
   PitchJudgeInput,
   PitchRecord,
   PitchUpdate,
+  PostXapiActivityStateParams,
   Program,
   ProgramAnalytics,
   ProgramInput,
   ProgramUpdate,
+  PutXapiActivityStateParams,
+  PutXapiStatementParams,
   Session,
   SessionAttendanceInput,
   SessionAttendanceRegister,
@@ -124,6 +134,10 @@ import type {
   TrainingQuestionInput,
   TrainingQuestionReply,
   TrainingSubmission,
+  XapiAbout,
+  XapiActivityStateInput,
+  XapiStatement,
+  XapiStatementResult,
   ZoomAttendanceParticipantResolutionInput,
   ZoomAttendanceSync,
   ZoomConnectionInput,
@@ -3452,6 +3466,956 @@ export function useGetParticipantCourseMaterialFile<TData = Awaited<ReturnType<t
 
 
 
+
+export const getLaunchParticipantCoursePackageUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/materials/${id}/package-launch`
+}
+
+/**
+ * @summary Prepare an enrolled participant's SCORM or xAPI course package
+ */
+export const launchParticipantCoursePackage = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<CoursePackageLaunch> => {
+
+  return customFetch<CoursePackageLaunch>(getLaunchParticipantCoursePackageUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLaunchParticipantCoursePackageQueryKey = (id: number,) => {
+    return [
+    `/api/participant/courses/materials/${id}/package-launch`
+    ] as const;
+    }
+
+
+export const getLaunchParticipantCoursePackageQueryOptions = <TData = Awaited<ReturnType<typeof launchParticipantCoursePackage>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof launchParticipantCoursePackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLaunchParticipantCoursePackageQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof launchParticipantCoursePackage>>> = ({ signal }) => launchParticipantCoursePackage(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof launchParticipantCoursePackage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LaunchParticipantCoursePackageQueryResult = NonNullable<Awaited<ReturnType<typeof launchParticipantCoursePackage>>>
+export type LaunchParticipantCoursePackageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Prepare an enrolled participant's SCORM or xAPI course package
+ */
+
+export function useLaunchParticipantCoursePackage<TData = Awaited<ReturnType<typeof launchParticipantCoursePackage>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof launchParticipantCoursePackage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLaunchParticipantCoursePackageQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetParticipantCoursePackageFileUrl = (id: number,
+    filePath: string,) => {
+
+
+
+
+  return `/api/participant/courses/materials/${id}/package/${filePath}`
+}
+
+/**
+ * @summary Stream an authorized file from a released SCORM or xAPI package
+ */
+export const getParticipantCoursePackageFile = async (id: number,
+    filePath: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetParticipantCoursePackageFileUrl(id,filePath),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantCoursePackageFileQueryKey = (id: number,
+    filePath: string,) => {
+    return [
+    `/api/participant/courses/materials/${id}/package/${filePath}`
+    ] as const;
+    }
+
+
+export const getGetParticipantCoursePackageFileQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantCoursePackageFile>>, TError = ErrorType<void>>(id: number,
+    filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantCoursePackageFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantCoursePackageFileQueryKey(id,filePath);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantCoursePackageFile>>> = ({ signal }) => getParticipantCoursePackageFile(id,filePath, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && filePath !== null && filePath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantCoursePackageFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantCoursePackageFileQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantCoursePackageFile>>>
+export type GetParticipantCoursePackageFileQueryError = ErrorType<void>
+
+
+/**
+ * @summary Stream an authorized file from a released SCORM or xAPI package
+ */
+
+export function useGetParticipantCoursePackageFile<TData = Awaited<ReturnType<typeof getParticipantCoursePackageFile>>, TError = ErrorType<void>>(
+ id: number,
+    filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantCoursePackageFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantCoursePackageFileQueryOptions(id,filePath,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveParticipantScormProgressUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/courses/materials/${id}/scorm-progress`
+}
+
+/**
+ * @summary Save a participant's private SCORM progress
+ */
+export const saveParticipantScormProgress = async (id: number,
+    courseScormProgressInput: CourseScormProgressInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseScormProgress> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseScormProgress>(getSaveParticipantScormProgressUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(courseScormProgressInput)
+  }
+);}
+
+
+
+
+
+export const getSaveParticipantScormProgressMutationKey = () => ['saveParticipantScormProgress'] as const;
+
+export const getSaveParticipantScormProgressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveParticipantScormProgress>>, TError,SaveParticipantScormProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveParticipantScormProgress>>, TError,SaveParticipantScormProgressMutationVariables, TContext> => {
+
+const mutationKey = getSaveParticipantScormProgressMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveParticipantScormProgress>>, SaveParticipantScormProgressMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveParticipantScormProgress(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveParticipantScormProgressMutationResult = NonNullable<Awaited<ReturnType<typeof saveParticipantScormProgress>>>
+    export type SaveParticipantScormProgressMutationBody = BodyType<CourseScormProgressInput>
+    export type SaveParticipantScormProgressMutationError = ErrorType<void>
+    export type SaveParticipantScormProgressMutationVariables = {id: number;data: BodyType<CourseScormProgressInput>}
+
+    /**
+ * @summary Save a participant's private SCORM progress
+ */
+export const useSaveParticipantScormProgress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveParticipantScormProgress>>, TError,SaveParticipantScormProgressMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveParticipantScormProgress>>,
+        TError,
+        SaveParticipantScormProgressMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveParticipantScormProgressMutationOptions(options));
+    }
+
+export const getGetXapiAboutUrl = () => {
+
+
+
+
+  return `/api/xapi/about`
+}
+
+/**
+ * @summary Return internal LRS protocol information
+ */
+export const getXapiAbout = async ( options?: Parameters<typeof customFetch>[1]): Promise<XapiAbout> => {
+
+  return customFetch<XapiAbout>(getGetXapiAboutUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetXapiAboutQueryKey = () => {
+    return [
+    `/api/xapi/about`
+    ] as const;
+    }
+
+
+export const getGetXapiAboutQueryOptions = <TData = Awaited<ReturnType<typeof getXapiAbout>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getXapiAbout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetXapiAboutQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getXapiAbout>>> = ({ signal }) => getXapiAbout({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getXapiAbout>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetXapiAboutQueryResult = NonNullable<Awaited<ReturnType<typeof getXapiAbout>>>
+export type GetXapiAboutQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Return internal LRS protocol information
+ */
+
+export function useGetXapiAbout<TData = Awaited<ReturnType<typeof getXapiAbout>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getXapiAbout>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetXapiAboutQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetXapiStatementsUrl = (params?: GetXapiStatementsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/xapi/statements?${stringifiedParams}` : `/api/xapi/statements`
+}
+
+/**
+ * @summary Retrieve statements scoped to the active package launch
+ */
+export const getXapiStatements = async (params?: GetXapiStatementsParams, options?: Parameters<typeof customFetch>[1]): Promise<XapiStatementResult> => {
+
+  return customFetch<XapiStatementResult>(getGetXapiStatementsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetXapiStatementsQueryKey = (params?: GetXapiStatementsParams,) => {
+    return [
+    `/api/xapi/statements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetXapiStatementsQueryOptions = <TData = Awaited<ReturnType<typeof getXapiStatements>>, TError = ErrorType<void>>(params?: GetXapiStatementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getXapiStatements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetXapiStatementsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getXapiStatements>>> = ({ signal }) => getXapiStatements(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getXapiStatements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetXapiStatementsQueryResult = NonNullable<Awaited<ReturnType<typeof getXapiStatements>>>
+export type GetXapiStatementsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Retrieve statements scoped to the active package launch
+ */
+
+export function useGetXapiStatements<TData = Awaited<ReturnType<typeof getXapiStatements>>, TError = ErrorType<void>>(
+ params?: GetXapiStatementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getXapiStatements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetXapiStatementsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPostXapiStatementsUrl = () => {
+
+
+
+
+  return `/api/xapi/statements`
+}
+
+/**
+ * @summary Store xAPI statements for the active package launch
+ */
+export const postXapiStatements = async (xapiStatementXapiStatement: XapiStatement | XapiStatement[], options?: Parameters<typeof customFetch>[1]): Promise<string[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<string[]>(getPostXapiStatementsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(xapiStatementXapiStatement)
+  }
+);}
+
+
+
+
+
+export const getPostXapiStatementsMutationKey = () => ['postXapiStatements'] as const;
+
+export const getPostXapiStatementsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postXapiStatements>>, TError,PostXapiStatementsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postXapiStatements>>, TError,PostXapiStatementsMutationVariables, TContext> => {
+
+const mutationKey = getPostXapiStatementsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postXapiStatements>>, PostXapiStatementsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  postXapiStatements(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostXapiStatementsMutationResult = NonNullable<Awaited<ReturnType<typeof postXapiStatements>>>
+    export type PostXapiStatementsMutationBody = BodyType<XapiStatement | XapiStatement[]>
+    export type PostXapiStatementsMutationError = ErrorType<void>
+    export type PostXapiStatementsMutationVariables = {data: BodyType<XapiStatement | XapiStatement[]>}
+
+    /**
+ * @summary Store xAPI statements for the active package launch
+ */
+export const usePostXapiStatements = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postXapiStatements>>, TError,PostXapiStatementsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postXapiStatements>>,
+        TError,
+        PostXapiStatementsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPostXapiStatementsMutationOptions(options));
+    }
+
+export const getPutXapiStatementUrl = (params: PutXapiStatementParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/xapi/statements?${stringifiedParams}` : `/api/xapi/statements`
+}
+
+/**
+ * @summary Store a statement using its caller-supplied UUID
+ */
+export const putXapiStatement = async (xapiStatement: XapiStatement,
+    params: PutXapiStatementParams, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getPutXapiStatementUrl(params),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(xapiStatement)
+  }
+);}
+
+
+
+
+
+export const getPutXapiStatementMutationKey = () => ['putXapiStatement'] as const;
+
+export const getPutXapiStatementMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putXapiStatement>>, TError,PutXapiStatementMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof putXapiStatement>>, TError,PutXapiStatementMutationVariables, TContext> => {
+
+const mutationKey = getPutXapiStatementMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putXapiStatement>>, PutXapiStatementMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  putXapiStatement(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutXapiStatementMutationResult = NonNullable<Awaited<ReturnType<typeof putXapiStatement>>>
+    export type PutXapiStatementMutationBody = BodyType<XapiStatement>
+    export type PutXapiStatementMutationError = ErrorType<void>
+    export type PutXapiStatementMutationVariables = {data: BodyType<XapiStatement>;params: PutXapiStatementParams}
+
+    /**
+ * @summary Store a statement using its caller-supplied UUID
+ */
+export const usePutXapiStatement = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putXapiStatement>>, TError,PutXapiStatementMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof putXapiStatement>>,
+        TError,
+        PutXapiStatementMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPutXapiStatementMutationOptions(options));
+    }
+
+export const getGetXapiActivityStateUrl = (params: GetXapiActivityStateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/xapi/activities/state?${stringifiedParams}` : `/api/xapi/activities/state`
+}
+
+/**
+ * @summary Read state for an activity in the active package launch
+ */
+export const getXapiActivityState = async (params: GetXapiActivityStateParams, options?: Parameters<typeof customFetch>[1]): Promise<GetXapiActivityState200> => {
+
+  return customFetch<GetXapiActivityState200>(getGetXapiActivityStateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetXapiActivityStateQueryKey = (params?: GetXapiActivityStateParams,) => {
+    return [
+    `/api/xapi/activities/state`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetXapiActivityStateQueryOptions = <TData = Awaited<ReturnType<typeof getXapiActivityState>>, TError = ErrorType<void>>(params: GetXapiActivityStateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getXapiActivityState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetXapiActivityStateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getXapiActivityState>>> = ({ signal }) => getXapiActivityState(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getXapiActivityState>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetXapiActivityStateQueryResult = NonNullable<Awaited<ReturnType<typeof getXapiActivityState>>>
+export type GetXapiActivityStateQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read state for an activity in the active package launch
+ */
+
+export function useGetXapiActivityState<TData = Awaited<ReturnType<typeof getXapiActivityState>>, TError = ErrorType<void>>(
+ params: GetXapiActivityStateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getXapiActivityState>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetXapiActivityStateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPutXapiActivityStateUrl = (params: PutXapiActivityStateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/xapi/activities/state?${stringifiedParams}` : `/api/xapi/activities/state`
+}
+
+/**
+ * @summary Replace state for an activity in the active package launch
+ */
+export const putXapiActivityState = async (xapiActivityStateInput: XapiActivityStateInput,
+    params: PutXapiActivityStateParams, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getPutXapiActivityStateUrl(params),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(xapiActivityStateInput)
+  }
+);}
+
+
+
+
+
+export const getPutXapiActivityStateMutationKey = () => ['putXapiActivityState'] as const;
+
+export const getPutXapiActivityStateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putXapiActivityState>>, TError,PutXapiActivityStateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof putXapiActivityState>>, TError,PutXapiActivityStateMutationVariables, TContext> => {
+
+const mutationKey = getPutXapiActivityStateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putXapiActivityState>>, PutXapiActivityStateMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  putXapiActivityState(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutXapiActivityStateMutationResult = NonNullable<Awaited<ReturnType<typeof putXapiActivityState>>>
+    export type PutXapiActivityStateMutationBody = BodyType<XapiActivityStateInput>
+    export type PutXapiActivityStateMutationError = ErrorType<void>
+    export type PutXapiActivityStateMutationVariables = {data: BodyType<XapiActivityStateInput>;params: PutXapiActivityStateParams}
+
+    /**
+ * @summary Replace state for an activity in the active package launch
+ */
+export const usePutXapiActivityState = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putXapiActivityState>>, TError,PutXapiActivityStateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof putXapiActivityState>>,
+        TError,
+        PutXapiActivityStateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPutXapiActivityStateMutationOptions(options));
+    }
+
+export const getPostXapiActivityStateUrl = (params: PostXapiActivityStateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/xapi/activities/state?${stringifiedParams}` : `/api/xapi/activities/state`
+}
+
+/**
+ * @summary Store or update state for an activity in the active package launch
+ */
+export const postXapiActivityState = async (xapiActivityStateInput: XapiActivityStateInput,
+    params: PostXapiActivityStateParams, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getPostXapiActivityStateUrl(params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(xapiActivityStateInput)
+  }
+);}
+
+
+
+
+
+export const getPostXapiActivityStateMutationKey = () => ['postXapiActivityState'] as const;
+
+export const getPostXapiActivityStateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postXapiActivityState>>, TError,PostXapiActivityStateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postXapiActivityState>>, TError,PostXapiActivityStateMutationVariables, TContext> => {
+
+const mutationKey = getPostXapiActivityStateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postXapiActivityState>>, PostXapiActivityStateMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  postXapiActivityState(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostXapiActivityStateMutationResult = NonNullable<Awaited<ReturnType<typeof postXapiActivityState>>>
+    export type PostXapiActivityStateMutationBody = BodyType<XapiActivityStateInput>
+    export type PostXapiActivityStateMutationError = ErrorType<void>
+    export type PostXapiActivityStateMutationVariables = {data: BodyType<XapiActivityStateInput>;params: PostXapiActivityStateParams}
+
+    /**
+ * @summary Store or update state for an activity in the active package launch
+ */
+export const usePostXapiActivityState = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postXapiActivityState>>, TError,PostXapiActivityStateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postXapiActivityState>>,
+        TError,
+        PostXapiActivityStateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPostXapiActivityStateMutationOptions(options));
+    }
+
+export const getDeleteXapiActivityStateUrl = (params: DeleteXapiActivityStateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/xapi/activities/state?${stringifiedParams}` : `/api/xapi/activities/state`
+}
+
+/**
+ * @summary Delete state for an activity in the active package launch
+ */
+export const deleteXapiActivityState = async (params: DeleteXapiActivityStateParams, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteXapiActivityStateUrl(params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteXapiActivityStateMutationKey = () => ['deleteXapiActivityState'] as const;
+
+export const getDeleteXapiActivityStateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteXapiActivityState>>, TError,DeleteXapiActivityStateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteXapiActivityState>>, TError,DeleteXapiActivityStateMutationVariables, TContext> => {
+
+const mutationKey = getDeleteXapiActivityStateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteXapiActivityState>>, DeleteXapiActivityStateMutationVariables> = (props) => {
+          const {params} = props ?? {};
+
+          return  deleteXapiActivityState(params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteXapiActivityStateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteXapiActivityState>>>
+
+    export type DeleteXapiActivityStateMutationError = ErrorType<void>
+    export type DeleteXapiActivityStateMutationVariables = {params: DeleteXapiActivityStateParams}
+
+    /**
+ * @summary Delete state for an activity in the active package launch
+ */
+export const useDeleteXapiActivityState = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteXapiActivityState>>, TError,DeleteXapiActivityStateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteXapiActivityState>>,
+        TError,
+        DeleteXapiActivityStateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteXapiActivityStateMutationOptions(options));
+    }
 
 export const getGetParticipantDashboardUrl = () => {
 

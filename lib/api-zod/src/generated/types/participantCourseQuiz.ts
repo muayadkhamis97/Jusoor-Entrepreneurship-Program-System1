@@ -5,6 +5,7 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { CourseLanguage } from './courseLanguage';
 import type { CourseQuizAttempt } from './courseQuizAttempt';
 import type { ParticipantCourseQuizQuestion } from './participantCourseQuizQuestion';
 
@@ -14,6 +15,7 @@ export interface ParticipantCourseQuiz {
   title: string;
   /** @nullable */
   description: string | null;
+  language: CourseLanguage;
   questionCount: number;
   attemptCount: number;
   latestAttempt: CourseQuizAttempt | null;

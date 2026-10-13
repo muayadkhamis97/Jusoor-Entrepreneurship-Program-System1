@@ -807,6 +807,231 @@ paths:
           description: Participant is not enrolled or the material is restricted
         "404":
           description: File not found
+  /participant/courses/materials/{id}/package-launch:
+    get:
+      operationId: launchParticipantCoursePackage
+      tags: [courses]
+      summary: Prepare an enrolled participant's SCORM or xAPI course package
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Authorized package launch information and saved progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoursePackageLaunch"
+        "403":
+          description: Participant is not enrolled or the material is restricted
+        "404":
+          description: Released package not found
+  /participant/courses/materials/{id}/package/{filePath}:
+    get:
+      operationId: getParticipantCoursePackageFile
+      tags: [courses]
+      summary: Stream an authorized file from a released SCORM or xAPI package
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - in: path
+          name: filePath
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Package resource
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "403":
+          description: Participant is not enrolled or the package is restricted
+        "404":
+          description: Package resource not found
+  /participant/courses/materials/{id}/scorm-progress:
+    put:
+      operationId: saveParticipantScormProgress
+      tags: [courses]
+      summary: Save a participant's private SCORM progress
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseScormProgressInput"
+      responses:
+        "200":
+          description: Saved SCORM progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseScormProgress"
+        "403":
+          description: Participant is not enrolled or the package is restricted
+        "404":
+          description: Released SCORM package not found
+  /xapi/about:
+    get:
+      operationId: getXapiAbout
+      tags: [xapi]
+      summary: Return internal LRS protocol information
+      responses:
+        "200":
+          description: Supported xAPI versions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/XapiAbout"
+  /xapi/statements:
+    get:
+      operationId: getXapiStatements
+      tags: [xapi]
+      summary: Retrieve statements scoped to the active package launch
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+        - { in: query, name: statementId, schema: { type: string, format: uuid } }
+        - { in: query, name: registration, schema: { type: string, format: uuid } }
+        - { in: query, name: since, schema: { type: string, format: date-time } }
+        - { in: query, name: until, schema: { type: string, format: date-time } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Statements recorded for this participant and package
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/XapiStatementResult"
+        "401":
+          description: Missing, invalid, or expired package launch credentials
+    post:
+      operationId: postXapiStatements
+      tags: [xapi]
+      summary: Store xAPI statements for the active package launch
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - { $ref: "#/components/schemas/XapiStatement" }
+                - type: array
+                  items: { $ref: "#/components/schemas/XapiStatement" }
+      responses:
+        "200":
+          description: IDs of the statements stored
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string, format: uuid }
+        "400":
+          description: Invalid statement payload
+        "401":
+          description: Missing, invalid, or expired package launch credentials
+    put:
+      operationId: putXapiStatement
+      tags: [xapi]
+      summary: Store a statement using its caller-supplied UUID
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+        - { in: query, name: statementId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XapiStatement" }
+      responses:
+        "204":
+          description: Statement stored
+        "409":
+          description: Statement ID already exists with different content
+        "401":
+          description: Missing, invalid, or expired package launch credentials
+  /xapi/activities/state:
+    get:
+      operationId: getXapiActivityState
+      tags: [xapi]
+      summary: Read state for an activity in the active package launch
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+        - { in: query, name: activityId, required: true, schema: { type: string, format: uri } }
+        - { in: query, name: agent, required: true, schema: { type: string } }
+        - { in: query, name: stateId, schema: { type: string } }
+        - { in: query, name: registration, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Stored activity state
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "404":
+          description: State not found
+        "401":
+          description: Missing, invalid, or expired package launch credentials
+    put:
+      operationId: putXapiActivityState
+      tags: [xapi]
+      summary: Replace state for an activity in the active package launch
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+        - { in: query, name: activityId, required: true, schema: { type: string, format: uri } }
+        - { in: query, name: agent, required: true, schema: { type: string } }
+        - { in: query, name: stateId, required: true, schema: { type: string } }
+        - { in: query, name: registration, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XapiActivityStateInput" }
+      responses:
+        "204":
+          description: State saved
+        "401":
+          description: Missing, invalid, or expired package launch credentials
+    post:
+      operationId: postXapiActivityState
+      tags: [xapi]
+      summary: Store or update state for an activity in the active package launch
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+        - { in: query, name: activityId, required: true, schema: { type: string, format: uri } }
+        - { in: query, name: agent, required: true, schema: { type: string } }
+        - { in: query, name: stateId, required: true, schema: { type: string } }
+        - { in: query, name: registration, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/XapiActivityStateInput" }
+      responses:
+        "204":
+          description: State saved
+        "401":
+          description: Missing, invalid, or expired package launch credentials
+    delete:
+      operationId: deleteXapiActivityState
+      tags: [xapi]
+      summary: Delete state for an activity in the active package launch
+      parameters:
+        - { in: header, name: Authorization, required: true, schema: { type: string } }
+        - { in: header, name: X-Experience-API-Version, required: true, schema: { type: string, enum: ["1.0.3"] } }
+        - { in: query, name: activityId, required: true, schema: { type: string, format: uri } }
+        - { in: query, name: agent, required: true, schema: { type: string } }
+        - { in: query, name: stateId, schema: { type: string } }
+        - { in: query, name: registration, schema: { type: string, format: uuid } }
+      responses:
+        "204":
+          description: State deleted
+        "401":
+          description: Missing, invalid, or expired package launch credentials
   /participant/dashboard:
     get:
       operationId: getParticipantDashboard
@@ -2194,7 +2419,13 @@ components:
       enum: [participant, trainer, coordinator]
     CourseMaterialKind:
       type: string
-      enum: [video, document, slides, audio, link]
+      enum: [video, document, slides, audio, link, scorm, xapi]
+    CourseLanguage:
+      type: string
+      enum: [en, ar]
+    CoursePackageFormat:
+      type: string
+      enum: [scorm12, scorm2004, xapi]
     CourseModuleInput:
       type: object
       properties:
@@ -2220,6 +2451,7 @@ components:
         title: { type: string, minLength: 1, maxLength: 180 }
         description: { type: ["string", "null"], maxLength: 3000 }
         kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        language: { $ref: "#/components/schemas/CourseLanguage", default: en }
         externalUrl: { type: ["string", "null"], format: uri, maxLength: 2000 }
         objectPath: { type: ["string", "null"], maxLength: 500 }
         fileName: { type: ["string", "null"], maxLength: 500 }
@@ -2239,6 +2471,7 @@ components:
         title: { type: string, minLength: 1, maxLength: 180 }
         description: { type: ["string", "null"], maxLength: 3000 }
         kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        language: { $ref: "#/components/schemas/CourseLanguage" }
         externalUrl: { type: ["string", "null"], format: uri, maxLength: 2000 }
         objectPath: { type: ["string", "null"], maxLength: 500 }
         fileName: { type: ["string", "null"], maxLength: 500 }
@@ -2258,6 +2491,8 @@ components:
         title: { type: string }
         description: { type: ["string", "null"] }
         kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        language: { $ref: "#/components/schemas/CourseLanguage" }
+        packageFormat: { oneOf: [{ $ref: "#/components/schemas/CoursePackageFormat" }, { type: "null" }] }
         externalUrl: { type: ["string", "null"], format: uri }
         objectPath: { type: ["string", "null"] }
         fileName: { type: ["string", "null"] }
@@ -2267,7 +2502,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/CourseMaterialRole" }
         position: { type: integer }
-      required: [id, moduleId, title, description, kind, externalUrl, objectPath, fileName, contentType, fileSize, allowedRoles, position]
+      required: [id, moduleId, title, description, kind, language, packageFormat, externalUrl, objectPath, fileName, contentType, fileSize, allowedRoles, position]
     CourseModule:
       type: object
       properties:
@@ -2312,6 +2547,81 @@ components:
         uploadUrl: { type: string, format: uri }
         objectPath: { type: string }
       required: [uploadUrl, objectPath]
+    CoursePackageLaunch:
+      type: object
+      properties:
+        materialId: { type: integer }
+        format: { $ref: "#/components/schemas/CoursePackageFormat" }
+        launchPath: { type: string }
+        language: { $ref: "#/components/schemas/CourseLanguage" }
+        progress:
+          oneOf:
+            - { $ref: "#/components/schemas/CourseScormProgress" }
+            - { type: "null" }
+        xapi:
+          oneOf:
+            - { $ref: "#/components/schemas/XapiLaunchContext" }
+            - { type: "null" }
+      required: [materialId, format, launchPath, language, progress, xapi]
+    XapiLaunchContext:
+      type: object
+      properties:
+        endpoint: { type: string }
+        authorization: { type: string }
+        actor: { type: object, additionalProperties: true }
+        registration: { type: string, format: uuid }
+        activityId: { type: string, format: uri }
+      required: [endpoint, authorization, actor, registration, activityId]
+    CourseScormProgressInput:
+      type: object
+      properties:
+        state: { type: object, additionalProperties: true }
+        completionStatus: { type: string, enum: [not_attempted, incomplete, completed, unknown] }
+        successStatus: { type: string, enum: [passed, failed, unknown] }
+        scoreRaw: { type: ["number", "null"] }
+        scoreScaled: { type: ["number", "null"], minimum: -1, maximum: 1 }
+        location: { type: string, maxLength: 1000 }
+        suspendData: { type: string, maxLength: 64000 }
+      required: [state, completionStatus, successStatus, scoreRaw, scoreScaled, location, suspendData]
+    CourseScormProgress:
+      allOf:
+        - { $ref: "#/components/schemas/CourseScormProgressInput" }
+        - type: object
+          properties:
+            updatedAt: { type: string, format: date-time }
+          required: [updatedAt]
+    XapiAbout:
+      type: object
+      properties:
+        version:
+          type: array
+          items: { type: string }
+      required: [version]
+    XapiStatement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actor: { type: object, additionalProperties: true }
+        verb: { type: object, additionalProperties: true }
+        object: { type: object, additionalProperties: true }
+        result: { type: object, additionalProperties: true }
+        context: { type: object, additionalProperties: true }
+        timestamp: { type: string, format: date-time }
+        stored: { type: string, format: date-time }
+        version: { type: string }
+      required: [actor, verb, object]
+      additionalProperties: true
+    XapiStatementResult:
+      type: object
+      properties:
+        statements:
+          type: array
+          items: { $ref: "#/components/schemas/XapiStatement" }
+        more: { type: string }
+      required: [statements, more]
+    XapiActivityStateInput:
+      type: object
+      additionalProperties: true
     ParticipantCourseMaterial:
       type: object
       properties:
@@ -2319,11 +2629,13 @@ components:
         title: { type: string }
         description: { type: ["string", "null"] }
         kind: { $ref: "#/components/schemas/CourseMaterialKind" }
+        language: { $ref: "#/components/schemas/CourseLanguage" }
+        packageFormat: { oneOf: [{ $ref: "#/components/schemas/CoursePackageFormat" }, { type: "null" }] }
         externalUrl: { type: ["string", "null"], format: uri }
         fileName: { type: ["string", "null"] }
         contentType: { type: ["string", "null"] }
         fileSize: { type: ["integer", "null"] }
-      required: [id, title, description, kind, externalUrl, fileName, contentType, fileSize]
+      required: [id, title, description, kind, language, packageFormat, externalUrl, fileName, contentType, fileSize]
     ParticipantCourseModule:
       type: object
       properties:
@@ -2383,6 +2695,7 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 180 }
         description: { type: ["string", "null"], maxLength: 2000 }
+        language: { $ref: "#/components/schemas/CourseLanguage", default: en }
         isPublished: { type: boolean }
         questions:
           type: array
@@ -2425,11 +2738,12 @@ components:
         moduleId: { type: integer }
         title: { type: string }
         description: { type: ["string", "null"] }
+        language: { $ref: "#/components/schemas/CourseLanguage" }
         isPublished: { type: boolean }
         questions:
           type: array
           items: { $ref: "#/components/schemas/CourseQuizStaffQuestion" }
-      required: [id, moduleId, title, description, isPublished, questions]
+      required: [id, moduleId, title, description, language, isPublished, questions]
     CourseQuizManagementResponse:
       type: object
       properties:
@@ -2499,6 +2813,7 @@ components:
         moduleId: { type: integer }
         title: { type: string }
         description: { type: ["string", "null"] }
+        language: { $ref: "#/components/schemas/CourseLanguage" }
         questionCount: { type: integer }
         attemptCount: { type: integer }
         latestAttempt:
@@ -2508,7 +2823,7 @@ components:
         questions:
           type: array
           items: { $ref: "#/components/schemas/ParticipantCourseQuizQuestion" }
-      required: [id, moduleId, title, description, questionCount, attemptCount, latestAttempt, questions]
+      required: [id, moduleId, title, description, language, questionCount, attemptCount, latestAttempt, questions]
     ParticipantCourseQuizResponse:
       type: object
       properties:

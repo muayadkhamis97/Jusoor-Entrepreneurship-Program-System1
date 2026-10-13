@@ -967,7 +967,9 @@ export const GetCourseManagementResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']),
+  "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
   "externalUrl": zod.string().url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
@@ -1015,7 +1017,9 @@ export const CreateCourseModuleResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']),
+  "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
   "externalUrl": zod.string().url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
@@ -1063,7 +1067,9 @@ export const UpdateCourseModuleResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']),
+  "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
   "externalUrl": zod.string().url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
@@ -1096,6 +1102,7 @@ export const createCourseMaterialBodyTitleMax = 180;
 
 export const createCourseMaterialBodyDescriptionMax = 3000;
 
+export const createCourseMaterialBodyLanguageDefault = `en`;
 export const createCourseMaterialBodyExternalUrlMax = 2000;
 
 export const createCourseMaterialBodyObjectPathMax = 500;
@@ -1115,7 +1122,8 @@ export const createCourseMaterialBodyPositionMin = 0;
 export const CreateCourseMaterialBody = zod.object({
   "title": zod.string().min(1).max(createCourseMaterialBodyTitleMax),
   "description": zod.string().max(createCourseMaterialBodyDescriptionMax).nullish(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']).default(createCourseMaterialBodyLanguageDefault),
   "externalUrl": zod.string().url().max(createCourseMaterialBodyExternalUrlMax).nullish(),
   "objectPath": zod.string().max(createCourseMaterialBodyObjectPathMax).nullish(),
   "fileName": zod.string().max(createCourseMaterialBodyFileNameMax).nullish(),
@@ -1130,7 +1138,9 @@ export const CreateCourseMaterialResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']),
+  "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
   "externalUrl": zod.string().url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
@@ -1223,7 +1233,8 @@ export const updateCourseMaterialBodyPositionMin = 0;
 export const UpdateCourseMaterialBody = zod.object({
   "title": zod.string().min(1).max(updateCourseMaterialBodyTitleMax).optional(),
   "description": zod.string().max(updateCourseMaterialBodyDescriptionMax).nullish(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']).optional(),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']).optional(),
+  "language": zod.enum(['en', 'ar']).optional(),
   "externalUrl": zod.string().url().max(updateCourseMaterialBodyExternalUrlMax).nullish(),
   "objectPath": zod.string().max(updateCourseMaterialBodyObjectPathMax).nullish(),
   "fileName": zod.string().max(updateCourseMaterialBodyFileNameMax).nullish(),
@@ -1238,7 +1249,9 @@ export const UpdateCourseMaterialResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']),
+  "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
   "externalUrl": zod.string().url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
@@ -1310,7 +1323,9 @@ export const GetParticipantCoursesResponse = zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link']),
+  "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
+  "language": zod.enum(['en', 'ar']),
+  "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
   "externalUrl": zod.string().url().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
@@ -1382,6 +1397,288 @@ export const GetParticipantCourseMaterialFileParams = zod.object({
 })
 
 export const GetParticipantCourseMaterialFileResponse = zod.unknown()
+
+
+/**
+ * @summary Prepare an enrolled participant's SCORM or xAPI course package
+ */
+export const LaunchParticipantCoursePackageParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const launchParticipantCoursePackageResponseProgressOneOneScoreScaledMin = -1;
+export const launchParticipantCoursePackageResponseProgressOneOneScoreScaledMax = 1;
+
+export const launchParticipantCoursePackageResponseProgressOneOneLocationMax = 1000;
+
+export const launchParticipantCoursePackageResponseProgressOneOneSuspendDataMax = 64000;
+
+
+
+export const LaunchParticipantCoursePackageResponse = zod.object({
+  "materialId": zod.number().int(),
+  "format": zod.enum(['scorm12', 'scorm2004', 'xapi']),
+  "launchPath": zod.string(),
+  "language": zod.enum(['en', 'ar']),
+  "progress": zod.union([zod.object({
+  "state": zod.record(zod.string(), zod.unknown()),
+  "completionStatus": zod.enum(['not_attempted', 'incomplete', 'completed', 'unknown']),
+  "successStatus": zod.enum(['passed', 'failed', 'unknown']),
+  "scoreRaw": zod.number().nullable(),
+  "scoreScaled": zod.number().min(launchParticipantCoursePackageResponseProgressOneOneScoreScaledMin).max(launchParticipantCoursePackageResponseProgressOneOneScoreScaledMax).nullable(),
+  "location": zod.string().max(launchParticipantCoursePackageResponseProgressOneOneLocationMax),
+  "suspendData": zod.string().max(launchParticipantCoursePackageResponseProgressOneOneSuspendDataMax)
+}).and(zod.object({
+  "updatedAt": zod.coerce.date()
+})),zod.null()]),
+  "xapi": zod.union([zod.object({
+  "endpoint": zod.string(),
+  "authorization": zod.string(),
+  "actor": zod.record(zod.string(), zod.unknown()),
+  "registration": zod.string().uuid(),
+  "activityId": zod.string().url()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Stream an authorized file from a released SCORM or xAPI package
+ */
+export const GetParticipantCoursePackageFileParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "filePath": zod.coerce.string()
+})
+
+export const GetParticipantCoursePackageFileResponse = zod.unknown()
+
+
+/**
+ * @summary Save a participant's private SCORM progress
+ */
+export const SaveParticipantScormProgressParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const saveParticipantScormProgressBodyScoreScaledMin = -1;
+export const saveParticipantScormProgressBodyScoreScaledMax = 1;
+
+export const saveParticipantScormProgressBodyLocationMax = 1000;
+
+export const saveParticipantScormProgressBodySuspendDataMax = 64000;
+
+
+
+export const SaveParticipantScormProgressBody = zod.object({
+  "state": zod.record(zod.string(), zod.unknown()),
+  "completionStatus": zod.enum(['not_attempted', 'incomplete', 'completed', 'unknown']),
+  "successStatus": zod.enum(['passed', 'failed', 'unknown']),
+  "scoreRaw": zod.number().nullable(),
+  "scoreScaled": zod.number().min(saveParticipantScormProgressBodyScoreScaledMin).max(saveParticipantScormProgressBodyScoreScaledMax).nullable(),
+  "location": zod.string().max(saveParticipantScormProgressBodyLocationMax),
+  "suspendData": zod.string().max(saveParticipantScormProgressBodySuspendDataMax)
+})
+
+export const saveParticipantScormProgressResponseOneScoreScaledMin = -1;
+export const saveParticipantScormProgressResponseOneScoreScaledMax = 1;
+
+export const saveParticipantScormProgressResponseOneLocationMax = 1000;
+
+export const saveParticipantScormProgressResponseOneSuspendDataMax = 64000;
+
+
+
+export const SaveParticipantScormProgressResponse = zod.object({
+  "state": zod.record(zod.string(), zod.unknown()),
+  "completionStatus": zod.enum(['not_attempted', 'incomplete', 'completed', 'unknown']),
+  "successStatus": zod.enum(['passed', 'failed', 'unknown']),
+  "scoreRaw": zod.number().nullable(),
+  "scoreScaled": zod.number().min(saveParticipantScormProgressResponseOneScoreScaledMin).max(saveParticipantScormProgressResponseOneScoreScaledMax).nullable(),
+  "location": zod.string().max(saveParticipantScormProgressResponseOneLocationMax),
+  "suspendData": zod.string().max(saveParticipantScormProgressResponseOneSuspendDataMax)
+}).and(zod.object({
+  "updatedAt": zod.coerce.date()
+}))
+
+
+/**
+ * @summary Return internal LRS protocol information
+ */
+export const GetXapiAboutResponse = zod.object({
+  "version": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Retrieve statements scoped to the active package launch
+ */
+export const getXapiStatementsQueryLimitMax = 500;
+
+
+
+export const GetXapiStatementsQueryParams = zod.object({
+  "statementId": zod.coerce.string().uuid().optional(),
+  "registration": zod.coerce.string().uuid().optional(),
+  "since": zod.date().optional(),
+  "until": zod.date().optional(),
+  "limit": zod.coerce.number().int().min(1).max(getXapiStatementsQueryLimitMax).optional()
+})
+
+export const GetXapiStatementsHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const GetXapiStatementsResponse = zod.object({
+  "statements": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "actor": zod.record(zod.string(), zod.unknown()),
+  "verb": zod.record(zod.string(), zod.unknown()),
+  "object": zod.record(zod.string(), zod.unknown()),
+  "result": zod.record(zod.string(), zod.unknown()).optional(),
+  "context": zod.record(zod.string(), zod.unknown()).optional(),
+  "timestamp": zod.coerce.date().optional(),
+  "stored": zod.coerce.date().optional(),
+  "version": zod.string().optional()
+})),
+  "more": zod.string()
+})
+
+
+/**
+ * @summary Store xAPI statements for the active package launch
+ */
+export const PostXapiStatementsHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const PostXapiStatementsBody = zod.union([zod.object({
+  "id": zod.string().uuid().optional(),
+  "actor": zod.record(zod.string(), zod.unknown()),
+  "verb": zod.record(zod.string(), zod.unknown()),
+  "object": zod.record(zod.string(), zod.unknown()),
+  "result": zod.record(zod.string(), zod.unknown()).optional(),
+  "context": zod.record(zod.string(), zod.unknown()).optional(),
+  "timestamp": zod.coerce.date().optional(),
+  "stored": zod.coerce.date().optional(),
+  "version": zod.string().optional()
+}),zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "actor": zod.record(zod.string(), zod.unknown()),
+  "verb": zod.record(zod.string(), zod.unknown()),
+  "object": zod.record(zod.string(), zod.unknown()),
+  "result": zod.record(zod.string(), zod.unknown()).optional(),
+  "context": zod.record(zod.string(), zod.unknown()).optional(),
+  "timestamp": zod.coerce.date().optional(),
+  "stored": zod.coerce.date().optional(),
+  "version": zod.string().optional()
+}))])
+
+export const PostXapiStatementsResponseItem = zod.string().uuid()
+export const PostXapiStatementsResponse = zod.array(PostXapiStatementsResponseItem)
+
+
+/**
+ * @summary Store a statement using its caller-supplied UUID
+ */
+export const PutXapiStatementQueryParams = zod.object({
+  "statementId": zod.coerce.string().uuid()
+})
+
+export const PutXapiStatementHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const PutXapiStatementBody = zod.object({
+  "id": zod.string().uuid().optional(),
+  "actor": zod.record(zod.string(), zod.unknown()),
+  "verb": zod.record(zod.string(), zod.unknown()),
+  "object": zod.record(zod.string(), zod.unknown()),
+  "result": zod.record(zod.string(), zod.unknown()).optional(),
+  "context": zod.record(zod.string(), zod.unknown()).optional(),
+  "timestamp": zod.coerce.date().optional(),
+  "stored": zod.coerce.date().optional(),
+  "version": zod.string().optional()
+})
+
+export const PutXapiStatementResponse = zod.void()
+
+
+/**
+ * @summary Read state for an activity in the active package launch
+ */
+export const GetXapiActivityStateQueryParams = zod.object({
+  "activityId": zod.coerce.string().url(),
+  "agent": zod.coerce.string(),
+  "stateId": zod.coerce.string().optional(),
+  "registration": zod.coerce.string().uuid().optional()
+})
+
+export const GetXapiActivityStateHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const GetXapiActivityStateResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Replace state for an activity in the active package launch
+ */
+export const PutXapiActivityStateQueryParams = zod.object({
+  "activityId": zod.coerce.string().url(),
+  "agent": zod.coerce.string(),
+  "stateId": zod.coerce.string(),
+  "registration": zod.coerce.string().uuid().optional()
+})
+
+export const PutXapiActivityStateHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const PutXapiActivityStateBody = zod.record(zod.string(), zod.unknown())
+
+export const PutXapiActivityStateResponse = zod.void()
+
+
+/**
+ * @summary Store or update state for an activity in the active package launch
+ */
+export const PostXapiActivityStateQueryParams = zod.object({
+  "activityId": zod.coerce.string().url(),
+  "agent": zod.coerce.string(),
+  "stateId": zod.coerce.string(),
+  "registration": zod.coerce.string().uuid().optional()
+})
+
+export const PostXapiActivityStateHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const PostXapiActivityStateBody = zod.record(zod.string(), zod.unknown())
+
+export const PostXapiActivityStateResponse = zod.void()
+
+
+/**
+ * @summary Delete state for an activity in the active package launch
+ */
+export const DeleteXapiActivityStateQueryParams = zod.object({
+  "activityId": zod.coerce.string().url(),
+  "agent": zod.coerce.string(),
+  "stateId": zod.coerce.string().optional(),
+  "registration": zod.coerce.string().uuid().optional()
+})
+
+export const DeleteXapiActivityStateHeader = zod.object({
+  "Authorization": zod.string(),
+  "X-Experience-API-Version": zod.enum(['1.0.3'])
+})
+
+export const DeleteXapiActivityStateResponse = zod.void()
 
 
 /**
@@ -3211,6 +3508,7 @@ export const GetCourseModuleQuizzesResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
+  "language": zod.enum(['en', 'ar']),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3239,6 +3537,7 @@ export const createCourseQuizBodyTitleMax = 180;
 
 export const createCourseQuizBodyDescriptionMax = 2000;
 
+export const createCourseQuizBodyLanguageDefault = `en`;
 export const createCourseQuizBodyQuestionsItemPromptMax = 1500;
 
 export const createCourseQuizBodyQuestionsItemChoicesItemIdMax = 80;
@@ -3257,6 +3556,7 @@ export const createCourseQuizBodyQuestionsMax = 50;
 export const CreateCourseQuizBody = zod.object({
   "title": zod.string().min(1).max(createCourseQuizBodyTitleMax),
   "description": zod.string().max(createCourseQuizBodyDescriptionMax).nullable(),
+  "language": zod.enum(['en', 'ar']).default(createCourseQuizBodyLanguageDefault),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
@@ -3281,6 +3581,7 @@ export const CreateCourseQuizResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
+  "language": zod.enum(['en', 'ar']),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3308,6 +3609,7 @@ export const updateCourseQuizBodyTitleMax = 180;
 
 export const updateCourseQuizBodyDescriptionMax = 2000;
 
+export const updateCourseQuizBodyLanguageDefault = `en`;
 export const updateCourseQuizBodyQuestionsItemPromptMax = 1500;
 
 export const updateCourseQuizBodyQuestionsItemChoicesItemIdMax = 80;
@@ -3326,6 +3628,7 @@ export const updateCourseQuizBodyQuestionsMax = 50;
 export const UpdateCourseQuizBody = zod.object({
   "title": zod.string().min(1).max(updateCourseQuizBodyTitleMax),
   "description": zod.string().max(updateCourseQuizBodyDescriptionMax).nullable(),
+  "language": zod.enum(['en', 'ar']).default(updateCourseQuizBodyLanguageDefault),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
@@ -3350,6 +3653,7 @@ export const UpdateCourseQuizResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
+  "language": zod.enum(['en', 'ar']),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3413,6 +3717,7 @@ export const GetParticipantCourseModuleQuizzesResponse = zod.object({
   "moduleId": zod.number().int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
+  "language": zod.enum(['en', 'ar']),
   "questionCount": zod.number().int(),
   "attemptCount": zod.number().int(),
   "latestAttempt": zod.union([zod.object({

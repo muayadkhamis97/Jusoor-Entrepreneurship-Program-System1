@@ -44,9 +44,11 @@ import {
   isSupportedCourseFile,
   streamCourseMaterialFile,
 } from "../lib/courseStorage";
+import { deleteCoursePackageCache, prepareCoursePackage, type CoursePackageInfo, type CoursePackageKind } from "../lib/coursePackageStorage";
 
 const router: IRouter = Router();
 const maxUploadBytes = 250 * 1024 * 1024;
+const maxPackageBytes = 100 * 1024 * 1024;
 const courseMaterialRoles = ["participant", "trainer", "coordinator"] as const;
 
 type CourseMaterialRole = (typeof courseMaterialRoles)[number];
@@ -108,6 +110,8 @@ function mapMaterial(material: CourseMaterial) {
     title: material.title,
     description: material.description,
     kind: material.kind,
+    language: material.language,
+    packageFormat: material.packageFormat,
     externalUrl: material.externalUrl,
     objectPath: material.objectPath,
     fileName: material.fileName,
@@ -340,6 +344,7 @@ router.post("/modules/:id/materials", async (req, res): Promise<void> => {
   }
   const hasExternalUrl = typeof data.externalUrl === "string" && data.externalUrl.length > 0;
   const hasObjectPath = typeof data.objectPath === "string" && data.objectPath.length > 0;
+  const packageKind: CoursePackageKind | null = data.kind === "scorm" || data.kind === "xapi" ? data.kind : null;
   if (hasExternalUrl === hasObjectPath) {
     res.status(400).json({ error: "Provide either an external URL or an uploaded file, not both." });
     return;
@@ -348,9 +353,19 @@ router.post("/modules/:id/materials", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Course links must use http or https." });
     return;
   }
+  if (packageKind && (hasExternalUrl || !hasObjectPath)) {
+    res.status(400).json({ error: "SCORM and Tin Can materials must use an uploaded ZIP package." });
+    return;
+  }
+  if (!packageKind && hasObjectPath && /zip/i.test(data.contentType ?? "")) {
+    res.status(400).json({ error: "Choose SCORM or Tin Can package as the material type for ZIP uploads." });
+    return;
+  }
+  let packageInfo: CoursePackageInfo | null = null;
   if (hasObjectPath) {
     if (!validObjectPath(data.objectPath!, module.programId) || !data.fileName || !data.contentType || !data.fileSize ||
-      data.fileSize > maxUploadBytes || !isSupportedCourseFile(data.contentType)) {
+      data.fileSize > (packageKind ? maxPackageBytes : maxUploadBytes) || !isSupportedCourseFile(data.contentType) ||
+      (packageKind && (!/\.zip$/i.test(data.fileName) || !["application/zip", "application/x-zip-compressed"].includes(data.contentType.toLowerCase())))) {
       res.status(400).json({ error: "The uploaded course file is invalid or too large." });
       return;
     }
@@ -365,12 +380,25 @@ router.post("/modules/:id/materials", async (req, res): Promise<void> => {
       res.status(400).json({ error: "The uploaded file could not be found." });
       return;
     }
+    if (packageKind) {
+      try {
+        packageInfo = await prepareCoursePackage(data.objectPath!, packageKind);
+      } catch (error) {
+        await deleteCourseMaterialFile(data.objectPath!).catch(() => undefined);
+        res.status(400).json({ error: error instanceof Error ? error.message : "The course package could not be read." });
+        return;
+      }
+    }
   }
   const [material] = await db.insert(courseMaterialsTable).values({
     moduleId: module.id,
     title: data.title,
     description: data.description ?? null,
     kind: data.kind,
+    language: data.language ?? "en",
+    packageFormat: packageInfo?.format ?? null,
+    packageLaunchPath: packageInfo?.launchPath ?? null,
+    packageActivityId: packageInfo?.activityId ?? null,
     externalUrl: hasExternalUrl ? data.externalUrl! : null,
     objectPath: hasObjectPath ? data.objectPath! : null,
     fileName: hasObjectPath ? data.fileName! : null,

@@ -22,6 +22,8 @@ import {
   participantCourseQuizRouter,
   staffCourseQuizRouter,
 } from "./routes/courseQuizzes";
+import { participantCoursePackageRouter } from "./routes/coursePackages";
+import xapiRouter from "./routes/xapi";
 import {
   participantSessionInteractionsRouter,
   staffSessionInteractionsRouter,
@@ -81,12 +83,14 @@ app.use("/api/participant", requireParticipant, participantRouter);
 app.use("/api/participant", participantSessionInteractionsRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseDiscussionRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseQuizRouter);
+app.use("/api/participant/courses", requireParticipant, participantCoursePackageRouter);
 app.use("/api/courses", requireStaff, staffCourseDiscussionRouter);
 app.use("/api/courses", requireStaff, staffCourseQuizRouter);
 app.use("/api/courses", requireStaff, coursesRouter);
 app.use("/api/mentor/calendly", calendlyOAuthRouter);
 app.use("/api/mentor/google-calendar", googleCalendarOAuthRouter);
 app.use("/api/zoom", zoomRouter);
+app.use("/api/xapi", xapiRouter);
 app.use("/api/trainer", requireStaff, requireRole("trainer"), trainerRouter);
 app.use("/api/mentor", requireStaff, requireRole("mentor"), mentorRouter);
 app.use("/api/judge", requireStaff, requireRole("judge"), judgeRouter);

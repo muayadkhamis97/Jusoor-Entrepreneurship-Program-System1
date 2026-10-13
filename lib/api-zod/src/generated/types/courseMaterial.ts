@@ -5,8 +5,10 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { CourseLanguage } from './courseLanguage';
 import type { CourseMaterialKind } from './courseMaterialKind';
 import type { CourseMaterialRole } from './courseMaterialRole';
+import type { CoursePackageFormat } from './coursePackageFormat';
 
 export interface CourseMaterial {
   id: number;
@@ -15,6 +17,8 @@ export interface CourseMaterial {
   /** @nullable */
   description: string | null;
   kind: CourseMaterialKind;
+  language: CourseLanguage;
+  packageFormat: CoursePackageFormat | null;
   /** @nullable */
   externalUrl: string | null;
   /** @nullable */

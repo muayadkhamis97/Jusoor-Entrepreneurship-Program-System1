@@ -15,4 +15,6 @@ export const CourseMaterialKind = {
   slides: 'slides',
   audio: 'audio',
   link: 'link',
+  scorm: 'scorm',
+  xapi: 'xapi',
 } as const;

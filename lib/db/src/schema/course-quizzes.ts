@@ -23,6 +23,7 @@ export const courseQuizzesTable = pgTable("jusoor_course_quizzes", {
   moduleId: integer("module_id").notNull().references(() => courseModulesTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
+  language: text("language").notNull().default("en"),
   isPublished: boolean("is_published").notNull().default(false),
   createdByStaffId: integer("created_by_staff_id").notNull().references(() => staffMembersTable.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

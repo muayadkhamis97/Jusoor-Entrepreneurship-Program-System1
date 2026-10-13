@@ -36,6 +36,8 @@ const allowedContentTypes = new Set([
   "audio/wav",
   "audio/ogg",
   "audio/webm",
+  "application/zip",
+  "application/x-zip-compressed",
 ]);
 
 export function isSupportedCourseFile(contentType: string): boolean {

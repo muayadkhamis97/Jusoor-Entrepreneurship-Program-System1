@@ -146,6 +146,25 @@ export const CourseMaterialKind = {
   slides: 'slides',
   audio: 'audio',
   link: 'link',
+  scorm: 'scorm',
+  xapi: 'xapi',
+} as const;
+
+export type CourseLanguage = typeof CourseLanguage[keyof typeof CourseLanguage];
+
+
+export const CourseLanguage = {
+  en: 'en',
+  ar: 'ar',
+} as const;
+
+export type CoursePackageFormat = typeof CoursePackageFormat[keyof typeof CoursePackageFormat];
+
+
+export const CoursePackageFormat = {
+  scorm12: 'scorm12',
+  scorm2004: 'scorm2004',
+  xapi: 'xapi',
 } as const;
 
 export interface CourseModuleInput {
@@ -197,6 +216,7 @@ export interface CourseMaterialInput {
      */
   description?: string | null;
   kind: CourseMaterialKind;
+  language?: CourseLanguage;
   /**
      * @maxLength 2000
      * @nullable
@@ -241,6 +261,7 @@ export interface CourseMaterialUpdate {
      */
   description?: string | null;
   kind?: CourseMaterialKind;
+  language?: CourseLanguage;
   /**
      * @maxLength 2000
      * @nullable
@@ -280,6 +301,8 @@ export interface CourseMaterial {
   /** @nullable */
   description: string | null;
   kind: CourseMaterialKind;
+  language: CourseLanguage;
+  packageFormat: CoursePackageFormat | null;
   /** @nullable */
   externalUrl: string | null;
   /** @nullable */
@@ -341,12 +364,110 @@ export interface CourseUploadUrl {
   objectPath: string;
 }
 
+export type CourseScormProgressInputCompletionStatus = typeof CourseScormProgressInputCompletionStatus[keyof typeof CourseScormProgressInputCompletionStatus];
+
+
+export const CourseScormProgressInputCompletionStatus = {
+  not_attempted: 'not_attempted',
+  incomplete: 'incomplete',
+  completed: 'completed',
+  unknown: 'unknown',
+} as const;
+
+export type CourseScormProgressInputSuccessStatus = typeof CourseScormProgressInputSuccessStatus[keyof typeof CourseScormProgressInputSuccessStatus];
+
+
+export const CourseScormProgressInputSuccessStatus = {
+  passed: 'passed',
+  failed: 'failed',
+  unknown: 'unknown',
+} as const;
+
+export type CourseScormProgressInputState = { [key: string]: unknown };
+
+export interface CourseScormProgressInput {
+  state: CourseScormProgressInputState;
+  completionStatus: CourseScormProgressInputCompletionStatus;
+  successStatus: CourseScormProgressInputSuccessStatus;
+  /** @nullable */
+  scoreRaw: number | null;
+  /**
+     * @minimum -1
+     * @maximum 1
+     * @nullable
+     */
+  scoreScaled: number | null;
+  /** @maxLength 1000 */
+  location: string;
+  /** @maxLength 64000 */
+  suspendData: string;
+}
+
+export type CourseScormProgress = CourseScormProgressInput & {
+  updatedAt: string;
+};
+
+export type XapiLaunchContextActor = { [key: string]: unknown };
+
+export interface XapiLaunchContext {
+  endpoint: string;
+  authorization: string;
+  actor: XapiLaunchContextActor;
+  registration: string;
+  activityId: string;
+}
+
+export interface CoursePackageLaunch {
+  materialId: number;
+  format: CoursePackageFormat;
+  launchPath: string;
+  language: CourseLanguage;
+  progress: CourseScormProgress | null;
+  xapi: XapiLaunchContext | null;
+}
+
+export interface XapiAbout {
+  version: string[];
+}
+
+export type XapiStatementActor = { [key: string]: unknown };
+
+export type XapiStatementVerb = { [key: string]: unknown };
+
+export type XapiStatementObject = { [key: string]: unknown };
+
+export type XapiStatementResultProperty = { [key: string]: unknown };
+
+export type XapiStatementContext = { [key: string]: unknown };
+
+export interface XapiStatement {
+  id?: string;
+  actor: XapiStatementActor;
+  verb: XapiStatementVerb;
+  object: XapiStatementObject;
+  result?: XapiStatementResultProperty;
+  context?: XapiStatementContext;
+  timestamp?: string;
+  stored?: string;
+  version?: string;
+  [key: string]: unknown;
+ }
+
+export interface XapiStatementResult {
+  statements: XapiStatement[];
+  more: string;
+}
+
+export interface XapiActivityStateInput { [key: string]: unknown }
+
 export interface ParticipantCourseMaterial {
   id: number;
   title: string;
   /** @nullable */
   description: string | null;
   kind: CourseMaterialKind;
+  language: CourseLanguage;
+  packageFormat: CoursePackageFormat | null;
   /** @nullable */
   externalUrl: string | null;
   /** @nullable */
@@ -431,6 +552,7 @@ export interface CourseQuizInput {
      * @nullable
      */
   description: string | null;
+  language?: CourseLanguage;
   isPublished: boolean;
   /**
      * @minItems 1
@@ -464,6 +586,7 @@ export interface CourseQuiz {
   title: string;
   /** @nullable */
   description: string | null;
+  language: CourseLanguage;
   isPublished: boolean;
   questions: CourseQuizStaffQuestion[];
 }
@@ -520,6 +643,7 @@ export interface ParticipantCourseQuiz {
   title: string;
   /** @nullable */
   description: string | null;
+  language: CourseLanguage;
   questionCount: number;
   attemptCount: number;
   latestAttempt: CourseQuizAttempt | null;
@@ -2307,6 +2431,52 @@ export type ListBusinessesParams = {
 search?: string;
 stage?: BusinessStage;
 programId?: number;
+};
+
+export type GetXapiStatementsParams = {
+statementId?: string;
+registration?: string;
+since?: string;
+until?: string;
+/**
+ * @minimum 1
+ * @maximum 500
+ */
+limit?: number;
+};
+
+export type PutXapiStatementParams = {
+statementId: string;
+};
+
+export type GetXapiActivityStateParams = {
+activityId: string;
+agent: string;
+stateId?: string;
+registration?: string;
+};
+
+export type GetXapiActivityState200 = { [key: string]: unknown };
+
+export type PutXapiActivityStateParams = {
+activityId: string;
+agent: string;
+stateId: string;
+registration?: string;
+};
+
+export type PostXapiActivityStateParams = {
+activityId: string;
+agent: string;
+stateId: string;
+registration?: string;
+};
+
+export type DeleteXapiActivityStateParams = {
+activityId: string;
+agent: string;
+stateId?: string;
+registration?: string;
 };
 
 export type CompleteCalendlyConnectionParams = {
