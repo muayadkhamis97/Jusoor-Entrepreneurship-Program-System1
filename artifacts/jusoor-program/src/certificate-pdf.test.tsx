@@ -1,0 +1,105 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { deflateSync as deflate } from 'node:zlib';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type { ParticipantLearningProgram } from '@workspace/api-client-react';
+import {
+  CertificatePdfPage,
+  assertCertificateFits,
+  createCertificatePdf,
+} from './certificate-pdf';
+
+type Certificate = NonNullable<ParticipantLearningProgram['certificate']>;
+
+const certificate = Object.freeze({
+  id: 481,
+  certificateCode: 'JUS-2026-AR-8F31D2',
+  participantName: 'Layla Al-Haddad ليلى الحداد — Founder and Managing Director',
+  businessName: 'Olive Branch Foods شركة غصن الزيتون للأغذية المستدامة',
+  programName: 'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور لحاضنات الأعمال الاجتماعية التي تقودها النساء',
+  issuedAt: '2026-09-17T12:00:00.000Z',
+  issuedByName: 'Program Coordinator',
+}) as Certificate;
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const name = Buffer.from(type);
+  const body = Buffer.concat([name, data]);
+  const crcTable = Array.from({ length: 256 }, (_, value) => {
+    let crc = value;
+    for (let bit = 0; bit < 8; bit++) crc = (crc & 1) ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+    return crc >>> 0;
+  });
+  let crc = 0xffffffff;
+  for (const byte of body) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  return Buffer.concat([length, body, checksum]);
+}
+
+function onePixelPng(): string {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(1, 0);
+  header.writeUInt32BE(1, 4);
+  header[8] = 8;
+  header[9] = 6;
+  const pixel = Buffer.from([0, 255, 255, 255, 255]);
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', header),
+    pngChunk('IDAT', deflate(pixel)),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]).toString('base64');
+}
+
+test('renders long English and Arabic certificate details, issue date, and unique code', () => {
+  const markup = renderToStaticMarkup(
+    <CertificatePdfPage
+      certificate={certificate}
+      issuedDateEnglish="17 Sept 2026"
+      issuedDateArabic="١٧ أيلول ٢٠٢٦"
+    />,
+  );
+
+  for (const requiredText of [
+    'Layla Al-Haddad ليلى الحداد',
+    'Olive Branch Foods شركة غصن الزيتون',
+    'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور',
+    '17 Sept 2026',
+    '١٧ أيلول ٢٠٢٦',
+    certificate.certificateCode,
+  ]) {
+    assert.ok(markup.includes(requiredText), `Missing certificate content: ${requiredText}`);
+  }
+  assert.match(markup, /class="certificate-pdf-page"/);
+  assert.match(markup, /class="certificate-pdf-participant"/);
+  assert.match(markup, /class="certificate-pdf-business"/);
+  assert.match(markup, /class="certificate-pdf-program"/);
+});
+
+test('creates one landscape A4 PDF page without changing the saved certificate data', () => {
+  const before = JSON.stringify(certificate);
+  const image = `data:image/png;base64,${onePixelPng()}`;
+  const pdf = createCertificatePdf({ toDataURL: () => image } as HTMLCanvasElement);
+  const pdfBytes = new Uint8Array(pdf.output('arraybuffer'));
+
+  assert.equal(pdf.getNumberOfPages(), 1);
+  assert.ok(Math.abs(pdf.internal.pageSize.getWidth() - 297) < 0.01);
+  assert.ok(Math.abs(pdf.internal.pageSize.getHeight() - 210) < 0.01);
+  assert.equal(new TextDecoder().decode(pdfBytes.subarray(0, 8)), '%PDF-1.3');
+  assert.equal(JSON.stringify(certificate), before);
+});
+
+test('rejects certificate content that exceeds its page bounds', () => {
+  const overflowingPage = {
+    clientWidth: 1122,
+    clientHeight: 794,
+    scrollWidth: 1122,
+    scrollHeight: 796,
+    querySelectorAll: () => [],
+  } as unknown as HTMLElement;
+
+  assert.throws(() => assertCertificateFits(overflowingPage), /does not fit on one page/);
+});
