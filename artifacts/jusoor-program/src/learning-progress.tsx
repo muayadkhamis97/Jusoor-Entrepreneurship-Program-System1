@@ -295,6 +295,34 @@ function ReminderDeliveryPanel({ program, retryingId, onRetry }: {
   </section>;
 }
 
+function CohortAssessmentGainPanel({
+  programId,
+  summary,
+}: {
+  programId: number;
+  summary: LearningProgressProgram['assessmentGain'];
+}) {
+  const score = (value: number | null) => value == null ? '—' : `${value.toFixed(1)}%`;
+  const gain = summary.averageGainPercentagePoints;
+  const gainLabel = gain == null ? '—' : `${gain > 0 ? '+' : ''}${gain.toFixed(1)} ${t('pp')}`;
+  return <section className="lp-cohort-assessment" data-testid={`panel-cohort-assessment-${programId}`}>
+    <header><div><span className="lp-eyebrow">{t('COHORT ASSESSMENT')}</span><h4>{t('Assessment gains')}</h4><p>{t('First-attempt averages use only participants who have both pre-course and post-course results.')}</p></div></header>
+    <div className="lp-assessment-comparison">
+      <div><span>{t('Pre-course average, paired participants')}</span><b data-testid={`text-assessment-gain-pre-${programId}`}>{score(summary.preAveragePercent)}</b></div>
+      <div><span>{t('Post-course average, paired participants')}</span><b data-testid={`text-assessment-gain-post-${programId}`}>{score(summary.postAveragePercent)}</b></div>
+      <div className={gain == null ? '' : gain > 0 ? 'is-gain' : gain < 0 ? 'is-loss' : ''}>
+        <span>{t('Average change')}</span><b data-testid={`text-assessment-gain-change-${programId}`}>{gainLabel}</b>
+      </div>
+    </div>
+    <div className="lp-assessment-coverage" aria-label={t('Assessment participation counts')}>
+      <div><b data-testid={`text-assessment-pre-count-${programId}`}>{summary.participantsWithPre} / {summary.eligibleParticipants}</b><span>{t('with a pre-course result')}</span></div>
+      <div><b data-testid={`text-assessment-post-count-${programId}`}>{summary.participantsWithPost} / {summary.eligibleParticipants}</b><span>{t('with a post-course result')}</span></div>
+      <div><b data-testid={`text-assessment-paired-count-${programId}`}>{summary.pairedParticipants} / {summary.eligibleParticipants}</b><span>{t('with both results')}</span></div>
+    </div>
+    {summary.pairedParticipants === 0 && <p className="lp-assessment-no-pairs">{t('No paired assessment results yet. Missing results are not counted as zero.')}</p>}
+  </section>;
+}
+
 export function LearningProgressAnalytics() {
   useAppLanguage();
   const client = useQueryClient();
@@ -344,6 +372,7 @@ export function LearningProgressAnalytics() {
          {retryReminder.isError && <div className="lp-mutation-error" role="alert" data-testid="error-retry-course-reminder">{t('Reminder could not be queued. Refresh the cohort status and try again.')}</div>}
         {visiblePrograms.map(program => <article className="lp-analytics-program" key={program.programId} data-testid={`card-learning-analytics-program-${program.programId}`}>
           <header><div><span className="lp-eyebrow">{t('COHORT LEARNING')}</span><h3>{program.programName}</h3></div><div className="lp-program-stats"><span><b>{program.completedParticipants}</b> / {program.participantCount} {t('completed')}</span><span><b>{program.averageCompletionPercent.toFixed(1)}%</b> {t('average progress')}</span><span><b>{fmtTime(program.averageActiveSeconds)}</b> {t('average active time')}</span><span><b>{program.averageQuizPercent == null ? '—' : `${program.averageQuizPercent.toFixed(1)}%`}</b> {t('quiz average')}</span><span><b>{program.certificatesIssued}</b> {t('certificates')}</span></div></header>
+           <CohortAssessmentGainPanel programId={program.programId} summary={program.assessmentGain} />
            <ReminderDeliveryPanel program={program} retryingId={retryingReminder} onRetry={retryFailedReminder} />
           <div className="lp-roster-head"><span>{t('PARTICIPANT / BUSINESS')}</span><span>{t('COURSE COMPLETION')}</span><span>{t('ACTIVE TIME')}</span><span>{t('CERTIFICATE STATE')}</span></div>
           {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={issueCertificate} pending={issuing === person.applicationId} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}

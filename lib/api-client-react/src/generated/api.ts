@@ -702,7 +702,7 @@ export const getGetLearningProgressAnalyticsUrl = (params?: GetLearningProgressA
 }
 
 /**
- * @summary Get coordinator-only participant course progress and learning analytics
+ * @summary Get coordinator-only participant course progress and learning analytics, including paired cohort assessment gains
  */
 export const getLearningProgressAnalytics = async (params?: GetLearningProgressAnalyticsParams, options?: Parameters<typeof customFetch>[1]): Promise<LearningProgressAnalytics> => {
 
@@ -749,7 +749,7 @@ export type GetLearningProgressAnalyticsQueryError = ErrorType<void>
 
 
 /**
- * @summary Get coordinator-only participant course progress and learning analytics
+ * @summary Get coordinator-only participant course progress and learning analytics, including paired cohort assessment gains
  */
 
 export function useGetLearningProgressAnalytics<TData = Awaited<ReturnType<typeof getLearningProgressAnalytics>>, TError = ErrorType<void>>(

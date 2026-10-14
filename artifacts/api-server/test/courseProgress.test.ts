@@ -32,6 +32,7 @@ function resetState(): void {
       programId: 9,
       founderName: "Amina Founder",
       businessName: "Amina Ventures",
+      businessId: 201,
       email: "amina@example.com",
       clerkUserId: "participant-a",
       status: "accepted",
@@ -41,6 +42,7 @@ function resetState(): void {
       programId: 9,
       founderName: "Bilal Founder",
       businessName: "Bilal Ventures",
+      businessId: 202,
       email: "bilal@example.com",
       clerkUserId: "participant-b",
       status: "accepted",
@@ -456,14 +458,14 @@ test("participant progress preserves first attempts across retakes and returns e
   );
   const submittedAt = (day: number) => new Date(`2026-10-${String(day).padStart(2, "0")}T12:00:00.000Z`);
   quizAttempts.push(
-    { id: 1, quizId: 201, participantClerkUserId: "participant-a", score: 4, totalQuestions: 10, submittedAt: submittedAt(1) },
-    { id: 2, quizId: 201, participantClerkUserId: "participant-a", score: 10, totalQuestions: 10, submittedAt: submittedAt(5) },
-    { id: 3, quizId: 202, participantClerkUserId: "participant-a", score: 8, totalQuestions: 10, submittedAt: submittedAt(2) },
-    { id: 4, quizId: 202, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(6) },
-    { id: 5, quizId: 203, participantClerkUserId: "participant-a", score: 7, totalQuestions: 10, submittedAt: submittedAt(3) },
-    { id: 6, quizId: 203, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(7) },
-    { id: 7, quizId: 204, participantClerkUserId: "participant-a", score: 9, totalQuestions: 10, submittedAt: submittedAt(4) },
-    { id: 8, quizId: 204, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(8) },
+    { id: 1, quizId: 201, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 4, totalQuestions: 10, submittedAt: submittedAt(1) },
+    { id: 2, quizId: 201, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 10, totalQuestions: 10, submittedAt: submittedAt(5) },
+    { id: 3, quizId: 202, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 8, totalQuestions: 10, submittedAt: submittedAt(2) },
+    { id: 4, quizId: 202, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(6) },
+    { id: 5, quizId: 203, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 7, totalQuestions: 10, submittedAt: submittedAt(3) },
+    { id: 6, quizId: 203, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(7) },
+    { id: 7, quizId: 204, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 9, totalQuestions: 10, submittedAt: submittedAt(4) },
+    { id: 8, quizId: 204, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(8) },
   );
 
   const response = await request("/api/progress", { user: "participant-a" });

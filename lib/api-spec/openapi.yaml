@@ -162,7 +162,7 @@ paths:
     get:
       operationId: getLearningProgressAnalytics
       tags: [dashboard]
-      summary: Get coordinator-only participant course progress and learning analytics
+      summary: Get coordinator-only participant course progress and learning analytics, including paired cohort assessment gains
       parameters:
         - name: programId
           in: query
@@ -170,7 +170,7 @@ paths:
           schema: { type: integer }
       responses:
         "200":
-          description: Completion, active time, quiz performance, and certificate status by participant
+          description: Completion, active time, quiz performance, first-attempt paired cohort assessment gains, and certificate status
           content:
             application/json:
               schema:
@@ -3208,12 +3208,25 @@ components:
           type: ["number", "null"]
           minimum: 0
           maximum: 100
+        assessmentGain: { $ref: "#/components/schemas/CohortAssessmentGain" }
         certificatesIssued: { type: integer, minimum: 0 }
         reminders: { $ref: "#/components/schemas/CourseReminderSummary" }
         participants:
           type: array
           items: { $ref: "#/components/schemas/LearningProgressParticipant" }
-      required: [programId, programName, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, certificatesIssued, reminders, participants]
+      required: [programId, programName, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, assessmentGain, certificatesIssued, reminders, participants]
+    CohortAssessmentGain:
+      type: object
+      description: Paired first-attempt averages; participants without both assessment types are counted for coverage but excluded from the comparison rather than treated as zero.
+      properties:
+        eligibleParticipants: { type: integer, minimum: 0 }
+        participantsWithPre: { type: integer, minimum: 0 }
+        participantsWithPost: { type: integer, minimum: 0 }
+        pairedParticipants: { type: integer, minimum: 0 }
+        preAveragePercent: { type: ["number", "null"], minimum: 0, maximum: 100 }
+        postAveragePercent: { type: ["number", "null"], minimum: 0, maximum: 100 }
+        averageGainPercentagePoints: { type: ["number", "null"], minimum: -100, maximum: 100 }
+      required: [eligibleParticipants, participantsWithPre, participantsWithPost, pairedParticipants, preAveragePercent, postAveragePercent, averageGainPercentagePoints]
     CourseReminderSummary:
       type: object
       properties:

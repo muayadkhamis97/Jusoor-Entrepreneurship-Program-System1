@@ -40,6 +40,7 @@ export * from './calendlyWebhookEnvelopePayload';
 export * from './certificateCode';
 export * from './certificateVerification';
 export * from './certificateVerificationStatus';
+export * from './cohortAssessmentGain';
 export * from './completeCalendlyConnectionParams';
 export * from './completeGoogleCalendarConnectionParams';
 export * from './completeZoomConnectionParams';

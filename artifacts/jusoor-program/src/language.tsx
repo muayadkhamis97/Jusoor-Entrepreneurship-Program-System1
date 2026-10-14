@@ -12,6 +12,9 @@ const arabic: Record<string, string> = {
   'ACTIVE TIME': 'الوقت النشط',
   'ACTIVE TIME TRACKING': 'تتبّع الوقت النشط',
   'ASSESSMENT': 'التقييم',
+  'Assessment gains': 'مكاسب التقييم',
+  'Assessment participation counts': 'أعداد المشاركين في التقييم',
+  'Average change': 'متوسط التغيّر',
   'average active time': 'متوسط الوقت النشط',
   'AVERAGE COMPLETION': 'متوسط الإنجاز',
   'average progress': 'متوسط التقدم',
@@ -27,6 +30,7 @@ const arabic: Record<string, string> = {
   'CERTIFICATE STATE': 'حالة الشهادة',
   'CODE': 'الرمز',
   'COHORT LEARNING': 'تعلّم المجموعة',
+  'COHORT ASSESSMENT': 'تقييم المجموعة',
   'COHORT EMAILS': 'رسائل المجموعة',
   'COHORT OVERSIGHT / COORDINATOR': 'متابعة المجموعة / منسق البرنامج',
   'Combined recorded time': 'إجمالي الوقت المسجل',
@@ -60,6 +64,7 @@ const arabic: Record<string, string> = {
   'No deadline': 'بدون موعد نهائي',
   'No failed reminders for this cohort.': 'لا توجد رسائل تذكير فاشلة لهذه المجموعة.',
   'No learning records yet.': 'لا توجد سجلات تعلّم بعد.',
+  'No paired assessment results yet. Missing results are not counted as zero.': 'لا توجد نتائج متطابقة للتقييمين بعد. لا تُحتسب النتائج المفقودة صفراً.',
   'No participants are enrolled in this learning cohort yet.': 'لا يوجد مشاركون مسجلون في مجموعة التعلّم هذه بعد.',
   'Not set': 'غير محدد',
   'Not started': 'لم يبدأ',
@@ -1024,6 +1029,12 @@ const arabic: Record<string, string> = {
   'Post-course first score': 'نتيجة المحاولة الأولى بعد الدورة',
   'Percentage-point change': 'التغير بالنقاط المئوية',
   'pp': 'نقطة مئوية',
+  'Pre-course average, paired participants': 'متوسط ما قبل الدورة للمشاركين ذوي النتيجتين',
+  'Post-course average, paired participants': 'متوسط ما بعد الدورة للمشاركين ذوي النتيجتين',
+  'First-attempt averages use only participants who have both pre-course and post-course results.': 'تستخدم متوسطات المحاولة الأولى المشاركين الذين لديهم نتائج قبل الدورة وبعدها فقط.',
+  'with a pre-course result': 'لديهم نتيجة قبل الدورة',
+  'with a post-course result': 'لديهم نتيجة بعد الدورة',
+  'with both results': 'لديهم النتيجتان',
 };
 
 export function translate(text: string, language: AppLanguage): string {

@@ -37,6 +37,7 @@ import {
 import type { ParticipantAccess } from "../middlewares/participantAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { isCourseModuleReleased } from "../lib/courseAccess";
+import { assessmentAttemptBelongsToApplication, calculateCohortAssessmentGain } from "../lib/assessmentGains";
 
 export const participantCourseProgressRouter: IRouter = Router();
 export const staffLearningProgressRouter: IRouter = Router();
@@ -75,6 +76,7 @@ type AcceptedApplication = {
   id: number;
   programId: number;
   programName: string;
+  businessId: number | null;
   founderName: string;
   businessName: string;
   email: string;
@@ -255,6 +257,12 @@ async function loadProgressData(applications: AcceptedApplication[]): Promise<Pr
   const applicationIds = applications.map((application) => application.id);
   const programIds = [...new Set(applications.map((application) => application.programId))];
   const userIds = [...new Set(applications.flatMap((application) => application.clerkUserId ? [application.clerkUserId] : []))];
+  const acceptedApplicationsByUserAndProgram = new Map<string, number>();
+  for (const application of applications) {
+    if (!application.clerkUserId) continue;
+    const key = `${application.programId}:${application.clerkUserId}`;
+    acceptedApplicationsByUserAndProgram.set(key, (acceptedApplicationsByUserAndProgram.get(key) ?? 0) + 1);
+  }
   const now = new Date();
   const modules = await db.select().from(courseModulesTable).where(and(
     inArray(courseModulesTable.programId, programIds),
@@ -290,7 +298,7 @@ async function loadProgressData(applications: AcceptedApplication[]): Promise<Pr
       ? db.select().from(courseQuizAttemptsTable).where(and(
         inArray(courseQuizAttemptsTable.participantClerkUserId, userIds),
         inArray(courseQuizAttemptsTable.quizId, quizIds),
-      )).orderBy(asc(courseQuizAttemptsTable.submittedAt))
+      )).orderBy(asc(courseQuizAttemptsTable.submittedAt), asc(courseQuizAttemptsTable.id))
       : Promise.resolve([] as Array<typeof courseQuizAttemptsTable.$inferSelect>),
     packageMaterialIds.length
       ? db.select().from(coursePackageProgressTable).where(and(
@@ -322,7 +330,12 @@ async function loadProgressData(applications: AcceptedApplication[]): Promise<Pr
       programActivity: activitiesByApplication.get(application.id) ?? null,
       quizzes: applicationQuizzes,
       attempts: application.clerkUserId
-        ? attempts.filter((attempt) => attempt.participantClerkUserId === application.clerkUserId && quizIdSet.has(attempt.quizId))
+        ? attempts.filter((attempt) =>
+          quizIdSet.has(attempt.quizId) && assessmentAttemptBelongsToApplication(
+            attempt,
+            application,
+            acceptedApplicationsByUserAndProgram.get(`${application.programId}:${application.clerkUserId}`) ?? 0,
+          ))
         : [],
       materials: materials.filter((material) => moduleIdsForApplication.has(material.moduleId) &&
         material.allowedRoles.includes("participant")),
@@ -342,6 +355,7 @@ async function acceptedApplicationsForParticipant(participant: ParticipantAccess
     id: applicationsTable.id,
     programId: applicationsTable.programId,
     programName: programsTable.name,
+    businessId: applicationsTable.businessId,
     founderName: applicationsTable.founderName,
     businessName: applicationsTable.businessName,
     email: applicationsTable.email,
@@ -487,6 +501,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
     id: applicationsTable.id,
     programId: applicationsTable.programId,
     programName: programsTable.name,
+    businessId: applicationsTable.businessId,
     founderName: applicationsTable.founderName,
     businessName: applicationsTable.businessName,
     email: applicationsTable.email,
@@ -618,6 +633,15 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
       averageQuizPercent: quizPercentages.length
         ? Math.round(quizPercentages.reduce((sum, value) => sum + value, 0) / quizPercentages.length)
         : null,
+      assessmentGain: calculateCohortAssessmentGain(rows
+        .filter((row) => row.application.programId === program.id)
+        .map((row) => ({
+          quizzes: row.quizzes.map((quiz) => ({
+            quizId: quiz.id,
+            assessmentType: quiz.assessmentType,
+          })),
+          attempts: row.attempts,
+        }))),
       certificatesIssued: certificatesByProgram.get(program.id) ?? 0,
       reminders: remindersByProgram.get(program.id) ?? {
         pending: 0,

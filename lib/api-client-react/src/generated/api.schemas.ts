@@ -649,6 +649,38 @@ export type LearningProgressParticipant = ParticipantLearningProgram & {
   email: string;
 };
 
+/**
+ * Paired first-attempt averages; participants without both assessment types are counted for coverage but excluded from the comparison rather than treated as zero.
+ */
+export interface CohortAssessmentGain {
+  /** @minimum 0 */
+  eligibleParticipants: number;
+  /** @minimum 0 */
+  participantsWithPre: number;
+  /** @minimum 0 */
+  participantsWithPost: number;
+  /** @minimum 0 */
+  pairedParticipants: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  preAveragePercent: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  postAveragePercent: number | null;
+  /**
+     * @minimum -100
+     * @maximum 100
+     * @nullable
+     */
+  averageGainPercentagePoints: number | null;
+}
+
 export interface CourseReminderFailure {
   id: number;
   founderName: string;
@@ -694,6 +726,7 @@ export interface LearningProgressProgram {
      * @nullable
      */
   averageQuizPercent: number | null;
+  assessmentGain: CohortAssessmentGain;
   /** @minimum 0 */
   certificatesIssued: number;
   reminders: CourseReminderSummary;
