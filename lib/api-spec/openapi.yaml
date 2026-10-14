@@ -1479,6 +1479,59 @@ paths:
           description: Participant access is required
         "404":
           description: Accepted application not found for this participant
+  /participant/programs/{programId}/peers:
+    get:
+      operationId: getParticipantPeerDirectory
+      tags: [participants]
+      summary: Get opted-in peers in the signed-in participant's accepted program
+      parameters:
+        - in: path
+          name: programId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: The participant's sharing preferences and opted-in peers from this program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantPeerDirectory"
+        "401":
+          description: Sign in required
+        "403":
+          description: Participant access is required
+        "404":
+          description: Accepted application not found for this participant
+    put:
+      operationId: updateParticipantPeerDirectoryPreferences
+      tags: [participants]
+      summary: Update whether the signed-in participant appears in their accepted program's peer directory
+      parameters:
+        - in: path
+          name: programId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantPeerDirectoryPreferencesInput"
+      responses:
+        "200":
+          description: Saved sharing preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantPeerDirectoryPreferences"
+        "400":
+          description: Invalid sharing preferences
+        "401":
+          description: Sign in required
+        "403":
+          description: Participant access is required
+        "404":
+          description: Accepted application not found for this participant
   /participant/announcements/{id}/read:
     post:
       operationId: markAnnouncementRead
@@ -3995,6 +4048,40 @@ components:
         fulfillmentSteps: { type: string, maxLength: 5000 }
         reviewSignals: { type: string, maxLength: 3000 }
       required: [acquisitionChannels, outreachActions, fulfillmentSteps, reviewSignals]
+    ParticipantPeerDirectoryPreferencesInput:
+      type: object
+      properties:
+        isListed: { type: boolean }
+        shareEmail: { type: boolean }
+        sharePhone: { type: boolean }
+      required: [isListed, shareEmail, sharePhone]
+    ParticipantPeerDirectoryPreferences:
+      type: object
+      properties:
+        isListed: { type: boolean }
+        shareEmail: { type: boolean }
+        sharePhone: { type: boolean }
+      required: [isListed, shareEmail, sharePhone]
+    ParticipantPeerDirectory:
+      type: object
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        preferences:
+          $ref: "#/components/schemas/ParticipantPeerDirectoryPreferences"
+        peers:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantPeerDirectoryPeer" }
+      required: [programId, programName, preferences, peers]
+    ParticipantPeerDirectoryPeer:
+      type: object
+      properties:
+        founderName: { type: string }
+        businessName: { type: string }
+        industry: { type: ["string", "null"] }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+      required: [founderName, businessName, industry, email, phone]
     ParticipantAssignment:
       type: object
       properties:

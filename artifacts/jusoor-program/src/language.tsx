@@ -1198,6 +1198,19 @@ const arabic: Record<string, string> = {
   'participants': 'المشاركون',
   'Select at least one program run to compare assessment results.': 'اختر دفعة واحدة على الأقل لمقارنة نتائج التقييم.',
   'Change is omitted when either average has no eligible results. Missing assessments are not treated as zero.': 'يُحذف التغير إذا لم تتوفر نتائج مؤهلة لأي من المتوسطين. لا تُعامل التقييمات المفقودة على أنها صفر.',
+  'Founder peer directory': 'دليل مؤسسي المشاريع',
+  'Meet founders who opted in to connect with your cohort.': 'تعرّف على المؤسسين الذين اختاروا التواصل مع مجموعتك.',
+  'Your profile is hidden by default. Choose whether to appear in this program’s peer directory.': 'ملفك مخفي افتراضياً. اختر ما إذا كنت تريد الظهور في دليل التواصل الخاص بهذا البرنامج.',
+  'Appear in this cohort’s directory': 'الظهور في دليل هذه المجموعة',
+  'Share my email with peers': 'مشاركة بريدي الإلكتروني مع المشاركين',
+  'Share my phone with peers': 'مشاركة رقم هاتفي مع المشاركين',
+  'Save directory preferences': 'حفظ إعدادات الدليل',
+  'Saving preferences…': 'جارٍ حفظ الإعدادات…',
+  'Your directory preferences were saved.': 'تم حفظ إعدادات الدليل.',
+  'Your directory preferences could not be saved. Try again.': 'تعذّر حفظ إعدادات الدليل. حاول مجدداً.',
+  'Loading peer directory…': 'جارٍ تحميل دليل التواصل…',
+  'The peer directory could not be loaded. Try again.': 'تعذّر تحميل دليل التواصل. حاول مجدداً.',
+  'No peers have opted in yet. You can check back later.': 'لم يختر أي مشارك الظهور بعد. يمكنك العودة لاحقاً.',
 };
 
 export function translate(text: string, language: AppLanguage): string {

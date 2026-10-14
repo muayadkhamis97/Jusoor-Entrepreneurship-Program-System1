@@ -2551,6 +2551,57 @@ export const SaveParticipantBusinessPlanResponse = zod.object({
 
 
 /**
+ * @summary Get opted-in peers in the signed-in participant's accepted program
+ */
+
+
+
+export const GetParticipantPeerDirectoryParams = zod.object({
+  "programId": zod.coerce.number().int().min(1)
+})
+
+export const GetParticipantPeerDirectoryResponse = zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "preferences": zod.object({
+  "isListed": zod.boolean(),
+  "shareEmail": zod.boolean(),
+  "sharePhone": zod.boolean()
+}),
+  "peers": zod.array(zod.object({
+  "founderName": zod.string(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Update whether the signed-in participant appears in their accepted program's peer directory
+ */
+
+
+
+export const UpdateParticipantPeerDirectoryPreferencesParams = zod.object({
+  "programId": zod.coerce.number().int().min(1)
+})
+
+export const UpdateParticipantPeerDirectoryPreferencesBody = zod.object({
+  "isListed": zod.boolean(),
+  "shareEmail": zod.boolean(),
+  "sharePhone": zod.boolean()
+})
+
+export const UpdateParticipantPeerDirectoryPreferencesResponse = zod.object({
+  "isListed": zod.boolean(),
+  "shareEmail": zod.boolean(),
+  "sharePhone": zod.boolean()
+})
+
+
+/**
  * @summary Mark a cohort announcement as read by the signed-in participant
  */
 export const MarkAnnouncementReadParams = zod.object({

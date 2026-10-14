@@ -47,3 +47,4 @@ export * from "./program-branding";
 export * from "./integration-api-keys";
 export * from "./idea-validation";
 export * from "./participant-business-plans";
+export * from "./participant-peer-directory";

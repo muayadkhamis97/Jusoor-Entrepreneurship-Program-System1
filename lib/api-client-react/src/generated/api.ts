@@ -121,6 +121,9 @@ import type {
   ParticipantIdeaValidationUpdate,
   ParticipantIdeaValidationWorkbook,
   ParticipantLearningProgress,
+  ParticipantPeerDirectory,
+  ParticipantPeerDirectoryPreferences,
+  ParticipantPeerDirectoryPreferencesInput,
   ParticipantQuestion,
   ParticipantSessionInteractiveActivitiesResponse,
   ParticipantSessionInteractiveActivity,
@@ -6080,6 +6083,172 @@ export const useSaveParticipantBusinessPlan = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSaveParticipantBusinessPlanMutationOptions(options));
+    }
+
+export const getGetParticipantPeerDirectoryUrl = (programId: number,) => {
+
+
+
+
+  return `/api/participant/programs/${programId}/peers`
+}
+
+/**
+ * @summary Get opted-in peers in the signed-in participant's accepted program
+ */
+export const getParticipantPeerDirectory = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantPeerDirectory> => {
+
+  return customFetch<ParticipantPeerDirectory>(getGetParticipantPeerDirectoryUrl(programId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantPeerDirectoryQueryKey = (programId: number,) => {
+    return [
+    `/api/participant/programs/${programId}/peers`
+    ] as const;
+    }
+
+
+export const getGetParticipantPeerDirectoryQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantPeerDirectory>>, TError = ErrorType<void>>(programId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantPeerDirectory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantPeerDirectoryQueryKey(programId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantPeerDirectory>>> = ({ signal }) => getParticipantPeerDirectory(programId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: programId !== null && programId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantPeerDirectory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantPeerDirectoryQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantPeerDirectory>>>
+export type GetParticipantPeerDirectoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get opted-in peers in the signed-in participant's accepted program
+ */
+
+export function useGetParticipantPeerDirectory<TData = Awaited<ReturnType<typeof getParticipantPeerDirectory>>, TError = ErrorType<void>>(
+ programId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantPeerDirectory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantPeerDirectoryQueryOptions(programId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateParticipantPeerDirectoryPreferencesUrl = (programId: number,) => {
+
+
+
+
+  return `/api/participant/programs/${programId}/peers`
+}
+
+/**
+ * @summary Update whether the signed-in participant appears in their accepted program's peer directory
+ */
+export const updateParticipantPeerDirectoryPreferences = async (programId: number,
+    participantPeerDirectoryPreferencesInput: ParticipantPeerDirectoryPreferencesInput, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantPeerDirectoryPreferences> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ParticipantPeerDirectoryPreferences>(getUpdateParticipantPeerDirectoryPreferencesUrl(programId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(participantPeerDirectoryPreferencesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateParticipantPeerDirectoryPreferencesMutationKey = () => ['updateParticipantPeerDirectoryPreferences'] as const;
+
+export const getUpdateParticipantPeerDirectoryPreferencesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateParticipantPeerDirectoryPreferences>>, TError,UpdateParticipantPeerDirectoryPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateParticipantPeerDirectoryPreferences>>, TError,UpdateParticipantPeerDirectoryPreferencesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateParticipantPeerDirectoryPreferencesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateParticipantPeerDirectoryPreferences>>, UpdateParticipantPeerDirectoryPreferencesMutationVariables> = (props) => {
+          const {programId,data} = props ?? {};
+
+          return  updateParticipantPeerDirectoryPreferences(programId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateParticipantPeerDirectoryPreferencesMutationResult = NonNullable<Awaited<ReturnType<typeof updateParticipantPeerDirectoryPreferences>>>
+    export type UpdateParticipantPeerDirectoryPreferencesMutationBody = BodyType<ParticipantPeerDirectoryPreferencesInput>
+    export type UpdateParticipantPeerDirectoryPreferencesMutationError = ErrorType<void>
+    export type UpdateParticipantPeerDirectoryPreferencesMutationVariables = {programId: number;data: BodyType<ParticipantPeerDirectoryPreferencesInput>}
+
+    /**
+ * @summary Update whether the signed-in participant appears in their accepted program's peer directory
+ */
+export const useUpdateParticipantPeerDirectoryPreferences = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateParticipantPeerDirectoryPreferences>>, TError,UpdateParticipantPeerDirectoryPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateParticipantPeerDirectoryPreferences>>,
+        TError,
+        UpdateParticipantPeerDirectoryPreferencesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateParticipantPeerDirectoryPreferencesMutationOptions(options));
     }
 
 export const getMarkAnnouncementReadUrl = (id: number,) => {

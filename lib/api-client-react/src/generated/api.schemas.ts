@@ -1485,6 +1485,36 @@ export interface ParticipantBusinessPlanUpdate {
   reviewSignals: string;
 }
 
+export interface ParticipantPeerDirectoryPreferencesInput {
+  isListed: boolean;
+  shareEmail: boolean;
+  sharePhone: boolean;
+}
+
+export interface ParticipantPeerDirectoryPreferences {
+  isListed: boolean;
+  shareEmail: boolean;
+  sharePhone: boolean;
+}
+
+export interface ParticipantPeerDirectoryPeer {
+  founderName: string;
+  businessName: string;
+  /** @nullable */
+  industry: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+}
+
+export interface ParticipantPeerDirectory {
+  programId: number;
+  programName: string;
+  preferences: ParticipantPeerDirectoryPreferences;
+  peers: ParticipantPeerDirectoryPeer[];
+}
+
 export type AnnouncementStatus = typeof AnnouncementStatus[keyof typeof AnnouncementStatus];
 
 

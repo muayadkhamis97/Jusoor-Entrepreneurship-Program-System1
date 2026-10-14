@@ -8,6 +8,8 @@ import {
   GetParticipantDashboardResponse,
   GetParticipantIdeaValidationResponse,
   GetParticipantBusinessPlansResponse,
+  GetParticipantPeerDirectoryParams,
+  GetParticipantPeerDirectoryResponse,
   MarkAnnouncementReadResponse,
   SaveParticipantBusinessPlanBody,
   SaveParticipantBusinessPlanParams,
@@ -18,6 +20,9 @@ import {
   SubmitTrainingAnswerBody,
   SubmitTrainingAnswerParams,
   SubmitTrainingAnswerResponse,
+  UpdateParticipantPeerDirectoryPreferencesBody,
+  UpdateParticipantPeerDirectoryPreferencesParams,
+  UpdateParticipantPeerDirectoryPreferencesResponse,
 } from "@workspace/api-zod";
 import {
   announcementReceiptsTable,
@@ -29,6 +34,7 @@ import {
   db,
   ideaValidationWorkbooksTable,
   participantBusinessPlansTable,
+  participantPeerDirectoryPreferencesTable,
   programsTable,
   programAnnouncementsTable,
   sessionsTable,
@@ -47,6 +53,129 @@ import {
 } from "../lib/participant-recording-notices";
 
 const router: IRouter = Router();
+
+router.get("/programs/:programId/peers", async (req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+
+  const params = GetParticipantPeerDirectoryParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [application] = await db.select({
+    applicationId: applicationsTable.id,
+    programId: applicationsTable.programId,
+    programName: programsTable.name,
+  }).from(applicationsTable)
+    .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+    .where(and(
+      eq(applicationsTable.programId, params.data.programId),
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .limit(1);
+
+  if (!application) {
+    res.status(404).json({ error: "Accepted application not found for this participant." });
+    return;
+  }
+
+  const [savedPreferences] = await db.select({
+    isListed: participantPeerDirectoryPreferencesTable.isListed,
+    shareEmail: participantPeerDirectoryPreferencesTable.shareEmail,
+    sharePhone: participantPeerDirectoryPreferencesTable.sharePhone,
+  }).from(participantPeerDirectoryPreferencesTable)
+    .where(eq(participantPeerDirectoryPreferencesTable.applicationId, application.applicationId))
+    .limit(1);
+
+  const peerRows = await db.select({
+    founderName: applicationsTable.founderName,
+    businessName: applicationsTable.businessName,
+    industry: applicationsTable.industry,
+    email: applicationsTable.email,
+    phone: applicationsTable.phone,
+    shareEmail: participantPeerDirectoryPreferencesTable.shareEmail,
+    sharePhone: participantPeerDirectoryPreferencesTable.sharePhone,
+  }).from(participantPeerDirectoryPreferencesTable)
+    .innerJoin(applicationsTable, eq(participantPeerDirectoryPreferencesTable.applicationId, applicationsTable.id))
+    .where(and(
+      eq(applicationsTable.programId, application.programId),
+      eq(applicationsTable.status, "accepted"),
+      eq(participantPeerDirectoryPreferencesTable.isListed, true),
+      ne(applicationsTable.id, application.applicationId),
+    ))
+    .orderBy(asc(applicationsTable.founderName), asc(applicationsTable.businessName));
+
+  res.json(GetParticipantPeerDirectoryResponse.parse({
+    programId: application.programId,
+    programName: application.programName,
+    preferences: savedPreferences ?? { isListed: false, shareEmail: false, sharePhone: false },
+    peers: peerRows.map((peer) => ({
+      founderName: peer.founderName,
+      businessName: peer.businessName,
+      industry: peer.industry,
+      email: peer.shareEmail ? peer.email : null,
+      phone: peer.sharePhone ? peer.phone : null,
+    })),
+  }));
+});
+
+router.put("/programs/:programId/peers", async (req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+
+  const params = UpdateParticipantPeerDirectoryPreferencesParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateParticipantPeerDirectoryPreferencesBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [application] = await db.select({ applicationId: applicationsTable.id })
+    .from(applicationsTable)
+    .where(and(
+      eq(applicationsTable.programId, params.data.programId),
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .limit(1);
+
+  if (!application) {
+    res.status(404).json({ error: "Accepted application not found for this participant." });
+    return;
+  }
+
+  const preferences = {
+    isListed: body.data.isListed,
+    shareEmail: body.data.isListed && body.data.shareEmail,
+    sharePhone: body.data.isListed && body.data.sharePhone,
+  };
+  const [saved] = await db.insert(participantPeerDirectoryPreferencesTable)
+    .values({ applicationId: application.applicationId, ...preferences })
+    .onConflictDoUpdate({
+      target: participantPeerDirectoryPreferencesTable.applicationId,
+      set: { ...preferences, updatedAt: new Date() },
+    })
+    .returning();
+
+  res.json(UpdateParticipantPeerDirectoryPreferencesResponse.parse({
+    isListed: saved.isListed,
+    shareEmail: saved.shareEmail,
+    sharePhone: saved.sharePhone,
+  }));
+});
 
 router.get("/idea-validation", async (_req, res): Promise<void> => {
   const participant = res.locals.participant as ParticipantAccess | undefined;
