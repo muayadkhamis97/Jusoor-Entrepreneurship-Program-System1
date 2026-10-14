@@ -7,8 +7,8 @@ type AssessmentType = 'pre_course' | 'post_course';
 export function calculateAssessmentComparison(quizzes: CourseProgressQuiz[]) {
   const average = (type: AssessmentType): number | null => {
     const percentages = quizzes
-      .filter(quiz => quiz.assessmentType === type && quiz.firstScore != null && quiz.totalQuestions > 0)
-      .map(quiz => quiz.firstScore! / quiz.totalQuestions * 100);
+      .filter(quiz => quiz.assessmentType === type && quiz.firstScore != null && quiz.firstTotalQuestions > 0)
+      .map(quiz => quiz.firstScore! / quiz.firstTotalQuestions * 100);
     return percentages.length ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length : null;
   };
   const pre = average('pre_course');

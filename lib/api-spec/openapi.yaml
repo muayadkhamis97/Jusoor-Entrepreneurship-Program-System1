@@ -3121,10 +3121,11 @@ components:
         bestScore: { type: ["number", "null"], minimum: 0 }
         totalQuestions: { type: integer, minimum: 0 }
         firstScore: { type: ["integer", "null"], minimum: 0 }
+        firstTotalQuestions: { type: integer, minimum: 0 }
         latestScore: { type: ["integer", "null"], minimum: 0 }
         firstSubmittedAt: { type: ["string", "null"], format: date-time }
         latestSubmittedAt: { type: ["string", "null"], format: date-time }
-      required: [quizId, title, assessmentType, gradingFormat, letterGradeScale, attempts, bestScore, totalQuestions, firstScore, latestScore, firstSubmittedAt, latestSubmittedAt]
+      required: [quizId, title, assessmentType, gradingFormat, letterGradeScale, attempts, bestScore, totalQuestions, firstScore, firstTotalQuestions, latestScore, firstSubmittedAt, latestSubmittedAt]
     CourseCertificate:
       type: object
       properties:

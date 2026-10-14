@@ -569,6 +569,8 @@ export interface CourseProgressQuiz {
      * @nullable
      */
   firstScore: number | null;
+  /** @minimum 0 */
+  firstTotalQuestions: number;
   /**
      * @minimum 0
      * @nullable

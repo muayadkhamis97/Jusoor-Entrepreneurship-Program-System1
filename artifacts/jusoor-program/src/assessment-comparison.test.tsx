@@ -11,6 +11,7 @@ function quiz(
   firstScore: number | null,
   totalQuestions = 10,
   latestScore: number | null = firstScore,
+  firstTotalQuestions = totalQuestions,
 ): CourseProgressQuiz {
   return {
     quizId,
@@ -22,6 +23,7 @@ function quiz(
     bestScore: latestScore,
     totalQuestions,
     firstScore,
+    firstTotalQuestions,
     latestScore,
     firstSubmittedAt: firstScore == null ? null : '2026-10-01T12:00:00.000Z',
     latestSubmittedAt: latestScore == null ? null : '2026-10-05T12:00:00.000Z',
@@ -75,4 +77,13 @@ test('assessments with no valid first-attempt percentage are excluded from the a
   ];
 
   assert.deepEqual(calculateAssessmentComparison(quizzes), { pre: 0, post: 50, delta: 50 });
+});
+
+test('first-attempt percentages use the first attempt question count after a quiz changes', () => {
+  const quizzes = [
+    quiz(1, 'pre_course', 4, 20, 20, 10),
+    quiz(2, 'post_course', 7, 20, 14, 10),
+  ];
+
+  assert.deepEqual(calculateAssessmentComparison(quizzes), { pre: 40, post: 70, delta: 30 });
 });

@@ -459,7 +459,7 @@ test("participant progress preserves first attempts across retakes and returns e
   const submittedAt = (day: number) => new Date(`2026-10-${String(day).padStart(2, "0")}T12:00:00.000Z`);
   quizAttempts.push(
     { id: 1, quizId: 201, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 4, totalQuestions: 10, submittedAt: submittedAt(1) },
-    { id: 2, quizId: 201, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 10, totalQuestions: 10, submittedAt: submittedAt(5) },
+    { id: 2, quizId: 201, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 20, totalQuestions: 20, submittedAt: submittedAt(5) },
     { id: 3, quizId: 202, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 8, totalQuestions: 10, submittedAt: submittedAt(2) },
     { id: 4, quizId: 202, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(6) },
     { id: 5, quizId: 203, applicationId: 101, participantBusinessId: 201, participantClerkUserId: "participant-a", score: 7, totalQuestions: 10, submittedAt: submittedAt(3) },
@@ -474,6 +474,7 @@ test("participant progress preserves first attempts across retakes and returns e
       quizzes: Array<{
         quizId: number;
         firstScore: number | null;
+        firstTotalQuestions: number;
         latestScore: number | null;
         attempts: number;
       }>;
@@ -481,15 +482,15 @@ test("participant progress preserves first attempts across retakes and returns e
   };
 
   assert.equal(response.status, 200);
-  assert.deepEqual(body.programs[0].quizzes.map(({ quizId, firstScore, latestScore, attempts }) => ({
-    quizId, firstScore, latestScore, attempts,
+  assert.deepEqual(body.programs[0].quizzes.map(({ quizId, firstScore, firstTotalQuestions, latestScore, attempts }) => ({
+    quizId, firstScore, firstTotalQuestions, latestScore, attempts,
   })), [
-    { quizId: 201, firstScore: 4, latestScore: 10, attempts: 2 },
-    { quizId: 202, firstScore: 8, latestScore: 0, attempts: 2 },
-    { quizId: 203, firstScore: 7, latestScore: 0, attempts: 2 },
-    { quizId: 204, firstScore: 9, latestScore: 0, attempts: 2 },
+    { quizId: 201, firstScore: 4, firstTotalQuestions: 10, latestScore: 20, attempts: 2 },
+    { quizId: 202, firstScore: 8, firstTotalQuestions: 10, latestScore: 0, attempts: 2 },
+    { quizId: 203, firstScore: 7, firstTotalQuestions: 10, latestScore: 0, attempts: 2 },
+    { quizId: 204, firstScore: 9, firstTotalQuestions: 10, latestScore: 0, attempts: 2 },
   ]);
-  const firstPercentages = body.programs[0].quizzes.map((quiz) => quiz.firstScore! / 10 * 100);
+  const firstPercentages = body.programs[0].quizzes.map((quiz) => quiz.firstScore! / quiz.firstTotalQuestions * 100);
   assert.equal(firstPercentages.slice(0, 2).reduce((sum, value) => sum + value, 0) / 2, 60);
   assert.equal(firstPercentages.slice(2).reduce((sum, value) => sum + value, 0) / 2, 80);
 });

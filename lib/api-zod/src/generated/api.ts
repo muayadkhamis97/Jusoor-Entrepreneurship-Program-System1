@@ -337,6 +337,8 @@ export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOne
 
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstScoreMin = 0;
 
+export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstTotalQuestionsMin = 0;
+
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLatestScoreMin = 0;
 
 
@@ -415,6 +417,7 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "bestScore": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemBestScoreMin).nullable(),
   "totalQuestions": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin),
   "firstScore": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstScoreMin).nullable(),
+  "firstTotalQuestions": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstTotalQuestionsMin),
   "latestScore": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLatestScoreMin).nullable(),
   "firstSubmittedAt": zod.coerce.date().nullable(),
   "latestSubmittedAt": zod.coerce.date().nullable()
@@ -1833,6 +1836,8 @@ export const getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQ
 
 export const getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstScoreMin = 0;
 
+export const getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstTotalQuestionsMin = 0;
+
 export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLatestScoreMin = 0;
 
 
@@ -1876,6 +1881,7 @@ export const GetParticipantLearningProgressResponse = zod.object({
   "bestScore": zod.number().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemBestScoreMin).nullable(),
   "totalQuestions": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin),
   "firstScore": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstScoreMin).nullable(),
+  "firstTotalQuestions": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstTotalQuestionsMin),
   "latestScore": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLatestScoreMin).nullable(),
   "firstSubmittedAt": zod.coerce.date().nullable(),
   "latestSubmittedAt": zod.coerce.date().nullable()
