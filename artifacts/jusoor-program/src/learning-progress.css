@@ -72,6 +72,12 @@
 .certificate-seal { width:37px; height:37px; display:grid; place-items:center; flex:none; border:1px solid hsl(43 48% 70%); border-radius:50%; color:#9e792d; }
 .certificate-copy { flex:1; min-width:0; }.certificate-copy h3 { margin:3px 0; font:700 12px 'Manrope',sans-serif; }.certificate-copy p { margin:0; font-size:9px; color:var(--lp-muted); }.certificate-meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:8px; color:var(--lp-muted); font:8px var(--app-font-mono); }.certificate-meta b { color:var(--lp-ink); }
 .certificate-download-error { flex-basis:100%; margin:0 0 0 49px; color:hsl(var(--destructive)); font-size:9px; }
+.certificate-download-controls { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.certificate-language-picker { display:flex; align-items:center; gap:6px; color:var(--lp-muted); font-size:9px; }
+.certificate-language-picker select { min-height:32px; padding:0 25px 0 8px; border:1px solid var(--lp-line); border-radius:6px; background:hsl(var(--background)); color:var(--lp-ink); font:600 10px var(--app-font-sans); }
+.certificate-language-picker select:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
+.certificate-download-controls.is-coordinator { margin-top:10px; }
+.certificate-download-controls .certificate-download-error { margin:0; }
 .certificate-verify-link { display:inline-block; margin-top:7px; color:var(--lp-teal); font-size:9px; font-weight:700; text-decoration:underline; text-underline-offset:2px; }
 .certificate-pdf-page { position:fixed; z-index:-1; top:0; left:-12000px; box-sizing:border-box; width:1122px; height:794px; padding:28px; background:#fffdf7; color:#233b38; opacity:.01; pointer-events:none; font-family:'DM Sans',Arial,sans-serif; }
 .certificate-pdf-frame { position:relative; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; width:100%; height:100%; padding:34px 54px 27px; border:2px solid #b79a52; outline:1px solid #d7c99f; outline-offset:-10px; text-align:center; }

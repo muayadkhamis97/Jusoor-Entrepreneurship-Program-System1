@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CertificatePdfPage, downloadCertificatePdf } from './certificate-pdf';
+import { CertificatePdfPage, downloadCertificatePdf, type CertificateLanguage } from './certificate-pdf';
 import { AssessmentComparison } from './assessment-comparison';
 import {
   getGetLearningProgressAnalyticsQueryKey,
@@ -97,7 +97,20 @@ function useVisibleActiveTime(programIds: number[]) {
 }
 
 function CertificateCard({ certificate }: { certificate: NonNullable<ParticipantLearningProgram['certificate']> }) {
+  const verificationUrl = certificateVerificationUrl(certificate.certificateCode);
+  return <article className="learning-certificate" data-testid={`card-certificate-${certificate.id}`}>
+    <div className="certificate-seal"><Award size={21} /></div>
+    <div className="certificate-copy"><span className="lp-eyebrow">{t('CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span></div><a className="certificate-verify-link" href={verificationUrl}>{t('Verify this certificate')}</a></div>
+    <CertificateDownload certificate={certificate} testIdPrefix="participant" />
+  </article>;
+}
+
+function CertificateDownload({ certificate, testIdPrefix }: {
+  certificate: NonNullable<ParticipantLearningProgram['certificate']>;
+  testIdPrefix: 'participant' | 'coordinator';
+}) {
   const certificateRef = useRef<HTMLElement>(null);
+  const [language, setLanguage] = useState<CertificateLanguage>('both');
   const [downloading, setDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
   const verificationUrl = certificateVerificationUrl(certificate.certificateCode);
@@ -119,19 +132,34 @@ function CertificateCard({ certificate }: { certificate: NonNullable<Participant
       setDownloading(false);
     }
   };
-  return <article className="learning-certificate" data-testid={`card-certificate-${certificate.id}`}>
-    <div className="certificate-seal"><Award size={21} /></div>
-    <div className="certificate-copy"><span className="lp-eyebrow">{t('CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span></div><a className="certificate-verify-link" href={verificationUrl}>{t('Verify this certificate')}</a></div>
-    <button type="button" className="lp-button lp-button-outline print-hide" onClick={downloadCertificate} disabled={downloading} data-testid={`button-download-certificate-${certificate.id}`}><Download size={15} />{downloading ? t('Preparing PDF…') : t('Download PDF')}</button>
+  const testId = `${testIdPrefix}-${certificate.id}`;
+  return <div className={`certificate-download-controls ${testIdPrefix === 'coordinator' ? 'is-coordinator' : ''}`}>
+    <label className="certificate-language-picker" htmlFor={`select-certificate-language-${testId}`}>
+      <span>{t('Certificate language')}</span>
+      <select
+        id={`select-certificate-language-${testId}`}
+        value={language}
+        onChange={event => setLanguage(event.target.value as CertificateLanguage)}
+        data-testid={`select-certificate-language-${testId}`}
+      >
+        <option value="en">{t('English')}</option>
+        <option value="ar">{t('Arabic')}</option>
+        <option value="both">{t('Bilingual')}</option>
+      </select>
+    </label>
+    <button type="button" className="lp-button lp-button-outline print-hide" onClick={downloadCertificate} disabled={downloading} data-testid={`button-download-certificate-${testId}`}>
+      <Download size={15} />{downloading ? t('Preparing PDF…') : t('Download PDF')}
+    </button>
     {downloadFailed && <p className="certificate-download-error" role="alert">{t('Certificate PDF could not be downloaded. Please try again.')}</p>}
     <CertificatePdfPage
       ref={certificateRef}
       certificate={certificate}
-      issuedDateEnglish={fmtDate(certificate.issuedAt)}
+      issuedDateEnglish={new Date(certificate.issuedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
       issuedDateArabic={new Date(certificate.issuedAt).toLocaleDateString('ar-JO', { day: 'numeric', month: 'long', year: 'numeric' })}
       verificationUrl={verificationUrl}
+      language={language}
     />
-  </article>;
+  </div>;
 }
 
 function ModuleProgressCard({ module, index, onToggle, pending }: { module: CourseProgressModule; index: number; onToggle: (module: CourseProgressModule) => void; pending: boolean }) {
@@ -261,7 +289,7 @@ function ParticipantRow({ participant, onIssue, pending }: { participant: Learni
        <div className="lp-detail-facts"><span>{t('Required modules')} <b>{participant.completedRequiredModules}/{participant.totalRequiredModules}</b></span><span>{t('Last activity')} <b>{fmtDateTime(participant.lastActivityAt)}</b></span><span>{t('Best quiz results')} <b>{participant.quizzes.length ? participant.quizzes.map(quiz => formattedQuizGrade(quiz, quiz.bestScore)).join(' · ') : '—'}</b></span></div>
         {hasCourseAssessment(participant.quizzes) && <AssessmentComparison quizzes={participant.quizzes} testId={`assessment-comparison-coordinator-${participant.applicationId}`} />}
       {participant.modules.length > 0 && <div className="lp-coordinator-modules">{participant.modules.map(module => <span key={module.moduleId} className={module.completionStatus === 'completed' ? 'is-done' : ''}><i />{module.title}{module.isRequired ? ` · ${t('Required')}` : ` · ${t('Optional')}`}</span>)}</div>}
-      {participant.certificate ? <div className="lp-issued"><FileCheck2 size={15} />{t('Certificate')} <b>{participant.certificate.certificateCode}</b> · {fmtDate(participant.certificate.issuedAt)}</div>
+      {participant.certificate ? <><div className="lp-issued"><FileCheck2 size={15} />{t('Certificate')} <b>{participant.certificate.certificateCode}</b> · {fmtDate(participant.certificate.issuedAt)}</div><CertificateDownload certificate={participant.certificate} testIdPrefix="coordinator" /></>
         : <button type="button" className="lp-button lp-button-primary" onClick={() => onIssue(participant)} disabled={!certReady || pending} data-testid={`button-issue-certificate-${participant.applicationId}`}>{pending ? t('Issuing…') : <><Award size={14} />{t('Issue certificate')}</>}</button>}
     </div>
   </details>;

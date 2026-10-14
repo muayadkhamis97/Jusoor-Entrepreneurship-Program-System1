@@ -81,6 +81,38 @@ test('renders long English and Arabic certificate details, issue date, and uniqu
   assert.match(markup, /class="certificate-pdf-program"/);
 });
 
+test('renders the selected certificate language without changing issued certificate data', () => {
+  const before = JSON.stringify(certificate);
+  const renderLanguage = (language: 'en' | 'ar' | 'both') => renderToStaticMarkup(
+    <CertificatePdfPage
+      certificate={certificate}
+      issuedDateEnglish="17 Sept 2026"
+      issuedDateArabic="١٧ أيلول ٢٠٢٦"
+      verificationUrl="https://jusoor.example/verify-certificate?code=JUS-2026-AR-8F31D2"
+      language={language}
+    />,
+  );
+
+  const english = renderLanguage('en');
+  assert.match(english, /CERTIFICATE OF COMPLETION/);
+  assert.match(english, /This certificate is proudly presented to/);
+  assert.match(english, /17 Sept 2026/);
+  assert.doesNotMatch(english, /شهادة إتمام البرنامج|تُمنح هذه الشهادة بكل فخر إلى|١٧ أيلول ٢٠٢٦/);
+
+  const arabic = renderLanguage('ar');
+  assert.match(arabic, /شهادة إتمام البرنامج/);
+  assert.match(arabic, /تُمنح هذه الشهادة بكل فخر إلى/);
+  assert.match(arabic, /١٧ أيلول ٢٠٢٦/);
+  assert.doesNotMatch(arabic, /CERTIFICATE OF COMPLETION|This certificate is proudly presented to|17 Sept 2026/);
+
+  const bilingual = renderLanguage('both');
+  assert.match(bilingual, /CERTIFICATE OF COMPLETION/);
+  assert.match(bilingual, /شهادة إتمام البرنامج/);
+  assert.match(bilingual, /17 Sept 2026/);
+  assert.match(bilingual, /١٧ أيلول ٢٠٢٦/);
+  assert.equal(JSON.stringify(certificate), before);
+});
+
 test('creates one landscape A4 PDF page without changing the saved certificate data', () => {
   const before = JSON.stringify(certificate);
   const image = `data:image/png;base64,${onePixelPng()}`;
