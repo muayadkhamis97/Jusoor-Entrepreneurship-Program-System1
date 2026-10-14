@@ -542,8 +542,28 @@ test("public certificate verification returns only the issued certificate detail
     issuedAt,
   });
   const legacyResponse = await request("/api/certificates/jus-2026-ar-8f31d2/verification");
+  const legacyBody = await legacyResponse.json() as Record<string, unknown>;
   assert.equal(legacyResponse.status, 200);
-  assert.equal((await legacyResponse.json() as { certificateCode: string }).certificateCode, "JUS-2026-AR-8F31D2");
+  assert.deepEqual(Object.keys(legacyBody).sort(), [
+    "businessName",
+    "certificateCode",
+    "issuedAt",
+    "participantName",
+    "programName",
+    "revokedAt",
+    "status",
+  ]);
+  assert.equal(legacyBody.status, "issued");
+  assert.equal(legacyBody.certificateCode, "JUS-2026-AR-8F31D2");
+  assert.equal(legacyBody.participantName, "Bilal Founder");
+  assert.equal(legacyBody.businessName, "Bilal Ventures");
+  assert.equal(legacyBody.programName, programName);
+  assert.equal(legacyBody.issuedAt, issuedAt.toISOString());
+  assert.equal(legacyBody.revokedAt, null);
+  assert.equal("email" in legacyBody, false);
+  assert.equal("clerkUserId" in legacyBody, false);
+  assert.equal("issuedByStaffId" in legacyBody, false);
+  assert.equal("revocationReason" in legacyBody, false);
 });
 
 test("invalid and unknown public certificate codes are clearly distinguished", async () => {
@@ -553,8 +573,12 @@ test("invalid and unknown public certificate codes are clearly distinguished", a
 
   assert.equal(invalid.status, 400);
   assert.equal(unknown.status, 404);
-  assert.match((await invalid.json() as { error: string }).error, /valid certificate code/i);
-  assert.match((await unknown.json() as { error: string }).error, /No certificate was found/i);
+  const invalidBody = await invalid.json() as Record<string, unknown>;
+  const unknownBody = await unknown.json() as Record<string, unknown>;
+  assert.deepEqual(Object.keys(invalidBody), ["error"]);
+  assert.deepEqual(Object.keys(unknownBody), ["error"]);
+  assert.match(invalidBody.error as string, /valid certificate code/i);
+  assert.match(unknownBody.error as string, /No certificate was found/i);
   assert.equal(certificates.length, 0);
 });
 

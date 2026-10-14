@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createServer } from 'node:net';
 import test from 'node:test';
 import React from 'react';
@@ -24,14 +25,39 @@ const certificate = {
   programName: 'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور لحاضنات الأعمال الاجتماعية التي تقودها النساء',
   issuedAt: '2026-09-17T12:00:00.000Z',
   issuedByName: 'Program Coordinator',
-  revokedAt: null,
-  revokedByName: null,
-  revocationReason: null,
 } satisfies Certificate;
 
-const verificationUrl = 'https://jusoor.example/verify-certificate?code=JUS-2026-AR-8F31D2';
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
+const issuedCertificates = new Map([
+  ['D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1', {
+    status: 'issued',
+    certificateCode: 'D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1',
+    participantName: 'Amina Founder',
+    businessName: 'Amina Ventures',
+    programName: 'Jusoor Learning Program',
+    issuedAt: '2026-10-11T13:45:00.000Z',
+    revokedAt: null,
+  }],
+  ['JUS-2026-AR-8F31D2', {
+    status: 'issued',
+    certificateCode: 'JUS-2026-AR-8F31D2',
+    participantName: 'Bilal Founder',
+    businessName: 'Bilal Ventures',
+    programName: 'Jusoor Learning Program',
+    issuedAt: '2026-10-11T13:45:00.000Z',
+    revokedAt: null,
+  }],
+  ['E35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1', {
+    status: 'revoked',
+    certificateCode: 'E35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1',
+    participantName: 'Rana Founder',
+    businessName: 'Rana Ventures',
+    programName: 'Jusoor Learning Program',
+    issuedAt: '2026-10-11T13:45:00.000Z',
+    revokedAt: '2026-10-12T09:30:00.000Z',
+  }],
+]);
 
 async function unusedPort(): Promise<number> {
   const listener = createServer();
@@ -77,9 +103,38 @@ test('browser download renders long English and Arabic details on one landscape 
     });
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
+    await page.route('**/api/branding', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ brandName: 'Jusoor', primaryColor: '#28665a', accentColor: '#c7755d', logoUrl: null }),
+    }));
+    await page.route('**/api/certificates/*/verification', async route => {
+      const requestedCode = new URL(route.request().url()).pathname.split('/').at(-2)?.toUpperCase() ?? '';
+      const certificateRecord = issuedCertificates.get(requestedCode);
+      if (certificateRecord) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(certificateRecord),
+        });
+      } else if (requestedCode === 'NOT-A-CODE') {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Enter a valid certificate code.' }),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'No certificate was found for this code.' }),
+        });
+      }
+    });
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
     await page.addStyleTag({ url: '/src/learning-progress.css' });
 
+    const verificationUrl = `${page.url().replace(/\/$/, '')}/verify-certificate?code=${encodeURIComponent(certificate.certificateCode)}`;
     const markup = renderToStaticMarkup(
       <CertificatePdfPage
         certificate={certificate}
@@ -158,6 +213,14 @@ test('browser download renders long English and Arabic details on one landscape 
 
     const pdfPath = path.join(outputDir, download.suggestedFilename());
     await download.saveAs(pdfPath);
+    const pdfUrls = execFileSync('pdfinfo', ['-url', pdfPath], { encoding: 'utf8' });
+    const embeddedVerificationUrl = pdfUrls.match(/https?:\/\/[^\s]+/)?.[0];
+    assert.equal(
+      embeddedVerificationUrl,
+      verificationUrl,
+      `The downloaded PDF must contain the exact verification link annotation: ${pdfUrls}`,
+    );
+    assert.ok(embeddedVerificationUrl, 'The downloaded PDF must have a clickable verification URL annotation.');
     await page.waitForFunction(() => Boolean((window as Window & { __certificateExportResult?: unknown }).__certificateExportResult));
     const exportResult = await page.evaluate(() => (window as Window & { __certificateExportResult?: {
       error?: string;
@@ -193,6 +256,64 @@ test('browser download renders long English and Arabic details on one landscape 
     const image = await readFile(imagePath);
     assert.ok(image.length > 10_000, 'The rasterized certificate page should contain visible content.');
     assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], 'PDF raster must be a valid PNG image.');
+
+    const pdfBrowserUrl = pathToFileURL(pdfPath).href;
+    await page.goto(pdfBrowserUrl, { waitUntil: 'domcontentloaded' });
+    assert.equal(page.url(), pdfBrowserUrl, 'The browser should open the generated PDF file.');
+
+    const assertIssuedResult = async (url: string, code: string, participantName: string, businessName: string) => {
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      try {
+        await page.getByTestId('certificate-verification-issued').waitFor({ timeout: 5_000 });
+      } catch {
+        throw new Error(`Expected issued result for ${code}; page at ${page.url()} rendered: ${await page.locator('body').innerText()}`);
+      }
+      assert.equal(await page.getByTestId('input-certificate-code').inputValue(), code);
+      const result = page.getByTestId('certificate-verification-issued');
+      await result.getByText(participantName, { exact: true }).waitFor();
+      await result.getByText(businessName, { exact: true }).waitFor();
+      await result.getByText(code, { exact: true }).waitFor();
+      const renderedResult = await result.innerText();
+      assert.doesNotMatch(renderedResult, /@|clerkUserId|issuedByStaffId|revocationReason|revokedByName/i);
+      assert.deepEqual(
+        Object.keys(issuedCertificates.get(code)!).sort(),
+        ['businessName', 'certificateCode', 'issuedAt', 'participantName', 'programName', 'revokedAt', 'status'],
+      );
+    };
+    await assertIssuedResult(
+      embeddedVerificationUrl,
+      certificate.certificateCode,
+      'Bilal Founder',
+      'Bilal Ventures',
+    );
+    const uuidCode = 'D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1';
+    await assertIssuedResult(
+      `${new URL(embeddedVerificationUrl).origin}/verify-certificate?code=${encodeURIComponent(uuidCode)}`,
+      uuidCode,
+      'Amina Founder',
+      'Amina Ventures',
+    );
+
+    const revokedCode = 'E35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1';
+    await page.goto(`${new URL(embeddedVerificationUrl).origin}/verify-certificate?code=${revokedCode}`, { waitUntil: 'domcontentloaded' });
+    const revokedResult = page.getByTestId('certificate-verification-revoked');
+    await revokedResult.waitFor();
+    assert.equal(await page.getByTestId('input-certificate-code').inputValue(), revokedCode);
+    await revokedResult.getByText('Certificate revoked — not valid', { exact: true }).waitFor();
+    await revokedResult.getByText('Rana Founder', { exact: true }).waitFor();
+    const renderedRevokedResult = await revokedResult.innerText();
+    assert.doesNotMatch(renderedRevokedResult, /@|issuedByStaffId|revocationReason|revokedByName|private reason/i);
+
+    await page.goto(`${new URL(embeddedVerificationUrl).origin}/verify-certificate?code=not-a-code`, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('certificate-verification-invalid').waitFor();
+    assert.equal(await page.getByTestId('input-certificate-code').inputValue(), 'not-a-code');
+    assert.match(await page.getByTestId('certificate-verification-invalid').innerText(), /invalid/i);
+
+    const unknownCode = 'A0000000-0000-4000-8000-000000000000';
+    await page.goto(`${new URL(embeddedVerificationUrl).origin}/verify-certificate?code=${unknownCode}`, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('certificate-verification-not-found').waitFor();
+    assert.equal(await page.getByTestId('input-certificate-code').inputValue(), unknownCode);
+    assert.match(await page.getByTestId('certificate-verification-not-found').innerText(), /No certificate was found/i);
 
     console.log(`Certificate PDF visual review image: ${imagePath}`);
     console.log(`Browser font faces: ${exportResult.loadedFonts.join(', ') || '(system fallback)'}`);
