@@ -211,6 +211,9 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: hsl(203 28% 13% / .46); backdrop-filter: blur(3px); animation: fade-in .16s ease-out; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .modal-card,.confirm-card { width: min(650px, 100%); max-height: min(90dvh, 850px); overflow-y: auto; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 13px; box-shadow: 0 24px 70px hsl(203 28% 12% / .23); }
+.dialog-content-positioned { position: fixed; z-index: 101; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.dialog-content-positioned.modal-card { width: min(650px, calc(100vw - 40px)); }
+.dialog-content-positioned.confirm-card { width: min(410px, calc(100vw - 40px)); }
 .lifecycle-history-modal { width: min(520px, 100%); }
 .all-program-lifecycle-history-modal { width: min(680px, 100%); }
 .program-history-toolbar { display: flex; align-items: center; gap: 8px; }
@@ -262,9 +265,13 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
   .sidebar { display: none; }
   .topbar { height: 54px; flex-basis: 54px; padding: 0 17px; }
   .today-label { display: none; }
-  .mobile-nav { display: flex; position: sticky; top: 0; z-index: 15; align-items: center; justify-content: space-around; height: 49px; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--card) / .97); }
-  .mobile-nav a { width: 42px; height: 36px; display: grid; place-items: center; border-radius: 7px; color: hsl(var(--muted-foreground)); }
-  .mobile-nav a.mobile-active { color: hsl(var(--primary)); background: hsl(var(--primary) / .09); }
+  .mobile-nav { display: flex; position: sticky; top: 0; z-index: 15; align-items: center; justify-content: flex-start; gap: 5px; min-height: 54px; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--card) / .97); padding: 5px 9px 7px; scrollbar-width: thin; scrollbar-color: hsl(var(--muted-foreground) / .35) transparent; -webkit-overflow-scrolling: touch; }
+  .mobile-nav a,.mobile-signout { flex: 0 0 auto; width: auto; min-width: max-content; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 8px; padding: 0 10px; color: hsl(var(--muted-foreground)); white-space: nowrap; font-size: 10px; }
+  .mobile-nav a.mobile-active { color: hsl(var(--primary)); background: hsl(var(--primary) / .09); font-weight: 700; }
+  .mobile-nav a > svg,.mobile-signout > svg { flex: 0 0 auto; }
+  .mobile-nav a > span,.mobile-signout > span { display: inline; }
+  .mobile-nav::-webkit-scrollbar { height: 4px; }
+  .mobile-nav::-webkit-scrollbar-thumb { border-radius: 999px; background: hsl(var(--muted-foreground) / .35); }
   .page-content { padding: 24px 17px 28px; }
   .page-heading { align-items: flex-start; flex-direction: column; gap: 15px; margin: 0 0 20px; }
   .page-heading h1 { font-size: 33px; }
@@ -318,11 +325,10 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 @media (max-width: 760px) {
   .workspace { display:block; width:100%; overflow-x:clip; }
   .main-panel { width:100%; min-width:0; }
-  .mobile-nav { position:sticky; justify-content:flex-start; gap:4px; overflow-x:auto; overflow-y:hidden; padding:0 8px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-  .mobile-nav::-webkit-scrollbar { display:none; }
-  .mobile-nav a { flex:0 0 42px; min-width:42px; height:42px; }
+  .mobile-nav { position:sticky; justify-content:flex-start; gap:4px; padding:5px 8px 7px; }
+  .mobile-nav a { min-height:40px; padding-inline:9px; }
   .mobile-nav .language-toggle { flex:0 0 auto; min-height:38px; padding:0 9px; }
-  .mobile-signout { flex:0 0 38px; }
+  .mobile-signout { flex:0 0 auto; }
   .page-content { width:100%; min-width:0; }
   .page-heading > :first-child { min-width:0; }
   .page-heading .button { max-width:100%; white-space:normal; }
@@ -337,6 +343,9 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
   .table-wrap table { min-width:660px; }
   .modal-backdrop { padding:10px; align-items:end; }
   .modal-card,.confirm-card { max-height:calc(100dvh - 20px); border-radius:13px 13px 8px 8px; }
+  .dialog-content-positioned { top:auto; bottom:10px; left:10px; transform:none; }
+  .dialog-content-positioned.modal-card { width:calc(100vw - 20px); max-height:calc(100dvh - 20px); }
+  .dialog-content-positioned.confirm-card { width:min(410px, calc(100vw - 20px)); max-height:calc(100dvh - 20px); }
   .modal-head { padding:17px 16px 13px; }
   .modal-form { padding:15px 16px 18px; }
   .form-grid { grid-template-columns:minmax(0,1fr); }

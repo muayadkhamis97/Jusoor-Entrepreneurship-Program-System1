@@ -40,6 +40,8 @@ import {
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { SessionCalendar } from './session-calendar';
 import { SessionRecordingPlayer } from './session-recording-player';
+import { AccessibleDialogSurface } from './accessible-dialog';
+import { MobileStaffNavigation } from './mobile-staff-navigation';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
@@ -107,8 +109,8 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function FieldControl({ field, value, onChange }: { field: Field; value: string; onChange: (value: string) => void }) {
-  const common = { value, onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), required: field.required, placeholder: field.placeholder, 'data-testid': `input-${field.name}` };
+function FieldControl({ field, value, onChange, autoFocus = false }: { field: Field; value: string; onChange: (value: string) => void; autoFocus?: boolean }) {
+  const common = { value, onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), required: field.required, placeholder: field.placeholder, 'data-testid': `input-${field.name}`, 'data-dialog-autofocus': autoFocus ? '' : undefined };
   if (field.kind === 'textarea') return <textarea {...common} rows={3} className="form-control resize-y" />;
   if (field.kind === 'multiselect') return <select {...common} multiple value={value ? value.split(',').filter(Boolean) : []} onChange={event => onChange(Array.from(event.target.selectedOptions, option => option.value).join(','))} size={Math.min(5, Math.max(2, field.options?.length ?? 2))} className="form-control">{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
   if (field.kind === 'select') return <select {...common} className="form-control"><option value="">Choose…</option>{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
@@ -121,24 +123,22 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
 }) {
   useAppLanguage();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? ''])));
-  return <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
-      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p>{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={onClose} data-testid="button-close-dialog"><X size={18} /></button></div>
+  return <AccessibleDialogSurface className="modal-card" labelledBy="dialog-title" describedBy={description ? 'dialog-description' : error ? 'dialog-error' : undefined} initialFocusSelector="[data-dialog-autofocus]" onClose={onClose}>
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p id="dialog-description">{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={onClose} data-testid="button-close-dialog"><X size={18} /></button></div>
       <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
-        <div className="form-grid">{fields.map(field => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{t(field.label)}{field.required && <i> *</i>}</span><FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{t(field.hint)}</small>}</label>)}</div>
-        {error && <div className="form-error"><CircleAlert size={16} />{t(error)}</div>}
+        <div className="form-grid">{fields.map((field, index) => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{t(field.label)}{field.required && <i> *</i>}</span><FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} autoFocus={index === 0} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{t(field.hint)}</small>}</label>)}</div>
+        {error && <div id="dialog-error" className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
         <div className="modal-actions"><button type="button" className="button button-quiet" onClick={onClose} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t('Save record')}</>}</button></div>
       </form>
-    </section>
-  </div>;
+  </AccessibleDialogSurface>;
 }
 
 function ConfirmDialog({ item, onCancel, onConfirm, loading, error }: { item: string; onCancel: () => void; onConfirm: () => void; loading?: boolean; error?: string }) {
-  return <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true">
-      <div className="confirm-symbol"><Trash2 size={20} /></div><h2 className="app-title">{t('Remove this record?')}</h2><p><strong>{t(item)}</strong> {t('will be permanently removed from the workspace. This cannot be undone.')}</p>
-    {error && <div className="form-error"><CircleAlert size={16} />{error}</div>}
-    <div className="modal-actions"><button className="button button-quiet" onClick={onCancel} data-testid="button-keep-record">{t('Keep record')}</button><button className="button button-danger" onClick={onConfirm} disabled={loading} data-testid="button-confirm-delete">{loading ? t('Removing…') : t('Remove record')}</button></div>
-  </section></div>;
+  return <AccessibleDialogSurface className="confirm-card" role="alertdialog" labelledBy="confirm-dialog-title" describedBy="confirm-dialog-description" initialFocusSelector="[data-dialog-autofocus]" onClose={onCancel} closeOnOutsideInteraction={false}>
+      <div className="confirm-symbol"><Trash2 size={20} /></div><h2 id="confirm-dialog-title" className="app-title">{t('Remove this record?')}</h2><p id="confirm-dialog-description"><strong>{t(item)}</strong> {t('will be permanently removed from the workspace. This cannot be undone.')}</p>
+    {error && <div className="form-error" role="alert">{error}</div>}
+    <div className="modal-actions"><button className="button button-quiet" onClick={onCancel} data-dialog-autofocus data-testid="button-keep-record">{t('Keep record')}</button><button className="button button-danger" onClick={onConfirm} disabled={loading} data-testid="button-confirm-delete">{loading ? t('Removing…') : t('Remove record')}</button></div>
+  </AccessibleDialogSurface>;
 }
 
 function Shell({ children, staff, displayName }: { children: ReactNode; staff: StaffMember; displayName: string }) {
@@ -176,7 +176,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     </aside>
     <main className="main-panel">
        <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.role === 'coordinator' ? t('COORDINATOR') : t('STAFF')}</span><LanguageToggle /></div></header>
-       <div className="mobile-nav">{nav.map(item => <Link href={item.href} key={item.href} className={path === item.href ? 'mobile-active' : ''} aria-label={t(item.label)}><item.icon size={18} /></Link>)}<LanguageToggle /><button type="button" className="mobile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={17} /></button></div>
+       <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: basePath || '/' })} />
       <div className="page-content page-enter">{children}</div>
        <footer className="footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
     </main>
@@ -362,20 +362,19 @@ function ProgramsPage({ coordinator }: { coordinator: boolean }) {
         {coordinator && program.archivedAt && <button className="icon-button" onClick={() => restoreProgram(program)} aria-label={`Restore ${program.name}`} data-testid={`button-restore-program-${program.id}`} disabled={restore.isPending}><RefreshCw size={15} /></button>}
         {coordinator && <button className="icon-button" onClick={() => setHistoryProgram(program)} aria-label={`View archive and restore history for ${program.name}`} data-testid={`button-program-history-${program.id}`}><History size={15} /></button>}
       </div></div><div className="eyebrow">{display(program.format)} COHORT {program.archivedAt ? `· ${t('ARCHIVED')}` : ''}</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div>{!program.archivedAt && <Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link>}</article>)}</div></>}
-    {(archive.error || restore.error) && <div className="form-error">{apiErrorMessage(archive.error || restore.error, 'The program archive change could not be completed.')}</div>}
+    {(archive.error || restore.error) && <div className="form-error" role="alert">{apiErrorMessage(archive.error || restore.error, 'The program archive change could not be completed.')}</div>}
     {historyProgram && <ProgramLifecycleHistoryDialog program={historyProgram} onClose={() => setHistoryProgram(null)} />}
     {showAllHistory && <AllProgramLifecycleHistoryDialog onClose={() => setShowAllHistory(false)} />}
     {editing !== undefined && <FormDialog title={editing ? 'Edit program' : 'Create a program'} description="A cohort is the backbone of the founder journey." fields={programFields} initial={editing ? { name: editing.name, format: editing.format, status: editing.status, description: editing.description || '', startDate: valueOf(editing.startDate), endDate: valueOf(editing.endDate), applicationDeadline: valueOf(editing.applicationDeadline) } : { format: 'bootcamp', status: 'planning' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this program. Check required fields and try again.' : undefined} />}
-    {archiving && <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="archive-program-title"><div className="confirm-symbol"><Trash2 size={20} /></div><h2 id="archive-program-title" className="app-title">{t('Archive this program?')}</h2><p><strong>{archiving.name}</strong> {t('will be hidden from active operations. Its applications, businesses and reports will be retained, and you can restore it later.')}</p>{archive.error && <div className="form-error">{apiErrorMessage(archive.error, 'The program could not be archived.')}</div>}<div className="modal-actions"><button className="button button-quiet" onClick={() => setArchiving(null)}>{t('Cancel')}</button><button className="button button-danger" onClick={confirmArchive} disabled={archive.isPending}>{archive.isPending ? t('Archiving…') : t('Archive program')}</button></div></section></div>}
+    {archiving && <AccessibleDialogSurface className="confirm-card" role="alertdialog" labelledBy="archive-program-title" describedBy="archive-program-description" initialFocusSelector="[data-dialog-autofocus]" onClose={() => setArchiving(null)} closeOnOutsideInteraction={false}><div className="confirm-symbol"><Trash2 size={20} /></div><h2 id="archive-program-title" className="app-title">{t('Archive this program?')}</h2><p id="archive-program-description"><strong>{archiving.name}</strong> {t('will be hidden from active operations. Its applications, businesses and reports will be retained, and you can restore it later.')}</p>{archive.error && <div className="form-error" role="alert">{apiErrorMessage(archive.error, 'The program could not be archived.')}</div>}<div className="modal-actions"><button className="button button-quiet" data-dialog-autofocus onClick={() => setArchiving(null)}>{t('Cancel')}</button><button className="button button-danger" onClick={confirmArchive} disabled={archive.isPending}>{archive.isPending ? t('Archiving…') : t('Archive program')}</button></div></AccessibleDialogSurface>}
   </>;
 }
 
 function AllProgramLifecycleHistoryDialog({ onClose }: { onClose: () => void }) {
   const query = useListAllProgramLifecycleEvents();
   const events: AllProgramLifecycleEvent[] = query.data || [];
-  return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="modal-card lifecycle-history-modal all-program-lifecycle-history-modal" role="dialog" aria-modal="true" aria-labelledby="all-program-history-title" data-testid="dialog-all-program-history">
-      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="all-program-history-title" className="app-title">{t('Archive and restore history')}</h2><p>{t('Recent changes across all programs')}</p></div><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-all-program-history"><X size={18} /></button></div>
+  return <AccessibleDialogSurface className="modal-card lifecycle-history-modal all-program-lifecycle-history-modal" labelledBy="all-program-history-title" describedBy="all-program-history-description" initialFocusSelector="#all-program-history-title" onClose={onClose} testId="dialog-all-program-history">
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="all-program-history-title" className="app-title" tabIndex={-1}>{t('Archive and restore history')}</h2><p id="all-program-history-description">{t('Recent changes across all programs')}</p></div><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-all-program-history"><X size={18} /></button></div>
       <div className="lifecycle-history-content">
         {query.isLoading ? <LoadingState /> : query.isError
           ? <div className="lifecycle-history-error"><p>{t('Program history could not be loaded.')}</p><button className="button button-quiet" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
@@ -385,16 +384,14 @@ function AllProgramLifecycleHistoryDialog({ onClose }: { onClose: () => void }) 
               <div className="lifecycle-history-details"><strong>{t(event.action === 'archived' ? 'Program archived' : 'Program restored')}</strong><b className="lifecycle-history-program">{event.programName}</b><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</time><small>{event.actorEmail || t('Actor account no longer exists')}</small></div>
             </li>)}</ol>}
       </div>
-    </section>
-  </div>;
+  </AccessibleDialogSurface>;
 }
 
 function ProgramLifecycleHistoryDialog({ program, onClose }: { program: Program; onClose: () => void }) {
   const query = useListProgramLifecycleEvents(program.id);
   const events: ProgramLifecycleEvent[] = query.data || [];
-  return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="modal-card lifecycle-history-modal" role="dialog" aria-modal="true" aria-labelledby="program-history-title" data-testid={`dialog-program-history-${program.id}`}>
-      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="program-history-title" className="app-title">{t('Archive and restore history')}</h2><p>{program.name}</p></div><div className="lifecycle-history-actions"><button className="button button-quiet" type="button" onClick={() => downloadProgramLifecycleCsv(program.id, program.name, events)} disabled={query.isLoading || query.isError} data-testid="button-export-program-history-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</button><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-program-history"><X size={18} /></button></div></div>
+  return <AccessibleDialogSurface className="modal-card lifecycle-history-modal" labelledBy="program-history-title" describedBy="program-history-description" initialFocusSelector="#program-history-title" onClose={onClose} testId={`dialog-program-history-${program.id}`}>
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="program-history-title" className="app-title" tabIndex={-1}>{t('Archive and restore history')}</h2><p id="program-history-description">{program.name}</p></div><div className="lifecycle-history-actions"><button className="button button-quiet" type="button" onClick={() => downloadProgramLifecycleCsv(program.id, program.name, events)} disabled={query.isLoading || query.isError} data-testid="button-export-program-history-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</button><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-program-history"><X size={18} /></button></div></div>
       <div className="lifecycle-history-content">
         {query.isLoading ? <LoadingState /> : query.isError
           ? <div className="lifecycle-history-error"><p>{t('Program history could not be loaded.')}</p><button className="button button-quiet" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
@@ -404,8 +401,7 @@ function ProgramLifecycleHistoryDialog({ program, onClose }: { program: Program;
               <div className="lifecycle-history-details"><strong>{t(event.action === 'archived' ? 'Program archived' : 'Program restored')}</strong><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</time><small>{event.actorEmail || t('Actor account no longer exists')}</small></div>
             </li>)}</ol>}
       </div>
-    </section>
-  </div>;
+  </AccessibleDialogSurface>;
 }
 
 function BusinessEditDialog({ business, programs, onClose, onSave, loading, error }: { business: Business; programs: Program[]; onClose: () => void; onSave: (values: Values) => void; loading: boolean; error?: string }) {

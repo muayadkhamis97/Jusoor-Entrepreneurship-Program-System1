@@ -1,0 +1,53 @@
+# Task: Fix Dialog Accessibility and Mobile Staff Navigation
+
+Work only on the current **Jusoor Entrepreneurship Program System** project.
+
+## Objective
+
+Address the two highest-priority UX/UI findings from the read-only audit. Keep the changes focused and preserve the existing visual design and application behavior.
+
+### 1. Custom dialog keyboard accessibility
+
+Review the application-review and form dialogs.
+
+- Move keyboard focus into the dialog when it opens.
+- Keep keyboard focus within the dialog while it is open.
+- Close the dialog when the user presses Escape, where closing is appropriate.
+- Return focus to the element that opened the dialog when it closes.
+- Ensure the dialog has an accessible name and appropriate ARIA attributes.
+- Handle dialogs containing forms, validation errors, and confirmation actions without losing user input unexpectedly.
+- Preserve existing mouse, touch, and form-submission behavior.
+- Prefer the existing dialog library or established accessibility patterns if available rather than introducing unnecessary dependencies.
+
+Add focused automated tests for opening and closing dialogs, Escape behavior, focus containment, focus restoration, and relevant form interactions.
+
+### 2. Mobile staff navigation
+
+Review the responsive staff navigation.
+
+- Add short, visible labels to navigation items where practical, or provide a clear visible label for the selected page.
+- Keep accessible names for every navigation item.
+- Make the active page visually identifiable.
+- Improve usability when the number of navigation items exceeds the available width; avoid forcing users to discover destinations through icon recognition alone.
+- Preserve the existing navigation destinations, role-based permissions, responsive layout, and visual consistency.
+- Do not hide navigation items or weaken access controls to make the layout fit.
+
+Add or update tests for the mobile navigation structure and active-page indication where the existing test setup supports them.
+
+## Verification
+
+- Inspect the existing implementation and tests before making changes.
+- Run the relevant automated tests and typechecks.
+- Test keyboard interactions and responsive layouts if a safe browser-testing environment is available.
+- Report exact test results and distinguish automated-test evidence from actual browser verification.
+- If browser or authenticated-role access is unavailable, mark those checks as **not verified**.
+- Update the QA documentation with the changes, evidence, and remaining limitations.
+
+## Safety boundaries
+
+- Do not access or modify production data or existing databases.
+- Do not apply database migrations.
+- Do not send emails or call external providers.
+- Do not publish or deploy.
+- Avoid unrelated refactoring and feature additions.
+- Stop after these two UX/UI issues are addressed and report the results.
