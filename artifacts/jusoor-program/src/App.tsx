@@ -18,7 +18,7 @@ import {
    getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, useGetProgramBranding,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
-  useDeleteProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
+  useArchiveProgram, useRestoreProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
@@ -65,7 +65,7 @@ function stripBase(path: string): string {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
 }
 
-type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string; hint?: string; min?: number; max?: number; step?: number };
+type Field = { name: string; label: string; kind?: 'text' | 'email' | 'date' | 'time' | 'number' | 'url' | 'textarea' | 'select' | 'multiselect'; options?: { value: string; label: string }[]; required?: boolean; wide?: boolean; placeholder?: string; hint?: string; min?: number; max?: number; step?: number };
 type Values = Record<string, string>;
 
 const stageNames: Record<string, string> = {
@@ -101,6 +101,7 @@ function apiErrorMessage(error: unknown, fallback: string): string {
 function FieldControl({ field, value, onChange }: { field: Field; value: string; onChange: (value: string) => void }) {
   const common = { value, onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), required: field.required, placeholder: field.placeholder, 'data-testid': `input-${field.name}` };
   if (field.kind === 'textarea') return <textarea {...common} rows={3} className="form-control resize-y" />;
+  if (field.kind === 'multiselect') return <select {...common} multiple value={value ? value.split(',').filter(Boolean) : []} onChange={event => onChange(Array.from(event.target.selectedOptions, option => option.value).join(','))} size={Math.min(5, Math.max(2, field.options?.length ?? 2))} className="form-control">{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
   if (field.kind === 'select') return <select {...common} className="form-control"><option value="">Choose…</option>{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
   return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
@@ -308,22 +309,47 @@ const staffRoleFields: Field[] = [
 ];
 const valueOf = (value?: string | number | null) => value == null ? '' : String(value).slice(0, 10);
 
-function ProgramsPage() {
-  const query = useListPrograms(); const programs = query.data || []; const client = useQueryClient();
-  const create = useCreateProgram(); const update = useUpdateProgram(); const remove = useDeleteProgram();
-  const [editing, setEditing] = useState<Program | null | undefined>(undefined); const [deleting, setDeleting] = useState<Program | null>(null);
+function ProgramsPage({ coordinator }: { coordinator: boolean }) {
+  const [showArchived, setShowArchived] = useState(false);
+  const query = useListPrograms(coordinator && showArchived ? { includeArchived: true } : undefined);
+  const programs = query.data || [];
+  const client = useQueryClient();
+  const create = useCreateProgram();
+  const update = useUpdateProgram();
+  const archive = useArchiveProgram();
+  const restore = useRestoreProgram();
+  const [editing, setEditing] = useState<Program | null | undefined>(undefined);
+  const [archiving, setArchiving] = useState<Program | null>(null);
+  const refreshPrograms = () => invalidate(client, [getListProgramsQueryKey(), getGetDashboardQueryKey()]);
   const save = (v: Values) => {
     const data: ProgramInput = { name: v.name.trim(), format: (v.format || 'bootcamp') as ProgramInput['format'], status: (v.status || 'planning') as ProgramInput['status'], description: v.description || null, startDate: v.startDate || null, endDate: v.endDate || null, applicationDeadline: v.applicationDeadline || null };
-    const done = () => { invalidate(client, [getListProgramsQueryKey(), getGetDashboardQueryKey()]); setEditing(undefined); };
+    const done = () => { refreshPrograms(); setEditing(undefined); };
     if (editing) update.mutate({ id: editing.id, data: data as ProgramUpdate }, { onSuccess: done }); else create.mutate({ data }, { onSuccess: done });
   };
-  const confirmRemove = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListProgramsQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
+  const confirmArchive = () => archiving && archive.mutate({ id: archiving.id }, {
+    onSuccess: () => { refreshPrograms(); setArchiving(null); },
+  });
+  const restoreProgram = (program: Program) => restore.mutate({ id: program.id }, { onSuccess: refreshPrograms });
+  const headingAction = coordinator
+    ? <button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-program"><Plus size={16} /> {t('New program')}</button>
+    : undefined;
   return <>
-    <PageHeading kicker="PROGRAM MANAGEMENT / COHORTS" title="Programs" summary="Set the shape of each cohort, from first call to final milestone." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-program"><Plus size={16} /> {t('New program')}</button>} />
-    {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : programs.length === 0 ? <EmptyState title="A good program starts with a clear plan." body="Create your first cohort to define its format, application window and key dates." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button>} /> :
-     <><div className="section-strip"><span><b>{programs.length}</b> cohorts in the workspace</span><span><span className="live-dot" /> Keep cohort dates current</span></div><div className="program-grid">{programs.map((program, index) => <article className="program-card" key={program.id} data-testid={`card-program-${program.id}`}><div className="program-card-top"><div className={`program-symbol program-symbol-${index % 3}`}>{program.format === 'bootcamp' ? 'B' : 'H'}</div><Badge value={program.status} /><div className="row-actions"><button className="icon-button" onClick={() => setEditing(program)} aria-label={`Edit ${program.name}`} data-testid={`button-edit-program-${program.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(program)} aria-label={`Delete ${program.name}`} data-testid={`button-delete-program-${program.id}`}><Trash2 size={15} /></button></div></div><div className="eyebrow">{display(program.format)} COHORT</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div><Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link></article>)}</div></>}
+    <PageHeading kicker="PROGRAM MANAGEMENT / COHORTS" title="Programs" summary="Set the shape of each cohort, from first call to final milestone." action={headingAction} />
+    {coordinator && <div className="section-strip">
+      <span>{showArchived ? t('Archived program records') : t('Active programs')}</span>
+      <button className="button button-quiet" type="button" aria-pressed={showArchived} data-testid="button-toggle-archived-programs" onClick={() => setShowArchived(value => !value)}>
+        {showArchived ? t('Show active programs') : t('Show archived programs')}
+      </button>
+    </div>}
+    {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : programs.length === 0
+      ? <EmptyState title={showArchived ? 'No archived programs.' : coordinator ? 'A good program starts with a clear plan.' : 'No active programs are assigned to you.'} body={coordinator ? 'Create a cohort or switch views to review archived program history.' : 'Ask a coordinator to assign you to an active program.'} action={coordinator && !showArchived ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button> : undefined} />
+      : <><div className="section-strip"><span><b>{programs.length}</b> {showArchived ? t('archived programs') : t('active cohorts')}</span><span><span className="live-dot" /> {t('Keep cohort dates current')}</span></div><div className="program-grid">{programs.map((program, index) => <article className="program-card" key={program.id} data-testid={`card-program-${program.id}`}><div className="program-card-top"><div className={`program-symbol program-symbol-${index % 3}`}>{program.format === 'bootcamp' ? 'B' : 'H'}</div><Badge value={program.archivedAt ? 'archived' : program.status} /><div className="row-actions">
+        {coordinator && !program.archivedAt && <><button className="icon-button" onClick={() => setEditing(program)} aria-label={`Edit ${program.name}`} data-testid={`button-edit-program-${program.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setArchiving(program)} aria-label={`Archive ${program.name}`} data-testid={`button-archive-program-${program.id}`}><Trash2 size={15} /></button></>}
+        {coordinator && program.archivedAt && <button className="icon-button" onClick={() => restoreProgram(program)} aria-label={`Restore ${program.name}`} data-testid={`button-restore-program-${program.id}`} disabled={restore.isPending}><RefreshCw size={15} /></button>}
+      </div></div><div className="eyebrow">{display(program.format)} COHORT {program.archivedAt ? `· ${t('ARCHIVED')}` : ''}</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div>{!program.archivedAt && <Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link>}</article>)}</div></>}
+    {(archive.error || restore.error) && <div className="form-error">{apiErrorMessage(archive.error || restore.error, 'The program archive change could not be completed.')}</div>}
     {editing !== undefined && <FormDialog title={editing ? 'Edit program' : 'Create a program'} description="A cohort is the backbone of the founder journey." fields={programFields} initial={editing ? { name: editing.name, format: editing.format, status: editing.status, description: editing.description || '', startDate: valueOf(editing.startDate), endDate: valueOf(editing.endDate), applicationDeadline: valueOf(editing.applicationDeadline) } : { format: 'bootcamp', status: 'planning' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this program. Check required fields and try again.' : undefined} />}
-    {deleting && <ConfirmDialog item={deleting.name} onCancel={() => setDeleting(null)} onConfirm={confirmRemove} loading={remove.isPending} />}
+    {archiving && <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="archive-program-title"><div className="confirm-symbol"><Trash2 size={20} /></div><h2 id="archive-program-title" className="app-title">{t('Archive this program?')}</h2><p><strong>{archiving.name}</strong> {t('will be hidden from active operations. Its applications, businesses and reports will be retained, and you can restore it later.')}</p>{archive.error && <div className="form-error">{apiErrorMessage(archive.error, 'The program could not be archived.')}</div>}<div className="modal-actions"><button className="button button-quiet" onClick={() => setArchiving(null)}>{t('Cancel')}</button><button className="button button-danger" onClick={confirmArchive} disabled={archive.isPending}>{archive.isPending ? t('Archiving…') : t('Archive program')}</button></div></section></div>}
   </>;
 }
 
@@ -390,7 +416,7 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   const [zoomCallbackResult] = useState(() => new URLSearchParams(window.location.search).get('zoom'));
   const params = useMemo(() => type ? { type: type as Session['type'] } : undefined, [type]);
   const query = useListSessions(params, { query: { queryKey: getListSessionsQueryKey(params) } });
-  const programsQuery = useListPrograms({ query: { queryKey: getListProgramsQueryKey() } });
+  const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey() } });
   const programs = programsQuery.data || [];
   const sessions = query.data || [];
   const displayedSessions = calendarDate ? sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate) : sessions;
@@ -757,22 +783,36 @@ function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookin
 function TeamPage() {
   const query = useListStaff();
   const staff = query.data || [];
+  const programsQuery = useListPrograms();
+  const programs = programsQuery.data || [];
+  const programNames = new Map(programs.map(program => [program.id, program.name]));
   const client = useQueryClient();
   const create = useCreateStaff();
   const update = useUpdateStaff();
   const remove = useDeleteStaff();
   const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<StaffMember | null>(null);
+  const programAssignmentField: Field = {
+    name: 'programIds',
+    label: 'Assigned programs',
+    kind: 'multiselect',
+    wide: true,
+    options: programs.map(program => ({ value: String(program.id), label: program.name })),
+    hint: 'Program staff and specialists can access only the active programs assigned here. Coordinators have global access.',
+  };
   const save = (values: Values) => {
     const role = (values.role || 'staff') as StaffInput['role'];
+    const programIds = role === 'coordinator'
+      ? []
+      : [...new Set((values.programIds || '').split(',').filter(Boolean).map(Number).filter(Number.isSafeInteger))];
     const done = () => {
       invalidate(client, [getListStaffQueryKey()]);
       setEditing(undefined);
     };
     if (editing) {
-      update.mutate({ id: editing.id, data: { role } as StaffUpdate }, { onSuccess: done });
+      update.mutate({ id: editing.id, data: { role, programIds } as StaffUpdate }, { onSuccess: done });
     } else {
-      create.mutate({ data: { email: values.email.trim().toLowerCase(), role } as StaffInput }, { onSuccess: done });
+      create.mutate({ data: { email: values.email.trim().toLowerCase(), role, programIds } as StaffInput }, { onSuccess: done });
     }
   };
   const revoke = () => deleting && remove.mutate({ id: deleting.id }, {
@@ -790,17 +830,18 @@ function TeamPage() {
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add a coordinator or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
       <section className="panel staff-panel">
         <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only coordinators can change access</span></div>
-        <div className="table-wrap"><table><thead><tr><th>EMAIL</th><th>ROLE</th><th>ACCOUNT</th><th>ADDED</th><th className="align-right">ACTIONS</th></tr></thead><tbody>
+        <div className="table-wrap"><table><thead><tr><th>EMAIL</th><th>ROLE</th><th>PROGRAMS</th><th>ACCOUNT</th><th>ADDED</th><th className="align-right">ACTIONS</th></tr></thead><tbody>
           {staff.map(member => <tr key={member.id} data-testid={`row-staff-${member.id}`}>
             <td><div className="staff-email"><span className="staff-avatar">{member.email.slice(0, 1).toUpperCase()}</span><b>{member.email}</b></div></td>
             <td><span className={`role-label ${member.role === 'coordinator' ? 'role-coordinator' : ''}`}>{member.role === 'coordinator' ? <Shield size={13} /> : <Users size={13} />}{display(member.role)}</span></td>
+            <td>{member.role === 'coordinator' ? t('All programs') : member.programIds.map(id => programNames.get(id) || `Archived program ${id}`).join(', ') || t('No active programs')}</td>
             <td><Badge value={member.status} label={member.status === 'invited' ? 'Account not linked' : 'Active'} /></td>
             <td>{dateLabel(member.createdAt)}</td>
             <td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(member)} aria-label={`Change role for ${member.email}`} data-testid={`button-edit-staff-${member.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(member)} aria-label={`Revoke ${member.email}`} data-testid={`button-delete-staff-${member.id}`}><Trash2 size={15} /></button></div></td>
           </tr>)}
         </tbody></table></div>
       </section>}
-    {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions this team member should have.' : 'Approve this verified email for the role selected. The person can sign in with this same address.'} fields={editing ? staffRoleFields : staffInviteFields} initial={editing ? { role: editing.role } : { role: 'staff' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
+    {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions and program scope this team member should have.' : 'Approve this verified email for the selected role and programs. The person can sign in with this same address.'} fields={[...(editing ? staffRoleFields : staffInviteFields), programAssignmentField]} initial={editing ? { role: editing.role, programIds: editing.programIds.filter(id => programNames.has(id)).join(',') } : { role: 'staff', programIds: '' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
     {deleting && <ConfirmDialog item={`staff access for ${deleting.email}`} onCancel={() => setDeleting(null)} onConfirm={revoke} loading={remove.isPending} error={deleteError ? deleteError.data?.error || 'The access could not be revoked.' : undefined} />}
   </>;
 }
@@ -818,7 +859,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
   return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>
     <Route path="/" component={Overview} />
     <Route path="/businesses" component={BusinessesPage} />
-    <Route path="/programs" component={ProgramsPage} />
+    <Route path="/programs">{() => <ProgramsPage coordinator={staff.role === 'coordinator'} />}</Route>
     <Route path="/analytics">{() => staff.role === 'coordinator' ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
     <Route path="/branding" component={staff.role === 'coordinator' ? BrandingPage : NotFoundPage} />
     <Route path="/api-integrations" component={staff.role === 'coordinator' ? ApiIntegrationsPage : NotFoundPage} />

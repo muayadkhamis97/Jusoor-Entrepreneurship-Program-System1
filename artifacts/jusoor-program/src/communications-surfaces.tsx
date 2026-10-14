@@ -13,7 +13,7 @@ const localDateTime = (date: Date) => new Date(date.getTime() - date.getTimezone
 export function CommunicationsPage() {
   useAppLanguage();
   const announcementsQuery = useListAnnouncements({ query: { queryKey: getListAnnouncementsQueryKey() } });
-  const programsQuery = useListPrograms({ query: { queryKey: getListProgramsQueryKey() } });
+  const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey() } });
   const create = useCreateAnnouncement();
   const remove = useDeleteAnnouncement();
   const client = useQueryClient();

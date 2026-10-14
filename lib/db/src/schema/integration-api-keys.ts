@@ -35,7 +35,7 @@ export const integrationApiKeysTable = pgTable(
     label: text("label").notNull(),
     keyHash: text("key_hash").notNull(),
     keyPrefix: text("key_prefix").notNull(),
-    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
     permissions: jsonb("permissions").$type<IntegrationApiPermission[]>().notNull()
       .default(sql.raw(`'${JSON.stringify(legacyFullPermissions)}'::jsonb`)),
     createdByStaffId: integer("created_by_staff_id").notNull()

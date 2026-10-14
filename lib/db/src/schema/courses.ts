@@ -7,7 +7,7 @@ import { staffMembersTable } from "./staff";
 
 export const courseModulesTable = pgTable("jusoor_course_modules", {
   id: serial("id").primaryKey(),
-  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   description: text("description"),
   position: integer("position").notNull().default(0),

@@ -51,7 +51,7 @@ export const courseCertificatesTable = pgTable(
   {
     id: serial("id").primaryKey(),
     applicationId: integer("application_id").notNull().references(() => applicationsTable.id, { onDelete: "cascade" }),
-    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
     certificateCode: text("certificate_code").notNull().unique(),
     participantName: text("participant_name").notNull(),
     businessName: text("business_name").notNull(),

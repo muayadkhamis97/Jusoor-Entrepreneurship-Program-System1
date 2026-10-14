@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type RequestHandler } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -46,6 +46,10 @@ import programBrandingRouter from "./routes/programBranding";
 import externalIntegrationApiRouter from "./routes/externalIntegrationApi";
 import integrationApiKeysRouter from "./routes/integrationApiKeys";
 
+export function createApp(options: {
+  authenticationMiddleware?: RequestHandler;
+  participantMiddleware?: RequestHandler;
+} = {}): Express {
 const app: Express = express();
 
 app.use(
@@ -76,26 +80,25 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(
-  clerkMiddleware((req) => ({
+app.use(options.authenticationMiddleware ?? clerkMiddleware((req) => ({
     publishableKey: publishableKeyFromHost(
       getClerkProxyHost(req) ?? "",
       process.env.CLERK_PUBLISHABLE_KEY,
     ),
-  })),
-);
+  })));
 
 app.use("/api", healthRouter);
 app.use("/api", publicApplicationsRouter);
 app.use("/api", programBrandingRouter);
 app.use("/api/v1", externalIntegrationApiRouter);
 app.use("/api", integrationApiKeysRouter);
-app.use("/api/participant", requireParticipant, participantRouter);
-app.use("/api/participant", participantSessionInteractionsRouter);
-app.use("/api/participant/courses", requireParticipant, participantCourseDiscussionRouter);
-app.use("/api/participant/courses", requireParticipant, participantCourseQuizRouter);
-app.use("/api/participant/courses", requireParticipant, participantCoursePackageRouter);
-app.use("/api/participant/courses", requireParticipant, participantCourseProgressRouter);
+const participantAccess = options.participantMiddleware ?? requireParticipant;
+app.use("/api/participant", participantAccess, participantRouter);
+app.use("/api/participant", participantAccess, participantSessionInteractionsRouter);
+app.use("/api/participant/courses", participantAccess, participantCourseDiscussionRouter);
+app.use("/api/participant/courses", participantAccess, participantCourseQuizRouter);
+app.use("/api/participant/courses", participantAccess, participantCoursePackageRouter);
+app.use("/api/participant/courses", participantAccess, participantCourseProgressRouter);
 app.use("/api", publicCertificateVerificationRouter);
 app.use("/api/courses", requireStaff, staffCourseDiscussionRouter);
 app.use("/api/courses", requireStaff, staffCourseQuizRouter);
@@ -112,4 +115,8 @@ app.use("/api", requireStaff);
 app.use("/api", staffSessionInteractionsRouter);
 app.use("/api", router);
 
+return app;
+}
+
+const app = createApp();
 export default app;

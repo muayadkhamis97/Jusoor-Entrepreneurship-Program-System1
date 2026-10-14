@@ -50,7 +50,7 @@ export function ApiIntegrationsPage() {
   const ar = language === 'ar';
   const copy = (en: string, arabic: string) => ar ? arabic : en;
   const queryClient = useQueryClient();
-  const programsQuery = useListPrograms({ query: { queryKey: getListProgramsQueryKey() } });
+  const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey() } });
   const programs = programsQuery.data || [];
   const keysQuery = useListIntegrationApiKeys({ query: { queryKey: getListIntegrationApiKeysQueryKey() } });
   const createKey = useCreateIntegrationApiKey();

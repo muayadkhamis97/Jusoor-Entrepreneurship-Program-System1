@@ -76,11 +76,12 @@ router.post("/sessions", async (req, res): Promise<void> => {
     return;
   }
   const activeProgramIds = await activeProgramIdsFor(staff);
-  if (parsed.data.programId === null && staff.role !== "coordinator") {
+  const programId = parsed.data.programId ?? null;
+  if (programId === null && staff.role !== "coordinator") {
     res.status(404).json({ error: "Program not found or not assigned." });
     return;
   }
-  if (parsed.data.programId !== null && !activeProgramIds.includes(parsed.data.programId)) {
+  if (programId !== null && !activeProgramIds.includes(programId)) {
     res.status(404).json({ error: "Program not found or not assigned." });
     return;
   }
@@ -91,12 +92,12 @@ router.post("/sessions", async (req, res): Promise<void> => {
       res.status(400).json({ error: "Select an account with the Trainer role." });
       return;
     }
-    if (staff.role !== "coordinator" && parsed.data.programId !== null) {
+    if (staff.role !== "coordinator" && programId !== null) {
       const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
         .from(staffProgramAssignmentsTable)
         .where(and(
           eq(staffProgramAssignmentsTable.staffId, parsed.data.trainerStaffId),
-          eq(staffProgramAssignmentsTable.programId, parsed.data.programId),
+          eq(staffProgramAssignmentsTable.programId, programId),
         )).limit(1);
       if (!assignment) {
         res.status(400).json({ error: "The trainer is not assigned to this program." });
@@ -142,12 +143,39 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
     return;
   }
   const activeProgramIds = await activeProgramIdsFor(staff);
+  const [scopeSession] = await db.select().from(sessionsTable)
+    .where(eq(sessionsTable.id, params.data.id)).limit(1);
+  if (!scopeSession || (scopeSession.programId === null
+    ? staff.role !== "coordinator"
+    : !activeProgramIds.includes(scopeSession.programId))) {
+    res.status(404).json({ error: "Session not found." });
+    return;
+  }
+  const nextProgramId = body.data.programId ?? scopeSession.programId;
+  if (nextProgramId === null
+    ? staff.role !== "coordinator"
+    : !activeProgramIds.includes(nextProgramId)) {
+    res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
   if (body.data.trainerStaffId !== undefined && body.data.trainerStaffId !== null) {
     const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
       .where(and(eq(staffMembersTable.id, body.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
     if (!trainer) {
       res.status(400).json({ error: "Select an account with the Trainer role." });
       return;
+    }
+    if (staff.role !== "coordinator" && nextProgramId !== null) {
+      const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
+        .from(staffProgramAssignmentsTable)
+        .where(and(
+          eq(staffProgramAssignmentsTable.staffId, body.data.trainerStaffId),
+          eq(staffProgramAssignmentsTable.programId, nextProgramId),
+        )).limit(1);
+      if (!assignment) {
+        res.status(400).json({ error: "The trainer is not assigned to this program." });
+        return;
+      }
     }
   }
   const result = await db.transaction(async (tx) => {

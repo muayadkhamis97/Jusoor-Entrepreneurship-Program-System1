@@ -17,7 +17,7 @@ export const programAnnouncementsTable = pgTable(
   "jusoor_program_announcements",
   {
     id: serial("id").primaryKey(),
-    programId: integer("program_id").references(() => programsTable.id, { onDelete: "set null" }),
+    programId: integer("program_id").references(() => programsTable.id, { onDelete: "restrict" }),
     sessionId: integer("session_id").references(() => sessionsTable.id, { onDelete: "cascade" }),
     recordingVersion: integer("recording_version"),
     kind: text("kind").notNull().default("update"),

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   GetMentorDashboardResponse,
   UpdateMentorBookingSettingsBody,
@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-zod";
 import { businessesTable, db, programsTable, staffMembersTable, supportTable } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
+import { activeProgramIdsFor } from "../lib/programScope";
 
 const router: IRouter = Router();
 
@@ -28,6 +29,17 @@ function isGoogleCalendarBookingUrl(value: string): boolean {
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.length) {
+    res.json(GetMentorDashboardResponse.parse({
+      engagements: [],
+      bookingProvider: staff.bookingProvider,
+      calendlyBookingUrl: staff.calendlyBookingUrl,
+      googleCalendarBookingUrl: staff.googleCalendarBookingUrl,
+      googleCalendarConnected: Boolean(staff.googleCalendarAccountEmail),
+    }));
+    return;
+  }
   const engagements = await db.select({
     id: supportTable.id,
     businessId: supportTable.businessId,
@@ -43,7 +55,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   }).from(supportTable)
     .innerJoin(businessesTable, eq(supportTable.businessId, businessesTable.id))
     .innerJoin(programsTable, eq(businessesTable.programId, programsTable.id))
-    .where(eq(supportTable.mentorStaffId, staff.id))
+    .where(and(
+      eq(supportTable.mentorStaffId, staff.id),
+      inArray(businessesTable.programId, programIds),
+    ))
     .orderBy(asc(supportTable.scheduledDate));
   res.json(GetMentorDashboardResponse.parse({
     engagements,
@@ -123,8 +138,18 @@ router.patch("/support/:id", async (req, res): Promise<void> => {
     return;
   }
   const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.length) {
+    res.status(404).json({ error: "Engagement is not assigned to this mentor." });
+    return;
+  }
   const [updated] = await db.update(supportTable).set(body.data)
-    .where(and(eq(supportTable.id, params.data.id), eq(supportTable.mentorStaffId, staff.id)))
+    .where(and(
+      eq(supportTable.id, params.data.id),
+      eq(supportTable.mentorStaffId, staff.id),
+      inArray(supportTable.businessId, db.select({ id: businessesTable.id }).from(businessesTable)
+        .where(inArray(businessesTable.programId, programIds))),
+    ))
     .returning();
   if (!updated) {
     res.status(404).json({ error: "Engagement is not assigned to this mentor." });
@@ -145,7 +170,14 @@ router.patch("/support/:id", async (req, res): Promise<void> => {
   }).from(supportTable)
     .innerJoin(businessesTable, eq(supportTable.businessId, businessesTable.id))
     .innerJoin(programsTable, eq(businessesTable.programId, programsTable.id))
-    .where(eq(supportTable.id, updated.id)).limit(1);
+    .where(and(
+      eq(supportTable.id, updated.id),
+      inArray(businessesTable.programId, programIds),
+    )).limit(1);
+  if (!record) {
+    res.status(404).json({ error: "Engagement is not assigned to this mentor." });
+    return;
+  }
   res.json(UpdateAssignedMentoringResponse.parse(record));
 });
 

@@ -8,7 +8,7 @@ import { staffMembersTable } from "./staff";
 
 export const trainingAssignmentsTable = pgTable("jusoor_training_assignments", {
   id: serial("id").primaryKey(),
-  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
   sessionId: integer("session_id").references(() => sessionsTable.id, { onDelete: "set null" }),
   createdByStaffId: integer("created_by_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
   title: text("title").notNull(),
@@ -33,7 +33,7 @@ export const trainingSubmissionsTable = pgTable("jusoor_training_submissions", {
 
 export const trainingQuestionsTable = pgTable("jusoor_training_questions", {
   id: serial("id").primaryKey(),
-  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+  programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
   businessId: integer("business_id").notNull().references(() => businessesTable.id, { onDelete: "cascade" }),
   sessionId: integer("session_id").references(() => sessionsTable.id, { onDelete: "set null" }),
   assignmentId: integer("assignment_id").references(() => trainingAssignmentsTable.id, { onDelete: "set null" }),

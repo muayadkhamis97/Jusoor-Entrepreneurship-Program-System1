@@ -25,19 +25,25 @@ import {
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { getZoomAttendanceReport } from "../lib/zoom-attendance";
 import { canTrainerAccessSessionQuestion } from "../lib/trainer-access";
+import { activeProgramIdsFor } from "../lib/programScope";
 
 const router: IRouter = Router();
 
-async function getAssignedProgramIds(staffId: number): Promise<number[]> {
+async function getAssignedProgramIds(staff: StaffAccess): Promise<number[]> {
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  if (!activeProgramIds.length) return [];
   const sessions = await db.selectDistinct({ programId: sessionsTable.programId })
     .from(sessionsTable)
-    .where(and(eq(sessionsTable.trainerStaffId, staffId)));
+    .where(and(
+      eq(sessionsTable.trainerStaffId, staff.id),
+      inArray(sessionsTable.programId, activeProgramIds),
+    ));
   return sessions.flatMap(({ programId }) => programId === null ? [] : [programId]);
 }
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
-  const programIds = await getAssignedProgramIds(staff.id);
+  const programIds = await getAssignedProgramIds(staff);
   if (!programIds.length) {
     res.json(GetTrainerDashboardResponse.parse({ sessions: [], assignments: [], submissions: [], questions: [] }));
     return;
@@ -109,12 +115,20 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
 
 router.get("/attendance", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
+  const programIds = await getAssignedProgramIds(staff);
+  if (!programIds.length) {
+    res.json(GetTrainerAttendanceReportsResponse.parse([]));
+    return;
+  }
   const sessions = await db.select({
     id: sessionsTable.id,
     title: sessionsTable.title,
     scheduledDate: sessionsTable.scheduledDate,
   }).from(sessionsTable)
-    .where(eq(sessionsTable.trainerStaffId, staff.id))
+    .where(and(
+      eq(sessionsTable.trainerStaffId, staff.id),
+      inArray(sessionsTable.programId, programIds),
+    ))
     .orderBy(desc(sessionsTable.scheduledDate), asc(sessionsTable.startTime));
   const reports = await Promise.all(sessions.map(async (session) => {
     const report = await getZoomAttendanceReport(session.id);
@@ -138,7 +152,7 @@ router.post("/assignments", async (req, res): Promise<void> => {
     return;
   }
   const staff = res.locals.staff as StaffAccess;
-  const programIds = await getAssignedProgramIds(staff.id);
+  const programIds = await getAssignedProgramIds(staff);
   if (!programIds.includes(parsed.data.programId)) {
     res.status(403).json({ error: "You are not assigned to this cohort." });
     return;
@@ -178,7 +192,7 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
     return;
   }
   const staff = res.locals.staff as StaffAccess;
-  const programIds = await getAssignedProgramIds(staff.id);
+  const programIds = await getAssignedProgramIds(staff);
   const [submission] = await db.select({
     id: trainingSubmissionsTable.id,
     programId: trainingAssignmentsTable.programId,
@@ -203,7 +217,7 @@ router.patch("/questions/:id", async (req, res): Promise<void> => {
     return;
   }
   const staff = res.locals.staff as StaffAccess;
-  const programIds = await getAssignedProgramIds(staff.id);
+  const programIds = await getAssignedProgramIds(staff);
   const [question] = await db.select().from(trainingQuestionsTable)
     .where(eq(trainingQuestionsTable.id, params.data.id)).limit(1);
   const [assignedSession] = question?.sessionId

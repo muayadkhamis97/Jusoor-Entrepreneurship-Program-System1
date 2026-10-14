@@ -1,6 +1,6 @@
 import { clerkClient, getAuth } from "@clerk/express";
 import { and, eq, isNull } from "drizzle-orm";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { applicationsTable, db } from "@workspace/db";
 
 export type ParticipantAccess = {
@@ -8,8 +8,11 @@ export type ParticipantAccess = {
   email: string;
 };
 
-export const requireParticipant: RequestHandler = async (req, res, next): Promise<void> => {
-  const { userId } = getAuth(req);
+type ParticipantUserIdResolver = (request: Request) => string | null | undefined | Promise<string | null | undefined>;
+
+export function createRequireParticipant(resolveUserId: ParticipantUserIdResolver = (request) => getAuth(request).userId): RequestHandler {
+  return async (req, res, next): Promise<void> => {
+  const userId = await resolveUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Sign in with the email used on your application." });
     return;
@@ -48,4 +51,7 @@ export const requireParticipant: RequestHandler = async (req, res, next): Promis
     req.log.error({ err: error }, "Could not resolve participant access");
     res.status(503).json({ error: "Participant access could not be verified right now." });
   }
-};
+  };
+}
+
+export const requireParticipant = createRequireParticipant();

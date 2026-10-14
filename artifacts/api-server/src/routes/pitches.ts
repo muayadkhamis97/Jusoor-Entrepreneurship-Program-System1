@@ -127,8 +127,7 @@ router.get("/pitches", async (req, res): Promise<void> => {
   const records = await db.select().from(pitchesTable)
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(pitchesTable.eventDate));
-  const staff = res.locals.staff as StaffAccess | undefined;
-  const visibleRecords = staff?.role === "coordinator"
+  const visibleRecords = staff.role === "coordinator"
     ? records
     : records.map((record) => ({ ...record, grantDecision: "pending", grantAmount: null }));
   res.json(ListPitchesResponse.parse(visibleRecords));

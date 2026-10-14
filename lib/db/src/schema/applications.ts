@@ -17,7 +17,7 @@ export const applicationsTable = pgTable(
   "jusoor_applications",
   {
     id: serial("id").primaryKey(),
-    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
     founderName: text("founder_name").notNull(),
     email: text("email").notNull(),
     phone: text("phone"),

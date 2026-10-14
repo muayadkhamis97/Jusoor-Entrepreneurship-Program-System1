@@ -8,7 +8,7 @@ export const impactKpisTable = pgTable(
   "jusoor_impact_kpis",
   {
     id: serial("id").primaryKey(),
-    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "cascade" }),
+    programId: integer("program_id").notNull().references(() => programsTable.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     description: text("description"),
     unit: text("unit").notNull(),

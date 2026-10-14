@@ -6,7 +6,7 @@ import { staffMembersTable } from "./staff";
 
 export const sessionsTable = pgTable("jusoor_sessions", {
   id: serial("id").primaryKey(),
-  programId: integer("program_id").references(() => programsTable.id, { onDelete: "set null" }),
+  programId: integer("program_id").references(() => programsTable.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   type: text("type").notNull().default("training"),
   scheduledDate: date("scheduled_date", { mode: "string" }).notNull(),
