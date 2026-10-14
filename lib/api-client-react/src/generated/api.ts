@@ -168,6 +168,7 @@ import type {
   SessionInteractiveActivityUpdateInput,
   SessionQuestionsResponse,
   SessionUpdate,
+  StaffAssignmentAuditHistory,
   StaffInput,
   StaffMember,
   StaffUpdate,
@@ -12601,6 +12602,83 @@ export function useGetProgramTeamAssignments<TData = Awaited<ReturnType<typeof g
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProgramTeamAssignmentsQueryOptions(programId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStaffAssignmentHistoryUrl = () => {
+
+
+
+
+  return `/api/staff/assignment-history`
+}
+
+/**
+ * @summary List staff-role and participant business-team assignment changes for admins
+ */
+export const getStaffAssignmentHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<StaffAssignmentAuditHistory> => {
+
+  return customFetch<StaffAssignmentAuditHistory>(getGetStaffAssignmentHistoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffAssignmentHistoryQueryKey = () => {
+    return [
+    `/api/staff/assignment-history`
+    ] as const;
+    }
+
+
+export const getGetStaffAssignmentHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffAssignmentHistoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffAssignmentHistory>>> = ({ signal }) => getStaffAssignmentHistory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffAssignmentHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getStaffAssignmentHistory>>>
+export type GetStaffAssignmentHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary List staff-role and participant business-team assignment changes for admins
+ */
+
+export function useGetStaffAssignmentHistory<TData = Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffAssignmentHistoryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

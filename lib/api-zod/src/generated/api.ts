@@ -4711,6 +4711,27 @@ export const GetProgramTeamAssignmentsResponse = zod.object({
 
 
 /**
+ * @summary List staff-role and participant business-team assignment changes for admins
+ */
+export const GetStaffAssignmentHistoryResponseItem = zod.object({
+  "id": zod.number().int(),
+  "assignmentType": zod.enum(['staff_roles', 'business_team']),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "actorStaffId": zod.number().int().nullable(),
+  "actorEmail": zod.string().email(),
+  "affectedStaffId": zod.number().int().nullable(),
+  "affectedAccountEmail": zod.string().email().nullable(),
+  "applicationId": zod.number().int().nullable(),
+  "affectedApplicationName": zod.string().nullable(),
+  "previousValue": zod.record(zod.string(), zod.unknown()),
+  "newValue": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.coerce.date()
+})
+export const GetStaffAssignmentHistoryResponse = zod.array(GetStaffAssignmentHistoryResponseItem)
+
+
+/**
  * @summary Replace a staff member's specialist roles in one program
  */
 

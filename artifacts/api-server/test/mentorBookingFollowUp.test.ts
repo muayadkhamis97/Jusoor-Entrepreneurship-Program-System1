@@ -76,11 +76,18 @@ before(async () => {
       from() {
         return this;
       },
+      innerJoin() {
+        return this;
+      },
       where() {
         return this;
       },
-      limit: async () => mentor.role === "mentor" ? [projectedMentor()] : [],
+      limit: async () => mentor.role === "mentor" ? [{ ...projectedMentor(), role: mentor.role }] : [],
       orderBy: async () => mentor.role === "mentor" ? [projectedMentor()] : [],
+      then(resolve: (rows: Array<{ staffId: number }>) => unknown, reject?: (error: unknown) => unknown) {
+        return Promise.resolve(mentor.role === "mentor" ? [{ staffId: mentor.staffId }] : [])
+          .then(resolve, reject);
+      },
     };
     return query;
   }) as (...args: never[]) => unknown);

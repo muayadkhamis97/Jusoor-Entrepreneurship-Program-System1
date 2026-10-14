@@ -7,12 +7,13 @@ import {
   useAssignParticipantBusiness,
   useGetAuthMe,
   useGetProgramTeamAssignments,
+  useGetStaffAssignmentHistory,
   useListPrograms,
   useUpdateProgramStaffRoles,
   type ProgramSpecialistRole,
   type ProgramTeamAssignments,
 } from '@workspace/api-client-react';
-import { Building2, Check, CircleAlert, LoaderCircle, Shield, Users } from 'lucide-react';
+import { Building2, Check, CircleAlert, History, LoaderCircle, Shield, Users } from 'lucide-react';
 import { LanguageToggle, t, useAppLanguage } from './language';
 import './team-assignments.css';
 
@@ -176,7 +177,57 @@ function AssignmentsSections({
           </table>
         </div>}
     </section>
+    {isAdmin && <AssignmentAuditHistory />}
   </>;
+}
+
+function AssignmentAuditHistory() {
+  const query = useGetStaffAssignmentHistory();
+  const events = query.data || [];
+  const summarizeValue = (type: string, value: Record<string, unknown>) => {
+    if (type === 'staff_roles') {
+      const roles = Array.isArray(value.roles) ? value.roles : [];
+      return roles.length ? roles.map(role => t(String(role))).join(', ') : t('No specialist roles');
+    }
+    const name = typeof value.businessName === 'string' ? value.businessName : null;
+    const id = typeof value.businessId === 'number' ? value.businessId : null;
+    return name || (id === null ? t('No business team') : `${t('Business')} #${id}`);
+  };
+
+  return <section className="panel program-assignment-panel" data-testid="assignment-audit-history">
+    <div className="panel-heading">
+      <div><div className="eyebrow">{t('ADMIN HISTORY')}</div><h2 className="app-title"><History size={20} /> {t('Assignment changes')}</h2></div>
+      <span className="section-meta">{t('Most recent 250')}</span>
+    </div>
+    <p className="assignment-section-copy">{t('Review who changed specialist access or a participant business team, and when.')}</p>
+    {query.isLoading
+      ? <div className="empty-panel">{t('Loading assignment history…')}</div>
+      : query.isError
+        ? <div className="empty-panel error-panel" role="alert">
+          <h3>{t('Assignment history could not be loaded.')}</h3>
+          <button className="button button-outline" onClick={() => void query.refetch()}>{t('Retry')}</button>
+        </div>
+        : events.length === 0
+          ? <div className="assignment-empty">{t('No assignment changes have been recorded yet.')}</div>
+          : <div className="table-wrap">
+            <table className="assignment-table">
+              <thead><tr>
+                <th>{t('WHEN')}</th><th>{t('PROGRAM')}</th><th>{t('CHANGE')}</th><th>{t('AFFECTED ACCOUNT')}</th><th>{t('PREVIOUS')}</th><th>{t('NEW')}</th><th>{t('CHANGED BY')}</th>
+              </tr></thead>
+              <tbody>{events.map(event => <tr key={event.id} data-testid={`assignment-audit-${event.id}`}>
+                <td>{new Date(event.createdAt).toLocaleString()}</td>
+                <td>{event.programName}</td>
+                <td>{t(event.assignmentType === 'staff_roles' ? 'Staff roles' : 'Business team')}</td>
+                <td>{event.assignmentType === 'staff_roles'
+                  ? event.affectedAccountEmail || `${t('Staff account')} #${event.affectedStaffId}`
+                  : `${event.affectedApplicationName || t('Application')} (#${event.applicationId})`}</td>
+                <td>{summarizeValue(event.assignmentType, event.previousValue)}</td>
+                <td>{summarizeValue(event.assignmentType, event.newValue)}</td>
+                <td>{event.actorEmail}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
+  </section>;
 }
 
 function StaffRoleRow({

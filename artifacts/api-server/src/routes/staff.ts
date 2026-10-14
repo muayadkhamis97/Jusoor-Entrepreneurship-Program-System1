@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { Router, type IRouter, type Response } from "express";
 import {
   AssignParticipantBusinessBody,
@@ -29,6 +29,7 @@ import {
   participantBusinessMembershipsTable,
   programsTable,
   staffMembersTable,
+  staffAssignmentAuditEventsTable,
   staffProgramAssignmentsTable,
   staffProgramRolesTable,
   type ProgramSpecialistRole,
@@ -36,6 +37,7 @@ import {
 import { requireCoordinator, requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
 import { hasAnyProgramStaffRole } from "../lib/programStaffRoles";
 import { canManageProgramAssignments } from "../lib/programAssignmentAuthorization";
+import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
 
 const router: IRouter = Router();
 const isUndefinedRelation = (error: unknown): boolean =>
@@ -146,6 +148,30 @@ router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> =>
   res.json(ListStaffResponse.parse(await withProgramIds(members)));
 });
 
+router.get("/staff/assignment-history", requireCoordinator, async (_req, res): Promise<void> => {
+  const events = await db.select({
+    id: staffAssignmentAuditEventsTable.id,
+    assignmentType: staffAssignmentAuditEventsTable.assignmentType,
+    programId: staffAssignmentAuditEventsTable.programId,
+    programName: staffAssignmentAuditEventsTable.programName,
+    actorStaffId: staffAssignmentAuditEventsTable.actorStaffId,
+    actorEmail: staffAssignmentAuditEventsTable.actorEmail,
+    affectedStaffId: staffAssignmentAuditEventsTable.affectedStaffId,
+    affectedAccountEmail: staffAssignmentAuditEventsTable.affectedAccountEmail,
+    applicationId: staffAssignmentAuditEventsTable.applicationId,
+    affectedApplicationName: staffAssignmentAuditEventsTable.affectedApplicationName,
+    previousValue: staffAssignmentAuditEventsTable.previousValue,
+    newValue: staffAssignmentAuditEventsTable.newValue,
+    createdAt: staffAssignmentAuditEventsTable.createdAt,
+  }).from(staffAssignmentAuditEventsTable)
+    .orderBy(desc(staffAssignmentAuditEventsTable.createdAt), desc(staffAssignmentAuditEventsTable.id))
+    .limit(250);
+  res.json(events.map((event) => ({
+    ...event,
+    createdAt: event.createdAt.toISOString(),
+  })));
+});
+
 async function canManageProgram(programId: number, staff: StaffAccess): Promise<"allowed" | "missing" | "denied"> {
   const [program] = await db.select({ id: programsTable.id })
     .from(programsTable)
@@ -168,6 +194,21 @@ async function hasAssignmentSchema(res: Response, includeMembership = true): Pro
     if (!isUndefinedRelation(error)) throw error;
     res.status(503).json({
       error: "Program role and business-team assignments require the additive assignment database migration.",
+    });
+    return false;
+  }
+}
+
+async function hasAssignmentAuditSchema(res: Response): Promise<boolean> {
+  try {
+    await db.select({ id: staffAssignmentAuditEventsTable.id })
+      .from(staffAssignmentAuditEventsTable)
+      .limit(1);
+    return true;
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+    res.status(503).json({
+      error: "Assignment history requires the additive staff-assignment audit migration.",
     });
     return false;
   }
@@ -274,8 +315,9 @@ router.put("/programs/:programId/staff/:staffId/roles", requireOperationsStaff, 
     return;
   }
   if (!(await hasAssignmentSchema(res, false))) return;
+  if (!(await hasAssignmentAuditSchema(res))) return;
   const roles = [...new Set(body.data.roles)];
-  const [target] = await db.select({ id: staffMembersTable.id, role: staffMembersTable.role })
+  const [target] = await db.select({ id: staffMembersTable.id, email: staffMembersTable.email, role: staffMembersTable.role })
     .from(staffMembersTable)
     .where(eq(staffMembersTable.id, params.data.staffId))
     .limit(1);
@@ -291,7 +333,20 @@ router.put("/programs/:programId/staff/:staffId/roles", requireOperationsStaff, 
     res.status(403).json({ error: "Project staff cannot assign specialist roles to their own account." });
     return;
   }
+  const [program] = await db.select({ name: programsTable.name })
+    .from(programsTable)
+    .where(eq(programsTable.id, params.data.programId))
+    .limit(1);
   await db.transaction(async (tx) => {
+    const previousRoleRows = await tx.select({ role: staffProgramRolesTable.role })
+      .from(staffProgramRolesTable)
+      .where(and(
+        eq(staffProgramRolesTable.staffId, params.data.staffId),
+        eq(staffProgramRolesTable.programId, params.data.programId),
+      ))
+      .for("update");
+    const previousRoles = previousRoleRows.map(({ role }) => role).sort();
+    const nextRoles = [...roles].sort();
     await tx.delete(staffProgramRolesTable).where(and(
       eq(staffProgramRolesTable.staffId, params.data.staffId),
       eq(staffProgramRolesTable.programId, params.data.programId),
@@ -304,6 +359,17 @@ router.put("/programs/:programId/staff/:staffId/roles", requireOperationsStaff, 
         assignedByStaffId: current.id,
       })));
     }
+    const auditEvent = makeStaffRoleAuditEvent({
+        programId: params.data.programId,
+        programName: program?.name ?? `Program ${params.data.programId}`,
+        actorStaffId: current.id,
+        actorEmail: current.email,
+        affectedStaffId: target.id,
+        affectedAccountEmail: target.email,
+        applicationId: null,
+        affectedApplicationName: null,
+      }, previousRoles, nextRoles);
+    if (auditEvent) await tx.insert(staffAssignmentAuditEventsTable).values(auditEvent);
   });
   res.json(UpdateProgramStaffRolesResponse.parse({
     staffId: params.data.staffId,
@@ -330,10 +396,12 @@ router.put("/programs/:programId/participant-business-membership", requireOperat
     return;
   }
   if (!(await hasAssignmentSchema(res, false))) return;
+  if (!(await hasAssignmentAuditSchema(res))) return;
 
   const [participant] = await db.select({
     id: applicationsTable.id,
     businessId: applicationsTable.businessId,
+    founderName: applicationsTable.founderName,
   }).from(applicationsTable)
     .where(and(
       eq(applicationsTable.id, body.data.applicationId),
@@ -366,7 +434,44 @@ router.put("/programs/:programId/participant-business-membership", requireOperat
     return;
   }
 
+  const [program] = await db.select({ name: programsTable.name })
+    .from(programsTable)
+    .where(eq(programsTable.id, params.data.programId))
+    .limit(1);
   await db.transaction(async (tx) => {
+    const [existingMembership] = await tx.select({
+      businessId: participantBusinessMembershipsTable.businessId,
+    }).from(participantBusinessMembershipsTable)
+      .where(eq(participantBusinessMembershipsTable.applicationId, participant.id))
+      .for("update");
+    const nextBusinessId = participant.businessId === null ? body.data.businessId : null;
+    const previousBusinessId = existingMembership?.businessId ?? null;
+    if (previousBusinessId !== nextBusinessId) {
+      const businessIds = [...new Set([previousBusinessId, nextBusinessId].filter((id): id is number => id !== null))];
+      const businessRows = businessIds.length
+        ? await tx.select({ id: businessesTable.id, businessName: businessesTable.businessName })
+          .from(businessesTable)
+          .where(inArray(businessesTable.id, businessIds))
+        : [];
+      const businessNames = new Map(businessRows.map(({ id, businessName }) => [id, businessName]));
+      const auditEvent = makeBusinessTeamAuditEvent({
+        programId: params.data.programId,
+        programName: program?.name ?? `Program ${params.data.programId}`,
+        actorStaffId: current.id,
+        actorEmail: current.email,
+        affectedStaffId: null,
+        affectedAccountEmail: null,
+        applicationId: participant.id,
+        affectedApplicationName: participant.founderName,
+      }, {
+        id: previousBusinessId,
+        name: previousBusinessId === null ? null : businessNames.get(previousBusinessId) ?? null,
+      }, {
+        id: nextBusinessId,
+        name: nextBusinessId === null ? null : businessNames.get(nextBusinessId) ?? null,
+      });
+      if (auditEvent) await tx.insert(staffAssignmentAuditEventsTable).values(auditEvent);
+    }
     await tx.delete(participantBusinessMembershipsTable)
       .where(eq(participantBusinessMembershipsTable.applicationId, participant.id));
     if (body.data.businessId !== null && participant.businessId === null) {
@@ -502,17 +607,20 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Admins have global access and cannot have program assignments." });
     return;
   }
+  let programNames = new Map<number, string>();
   if (programIds.length > 0) {
-    const activePrograms = await db.select({ id: programsTable.id }).from(programsTable)
+    const activePrograms = await db.select({ id: programsTable.id, name: programsTable.name }).from(programsTable)
       .where(and(inArray(programsTable.id, programIds), isNull(programsTable.archivedAt)));
     if (activePrograms.length !== programIds.length) {
       res.status(400).json({ error: "Choose only active programs." });
       return;
     }
+    programNames = new Map(activePrograms.map(({ id, name }) => [id, name]));
   }
   const current = res.locals.staff as StaffAccess;
   const roleSchemaAvailable = await specialistRoleTableAvailable();
   const primarySpecialistRole = isProgramSpecialistRole(parsed.data.role) ? parsed.data.role : null;
+  if (roleSchemaAvailable && primarySpecialistRole && programIds.length && !(await hasAssignmentAuditSchema(res))) return;
   const member = await db.transaction(async (tx) => {
     const [created] = await tx.insert(staffMembersTable)
       .values({ email, role: parsed.data.role, status: "invited" })
@@ -532,6 +640,19 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
           role: primarySpecialistRole,
           assignedByStaffId: current.id,
         }))).onConflictDoNothing();
+        for (const programId of programIds) {
+          const auditEvent = makeStaffRoleAuditEvent({
+            programId,
+            programName: programNames.get(programId) ?? `Program ${programId}`,
+            actorStaffId: current.id,
+            actorEmail: current.email,
+            affectedStaffId: created.id,
+            affectedAccountEmail: created.email,
+            applicationId: null,
+            affectedApplicationName: null,
+          }, [], [primarySpecialistRole]);
+          if (auditEvent) await tx.insert(staffAssignmentAuditEventsTable).values(auditEvent);
+        }
       }
     }
     return created;
@@ -553,7 +674,7 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
     return;
   }
 
-  const current = res.locals.staff as { id: number };
+  const current = res.locals.staff as { id: number; email: string };
   const [target] = await db.select().from(staffMembersTable)
     .where(eq(staffMembersTable.id, params.data.id)).limit(1);
   if (!target) {
@@ -581,22 +702,39 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
   const programIds = body.data.role === "coordinator"
     ? []
     : [...new Set(body.data.programIds ?? existingAssignments.map(({ programId }) => programId))];
+  let programNames = new Map<number, string>();
   if (body.data.role === "coordinator" && (body.data.programIds?.length ?? 0) > 0) {
     res.status(400).json({ error: "Admins have global access and cannot have program assignments." });
     return;
   }
   if (programIds.length > 0) {
-    const activePrograms = await db.select({ id: programsTable.id }).from(programsTable)
+    const activePrograms = await db.select({ id: programsTable.id, name: programsTable.name }).from(programsTable)
       .where(and(inArray(programsTable.id, programIds), isNull(programsTable.archivedAt)));
     if (activePrograms.length !== programIds.length) {
       res.status(400).json({ error: "Choose only active programs." });
       return;
     }
+    programNames = new Map(activePrograms.map(({ id, name }) => [id, name]));
+  } else {
+    programNames = new Map();
   }
   const roleSchemaAvailable = await specialistRoleTableAvailable();
   const previousSpecialistRole = isProgramSpecialistRole(target.role) ? target.role : null;
   const nextSpecialistRole = isProgramSpecialistRole(body.data.role) ? body.data.role : null;
+  if (roleSchemaAvailable && body.data.role !== target.role && !(await hasAssignmentAuditSchema(res))) return;
   const [member] = await db.transaction(async (tx) => {
+    const previousRoleRows = roleSchemaAvailable ? await tx.select({
+      programId: staffProgramRolesTable.programId,
+      role: staffProgramRolesTable.role,
+    }).from(staffProgramRolesTable)
+      .where(eq(staffProgramRolesTable.staffId, params.data.id))
+      .for("update") : [];
+    const previousRolesByProgram = new Map<number, Set<ProgramSpecialistRole>>();
+    previousRoleRows.forEach(({ programId, role }) => {
+      const roles = previousRolesByProgram.get(programId) ?? new Set<ProgramSpecialistRole>();
+      roles.add(role);
+      previousRolesByProgram.set(programId, roles);
+    });
     const [updated] = await tx.update(staffMembersTable)
       .set({ role: body.data.role })
       .where(eq(staffMembersTable.id, params.data.id))
@@ -628,6 +766,47 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
           role: nextSpecialistRole,
           assignedByStaffId: current.id,
         }))).onConflictDoNothing();
+      }
+    }
+    if (roleSchemaAvailable && body.data.role !== target.role) {
+      const nextRolesByProgram = new Map(
+        [...previousRolesByProgram].map(([programId, roles]) => [programId, new Set(roles)]),
+      );
+      if (previousSpecialistRole) {
+        for (const [programId, roles] of nextRolesByProgram) roles.delete(previousSpecialistRole);
+      }
+      if (nextSpecialistRole) {
+        for (const programId of programIds) {
+          const roles = nextRolesByProgram.get(programId) ?? new Set<ProgramSpecialistRole>();
+          roles.add(nextSpecialistRole);
+          nextRolesByProgram.set(programId, roles);
+        }
+      }
+      const affectedProgramIds = [...new Set([
+        ...previousRolesByProgram.keys(),
+        ...nextRolesByProgram.keys(),
+      ])];
+      const missingProgramIds = affectedProgramIds.filter((programId) => !programNames.has(programId));
+      if (missingProgramIds.length) {
+        const archivedPrograms = await tx.select({ id: programsTable.id, name: programsTable.name })
+          .from(programsTable)
+          .where(inArray(programsTable.id, missingProgramIds));
+        archivedPrograms.forEach(({ id, name }) => programNames.set(id, name));
+      }
+      for (const programId of affectedProgramIds) {
+        const previousRoles = [...(previousRolesByProgram.get(programId) ?? [])].sort();
+        const nextRoles = [...(nextRolesByProgram.get(programId) ?? [])].sort();
+        const auditEvent = makeStaffRoleAuditEvent({
+          programId,
+          programName: programNames.get(programId) ?? `Program ${programId}`,
+          actorStaffId: current.id,
+          actorEmail: current.email,
+          affectedStaffId: target.id,
+          affectedAccountEmail: target.email,
+          applicationId: null,
+          affectedApplicationName: null,
+        }, previousRoles, nextRoles);
+        if (auditEvent) await tx.insert(staffAssignmentAuditEventsTable).values(auditEvent);
       }
     }
     return [updated];
@@ -669,7 +848,43 @@ router.delete("/staff/:id", requireCoordinator, async (req, res): Promise<void> 
     }
   }
 
-  await db.delete(staffMembersTable).where(eq(staffMembersTable.id, params.data.id));
+  const roleSchemaAvailable = await specialistRoleTableAvailable();
+  if (roleSchemaAvailable && !(await hasAssignmentAuditSchema(res))) return;
+  await db.transaction(async (tx) => {
+    if (roleSchemaAvailable) {
+      const assignments = await tx.select({
+        programId: staffProgramRolesTable.programId,
+        role: staffProgramRolesTable.role,
+      }).from(staffProgramRolesTable)
+        .where(eq(staffProgramRolesTable.staffId, params.data.id))
+        .for("update");
+      const byProgram = new Map<number, ProgramSpecialistRole[]>();
+      assignments.forEach(({ programId, role }) => {
+        const roles = byProgram.get(programId) ?? [];
+        roles.push(role);
+        byProgram.set(programId, roles);
+      });
+      const programIds = [...byProgram.keys()];
+      const programs = programIds.length ? await tx.select({ id: programsTable.id, name: programsTable.name })
+        .from(programsTable)
+        .where(inArray(programsTable.id, programIds)) : [];
+      const programNames = new Map(programs.map(({ id, name }) => [id, name]));
+      for (const [programId, roles] of byProgram) {
+        const auditEvent = makeStaffRoleAuditEvent({
+          programId,
+          programName: programNames.get(programId) ?? `Program ${programId}`,
+          actorStaffId: current.id,
+          actorEmail: (res.locals.staff as StaffAccess).email,
+          affectedStaffId: target.id,
+          affectedAccountEmail: target.email,
+          applicationId: null,
+          affectedApplicationName: null,
+        }, roles, []);
+        if (auditEvent) await tx.insert(staffAssignmentAuditEventsTable).values(auditEvent);
+      }
+    }
+    await tx.delete(staffMembersTable).where(eq(staffMembersTable.id, params.data.id));
+  });
   res.sendStatus(204);
 });
 

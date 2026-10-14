@@ -2240,6 +2240,41 @@ export interface ParticipantBusinessMembership {
   businessId: number | null;
 }
 
+export type StaffAssignmentAuditEventAssignmentType = typeof StaffAssignmentAuditEventAssignmentType[keyof typeof StaffAssignmentAuditEventAssignmentType];
+
+
+export const StaffAssignmentAuditEventAssignmentType = {
+  staff_roles: 'staff_roles',
+  business_team: 'business_team',
+} as const;
+
+export type StaffAssignmentAuditEventPreviousValue = { [key: string]: unknown };
+
+export type StaffAssignmentAuditEventNewValue = { [key: string]: unknown };
+
+export interface StaffAssignmentAuditEvent {
+  id: number;
+  assignmentType: StaffAssignmentAuditEventAssignmentType;
+  programId: number;
+  programName: string;
+  /** @nullable */
+  actorStaffId: number | null;
+  actorEmail: string;
+  /** @nullable */
+  affectedStaffId: number | null;
+  /** @nullable */
+  affectedAccountEmail: string | null;
+  /** @nullable */
+  applicationId: number | null;
+  /** @nullable */
+  affectedApplicationName: string | null;
+  previousValue: StaffAssignmentAuditEventPreviousValue;
+  newValue: StaffAssignmentAuditEventNewValue;
+  createdAt: string;
+}
+
+export type StaffAssignmentAuditHistory = StaffAssignmentAuditEvent[];
+
 export interface ParticipantBusinessTeamMember {
   founderName: string;
   isYou: boolean;

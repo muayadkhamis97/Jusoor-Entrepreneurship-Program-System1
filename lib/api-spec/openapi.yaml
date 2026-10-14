@@ -3054,6 +3054,20 @@ paths:
           description: The current user cannot manage assignments for this program
         "404":
           description: Program not found
+  /staff/assignment-history:
+    get:
+      operationId: getStaffAssignmentHistory
+      tags: [staff]
+      summary: List staff-role and participant business-team assignment changes for admins
+      responses:
+        "200":
+          description: Recent assignment changes with actor, subject, values, and timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAssignmentAuditHistory"
+        "403":
+          description: Coordinator role required
   /programs/{programId}/staff/{staffId}/roles:
     put:
       operationId: updateProgramStaffRoles
@@ -5023,6 +5037,46 @@ components:
         applicationId: { type: integer }
         businessId: { type: ["integer", "null"] }
       required: [applicationId, businessId]
+    StaffAssignmentAuditHistory:
+      type: array
+      items:
+        $ref: "#/components/schemas/StaffAssignmentAuditEvent"
+    StaffAssignmentAuditEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        assignmentType:
+          type: string
+          enum: [staff_roles, business_team]
+        programId: { type: integer }
+        programName: { type: string }
+        actorStaffId: { type: ["integer", "null"] }
+        actorEmail: { type: string, format: email }
+        affectedStaffId: { type: ["integer", "null"] }
+        affectedAccountEmail: { type: ["string", "null"], format: email }
+        applicationId: { type: ["integer", "null"] }
+        affectedApplicationName: { type: ["string", "null"] }
+        previousValue:
+          type: object
+          additionalProperties: true
+        newValue:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+      required:
+        - id
+        - assignmentType
+        - programId
+        - programName
+        - actorStaffId
+        - actorEmail
+        - affectedStaffId
+        - affectedAccountEmail
+        - applicationId
+        - affectedApplicationName
+        - previousValue
+        - newValue
+        - createdAt
     ParticipantBusinessTeamMember:
       type: object
       properties:
