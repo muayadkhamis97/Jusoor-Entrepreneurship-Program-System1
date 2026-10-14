@@ -9,8 +9,20 @@ export type ParticipantAccess = {
 };
 
 type ParticipantUserIdResolver = (request: Request) => string | null | undefined | Promise<string | null | undefined>;
+type VerifiedPrimaryEmailResolver = (userId: string) => Promise<string | undefined>;
 
-export function createRequireParticipant(resolveUserId: ParticipantUserIdResolver = (request) => getAuth(request).userId): RequestHandler {
+const resolveClerkVerifiedPrimaryEmail: VerifiedPrimaryEmailResolver = async (userId) => {
+  const user = await clerkClient.users.getUser(userId);
+  const verifiedPrimaryEmail = user.emailAddresses.find(
+    (entry) => entry.id === user.primaryEmailAddressId && entry.verification?.status === "verified",
+  );
+  return verifiedPrimaryEmail?.emailAddress;
+};
+
+export function createRequireParticipant(
+  resolveUserId: ParticipantUserIdResolver = (request) => getAuth(request).userId,
+  resolveVerifiedPrimaryEmail: VerifiedPrimaryEmailResolver = resolveClerkVerifiedPrimaryEmail,
+): RequestHandler {
   return async (req, res, next): Promise<void> => {
   const userId = await resolveUserId(req);
   if (!userId) {
@@ -19,11 +31,7 @@ export function createRequireParticipant(resolveUserId: ParticipantUserIdResolve
   }
 
   try {
-    const user = await clerkClient.users.getUser(userId);
-    const verifiedPrimaryEmail = user.emailAddresses.find(
-      (entry) => entry.id === user.primaryEmailAddressId && entry.verification?.status === "verified",
-    );
-    const email = verifiedPrimaryEmail?.emailAddress.trim().toLowerCase();
+    const email = (await resolveVerifiedPrimaryEmail(userId))?.trim().toLowerCase();
     if (!email) {
       res.status(403).json({ error: "Verify your primary email to access the participant portal." });
       return;

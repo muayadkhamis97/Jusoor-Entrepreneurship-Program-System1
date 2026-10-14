@@ -581,6 +581,10 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
       where() {
         return query;
       },
+      innerJoin() {
+        return query;
+      },
+      orderBy: async () => [],
       async limit() {
         if (table === staffMembersTable) {
           return [{

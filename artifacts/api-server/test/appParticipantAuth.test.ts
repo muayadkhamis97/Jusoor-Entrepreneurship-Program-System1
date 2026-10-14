@@ -7,7 +7,6 @@ process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
 
 const { db, applicationsTable, sessionsTable, sessionInteractiveActivitiesTable } = await import("@workspace/db");
-const { clerkClient } = await import("@clerk/express");
 const { createApp } = await import("../src/app");
 const { createRequireParticipant } = await import("../src/middlewares/participantAccess");
 
@@ -17,7 +16,6 @@ let currentEnrollment: Row | null = null;
 let sessionProgramId = 8;
 let restoreSelect: (() => void) | undefined;
 let restoreUpdate: (() => void) | undefined;
-let restoreClerkUser: (() => void) | undefined;
 
 function rowsFor(selection: unknown, table: unknown): Row[] {
   if (table === applicationsTable) {
@@ -52,7 +50,10 @@ function replaceDbMethod(
 }
 
 const noOpClerkMiddleware: RequestHandler = (_req, _res, next) => next();
-const testParticipantAccess = createRequireParticipant((req) => req.header("x-test-user"));
+const testParticipantAccess = createRequireParticipant(
+  (req) => req.header("x-test-user"),
+  async () => "founder@example.com",
+);
 
 before(async () => {
   restoreSelect = replaceDbMethod("select", ((selection: unknown) => {
@@ -85,27 +86,6 @@ before(async () => {
     return query;
   }) as (...args: never[]) => unknown);
 
-  const users = clerkClient.users as typeof clerkClient.users & {
-    getUser: (userId: string) => Promise<unknown>;
-  };
-  const originalGetUser = Object.getOwnPropertyDescriptor(users, "getUser");
-  Object.defineProperty(users, "getUser", {
-    configurable: true,
-    writable: true,
-    value: async () => ({
-      primaryEmailAddressId: "primary",
-      emailAddresses: [{
-        id: "primary",
-        emailAddress: "founder@example.com",
-        verification: { status: "verified" },
-      }],
-    }),
-  });
-  restoreClerkUser = () => {
-    if (originalGetUser) Object.defineProperty(users, "getUser", originalGetUser);
-    else Reflect.deleteProperty(users, "getUser");
-  };
-
   server = createServer(createApp({
     authenticationMiddleware: noOpClerkMiddleware,
     participantMiddleware: testParticipantAccess,
@@ -126,7 +106,6 @@ beforeEach(() => {
 after(async () => {
   restoreSelect?.();
   restoreUpdate?.();
-  restoreClerkUser?.();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });

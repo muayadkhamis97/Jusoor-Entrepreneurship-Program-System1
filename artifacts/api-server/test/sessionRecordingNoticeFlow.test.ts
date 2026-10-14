@@ -8,6 +8,7 @@ let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreTransaction: (() => void) | undefined;
 let restoreUpdate: (() => void) | undefined;
+let restoreSelect: (() => void) | undefined;
 const session = {
   id: 71,
   programId: 8,
@@ -30,7 +31,7 @@ const session = {
 let recordingNotices: Array<Record<string, unknown>>;
 
 function replaceDbMethod(
-  name: "transaction" | "update",
+  name: "select" | "transaction" | "update",
   replacement: (...args: never[]) => unknown,
 ): () => void {
   const original = Object.getOwnPropertyDescriptor(db, name);
@@ -49,10 +50,28 @@ before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";
   db = (await import("@workspace/db")).db;
-  const { sessionsTable } = await import("@workspace/db");
+  const { programsTable, sessionsTable } = await import("@workspace/db");
   const { default: router } = await import("../src/routes/sessions");
   recordingNotices = [];
 
+  restoreSelect = replaceDbMethod("select", (() => {
+    let table: unknown;
+    const rows = () => table === programsTable
+      ? [{ id: session.programId }]
+      : table === sessionsTable
+        ? [session]
+        : [];
+    const query = {
+      from(value: unknown) { table = value; return query; },
+      where() { return query; },
+      limit: async () => rows(),
+      then: (
+        resolve: (value: ReturnType<typeof rows>) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => Promise.resolve(rows()).then(resolve, reject),
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
   restoreTransaction = replaceDbMethod("transaction", (async (callback) => {
     const tx = {
       select() {
@@ -121,6 +140,7 @@ before(async () => {
 });
 
 after(async () => {
+  restoreSelect?.();
   restoreUpdate?.();
   restoreTransaction?.();
   globalThis.fetch = nativeFetch;

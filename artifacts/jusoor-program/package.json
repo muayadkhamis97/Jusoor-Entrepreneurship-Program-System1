@@ -8,6 +8,8 @@
     "build": "vite build --config vite.config.ts",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "test": "tsx --test src/*.test.tsx",
+    "test:unit": "tsx --test $(find src -maxdepth 1 -type f -name '*.test.tsx' ! -name '*.browser.test.tsx' -print | sort)",
+    "test:browser": "tsx --test src/*.browser.test.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
