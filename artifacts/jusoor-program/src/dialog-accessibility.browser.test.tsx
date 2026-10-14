@@ -50,7 +50,11 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     const formDialog = page.getByRole('dialog', { name: 'Edit sample record' });
     await formDialog.waitFor();
     assert.equal(await formDialog.getAttribute('aria-modal'), 'true');
+    assert.equal(await formDialog.getAttribute('aria-labelledby'), 'fixture-form-title');
+    assert.equal(await formDialog.getAttribute('aria-describedby'), 'fixture-form-description');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-form-input', 'Opening a form should focus its first field.');
+    const formBounds = await formDialog.boundingBox();
+    assert.ok(formBounds && formBounds.x >= 0 && formBounds.y >= 0 && formBounds.x + formBounds.width <= 390 && formBounds.y + formBounds.height <= 844, 'Dialog should fit the mobile viewport.');
 
     const field = page.getByLabel('Record name');
     await field.fill('Synthetic value stays here');
@@ -71,6 +75,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await page.waitForFunction(() => document.activeElement?.id === 'open-sample-form');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'open-sample-form', 'Closing with Escape should restore focus to the opener.');
 
+    await openForm.click();
+    const reopenedForm = page.getByRole('dialog', { name: 'Edit sample record' });
+    await reopenedForm.waitFor();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await reopenedForm.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-sample-form');
+
     const openConfirm = page.getByRole('button', { name: 'Open confirmation' });
     await openConfirm.click();
     const confirmDialog = page.getByRole('alertdialog', { name: 'Confirm removal' });
@@ -83,7 +94,9 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
 
     const navigation = page.getByRole('navigation', { name: 'Main navigation' });
     assert.equal(await navigation.getByRole('link', { name: 'Sessions' }).getAttribute('aria-current'), 'page');
+    assert.match(await navigation.getByRole('link', { name: 'Sessions' }).getAttribute('class') || '', /mobile-active/);
     assert.ok(await navigation.getByRole('link', { name: 'Programs' }).isVisible(), 'Mobile navigation items should have visible text labels.');
+    assert.ok(await navigation.getByRole('button', { name: 'Sign out' }).isVisible(), 'The sign-out action should keep a visible text label.');
     const scrolling = await navigation.evaluate(element => ({
       scrollWidth: element.scrollWidth,
       clientWidth: element.clientWidth,

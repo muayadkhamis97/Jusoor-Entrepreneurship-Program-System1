@@ -12,3 +12,4 @@
 - [Clerk guard testing](clerk-auth-guard-testing.md) — Isolated Express tests can inject a user-ID resolver while exercising the production participant guard and app route mounting.
 - [Playwright browser engines on Nix](playwright-browser-engines.md) — Firefox runs with Playwright here; the downloaded Ubuntu WebKit build needs ABI-specific system libraries unavailable through the Nix package setup.
 - [Vite source-map warnings](vite-sourcemap-warnings.md) — Remove unused React Server Component directives from affected Vite modules rather than suppressing Rollup source-map warnings.
+- [Radix dialog focus restoration](radix-dialog-focus-restoration.md) — When conditionally mounted dialogs close, verify focus restoration after the overlay unmounts, not only Radix’s close callback.
