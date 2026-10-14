@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Router, type IRouter } from "express";
 import {
   GetLearningProgressAnalyticsQueryParams,
@@ -9,6 +10,9 @@ import {
   VerifyCertificateResponse,
   IssueCourseCertificateParams,
   IssueCourseCertificateResponse,
+  RevokeCourseCertificateBody,
+  RevokeCourseCertificateParams,
+  RevokeCourseCertificateResponse,
   RecordParticipantCourseActivityBody,
   RecordParticipantCourseActivityParams,
   RecordParticipantCourseActivityResponse,
@@ -42,6 +46,7 @@ import { assessmentAttemptBelongsToApplication, calculateCohortAssessmentGain } 
 export const participantCourseProgressRouter: IRouter = Router();
 export const staffLearningProgressRouter: IRouter = Router();
 export const publicCertificateVerificationRouter: IRouter = Router();
+const certificateRevokerStaff = alias(staffMembersTable, "certificate_revoker_staff");
 
 publicCertificateVerificationRouter.get("/certificates/:code/verification", async (req, res): Promise<void> => {
   const rawCode = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
@@ -60,16 +65,20 @@ publicCertificateVerificationRouter.get("/certificates/:code/verification", asyn
     businessName: courseCertificatesTable.businessName,
     programName: courseCertificatesTable.programName,
     issuedAt: courseCertificatesTable.issuedAt,
+    revokedAt: courseCertificatesTable.revokedAt,
   }).from(courseCertificatesTable)
     .where(eq(courseCertificatesTable.certificateCode, params.data.code.toUpperCase()))
     .limit(1);
 
   if (!certificate) {
-    res.status(404).json({ error: "No active certificate was found for this code." });
+    res.status(404).json({ error: "No certificate was found for this code." });
     return;
   }
 
-  res.json(VerifyCertificateResponse.parse({ status: "issued", ...certificate }));
+  res.json(VerifyCertificateResponse.parse({
+    status: certificate.revokedAt ? "revoked" : "issued",
+    ...certificate,
+  }));
 });
 
 type AcceptedApplication = {
@@ -96,6 +105,7 @@ type ProgressData = {
   certificate: {
     certificate: typeof courseCertificatesTable.$inferSelect;
     issuedByName: string;
+    revokedByName: string | null;
   } | null;
 };
 
@@ -128,7 +138,7 @@ function xapiPackageStatus(rows: ProgressData["xapiStatements"]) {
   return { completionStatus, successStatus, scoreScaled };
 }
 
-function buildProgramProgress(data: ProgressData) {
+function buildProgramProgress(data: ProgressData, includeRevocationAudit = false) {
   const {
     application,
     modules,
@@ -250,6 +260,9 @@ function buildProgramProgress(data: ProgressData) {
       certificateCode: certificate.certificate.certificateCode,
       issuedAt: certificate.certificate.issuedAt,
       issuedByName: certificate.issuedByName,
+      revokedAt: certificate.certificate.revokedAt,
+      revokedByName: includeRevocationAudit ? certificate.revokedByName : null,
+      revocationReason: includeRevocationAudit ? certificate.certificate.revocationReason : null,
     } : null,
   };
 }
@@ -287,8 +300,10 @@ async function loadProgressData(applications: AcceptedApplication[]): Promise<Pr
     db.select({
       certificate: courseCertificatesTable,
       issuedByName: staffMembersTable.email,
+      revokedByName: certificateRevokerStaff.email,
     }).from(courseCertificatesTable)
       .innerJoin(staffMembersTable, eq(courseCertificatesTable.issuedByStaffId, staffMembersTable.id))
+      .leftJoin(certificateRevokerStaff, eq(courseCertificatesTable.revokedByStaffId, certificateRevokerStaff.id))
       .where(inArray(courseCertificatesTable.applicationId, applicationIds)),
   ]);
   const quizIds = quizzes.map((quiz) => quiz.id);
@@ -379,7 +394,7 @@ participantCourseProgressRouter.get("/progress", async (_req, res): Promise<void
   const applications = await acceptedApplicationsForParticipant(participant);
   const rows = await loadProgressData(applications);
   res.json(GetParticipantLearningProgressResponse.parse({
-    programs: rows.map(buildProgramProgress),
+    programs: rows.map((row) => buildProgramProgress(row)),
   }));
 });
 
@@ -594,7 +609,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
       .filter((application) => application.programId === program.id)
       .map((application) => {
         const progress = byApplicationId.get(application.id);
-        const course = progress ? buildProgramProgress(progress) : {
+        const course = progress ? buildProgramProgress(progress, true) : {
           programId: program.id,
           programName: program.name,
           completedRequiredModules: 0,
@@ -743,6 +758,73 @@ staffLearningProgressRouter.post("/analytics/learning-progress/applications/:id/
     certificateCode: outcome.certificate.certificateCode,
     issuedAt: outcome.certificate.issuedAt,
     issuedByName: staff.email,
+    revokedAt: null,
+    revokedByName: null,
+    revocationReason: null,
+  }));
+});
+
+staffLearningProgressRouter.post("/analytics/learning-progress/certificates/:id/revoke", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess | undefined;
+  const params = RevokeCourseCertificateParams.safeParse(req.params);
+  const body = RevokeCourseCertificateBody.safeParse(req.body);
+  if (!staff || staff.role !== "coordinator") {
+    res.status(403).json({ error: "Coordinator access is required." });
+    return;
+  }
+  if (!params.success || !body.success || !body.data.reason.trim()) {
+    res.status(400).json({ error: "Enter a reason for revoking this certificate." });
+    return;
+  }
+
+  const [revoked] = await db.update(courseCertificatesTable)
+    .set({
+      revokedAt: new Date(),
+      revokedByStaffId: staff.id,
+      revocationReason: body.data.reason.trim(),
+    })
+    .where(and(
+      eq(courseCertificatesTable.id, params.data.id),
+      isNull(courseCertificatesTable.revokedAt),
+    ))
+    .returning({ id: courseCertificatesTable.id });
+
+  if (!revoked) {
+    const [existing] = await db.select({
+      id: courseCertificatesTable.id,
+    }).from(courseCertificatesTable)
+      .where(eq(courseCertificatesTable.id, params.data.id))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Certificate not found." });
+      return;
+    }
+    res.status(409).json({ error: "This certificate has already been revoked." });
+    return;
+  }
+
+  const [certificate] = await db.select({
+    certificate: courseCertificatesTable,
+    issuedByName: staffMembersTable.email,
+    revokedByName: certificateRevokerStaff.email,
+  }).from(courseCertificatesTable)
+    .innerJoin(staffMembersTable, eq(courseCertificatesTable.issuedByStaffId, staffMembersTable.id))
+    .leftJoin(certificateRevokerStaff, eq(courseCertificatesTable.revokedByStaffId, certificateRevokerStaff.id))
+    .where(eq(courseCertificatesTable.id, revoked.id))
+    .limit(1);
+  res.json(RevokeCourseCertificateResponse.parse({
+    id: certificate.certificate.id,
+    applicationId: certificate.certificate.applicationId,
+    programId: certificate.certificate.programId,
+    programName: certificate.certificate.programName,
+    participantName: certificate.certificate.participantName,
+    businessName: certificate.certificate.businessName,
+    certificateCode: certificate.certificate.certificateCode,
+    issuedAt: certificate.certificate.issuedAt,
+    issuedByName: certificate.issuedByName,
+    revokedAt: certificate.certificate.revokedAt,
+    revokedByName: certificate.revokedByName,
+    revocationReason: certificate.certificate.revocationReason,
   }));
 });
 

@@ -592,6 +592,20 @@ export interface CourseCertificate {
   certificateCode: string;
   issuedAt: string;
   issuedByName: string;
+  /** @nullable */
+  revokedAt: string | null;
+  /** @nullable */
+  revokedByName: string | null;
+  /** @nullable */
+  revocationReason: string | null;
+}
+
+export interface CertificateRevocationInput {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
 }
 
 export type CertificateVerificationStatus = typeof CertificateVerificationStatus[keyof typeof CertificateVerificationStatus];
@@ -599,6 +613,7 @@ export type CertificateVerificationStatus = typeof CertificateVerificationStatus
 
 export const CertificateVerificationStatus = {
   issued: 'issued',
+  revoked: 'revoked',
 } as const;
 
 /**
@@ -613,6 +628,8 @@ export interface CertificateVerification {
   businessName: string;
   programName: string;
   issuedAt: string;
+  /** @nullable */
+  revokedAt: string | null;
 }
 
 export interface ApiError {

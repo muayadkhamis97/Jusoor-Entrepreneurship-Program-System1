@@ -15,4 +15,6 @@ export interface CertificateVerification {
   businessName: string;
   programName: string;
   issuedAt: Date;
+  /** @nullable */
+  revokedAt: Date | null;
 }

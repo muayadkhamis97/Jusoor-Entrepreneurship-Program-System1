@@ -431,7 +431,10 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "businessName": zod.string(),
   "certificateCode": zod.string(),
   "issuedAt": zod.coerce.date(),
-  "issuedByName": zod.string()
+  "issuedByName": zod.string(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "revokedByName": zod.string().nullable(),
+  "revocationReason": zod.string().nullable()
 }),zod.null()])
 }).and(zod.object({
   "applicationId": zod.number().int(),
@@ -459,7 +462,41 @@ export const IssueCourseCertificateResponse = zod.object({
   "businessName": zod.string(),
   "certificateCode": zod.string(),
   "issuedAt": zod.coerce.date(),
-  "issuedByName": zod.string()
+  "issuedByName": zod.string(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "revokedByName": zod.string().nullable(),
+  "revocationReason": zod.string().nullable()
+})
+
+
+/**
+ * @summary Revoke an issued certificate while preserving its issue record
+ */
+export const RevokeCourseCertificateParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const revokeCourseCertificateBodyReasonMax = 1000;
+
+
+
+export const RevokeCourseCertificateBody = zod.object({
+  "reason": zod.string().min(1).max(revokeCourseCertificateBodyReasonMax)
+})
+
+export const RevokeCourseCertificateResponse = zod.object({
+  "id": zod.number().int(),
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "participantName": zod.string(),
+  "businessName": zod.string(),
+  "certificateCode": zod.string(),
+  "issuedAt": zod.coerce.date(),
+  "issuedByName": zod.string(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "revokedByName": zod.string().nullable(),
+  "revocationReason": zod.string().nullable()
 })
 
 
@@ -477,12 +514,13 @@ export const verifyCertificateResponseCertificateCodeRegExp = new RegExp('^(?:[0
 
 
 export const VerifyCertificateResponse = zod.object({
-  "status": zod.enum(['issued']),
+  "status": zod.enum(['issued', 'revoked']),
   "certificateCode": zod.string().regex(verifyCertificateResponseCertificateCodeRegExp),
   "participantName": zod.string(),
   "businessName": zod.string(),
   "programName": zod.string(),
-  "issuedAt": zod.coerce.date()
+  "issuedAt": zod.coerce.date(),
+  "revokedAt": zod.coerce.date().nullable()
 })
 
 
@@ -1895,7 +1933,10 @@ export const GetParticipantLearningProgressResponse = zod.object({
   "businessName": zod.string(),
   "certificateCode": zod.string(),
   "issuedAt": zod.coerce.date(),
-  "issuedByName": zod.string()
+  "issuedByName": zod.string(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "revokedByName": zod.string().nullable(),
+  "revocationReason": zod.string().nullable()
 }),zod.null()])
 }))
 })

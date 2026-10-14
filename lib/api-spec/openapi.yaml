@@ -199,6 +199,34 @@ paths:
           description: Accepted participant application not found
         "409":
           description: A certificate has already been issued for this application
+  /analytics/learning-progress/certificates/{id}/revoke:
+    post:
+      operationId: revokeCourseCertificate
+      tags: [dashboard]
+      summary: Revoke an issued certificate while preserving its issue record
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CertificateRevocationInput"
+      responses:
+        "200":
+          description: Certificate revoked with its original issue details preserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseCertificate"
+        "400":
+          description: A revocation reason is required
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Certificate not found
+        "409":
+          description: Certificate has already been revoked
   /certificates/{code}/verification:
     get:
       operationId: verifyCertificate
@@ -211,7 +239,7 @@ paths:
           schema: { $ref: "#/components/schemas/CertificateCode" }
       responses:
         "200":
-          description: Certificate record is currently issued
+          description: Certificate record with its current validity status
           content:
             application/json:
               schema:
@@ -219,7 +247,7 @@ paths:
         "400":
           description: The supplied certificate code is invalid
         "404":
-          description: No active certificate was found for this code
+          description: No certificate was found for this code
           content:
             application/json:
               schema:
@@ -3181,18 +3209,28 @@ components:
         certificateCode: { type: string }
         issuedAt: { type: string, format: date-time }
         issuedByName: { type: string }
-      required: [id, applicationId, programId, programName, participantName, businessName, certificateCode, issuedAt, issuedByName]
+        revokedAt: { type: ["string", "null"], format: date-time }
+        revokedByName: { type: ["string", "null"] }
+        revocationReason: { type: ["string", "null"] }
+      required: [id, applicationId, programId, programName, participantName, businessName, certificateCode, issuedAt, issuedByName, revokedAt, revokedByName, revocationReason]
+    CertificateRevocationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+      required: [reason]
     CertificateVerification:
       type: object
       additionalProperties: false
       properties:
-        status: { type: string, enum: [issued] }
+        status: { type: string, enum: [issued, revoked] }
         certificateCode: { $ref: "#/components/schemas/CertificateCode" }
         participantName: { type: string }
         businessName: { type: string }
         programName: { type: string }
         issuedAt: { type: string, format: date-time }
-      required: [status, certificateCode, participantName, businessName, programName, issuedAt]
+        revokedAt: { type: ["string", "null"], format: date-time }
+      required: [status, certificateCode, participantName, businessName, programName, issuedAt, revokedAt]
     CertificateCode:
       type: string
       pattern: '^(?:[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|JUS-[0-9]{4}-[A-Z]{2}-[0-9A-Fa-f]{6})$'

@@ -38,6 +38,7 @@ export * from './calendlyWebhookEnvelope';
 export * from './calendlyWebhookEnvelopeEvent';
 export * from './calendlyWebhookEnvelopePayload';
 export * from './certificateCode';
+export * from './certificateRevocationInput';
 export * from './certificateVerification';
 export * from './certificateVerificationStatus';
 export * from './cohortAssessmentGain';

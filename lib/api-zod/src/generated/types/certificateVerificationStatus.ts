@@ -11,4 +11,5 @@ export type CertificateVerificationStatus = typeof CertificateVerificationStatus
 
 export const CertificateVerificationStatus = {
   issued: 'issued',
+  revoked: 'revoked',
 } as const;

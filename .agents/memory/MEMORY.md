@@ -7,3 +7,4 @@
 - [Jusoor role boundaries](jusoor-role-access.md) — Keep coordinator administration separate from trainer, mentor, judge, and participant assignment-scoped data.
 - [Internal xAPI LRS](xapi-lrs.md) — Keep Jusoor course-package statements and activity state in the built-in platform LRS; avoid external LRS integrations.
 - [Certificate eligibility locking](certificate-eligibility-locking.md) — Serialize certificate eligibility checks with participant completion changes by locking the accepted application row.
+- [Certificate revocation privacy](certificate-revocation-privacy.md) — Show revoked status and time outside staff views, but keep coordinator reason and identity private.

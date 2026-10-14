@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CertificatePdfPage, downloadCertificatePdf, type CertificateLanguage } from './certificate-pdf';
 import { AssessmentComparison } from './assessment-comparison';
@@ -10,6 +10,7 @@ import {
   useGetParticipantLearningProgress,
   useVerifyCertificate,
   useIssueCourseCertificate,
+  useRevokeCourseCertificate,
   useRetryCourseReminder,
   useRecordParticipantCourseActivity,
   useRecordParticipantModuleProgress,
@@ -98,10 +99,11 @@ function useVisibleActiveTime(programIds: number[]) {
 
 function CertificateCard({ certificate }: { certificate: NonNullable<ParticipantLearningProgram['certificate']> }) {
   const verificationUrl = certificateVerificationUrl(certificate.certificateCode);
+  const revoked = Boolean(certificate.revokedAt);
   return <article className="learning-certificate" data-testid={`card-certificate-${certificate.id}`}>
     <div className="certificate-seal"><Award size={21} /></div>
-    <div className="certificate-copy"><span className="lp-eyebrow">{t('CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span></div><a className="certificate-verify-link" href={verificationUrl}>{t('Verify this certificate')}</a></div>
-    <CertificateDownload certificate={certificate} testIdPrefix="participant" />
+    <div className="certificate-copy"><span className="lp-eyebrow">{t(revoked ? 'CERTIFICATE REVOKED' : 'CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span>{revoked && <span>{t('REVOKED')} {fmtDate(certificate.revokedAt)}</span>}</div><a className="certificate-verify-link" href={verificationUrl}>{t('Verify this certificate')}</a></div>
+    {!revoked && <CertificateDownload certificate={certificate} testIdPrefix="participant" />}
   </article>;
 }
 
@@ -245,18 +247,19 @@ export function CertificateVerificationPage() {
         </button>
       </form>
       {verification.isFetching && <div className="certificate-verification-result" role="status">{t('Checking the certificate record…')}</div>}
-      {verification.data && <div className="certificate-verification-result is-issued" role="status" data-testid="certificate-verification-issued">
-        <div className="certificate-verification-status"><ShieldCheck size={20} /><b>{t('Certificate issued')}</b></div>
+      {verification.data && <div className={`certificate-verification-result ${verification.data.status === 'revoked' ? 'is-invalid' : 'is-issued'}`} role="status" data-testid={`certificate-verification-${verification.data.status}`}>
+        <div className={`certificate-verification-status ${verification.data.status === 'revoked' ? 'is-revoked' : ''}`}>{verification.data.status === 'revoked' ? <CircleAlert size={20} /> : <ShieldCheck size={20} />}<b>{t(verification.data.status === 'revoked' ? 'Certificate revoked — not valid' : 'Certificate issued')}</b></div>
         <dl>
           <div><dt>{t('Participant')}</dt><dd>{verification.data.participantName}</dd></div>
           <div><dt>{t('Business')}</dt><dd>{verification.data.businessName}</dd></div>
           <div><dt>{t('Program')}</dt><dd>{verification.data.programName}</dd></div>
           <div><dt>{t('Issue date')}</dt><dd>{fmtDate(verification.data.issuedAt)}</dd></div>
           <div><dt>{t('Certificate code')}</dt><dd>{verification.data.certificateCode}</dd></div>
+          {verification.data.status === 'revoked' && verification.data.revokedAt && <div><dt>{t('Revoked on')}</dt><dd>{fmtDate(verification.data.revokedAt)}</dd></div>}
         </dl>
       </div>}
       {verification.isError && errorStatus === 400 && <div className="certificate-verification-result is-invalid" role="alert" data-testid="certificate-verification-invalid">{t('This certificate code is invalid. Check the code and try again.')}</div>}
-      {verification.isError && errorStatus === 404 && <div className="certificate-verification-result is-invalid" role="alert" data-testid="certificate-verification-not-found">{t('No active certificate was found for this code. It may be unknown or revoked.')}</div>}
+      {verification.isError && errorStatus === 404 && <div className="certificate-verification-result is-invalid" role="alert" data-testid="certificate-verification-not-found">{t('No certificate was found for this code.')}</div>}
       {verification.isError && errorStatus !== 400 && errorStatus !== 404 && <div className="certificate-verification-result is-invalid" role="alert">{t('Certificate verification is temporarily unavailable. Please try again.')}</div>}
       <small className="certificate-verification-privacy">{t('Only certificate details needed to confirm issuance are shown.')}</small>
     </section>
@@ -281,15 +284,49 @@ function ProgramProgress({ program, onToggle, savingModule }: { program: Partici
   </article>;
 }
 
-function ParticipantRow({ participant, onIssue, pending }: { participant: LearningProgressParticipant; onIssue: (participant: LearningProgressParticipant) => void; pending: boolean }) {
+function ParticipantRow({ participant, onIssue, pending, onRevoke, revoking }: {
+  participant: LearningProgressParticipant;
+  onIssue: (participant: LearningProgressParticipant) => void;
+  pending: boolean;
+  onRevoke: (certificateId: number, reason: string, onSuccess: () => void) => void;
+  revoking: boolean;
+}) {
+  const [showRevokeForm, setShowRevokeForm] = useState(false);
+  const [revokeReason, setRevokeReason] = useState('');
   const certReady = participant.completedRequiredModules >= participant.totalRequiredModules && participant.totalRequiredModules > 0;
+  const certificate = participant.certificate;
+  const handleRevoke = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const reason = revokeReason.trim();
+    if (!certificate || !reason || revoking) return;
+    onRevoke(certificate.id, reason, () => {
+      setShowRevokeForm(false);
+      setRevokeReason('');
+    });
+  };
   return <details className="lp-participant" data-testid={`row-learning-participant-${participant.applicationId}`}>
-    <summary><span className="lp-person"><i>{participant.founderName.slice(0, 1).toUpperCase()}</i><span><b>{participant.founderName}</b><small>{participant.businessName} · {participant.email}</small></span></span><span className="lp-participant-progress"><b>{Math.round(participant.completionPercent)}%</b><i><span style={{ width: `${Math.max(0, Math.min(100, participant.completionPercent))}%` }} /></i></span><span className="lp-participant-time">{fmtTime(participant.activeSeconds)}</span><span className={`lp-status ${participant.certificate ? 'completed' : certReady ? 'in_progress' : 'not_started'}`}>{participant.certificate ? t('Issued') : certReady ? t('Ready for review') : t('In progress')}</span><span className="lp-detail-chevron">+</span></summary>
+    <summary><span className="lp-person"><i>{participant.founderName.slice(0, 1).toUpperCase()}</i><span><b>{participant.founderName}</b><small>{participant.businessName} · {participant.email}</small></span></span><span className="lp-participant-progress"><b>{Math.round(participant.completionPercent)}%</b><i><span style={{ width: `${Math.max(0, Math.min(100, participant.completionPercent))}%` }} /></i></span><span className="lp-participant-time">{fmtTime(participant.activeSeconds)}</span><span className={`lp-status ${certificate ? certificate.revokedAt ? 'not_started' : 'completed' : certReady ? 'in_progress' : 'not_started'}`}>{certificate ? t(certificate.revokedAt ? 'Revoked' : 'Issued') : certReady ? t('Ready for review') : t('In progress')}</span><span className="lp-detail-chevron">+</span></summary>
     <div className="lp-participant-detail">
        <div className="lp-detail-facts"><span>{t('Required modules')} <b>{participant.completedRequiredModules}/{participant.totalRequiredModules}</b></span><span>{t('Last activity')} <b>{fmtDateTime(participant.lastActivityAt)}</b></span><span>{t('Best quiz results')} <b>{participant.quizzes.length ? participant.quizzes.map(quiz => formattedQuizGrade(quiz, quiz.bestScore)).join(' · ') : '—'}</b></span></div>
         {hasCourseAssessment(participant.quizzes) && <AssessmentComparison quizzes={participant.quizzes} testId={`assessment-comparison-coordinator-${participant.applicationId}`} />}
       {participant.modules.length > 0 && <div className="lp-coordinator-modules">{participant.modules.map(module => <span key={module.moduleId} className={module.completionStatus === 'completed' ? 'is-done' : ''}><i />{module.title}{module.isRequired ? ` · ${t('Required')}` : ` · ${t('Optional')}`}</span>)}</div>}
-      {participant.certificate ? <><div className="lp-issued"><FileCheck2 size={15} />{t('Certificate')} <b>{participant.certificate.certificateCode}</b> · {fmtDate(participant.certificate.issuedAt)}</div><CertificateDownload certificate={participant.certificate} testIdPrefix="coordinator" /></>
+      {certificate ? <><div className="lp-issued"><FileCheck2 size={15} />{t('Certificate')} <b>{certificate.certificateCode}</b> · {fmtDate(certificate.issuedAt)} · {t('Issued by')} {certificate.issuedByName}</div>
+        {certificate.revokedAt ? <div className="lp-revocation-details" role="status" data-testid={`certificate-revocation-details-${certificate.id}`}>
+          <b>{t('Certificate revoked')}</b>
+          <span>{t('Reason')}: {certificate.revocationReason}</span>
+          <small>{t('Revoked')} {fmtTimestamp(certificate.revokedAt)} · {t('By')} {certificate.revokedByName}</small>
+        </div> : <>
+          <CertificateDownload certificate={certificate} testIdPrefix="coordinator" />
+          {showRevokeForm ? <form className="lp-certificate-revoke-form" onSubmit={handleRevoke}>
+            <label htmlFor={`certificate-revocation-reason-${certificate.id}`}>{t('Reason for revocation')}
+              <textarea id={`certificate-revocation-reason-${certificate.id}`} value={revokeReason} onChange={event => setRevokeReason(event.target.value)} maxLength={1000} required data-testid={`input-certificate-revocation-reason-${certificate.id}`} />
+            </label>
+            <small>{t('Revoking a certificate cannot be undone.')}</small>
+            <div><button className="lp-button lp-button-outline" type="button" onClick={() => { setShowRevokeForm(false); setRevokeReason(''); }} disabled={revoking}>{t('Cancel')}</button>
+              <button className="lp-button lp-button-danger" type="submit" disabled={revoking || !revokeReason.trim()} data-testid={`button-confirm-revoke-certificate-${certificate.id}`}>{revoking ? t('Revoking…') : t('Confirm revocation')}</button></div>
+          </form> : <button type="button" className="lp-button lp-button-outline lp-certificate-revoke-trigger" onClick={() => setShowRevokeForm(true)} data-testid={`button-revoke-certificate-${certificate.id}`}>{t('Revoke certificate')}</button>}
+        </>}
+      </>
         : <button type="button" className="lp-button lp-button-primary" onClick={() => onIssue(participant)} disabled={!certReady || pending} data-testid={`button-issue-certificate-${participant.applicationId}`}>{pending ? t('Issuing…') : <><Award size={14} />{t('Issue certificate')}</>}</button>}
     </div>
   </details>;
@@ -360,6 +397,7 @@ export function LearningProgressAnalytics() {
   const params = useMemo(() => selected ? { programId: Number(selected) } : undefined, [selected]);
   const query = useGetLearningProgressAnalytics(params, { query: { queryKey: getGetLearningProgressAnalyticsQueryKey(params), refetchOnWindowFocus: true, refetchInterval: 30_000 } });
   const issue = useIssueCourseCertificate();
+  const revoke = useRevokeCourseCertificate();
   const retryReminder = useRetryCourseReminder();
   const programs = query.data?.programs || [];
   const programCatalogRef = useRef(programs);
@@ -370,6 +408,7 @@ export function LearningProgressAnalytics() {
   const programCatalog = programCatalogRef.current;
   const visiblePrograms = selected ? programs.filter(program => String(program.programId) === selected) : programs;
   const [issuing, setIssuing] = useState<number | null>(null);
+  const [revokingCertificateId, setRevokingCertificateId] = useState<number | null>(null);
   const [retryingReminder, setRetryingReminder] = useState<number | null>(null);
   const issueCertificate = (person: LearningProgressParticipant) => {
     setIssuing(person.applicationId);
@@ -377,6 +416,17 @@ export function LearningProgressAnalytics() {
       onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey(params) }),
       onError: () => undefined,
       onSettled: () => setIssuing(null),
+    });
+  };
+  const revokeCertificate = (certificateId: number, reason: string, onSuccess: () => void) => {
+    revoke.reset();
+    setRevokingCertificateId(certificateId);
+    revoke.mutate({ id: certificateId, data: { reason } }, {
+      onSuccess: () => {
+        void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey(params) });
+        onSuccess();
+      },
+      onSettled: () => setRevokingCertificateId(null),
     });
   };
   const allParticipants = visiblePrograms.flatMap(program => program.participants);
@@ -399,13 +449,14 @@ export function LearningProgressAnalytics() {
       : <>
         <div className="lp-metrics"><article><span><Activity size={15} />{t('PARTICIPANTS')}</span><b data-testid="text-learning-participant-count">{allParticipants.length}</b><small>{t('Across selected programs')}</small></article><article><span><Check size={15} />{t('AVERAGE COMPLETION')}</span><b>{completion.toFixed(1)}%</b><small>{t('Required learning pathway')}</small></article><article><span><Hourglass size={15} />{t('ACTIVE LEARNING')}</span><b>{fmtTime(totalTime)}</b><small>{t('Combined recorded time')}</small></article><article><span><Award size={15} />{t('CERTIFICATES')}</span><b>{certs}</b><small>{t('Issued by coordinators')}</small></article></div>
         {issue.isError && <div className="lp-mutation-error" role="alert" data-testid="error-issue-certificate">{t('Certificate could not be issued. Confirm eligibility and try again.')}</div>}
+        {revoke.isError && <div className="lp-mutation-error" role="alert" data-testid="error-revoke-certificate">{t('Certificate could not be revoked. Refresh the record and try again.')}</div>}
          {retryReminder.isError && <div className="lp-mutation-error" role="alert" data-testid="error-retry-course-reminder">{t('Reminder could not be queued. Refresh the cohort status and try again.')}</div>}
         {visiblePrograms.map(program => <article className="lp-analytics-program" key={program.programId} data-testid={`card-learning-analytics-program-${program.programId}`}>
           <header><div><span className="lp-eyebrow">{t('COHORT LEARNING')}</span><h3>{program.programName}</h3></div><div className="lp-program-stats"><span><b>{program.completedParticipants}</b> / {program.participantCount} {t('completed')}</span><span><b>{program.averageCompletionPercent.toFixed(1)}%</b> {t('average progress')}</span><span><b>{fmtTime(program.averageActiveSeconds)}</b> {t('average active time')}</span><span><b>{program.averageQuizPercent == null ? '—' : `${program.averageQuizPercent.toFixed(1)}%`}</b> {t('quiz average')}</span><span><b>{program.certificatesIssued}</b> {t('certificates')}</span></div></header>
            <CohortAssessmentGainPanel programId={program.programId} summary={program.assessmentGain} />
            <ReminderDeliveryPanel program={program} retryingId={retryingReminder} onRetry={retryFailedReminder} />
           <div className="lp-roster-head"><span>{t('PARTICIPANT / BUSINESS')}</span><span>{t('COURSE COMPLETION')}</span><span>{t('ACTIVE TIME')}</span><span>{t('CERTIFICATE STATE')}</span></div>
-          {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={issueCertificate} pending={issuing === person.applicationId} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}
+          {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={issueCertificate} pending={issuing === person.applicationId} onRevoke={revokeCertificate} revoking={revokingCertificateId === person.certificate?.id} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}
         </article>)}
       </>}
   </section>;

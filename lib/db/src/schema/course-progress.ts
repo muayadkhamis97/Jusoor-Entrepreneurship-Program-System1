@@ -58,6 +58,9 @@ export const courseCertificatesTable = pgTable(
     programName: text("program_name").notNull(),
     issuedByStaffId: integer("issued_by_staff_id").notNull().references(() => staffMembersTable.id, { onDelete: "restrict" }),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedByStaffId: integer("revoked_by_staff_id").references(() => staffMembersTable.id, { onDelete: "restrict" }),
+    revocationReason: text("revocation_reason"),
   },
   (table) => [
     uniqueIndex("jusoor_course_certificates_application_unique").on(table.applicationId),

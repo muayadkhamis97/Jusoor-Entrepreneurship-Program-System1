@@ -36,6 +36,7 @@ import type {
   CalendlyAuthorizationInput,
   CalendlyWebhookEnvelope,
   CertificateCode,
+  CertificateRevocationInput,
   CertificateVerification,
   CompleteCalendlyConnectionParams,
   CompleteGoogleCalendarConnectionParams,
@@ -845,6 +846,95 @@ export const useIssueCourseCertificate = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getIssueCourseCertificateMutationOptions(options));
+    }
+
+export const getRevokeCourseCertificateUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/learning-progress/certificates/${id}/revoke`
+}
+
+/**
+ * @summary Revoke an issued certificate while preserving its issue record
+ */
+export const revokeCourseCertificate = async (id: number,
+    certificateRevocationInput: CertificateRevocationInput, options?: Parameters<typeof customFetch>[1]): Promise<CourseCertificate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CourseCertificate>(getRevokeCourseCertificateUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(certificateRevocationInput)
+  }
+);}
+
+
+
+
+
+export const getRevokeCourseCertificateMutationKey = () => ['revokeCourseCertificate'] as const;
+
+export const getRevokeCourseCertificateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCourseCertificate>>, TError,RevokeCourseCertificateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeCourseCertificate>>, TError,RevokeCourseCertificateMutationVariables, TContext> => {
+
+const mutationKey = getRevokeCourseCertificateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeCourseCertificate>>, RevokeCourseCertificateMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  revokeCourseCertificate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeCourseCertificateMutationResult = NonNullable<Awaited<ReturnType<typeof revokeCourseCertificate>>>
+    export type RevokeCourseCertificateMutationBody = BodyType<CertificateRevocationInput>
+    export type RevokeCourseCertificateMutationError = ErrorType<void>
+    export type RevokeCourseCertificateMutationVariables = {id: number;data: BodyType<CertificateRevocationInput>}
+
+    /**
+ * @summary Revoke an issued certificate while preserving its issue record
+ */
+export const useRevokeCourseCertificate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCourseCertificate>>, TError,RevokeCourseCertificateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeCourseCertificate>>,
+        TError,
+        RevokeCourseCertificateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeCourseCertificateMutationOptions(options));
     }
 
 export const getVerifyCertificateUrl = (code: CertificateCode,) => {

@@ -8,6 +8,7 @@ let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreInsert: (() => void) | undefined;
+let restoreUpdate: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
 let applications: Array<Record<string, any>>;
 let modules: Array<Record<string, any>>;
@@ -101,7 +102,7 @@ function resetState(): void {
 }
 
 function replaceDbMethod(
-  name: "select" | "insert" | "transaction",
+  name: "select" | "insert" | "update" | "transaction",
   replacement: (...args: never[]) => unknown,
 ): () => void {
   const original = Object.getOwnPropertyDescriptor(db, name);
@@ -183,10 +184,24 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
           businessName: certificate.businessName,
           programName: certificate.programName,
           issuedAt: certificate.issuedAt,
+          revokedAt: certificate.revokedAt ?? null,
+        }));
+    } else if (requestPath.endsWith("/revoke")) {
+      const requestedId = Number(requestPath.split("/").at(-2));
+      rows = certificates
+        .filter((certificate) => certificate.id === requestedId)
+        .map((certificate) => ({
+          certificate,
+          issuedByName: "issuer@example.com",
+          revokedByName: certificate.revokedByStaffId ? "coordinator@example.com" : null,
         }));
     } else {
       rows = certificates.map((certificate) => joined
-        ? { certificate, issuedByName: "coordinator@example.com" }
+        ? {
+          certificate,
+          issuedByName: "coordinator@example.com",
+          revokedByName: certificate.revokedByStaffId ? "coordinator@example.com" : null,
+        }
         : { id: certificate.id });
     }
   }
@@ -216,6 +231,10 @@ function makeSelect() {
       joined = true;
       return query;
     },
+    leftJoin(..._args: unknown[]) {
+      joined = true;
+      return query;
+    },
     where(..._args: unknown[]) { return query; },
     orderBy(..._args: unknown[]) { return query; },
     limit(value: number) {
@@ -225,6 +244,28 @@ function makeSelect() {
     for(_lock?: string) { return query; },
     then(resolve: (value: Array<Record<string, any>>) => unknown, reject?: (reason: unknown) => unknown) {
       return Promise.resolve(selectRows(table, joined, limit)).then(resolve, reject);
+    },
+  };
+  return query;
+}
+
+function makeUpdate(table: unknown) {
+  let values: Record<string, any> = {};
+  const query = {
+    set(next: Record<string, any>) {
+      values = next;
+      return query;
+    },
+    where(..._args: unknown[]) {
+      return query;
+    },
+    returning: async () => {
+      if (table !== requireDbTables.courseCertificatesTable) return [];
+      const id = Number(requestPath.split("/").at(-2));
+      const certificate = certificates.find((item) => item.id === id);
+      if (!certificate || certificate.revokedAt) return [];
+      Object.assign(certificate, values);
+      return [{ id: certificate.id }];
     },
   };
   return query;
@@ -325,6 +366,7 @@ before(async () => {
 
   restoreSelect = replaceDbMethod("select", (() => makeSelect()) as (...args: never[]) => unknown);
   restoreInsert = replaceDbMethod("insert", ((table: unknown) => makeInsert(table)) as (...args: never[]) => unknown);
+  restoreUpdate = replaceDbMethod("update", ((table: unknown) => makeUpdate(table)) as (...args: never[]) => unknown);
   restoreTransaction = replaceDbMethod("transaction", ((callback: unknown) => {
     const previous = transactionTail;
     let release!: () => void;
@@ -367,6 +409,7 @@ before(async () => {
 
 after(async () => {
   restoreTransaction?.();
+  restoreUpdate?.();
   restoreInsert?.();
   restoreSelect?.();
   globalThis.fetch = nativeFetch;
@@ -475,6 +518,7 @@ test("public certificate verification returns only the issued certificate detail
     "issuedAt",
     "participantName",
     "programName",
+    "revokedAt",
     "status",
   ]);
   assert.equal(body.status, "issued");
@@ -483,6 +527,7 @@ test("public certificate verification returns only the issued certificate detail
   assert.equal(body.programName, programName);
   assert.equal(body.certificateCode, certificates[0].certificateCode);
   assert.equal(body.issuedAt, issuedAt.toISOString());
+  assert.equal(body.revokedAt, null);
   assert.equal(certificates.length, 1);
 
   certificates.push({
@@ -509,12 +554,88 @@ test("invalid and unknown public certificate codes are clearly distinguished", a
   assert.equal(invalid.status, 400);
   assert.equal(unknown.status, 404);
   assert.match((await invalid.json() as { error: string }).error, /valid certificate code/i);
-  assert.match((await unknown.json() as { error: string }).error, /No active certificate/i);
+  assert.match((await unknown.json() as { error: string }).error, /No certificate was found/i);
   assert.equal(certificates.length, 0);
+});
+
+test("coordinators can revoke once and the public checker reports revoked codes as invalid", async () => {
+  resetState();
+  const issuedAt = new Date("2026-10-11T13:45:00.000Z");
+  certificates.push({
+    id: 1,
+    applicationId: 101,
+    programId: 9,
+    certificateCode: "D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1",
+    participantName: "Amina Founder",
+    businessName: "Amina Ventures",
+    programName,
+    issuedByStaffId: 6,
+    issuedAt,
+    revokedAt: null,
+    revokedByStaffId: null,
+    revocationReason: null,
+  });
+
+  const denied = await request("/api/analytics/learning-progress/certificates/1/revoke", {
+    method: "POST",
+    body: { reason: "Issued by mistake" },
+  });
+  assert.equal(denied.status, 403);
+
+  const emptyReason = await request("/api/analytics/learning-progress/certificates/1/revoke", {
+    role: "coordinator",
+    method: "POST",
+    body: { reason: "   " },
+  });
+  assert.equal(emptyReason.status, 400);
+
+  const response = await request("/api/analytics/learning-progress/certificates/1/revoke", {
+    role: "coordinator",
+    method: "POST",
+    body: { reason: "Issued by mistake" },
+  });
+  const body = await response.json() as Record<string, any>;
+  assert.equal(response.status, 200);
+  assert.equal(body.issuedAt, issuedAt.toISOString());
+  assert.equal(body.issuedByName, "issuer@example.com");
+  assert.equal(body.revocationReason, "Issued by mistake");
+  assert.equal(body.revokedByName, "coordinator@example.com");
+  assert.ok(body.revokedAt);
+  assert.equal(certificates[0].issuedAt, issuedAt);
+  assert.equal(certificates[0].revokedByStaffId, 7);
+
+  const repeated = await request("/api/analytics/learning-progress/certificates/1/revoke", {
+    role: "coordinator",
+    method: "POST",
+    body: { reason: "Another reason" },
+  });
+  assert.equal(repeated.status, 409);
+
+  const verification = await request(`/api/certificates/${certificates[0].certificateCode}/verification`);
+  const verificationBody = await verification.json() as Record<string, any>;
+  assert.equal(verification.status, 200);
+  assert.equal(verificationBody.status, "revoked");
+  assert.equal(verificationBody.revokedAt, body.revokedAt);
+  assert.equal("revocationReason" in verificationBody, false);
 });
 
 test("participant progress is private to the accepted participant account", async () => {
   resetState();
+  const revokedAt = new Date("2026-10-12T09:30:00.000Z");
+  certificates.push({
+    id: 1,
+    applicationId: 101,
+    programId: 9,
+    certificateCode: "D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1",
+    participantName: "Amina Founder",
+    businessName: "Amina Ventures",
+    programName,
+    issuedByStaffId: 6,
+    issuedAt: new Date("2026-10-11T13:45:00.000Z"),
+    revokedAt,
+    revokedByStaffId: 7,
+    revocationReason: "Internal coordinator note",
+  });
   progress.push({
     id: 1,
     applicationId: 101,
@@ -533,7 +654,11 @@ test("participant progress is private to the accepted participant account", asyn
   });
 
   const a = await request("/api/progress", { user: "participant-a" });
-  const aBody = await a.json() as { programs: Array<{ completedRequiredModules: number; modules: Array<{ completedAt: string | null }> }> };
+  const aBody = await a.json() as { programs: Array<{
+    completedRequiredModules: number;
+    modules: Array<{ completedAt: string | null }>;
+    certificate: { revokedAt: string; revokedByName: string | null; revocationReason: string | null } | null;
+  }> };
   const b = await request("/api/progress", { user: "participant-b" });
   const bBody = await b.json() as { programs: Array<{ completedRequiredModules: number; modules: Array<{ completedAt: string | null }> }> };
 
@@ -541,6 +666,9 @@ test("participant progress is private to the accepted participant account", asyn
   assert.equal(b.status, 200);
   assert.equal(aBody.programs[0].completedRequiredModules, 1);
   assert.equal(aBody.programs[0].modules[0].completedAt, "2026-10-01T00:00:00.000Z");
+  assert.equal(aBody.programs[0].certificate?.revokedAt, revokedAt.toISOString());
+  assert.equal(aBody.programs[0].certificate?.revokedByName, null);
+  assert.equal(aBody.programs[0].certificate?.revocationReason, null);
   assert.equal(bBody.programs[0].completedRequiredModules, 0);
   assert.equal(bBody.programs[0].modules[0].completedAt, null);
 });

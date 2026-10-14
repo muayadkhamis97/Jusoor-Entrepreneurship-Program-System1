@@ -16,4 +16,10 @@ export interface CourseCertificate {
   certificateCode: string;
   issuedAt: Date;
   issuedByName: string;
+  /** @nullable */
+  revokedAt: Date | null;
+  /** @nullable */
+  revokedByName: string | null;
+  /** @nullable */
+  revocationReason: string | null;
 }
