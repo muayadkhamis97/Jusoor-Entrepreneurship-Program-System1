@@ -61,12 +61,52 @@ test("cohort averages use each participant's first attempt for every available a
   assert.ok(Math.abs(comparison.averageGainPercentagePoints! - -50 / 3) < 1e-10);
 });
 
-test("missing assessment results remain unavailable rather than becoming zero scores", () => {
+test("a real zero score remains eligible while a missing assessment is excluded from its average", () => {
   const comparison = calculateCohortAssessmentGain([
     {
       quizzes,
-      attempts: [{ id: 1, quizId: 1, score: 0, totalQuestions: 10, submittedAt: submittedAt(1) }],
+      attempts: [
+        { id: 1, quizId: 1, score: 0, totalQuestions: 10, submittedAt: submittedAt(1) },
+        { id: 2, quizId: 3, score: 5, totalQuestions: 10, submittedAt: submittedAt(2) },
+      ],
     },
+    {
+      quizzes,
+      attempts: [{ id: 3, quizId: 3, score: 10, totalQuestions: 10, submittedAt: submittedAt(1) }],
+    },
+  ]);
+
+  assert.deepEqual(comparison, {
+    eligibleParticipants: 2,
+    participantsWithPre: 1,
+    participantsWithPost: 2,
+    pairedParticipants: 1,
+    preAveragePercent: 0,
+    postAveragePercent: 75,
+    averageGainPercentagePoints: 75,
+  });
+});
+
+test("no pre-course results leave the pre average and change unavailable", () => {
+  const comparison = calculateCohortAssessmentGain([
+    { quizzes, attempts: [{ id: 1, quizId: 3, score: 0, totalQuestions: 10, submittedAt: submittedAt(1) }] },
+    { quizzes, attempts: [] },
+  ]);
+
+  assert.deepEqual(comparison, {
+    eligibleParticipants: 2,
+    participantsWithPre: 0,
+    participantsWithPost: 1,
+    pairedParticipants: 0,
+    preAveragePercent: null,
+    postAveragePercent: 0,
+    averageGainPercentagePoints: null,
+  });
+});
+
+test("no post-course results leave the post average and change unavailable", () => {
+  const comparison = calculateCohortAssessmentGain([
+    { quizzes, attempts: [{ id: 1, quizId: 1, score: 0, totalQuestions: 10, submittedAt: submittedAt(1) }] },
     { quizzes, attempts: [] },
   ]);
 
