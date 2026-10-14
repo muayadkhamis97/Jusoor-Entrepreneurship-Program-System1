@@ -20,6 +20,7 @@ import { businessesTable, db, grantReceiptsTable, pitchJudgesTable, pitchesTable
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 import { cents, totalGrantReceived } from "../lib/grant-ledger";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { hasProgramStaffRole } from "../lib/programStaffRoles";
 
 const router: IRouter = Router();
 
@@ -51,19 +52,22 @@ router.post("/pitches/:id/judges", requireCoordinator, async (req, res): Promise
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
   }
-  const [pitch] = await db.select({ id: pitchesTable.id }).from(pitchesTable)
+  const [pitch] = await db.select({ id: pitchesTable.id, businessId: pitchesTable.businessId }).from(pitchesTable)
     .where(eq(pitchesTable.id, params.data.id)).limit(1);
   if (!pitch) {
     res.status(404).json({ error: "Pitch event not found." });
     return;
   }
+  const [business] = await db.select({ programId: businessesTable.programId }).from(businessesTable)
+    .where(eq(businessesTable.id, pitch.businessId)).limit(1);
   const [judge] = await db.select().from(staffMembersTable)
-    .where(and(
-      eq(staffMembersTable.id, body.data.judgeStaffId),
-      eq(staffMembersTable.role, "judge"),
-    )).limit(1);
+    .where(eq(staffMembersTable.id, body.data.judgeStaffId)).limit(1);
   if (!judge) {
-    res.status(400).json({ error: "Select an account with the Judge role." });
+    res.status(400).json({ error: "Select an active account with the Judge role." });
+    return;
+  }
+  if (!business || !await hasProgramStaffRole(judge.id, business.programId, "judge")) {
+    res.status(400).json({ error: "Select a judge assigned to the business's program." });
     return;
   }
   const [assignment] = await db.insert(pitchJudgesTable)
@@ -142,7 +146,7 @@ router.post("/pitches", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (staff?.role !== "coordinator"
     && (parsed.data.grantDecision !== undefined || parsed.data.grantAmount !== undefined)) {
-    res.status(403).json({ error: "Coordinator access is required to change grant awards." });
+    res.status(403).json({ error: "Admin access is required to change grant awards." });
     return;
   }
   const activeProgramIds = await activeProgramIdsFor(staff!);
@@ -166,7 +170,7 @@ router.patch("/pitches/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (staff?.role !== "coordinator"
     && (body.data.grantDecision !== undefined || body.data.grantAmount !== undefined)) {
-    res.status(403).json({ error: "Coordinator access is required to change grant awards." });
+    res.status(403).json({ error: "Admin access is required to change grant awards." });
     return;
   }
   const activeProgramIds = await activeProgramIdsFor(staff!);

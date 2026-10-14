@@ -15,13 +15,13 @@ import {
   programAnnouncementsTable,
   sessionsTable,
   staffMembersTable,
-  staffProgramAssignmentsTable,
   zoomRecordingAlertsTable,
 } from "@workspace/db";
 import { isGoogleDriveRecordingUrl } from "../lib/zoom-recording-alerts";
 import { getRecordingLinkTransition } from "../lib/participant-recording-notices";
 import { activeProgramIdsFor } from "../lib/programScope";
 import type { StaffAccess } from "../middlewares/staffAccess";
+import { hasProgramStaffRole } from "../lib/programStaffRoles";
 
 const router: IRouter = Router();
 
@@ -67,7 +67,7 @@ router.get("/sessions", async (req, res): Promise<void> => {
 router.post("/sessions", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
   if (staff.role !== "coordinator" && staff.role !== "staff") {
-    res.status(403).json({ error: "Coordinator or Program Staff access required." });
+    res.status(403).json({ error: "Admin or Program Staff access required." });
     return;
   }
   const parsed = CreateSessionBody.safeParse(req.body);
@@ -86,23 +86,13 @@ router.post("/sessions", async (req, res): Promise<void> => {
     return;
   }
   if (parsed.data.trainerStaffId !== undefined && parsed.data.trainerStaffId !== null) {
-    const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
-      .where(and(eq(staffMembersTable.id, parsed.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
-    if (!trainer) {
+    const validTrainer = programId === null
+      ? Boolean((await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
+        .where(and(eq(staffMembersTable.id, parsed.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1))[0])
+      : await hasProgramStaffRole(parsed.data.trainerStaffId, programId, "trainer");
+    if (!validTrainer) {
       res.status(400).json({ error: "Select an account with the Trainer role." });
       return;
-    }
-    if (staff.role !== "coordinator" && programId !== null) {
-      const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
-        .from(staffProgramAssignmentsTable)
-        .where(and(
-          eq(staffProgramAssignmentsTable.staffId, parsed.data.trainerStaffId),
-          eq(staffProgramAssignmentsTable.programId, programId),
-        )).limit(1);
-      if (!assignment) {
-        res.status(400).json({ error: "The trainer is not assigned to this program." });
-        return;
-      }
     }
   }
   const session = await db.transaction(async (tx) => {
@@ -133,7 +123,7 @@ router.post("/sessions", async (req, res): Promise<void> => {
 router.patch("/sessions/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
   if (staff.role !== "coordinator" && staff.role !== "staff") {
-    res.status(403).json({ error: "Coordinator or Program Staff access required." });
+    res.status(403).json({ error: "Admin or Program Staff access required." });
     return;
   }
   const params = DeleteSessionParams.safeParse(req.params);
@@ -159,23 +149,13 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
     return;
   }
   if (body.data.trainerStaffId !== undefined && body.data.trainerStaffId !== null) {
-    const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
-      .where(and(eq(staffMembersTable.id, body.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
-    if (!trainer) {
+    const validTrainer = nextProgramId === null
+      ? Boolean((await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
+        .where(and(eq(staffMembersTable.id, body.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1))[0])
+      : await hasProgramStaffRole(body.data.trainerStaffId, nextProgramId, "trainer");
+    if (!validTrainer) {
       res.status(400).json({ error: "Select an account with the Trainer role." });
       return;
-    }
-    if (staff.role !== "coordinator" && nextProgramId !== null) {
-      const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
-        .from(staffProgramAssignmentsTable)
-        .where(and(
-          eq(staffProgramAssignmentsTable.staffId, body.data.trainerStaffId),
-          eq(staffProgramAssignmentsTable.programId, nextProgramId),
-        )).limit(1);
-      if (!assignment) {
-        res.status(400).json({ error: "The trainer is not assigned to this program." });
-        return;
-      }
     }
   }
   const result = await db.transaction(async (tx) => {
@@ -247,7 +227,7 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
 router.delete("/sessions/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
   if (staff.role !== "coordinator" && staff.role !== "staff") {
-    res.status(403).json({ error: "Coordinator or Program Staff access required." });
+    res.status(403).json({ error: "Admin or Program Staff access required." });
     return;
   }
   const params = UpdateSessionParams.safeParse(req.params);

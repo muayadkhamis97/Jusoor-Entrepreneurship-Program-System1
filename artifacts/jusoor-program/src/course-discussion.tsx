@@ -39,7 +39,7 @@ function authorLabel(post: CourseDiscussionPost): string {
   if (post.authorRole === 'participant') {
     return post.authorName === 'Program participant' ? t('Founder') : post.authorName;
   }
-  return t(post.authorRole === 'trainer' ? 'Trainer' : 'Coordinator');
+  return t(post.authorRole === 'trainer' ? 'Trainer' : 'Admin');
 }
 
 function DiscussionPost({ post, replies, replyingTo, pending, onReply, onCancel, onSubmit, resetKey }: {
@@ -49,7 +49,7 @@ function DiscussionPost({ post, replies, replyingTo, pending, onReply, onCancel,
 }) {
   const date = new Date(post.createdAt);
   const locale = currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB';
-  const role = post.authorRole === 'participant' ? 'Founder' : post.authorRole === 'trainer' ? 'Trainer' : 'Coordinator';
+  const role = post.authorRole === 'participant' ? 'Founder' : post.authorRole === 'trainer' ? 'Trainer' : 'Admin';
   return <article className="discussion-topic" data-testid={`discussion-topic-${post.id}`}>
      <div className="discussion-avatar" aria-hidden="true">{authorLabel(post).trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div>
     <div className="discussion-topic-main">
@@ -57,7 +57,7 @@ function DiscussionPost({ post, replies, replyingTo, pending, onReply, onCancel,
       <p className="discussion-body">{post.body}</p>
       {replies.length > 0 && <div className="discussion-replies">{replies.map(reply => {
         const replyDate = new Date(reply.createdAt);
-         const replyRole = reply.authorRole === 'participant' ? 'Founder' : reply.authorRole === 'trainer' ? 'Trainer' : 'Coordinator';
+          const replyRole = reply.authorRole === 'participant' ? 'Founder' : reply.authorRole === 'trainer' ? 'Trainer' : 'Admin';
          return <article className="discussion-reply" key={reply.id} data-testid={`discussion-reply-${reply.id}`}><div className="discussion-avatar discussion-avatar-small" aria-hidden="true">{authorLabel(reply).trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div><div><div className="discussion-byline"><b>{authorLabel(reply)}</b><span className={`discussion-role discussion-role-${reply.authorRole}`}>{t(replyRole)}</span><time dateTime={reply.createdAt}>{replyDate.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} · {replyDate.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}</time></div><p className="discussion-body">{reply.body}</p></div></article>;
       })}</div>}
       {replyingTo === post.id ? <PostForm resetKey={resetKey} replyTo={post} pending={pending} onCancel={onCancel} onSubmit={body => onSubmit(body, undefined, post.id)} /> : <button className="discussion-reply-trigger" type="button" onClick={() => onReply(post.id)} data-testid={`button-reply-to-topic-${post.id}`}><Reply size={14} />{t('Reply')}</button>}

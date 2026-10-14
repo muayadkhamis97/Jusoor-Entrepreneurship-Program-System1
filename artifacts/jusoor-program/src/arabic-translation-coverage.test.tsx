@@ -98,6 +98,30 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
     }
 
     if (
+      fileName === 'profile-surfaces.tsx' &&
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      ts.isIdentifier(node.tagName) &&
+      node.tagName.text === 'ProfileForm'
+    ) {
+      for (const attribute of node.attributes.properties) {
+        if (
+          ts.isJsxAttribute(attribute) &&
+          ['pageTitle', 'pageDescription'].includes(attribute.name.getText(source)) &&
+          attribute.initializer
+        ) {
+          if (ts.isStringLiteral(attribute.initializer)) {
+            keys.add(attribute.initializer.text);
+          } else if (
+            ts.isJsxExpression(attribute.initializer) &&
+            attribute.initializer.expression
+          ) {
+            addStaticTranslationArgument(attribute.initializer.expression, keys);
+          }
+        }
+      }
+    }
+
+    if (
       fileName === 'App.tsx' &&
       fieldStart >= 0 &&
       node.pos >= fieldStart &&
@@ -132,6 +156,12 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
   addNamedObjectValues(source, 'statusWords', keys);
 
   if (fileName === 'App.tsx') {
+    for (const key of [
+      'Food & agriculture',
+      'Circular economy',
+      'Health technology',
+      'Climate & retail',
+    ]) keys.add(key);
     const titleStart = text.indexOf('const stageNames:');
     const titleEnd = text.indexOf('\n};', titleStart);
     if (titleStart >= 0 && titleEnd > titleStart) {
@@ -163,10 +193,11 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
   }
 }
 
-test('applicant and coordinator flow strings have Arabic translations', () => {
+test('applicant, coordinator, and profile flow strings have Arabic translations', () => {
   const keys = new Set<string>();
   collectFlowTranslationKeys('intake-surfaces.tsx', keys);
   collectFlowTranslationKeys('App.tsx', keys);
+  collectFlowTranslationKeys('profile-surfaces.tsx', keys);
   const missing = [...keys]
     .filter(key => !hasArabicTranslation(key) && !intentionallyEnglishExamples.has(key))
     .sort();

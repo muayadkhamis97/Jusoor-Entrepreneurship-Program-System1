@@ -35,7 +35,7 @@ function DialogAccessibilityFixture() {
       <span data-testid="language-state">{language}</span>
       <p data-testid="localized-copy">{t('Choose your cohort')}</p>
       <div aria-label="Staff role">
-        <button type="button" data-testid="role-coordinator" onClick={() => setStaffRole('coordinator')}>Coordinator menu</button>
+        <button type="button" data-testid="role-coordinator" onClick={() => setStaffRole('coordinator')}>Admin menu</button>
         <button type="button" data-testid="role-staff" onClick={() => setStaffRole('staff')}>Program staff menu</button>
       </div>
       <button type="button" id="open-application-review" onClick={() => setReviewOpen(true)}>

@@ -19,6 +19,7 @@
 
 export * from "./programs";
 export * from "./staff-program-assignments";
+export * from "./staff-program-roles";
 export * from "./program-lifecycle-events";
 export * from "./businesses";
 export * from "./sessions";
@@ -29,6 +30,7 @@ export * from "./impact-kpi-values";
 export * from "./pitches";
 export * from "./staff";
 export * from "./applications";
+export * from "./participant-business-memberships";
 export * from "./training";
 export * from "./pitch-judges";
 export * from "./courses";
@@ -48,3 +50,4 @@ export * from "./integration-api-keys";
 export * from "./idea-validation";
 export * from "./participant-business-plans";
 export * from "./participant-peer-directory";
+export * from "./user-profiles";

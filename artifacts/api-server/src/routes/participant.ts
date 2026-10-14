@@ -8,6 +8,7 @@ import {
   GetParticipantDashboardResponse,
   GetParticipantIdeaValidationResponse,
   GetParticipantBusinessPlansResponse,
+  GetParticipantBusinessTeamsResponse,
   GetParticipantPeerDirectoryParams,
   GetParticipantPeerDirectoryResponse,
   MarkAnnouncementReadResponse,
@@ -34,6 +35,7 @@ import {
   db,
   ideaValidationWorkbooksTable,
   participantBusinessPlansTable,
+  participantBusinessMembershipsTable,
   participantPeerDirectoryPreferencesTable,
   programsTable,
   programAnnouncementsTable,
@@ -51,8 +53,112 @@ import {
   canParticipantAccessRecordingNotice,
   isCurrentRecordingNotice,
 } from "../lib/participant-recording-notices";
+import { participantBusinessTeamMembers } from "../lib/participantBusinessTeamAccess";
 
 const router: IRouter = Router();
+
+const isUndefinedRelation = (error: unknown): boolean =>
+  Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
+
+router.get("/business-teams", async (_req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+  try {
+    await db.select({ id: participantBusinessMembershipsTable.id })
+      .from(participantBusinessMembershipsTable)
+      .limit(1);
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+    res.status(503).json({
+      error: "Participant business teams require the additive assignment database migration.",
+    });
+    return;
+  }
+
+  const ownApplications = await db.select({
+    id: applicationsTable.id,
+    businessId: applicationsTable.businessId,
+    programId: applicationsTable.programId,
+  }).from(applicationsTable)
+    .where(and(
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ));
+  const ownApplicationIds = ownApplications.map(({ id }) => id);
+  const ownMemberships = ownApplicationIds.length
+    ? await db.select({
+      applicationId: participantBusinessMembershipsTable.applicationId,
+      businessId: participantBusinessMembershipsTable.businessId,
+    }).from(participantBusinessMembershipsTable)
+      .where(inArray(participantBusinessMembershipsTable.applicationId, ownApplicationIds))
+    : [];
+  const businessIds = [...new Set([
+    ...ownApplications.flatMap(({ businessId }) => businessId === null ? [] : [businessId]),
+    ...ownMemberships.map(({ businessId }) => businessId),
+  ])];
+  if (!businessIds.length) {
+    res.json(GetParticipantBusinessTeamsResponse.parse([]));
+    return;
+  }
+
+  const candidateBusinesses = await db.select({
+      businessId: businessesTable.id,
+      businessName: businessesTable.businessName,
+      industry: businessesTable.industry,
+      stage: businessesTable.stage,
+      programId: programsTable.id,
+      programName: programsTable.name,
+    }).from(businessesTable)
+      .innerJoin(programsTable, eq(programsTable.id, businessesTable.programId))
+      .where(inArray(businessesTable.id, businessIds))
+      .orderBy(asc(programsTable.name), asc(businessesTable.businessName));
+  const businesses = candidateBusinesses.filter((business) => ownApplications.some((application) =>
+    application.programId === business.programId && (
+      application.businessId === business.businessId ||
+      ownMemberships.some((membership) =>
+        membership.applicationId === application.id && membership.businessId === business.businessId,
+      )
+    ),
+  ));
+  const allowedBusinessIds = businesses.map(({ businessId }) => businessId);
+  if (!allowedBusinessIds.length) {
+    res.json(GetParticipantBusinessTeamsResponse.parse([]));
+    return;
+  }
+  const membershipRows = await db.select({
+      applicationId: applicationsTable.id,
+      programId: applicationsTable.programId,
+      primaryBusinessId: applicationsTable.businessId,
+      membershipBusinessId: participantBusinessMembershipsTable.businessId,
+      founderName: applicationsTable.founderName,
+      clerkUserId: applicationsTable.clerkUserId,
+    }).from(applicationsTable)
+      .leftJoin(
+        participantBusinessMembershipsTable,
+        eq(participantBusinessMembershipsTable.applicationId, applicationsTable.id),
+      )
+      .where(and(
+        eq(applicationsTable.status, "accepted"),
+        or(
+          inArray(applicationsTable.businessId, allowedBusinessIds),
+          inArray(participantBusinessMembershipsTable.businessId, allowedBusinessIds),
+        ),
+      ))
+      .orderBy(asc(applicationsTable.founderName), asc(applicationsTable.id));
+
+  res.json(GetParticipantBusinessTeamsResponse.parse(businesses.map((business) => ({
+    programId: business.programId,
+    programName: business.programName,
+    businessId: business.businessId,
+    businessName: business.businessName,
+    industry: business.industry,
+    stage: business.stage,
+    members: participantBusinessTeamMembers(business, membershipRows, participant.userId),
+  }))));
+});
 
 router.get("/programs/:programId/peers", async (req, res): Promise<void> => {
   const participant = res.locals.participant as ParticipantAccess | undefined;

@@ -1,12 +1,21 @@
 import { clerkClient, getAuth } from "@clerk/express";
 import { and, eq, isNull } from "drizzle-orm";
 import type { RequestHandler } from "express";
-import { db, programsTable, staffMembersTable, staffProgramAssignmentsTable } from "@workspace/db";
+import { resolveProgramSpecialistRoles } from "../lib/programAssignmentAuthorization";
+import {
+  db,
+  programsTable,
+  staffMembersTable,
+  staffProgramAssignmentsTable,
+  staffProgramRolesTable,
+  type ProgramSpecialistRole,
+} from "@workspace/db";
 
 type StaffAccess = {
   id: number;
   email: string;
   role: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
+  primaryRole: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
   status: "invited" | "active";
   bookingProvider: "calendly" | "google_calendar";
   calendlyBookingUrl: string | null;
@@ -14,9 +23,14 @@ type StaffAccess = {
   googleCalendarBookingUrl: string | null;
   createdAt: Date;
   programIds: number[];
+  programRoles: { programId: number; role: ProgramSpecialistRole }[];
 };
 
 let bootstrapInvite: Promise<void> | undefined;
+
+function isUndefinedRelation(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
+}
 
 async function ensureBootstrapCoordinator(): Promise<void> {
   const email = process.env.JUSOOR_BOOTSTRAP_COORDINATOR_EMAIL?.trim().toLowerCase();
@@ -106,17 +120,83 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
       ))
       .orderBy(staffProgramAssignmentsTable.programId);
 
+    let specialistAssignments: { programId: number; role: ProgramSpecialistRole }[] = [];
+    let roleSchemaAvailable = true;
+    if (member.role !== "coordinator") {
+      try {
+        specialistAssignments = await db
+          .select({
+            programId: staffProgramRolesTable.programId,
+            role: staffProgramRolesTable.role,
+          })
+          .from(staffProgramRolesTable)
+          .innerJoin(programsTable, eq(programsTable.id, staffProgramRolesTable.programId))
+          .where(and(
+            eq(staffProgramRolesTable.staffId, member.id),
+            isNull(programsTable.archivedAt),
+          ))
+          .orderBy(staffProgramRolesTable.programId);
+      } catch (error) {
+        if (!isUndefinedRelation(error)) throw error;
+        roleSchemaAvailable = false;
+        req.log.warn("Program specialist-role migration is not applied; using the account's primary role.");
+      }
+    }
+
+    const legacyRole = member.role as StaffAccess["role"];
+    const programRoles = resolveProgramSpecialistRoles(
+      legacyRole,
+      programAssignments.map(({ programId }) => programId),
+      specialistAssignments,
+      roleSchemaAvailable,
+    );
+
+    const requestedRole = req.get("x-jusoor-staff-role")?.trim();
+    const validRoles = ["coordinator", "staff", "trainer", "mentor", "judge"] as const;
+    const activeRole = requestedRole
+      ? validRoles.find((role) => role === requestedRole)
+      : legacyRole;
+    if (!activeRole) {
+      res.status(403).json({ error: "This account does not have access to the requested role view." });
+      return;
+    }
+
+    let scopedProgramIds: number[] = [];
+    if (activeRole === "coordinator") {
+      if (legacyRole !== "coordinator") {
+        res.status(403).json({ error: "Admin access is required for this role view." });
+        return;
+      }
+    } else if (activeRole === "staff") {
+      if (legacyRole !== "staff") {
+        res.status(403).json({ error: "Project staff access is required for this role view." });
+        return;
+      }
+      scopedProgramIds = programAssignments.map(({ programId }) => programId);
+    } else {
+      const roleProgramIds = programRoles
+        .filter(({ role }) => role === activeRole)
+        .map(({ programId }) => programId);
+      if (!roleProgramIds.length) {
+        res.status(403).json({ error: "This account is not assigned this role in an active program." });
+        return;
+      }
+      scopedProgramIds = roleProgramIds;
+    }
+
     res.locals.staff = {
       id: member.id,
       email: member.email,
-      role: member.role as StaffAccess["role"],
+      role: activeRole,
+      primaryRole: legacyRole,
       status: member.status as StaffAccess["status"],
       bookingProvider: member.bookingProvider as StaffAccess["bookingProvider"],
       calendlyBookingUrl: member.calendlyBookingUrl,
       googleCalendarAccountEmail: member.googleCalendarAccountEmail,
       googleCalendarBookingUrl: member.googleCalendarBookingUrl,
       createdAt: member.createdAt,
-      programIds: [...new Set(programAssignments.map(({ programId }) => programId))],
+      programIds: [...new Set(scopedProgramIds)],
+      programRoles,
     } satisfies StaffAccess;
     next();
   } catch (error) {
@@ -128,7 +208,7 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
 export const requireCoordinator: RequestHandler = (_req, res, next): void => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (staff?.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required for this action." });
+    res.status(403).json({ error: "Admin access is required for this action." });
     return;
   }
   next();

@@ -2050,13 +2050,167 @@ export const StaffStatus = {
   active: 'active',
 } as const;
 
+export type ProgramSpecialistRole = typeof ProgramSpecialistRole[keyof typeof ProgramSpecialistRole];
+
+
+export const ProgramSpecialistRole = {
+  trainer: 'trainer',
+  mentor: 'mentor',
+  judge: 'judge',
+} as const;
+
+export interface ProgramStaffRole {
+  programId: number;
+  role: ProgramSpecialistRole;
+}
+
 export interface StaffMember {
   id: number;
   email: string;
   role: StaffRole;
+  primaryRole: StaffRole;
   status: StaffStatus;
   programIds: number[];
+  programRoles: ProgramStaffRole[];
   createdAt: string;
+}
+
+export type ProfileAccountType = typeof ProfileAccountType[keyof typeof ProfileAccountType];
+
+
+export const ProfileAccountType = {
+  staff: 'staff',
+  participant: 'participant',
+  both: 'both',
+} as const;
+
+export interface UserProfile {
+  userId: string;
+  displayName: string;
+  email: string;
+  accountType: ProfileAccountType;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  bio: string | null;
+  /** @nullable */
+  organization: string | null;
+  /** @nullable */
+  photoUrl: string | null;
+}
+
+export interface UserProfileUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  displayName?: string;
+  /**
+     * @maxLength 40
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  bio?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  organization?: string | null;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  photoPath?: string | null;
+}
+
+export interface ProfilePhotoUploadInput {
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 5242880
+     */
+  size: number;
+}
+
+export interface ProfilePhotoUploadUrl {
+  uploadUrl: string;
+  objectPath: string;
+}
+
+export interface ProgramStaffRoleAssignment {
+  staffId: number;
+  email: string;
+  status: StaffStatus;
+  roles: ProgramSpecialistRole[];
+}
+
+export interface ProgramParticipantCandidate {
+  applicationId: number;
+  founderName: string;
+  email: string;
+  businessName: string;
+  /** @nullable */
+  assignedBusinessId: number | null;
+}
+
+export interface ProgramBusinessOption {
+  id: number;
+  businessName: string;
+  stage: BusinessStage;
+}
+
+export interface ProgramTeamAssignments {
+  programId: number;
+  staff: ProgramStaffRoleAssignment[];
+  participants: ProgramParticipantCandidate[];
+  businesses: ProgramBusinessOption[];
+}
+
+export interface ProgramStaffRolesUpdate {
+  /** @maxItems 3 */
+  roles: ProgramSpecialistRole[];
+}
+
+export interface ProgramStaffRoles {
+  staffId: number;
+  programId: number;
+  roles: ProgramSpecialistRole[];
+}
+
+export interface ParticipantBusinessMembershipInput {
+  /** @minimum 1 */
+  applicationId: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessId: number | null;
+}
+
+export interface ParticipantBusinessMembership {
+  applicationId: number;
+  /** @nullable */
+  businessId: number | null;
+}
+
+export interface ParticipantBusinessTeamMember {
+  founderName: string;
+  isYou: boolean;
+}
+
+export interface ParticipantBusinessTeam {
+  programId: number;
+  programName: string;
+  businessId: number;
+  businessName: string;
+  /** @nullable */
+  industry: string | null;
+  stage: BusinessStage;
+  members: ParticipantBusinessTeamMember[];
 }
 
 export interface MentorBookingStatus {

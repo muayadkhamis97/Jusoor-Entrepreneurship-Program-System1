@@ -336,6 +336,10 @@ export async function customFetch<T = unknown>(
   }
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+  if (typeof window !== "undefined") {
+    const routeRole = window.location.pathname.match(/(?:^|\/)(trainer|mentor|judge)(?:\/|$)/)?.[1];
+    if (routeRole) headers.set("X-Jusoor-Staff-Role", routeRole);
+  }
 
   if (
     typeof init.body === "string" &&

@@ -136,7 +136,7 @@ function parseQuizBody(body: unknown, update = false): CourseQuizWriteInput | nu
 staffCourseQuizRouter.get("/modules/:id/quizzes", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || !isStaffQuizReader(staff)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access is required." });
+    res.status(403).json({ error: "Admin or assigned trainer access is required." });
     return;
   }
   const params = GetCourseModuleQuizzesParams.safeParse(req.params);
@@ -175,7 +175,7 @@ staffCourseQuizRouter.get("/modules/:id/quizzes", async (req, res): Promise<void
 staffCourseQuizRouter.post("/modules/:id/quizzes", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required to create quizzes." });
+    res.status(403).json({ error: "Admin access is required to create quizzes." });
     return;
   }
   const params = CreateCourseQuizParams.safeParse(req.params);
@@ -220,7 +220,7 @@ staffCourseQuizRouter.post("/modules/:id/quizzes", async (req, res): Promise<voi
 staffCourseQuizRouter.patch("/quizzes/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required to edit quizzes." });
+    res.status(403).json({ error: "Admin access is required to edit quizzes." });
     return;
   }
   const params = UpdateCourseQuizParams.safeParse(req.params);
@@ -264,7 +264,7 @@ staffCourseQuizRouter.patch("/quizzes/:id", async (req, res): Promise<void> => {
 staffCourseQuizRouter.get("/quizzes/:id/attempts", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || !isStaffQuizReader(staff)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access is required." });
+    res.status(403).json({ error: "Admin or assigned trainer access is required." });
     return;
   }
   const params = GetCourseQuizAttemptsParams.safeParse(req.params);

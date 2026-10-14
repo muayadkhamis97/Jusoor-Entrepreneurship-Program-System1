@@ -1,48 +1,113 @@
-import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { and, asc, count, eq, inArray, isNull, ne } from "drizzle-orm";
+import { Router, type IRouter, type Response } from "express";
 import {
+  AssignParticipantBusinessBody,
+  AssignParticipantBusinessParams,
+  AssignParticipantBusinessResponse,
   CreateStaffBody,
   CreateStaffResponse,
   DeleteStaffParams,
   GetAuthMeResponse,
   GetMentorBookingStatusResponse,
   GetMentorBookingStatusResponseItem,
+  GetProgramTeamAssignmentsParams,
+  GetProgramTeamAssignmentsResponse,
   ListStaffResponse,
   UpdateMentorBookingFollowUpBody,
   UpdateMentorBookingFollowUpParams,
+  UpdateProgramStaffRolesBody,
+  UpdateProgramStaffRolesParams,
+  UpdateProgramStaffRolesResponse,
   UpdateStaffBody,
   UpdateStaffParams,
   UpdateStaffResponse,
 } from "@workspace/api-zod";
 import {
+  applicationsTable,
+  businessesTable,
   db,
+  participantBusinessMembershipsTable,
   programsTable,
   staffMembersTable,
   staffProgramAssignmentsTable,
+  staffProgramRolesTable,
+  type ProgramSpecialistRole,
 } from "@workspace/db";
 import { requireCoordinator, requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
+import { hasAnyProgramStaffRole } from "../lib/programStaffRoles";
+import { canManageProgramAssignments } from "../lib/programAssignmentAuthorization";
 
 const router: IRouter = Router();
+const isUndefinedRelation = (error: unknown): boolean =>
+  Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
+function isProgramSpecialistRole(role: string): role is ProgramSpecialistRole {
+  return role === "trainer" || role === "mentor" || role === "judge";
+}
 
 router.get("/auth/me", (_req, res): void => {
   res.json(GetAuthMeResponse.parse(res.locals.staff));
 });
 
-async function withProgramIds<T extends { id: number }>(members: T[]) {
-  if (members.length === 0) return members.map((member) => ({ ...member, programIds: [] as number[] }));
+async function withProgramIds<T extends { id: number; role: string }>(members: T[]) {
+  if (members.length === 0) return members.map((member) => ({ ...member, primaryRole: member.role, programIds: [] as number[], programRoles: [] as { programId: number; role: ProgramSpecialistRole }[] }));
   const assignments = await db.select({
-    staffId: staffProgramAssignmentsTable.staffId,
-    programId: staffProgramAssignmentsTable.programId,
-  }).from(staffProgramAssignmentsTable)
-    .where(inArray(staffProgramAssignmentsTable.staffId, members.map(({ id }) => id)));
-  const programIdsByStaff = new Map<number, number[]>();
+      staffId: staffProgramAssignmentsTable.staffId,
+      programId: staffProgramAssignmentsTable.programId,
+    }).from(staffProgramAssignmentsTable)
+      .where(inArray(staffProgramAssignmentsTable.staffId, members.map(({ id }) => id)));
+  let roleAssignments: { staffId: number; programId: number; role: ProgramSpecialistRole }[] = [];
+  let roleSchemaAvailable = true;
+  try {
+    roleAssignments = await db.select({
+      staffId: staffProgramRolesTable.staffId,
+      programId: staffProgramRolesTable.programId,
+      role: staffProgramRolesTable.role,
+    }).from(staffProgramRolesTable)
+      .where(inArray(staffProgramRolesTable.staffId, members.map(({ id }) => id)));
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+    roleSchemaAvailable = false;
+    console.warn("Program specialist-role migration is not applied; returning legacy staff access.");
+  }
+  const programsByStaff = new Map<number, Set<number>>();
+  const rolesByStaff = new Map<number, { programId: number; role: ProgramSpecialistRole }[]>();
   for (const { staffId, programId } of assignments) {
-    programIdsByStaff.set(staffId, [...(programIdsByStaff.get(staffId) ?? []), programId]);
+    const ids = programsByStaff.get(staffId) ?? new Set<number>();
+    ids.add(programId);
+    programsByStaff.set(staffId, ids);
+  }
+  for (const { staffId, programId, role } of roleAssignments) {
+    const roles = rolesByStaff.get(staffId) ?? [];
+    roles.push({ programId, role });
+    rolesByStaff.set(staffId, roles);
+  }
+  for (const { id, role } of members) {
+    if (!roleSchemaAvailable && (role === "trainer" || role === "mentor" || role === "judge")) {
+      for (const programId of programsByStaff.get(id) ?? []) {
+        const roles = rolesByStaff.get(id) ?? [];
+        if (!roles.some((entry) => entry.programId === programId && entry.role === role)) {
+          roles.push({ programId, role });
+          rolesByStaff.set(id, roles);
+        }
+      }
+    }
   }
   return members.map((member) => ({
     ...member,
-    programIds: [...new Set(programIdsByStaff.get(member.id) ?? [])],
+    primaryRole: member.role,
+    programIds: [...(programsByStaff.get(member.id) ?? new Set<number>())].sort((a, b) => a - b),
+    programRoles: rolesByStaff.get(member.id) ?? [],
   }));
+}
+
+async function specialistRoleTableAvailable(): Promise<boolean> {
+  try {
+    await db.select({ id: staffProgramRolesTable.id }).from(staffProgramRolesTable).limit(1);
+    return true;
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+    return false;
+  }
 }
 
 router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> => {
@@ -57,9 +122,20 @@ router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> =>
     return;
   }
   const assignments = await db.select({ staffId: staffProgramAssignmentsTable.staffId })
-    .from(staffProgramAssignmentsTable)
-    .where(inArray(staffProgramAssignmentsTable.programId, current.programIds));
-  const visibleStaffIds = [...new Set(assignments.map(({ staffId }) => staffId))];
+      .from(staffProgramAssignmentsTable)
+      .where(inArray(staffProgramAssignmentsTable.programId, current.programIds));
+  let specialistAssignments: { staffId: number }[] = [];
+  try {
+    specialistAssignments = await db.select({ staffId: staffProgramRolesTable.staffId })
+      .from(staffProgramRolesTable)
+      .where(inArray(staffProgramRolesTable.programId, current.programIds));
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+  }
+  const visibleStaffIds = [...new Set([
+    ...assignments.map(({ staffId }) => staffId),
+    ...specialistAssignments.map(({ staffId }) => staffId),
+  ])];
   if (visibleStaffIds.length === 0) {
     res.json([]);
     return;
@@ -70,8 +146,264 @@ router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> =>
   res.json(ListStaffResponse.parse(await withProgramIds(members)));
 });
 
+async function canManageProgram(programId: number, staff: StaffAccess): Promise<"allowed" | "missing" | "denied"> {
+  const [program] = await db.select({ id: programsTable.id })
+    .from(programsTable)
+    .where(and(eq(programsTable.id, programId), isNull(programsTable.archivedAt)))
+    .limit(1);
+  if (!program) return "missing";
+  return canManageProgramAssignments(staff.role, staff.programIds, programId, true) ? "allowed" : "denied";
+}
+
+async function hasAssignmentSchema(res: Response, includeMembership = true): Promise<boolean> {
+  try {
+    await db.select({ id: staffProgramRolesTable.id }).from(staffProgramRolesTable).limit(1);
+    if (includeMembership) {
+      await db.select({ id: participantBusinessMembershipsTable.id })
+        .from(participantBusinessMembershipsTable)
+        .limit(1);
+    }
+    return true;
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+    res.status(503).json({
+      error: "Program role and business-team assignments require the additive assignment database migration.",
+    });
+    return false;
+  }
+}
+
+router.get("/programs/:programId/team-assignments", requireOperationsStaff, async (req, res): Promise<void> => {
+  const params = GetProgramTeamAssignmentsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const current = res.locals.staff as StaffAccess;
+  const scope = await canManageProgram(params.data.programId, current);
+  if (scope === "missing") {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  if (scope === "denied") {
+    res.status(403).json({ error: "You can manage assignments only in programs assigned to you." });
+    return;
+  }
+  if (!(await hasAssignmentSchema(res))) return;
+
+  const [roleAssignments, applications, businesses] = await Promise.all([
+    db.select({
+      staffId: staffProgramRolesTable.staffId,
+      role: staffProgramRolesTable.role,
+    }).from(staffProgramRolesTable)
+      .where(eq(staffProgramRolesTable.programId, params.data.programId)),
+    db.select({
+      id: applicationsTable.id,
+      founderName: applicationsTable.founderName,
+      email: applicationsTable.email,
+      businessName: applicationsTable.businessName,
+      businessId: applicationsTable.businessId,
+    }).from(applicationsTable)
+      .where(and(
+        eq(applicationsTable.programId, params.data.programId),
+        eq(applicationsTable.status, "accepted"),
+      ))
+      .orderBy(asc(applicationsTable.founderName), asc(applicationsTable.id)),
+    db.select({
+      id: businessesTable.id,
+      businessName: businessesTable.businessName,
+      stage: businessesTable.stage,
+    }).from(businessesTable)
+      .where(eq(businessesTable.programId, params.data.programId))
+      .orderBy(asc(businessesTable.businessName)),
+  ]);
+
+  const roleRowsByApplication = applications.length
+    ? await db.select({
+      applicationId: participantBusinessMembershipsTable.applicationId,
+      businessId: participantBusinessMembershipsTable.businessId,
+    }).from(participantBusinessMembershipsTable)
+      .where(inArray(participantBusinessMembershipsTable.applicationId, applications.map(({ id }) => id)))
+    : [];
+  const membershipBusinessByApplication = new Map(roleRowsByApplication.map(({ applicationId, businessId }) => [applicationId, businessId]));
+
+  const members = await db.select({
+    id: staffMembersTable.id,
+    email: staffMembersTable.email,
+    role: staffMembersTable.role,
+    status: staffMembersTable.status,
+  }).from(staffMembersTable)
+    .where(ne(staffMembersTable.role, "coordinator"))
+    .orderBy(asc(staffMembersTable.email));
+  const explicitRoles = new Map<number, ProgramSpecialistRole[]>();
+  for (const { staffId, role } of roleAssignments) {
+    explicitRoles.set(staffId, [...(explicitRoles.get(staffId) ?? []), role]);
+  }
+  res.json(GetProgramTeamAssignmentsResponse.parse({
+    programId: params.data.programId,
+    staff: members.map((member) => {
+      const existing = explicitRoles.get(member.id) ?? [];
+      return { staffId: member.id, email: member.email, status: member.status, roles: [...new Set(existing)] };
+    }),
+    participants: applications.map((application) => ({
+      applicationId: application.id,
+      founderName: application.founderName,
+      email: application.email,
+      businessName: application.businessName,
+      assignedBusinessId: application.businessId ?? membershipBusinessByApplication.get(application.id) ?? null,
+    })),
+    businesses,
+  }));
+});
+
+router.put("/programs/:programId/staff/:staffId/roles", requireOperationsStaff, async (req, res): Promise<void> => {
+  const params = UpdateProgramStaffRolesParams.safeParse(req.params);
+  const body = UpdateProgramStaffRolesBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const current = res.locals.staff as StaffAccess;
+  const scope = await canManageProgram(params.data.programId, current);
+  if (scope === "missing") {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  if (scope === "denied") {
+    res.status(403).json({ error: "You can manage assignments only in programs assigned to you." });
+    return;
+  }
+  if (!(await hasAssignmentSchema(res, false))) return;
+  const roles = [...new Set(body.data.roles)];
+  const [target] = await db.select({ id: staffMembersTable.id, role: staffMembersTable.role })
+    .from(staffMembersTable)
+    .where(eq(staffMembersTable.id, params.data.staffId))
+    .limit(1);
+  if (!target) {
+    res.status(404).json({ error: "Staff member not found." });
+    return;
+  }
+  if (target.role === "coordinator") {
+    res.status(400).json({ error: "Admins do not need specialist program-role assignments." });
+    return;
+  }
+  if (current.role !== "coordinator" && target.id === current.id) {
+    res.status(403).json({ error: "Project staff cannot assign specialist roles to their own account." });
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx.delete(staffProgramRolesTable).where(and(
+      eq(staffProgramRolesTable.staffId, params.data.staffId),
+      eq(staffProgramRolesTable.programId, params.data.programId),
+    ));
+    if (roles.length) {
+      await tx.insert(staffProgramRolesTable).values(roles.map((role) => ({
+        staffId: params.data.staffId,
+        programId: params.data.programId,
+        role,
+        assignedByStaffId: current.id,
+      })));
+    }
+  });
+  res.json(UpdateProgramStaffRolesResponse.parse({
+    staffId: params.data.staffId,
+    programId: params.data.programId,
+    roles,
+  }));
+});
+
+router.put("/programs/:programId/participant-business-membership", requireOperationsStaff, async (req, res): Promise<void> => {
+  const params = AssignParticipantBusinessParams.safeParse(req.params);
+  const body = AssignParticipantBusinessBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const current = res.locals.staff as StaffAccess;
+  const scope = await canManageProgram(params.data.programId, current);
+  if (scope === "missing") {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  if (scope === "denied") {
+    res.status(403).json({ error: "You can manage assignments only in programs assigned to you." });
+    return;
+  }
+  if (!(await hasAssignmentSchema(res, false))) return;
+
+  const [participant] = await db.select({
+    id: applicationsTable.id,
+    businessId: applicationsTable.businessId,
+  }).from(applicationsTable)
+    .where(and(
+      eq(applicationsTable.id, body.data.applicationId),
+      eq(applicationsTable.programId, params.data.programId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .limit(1);
+  if (!participant) {
+    res.status(404).json({ error: "Accepted participant not found in this program." });
+    return;
+  }
+  if (body.data.businessId !== null) {
+    const [business] = await db.select({ id: businessesTable.id })
+      .from(businessesTable)
+      .where(and(
+        eq(businessesTable.id, body.data.businessId),
+        eq(businessesTable.programId, params.data.programId),
+      ))
+      .limit(1);
+    if (!business) {
+      res.status(400).json({ error: "Choose a business from this program." });
+      return;
+    }
+    if (participant.businessId !== null && participant.businessId !== body.data.businessId) {
+      res.status(400).json({ error: "A business founder cannot be moved away from their application's business." });
+      return;
+    }
+  } else if (participant.businessId !== null) {
+    res.status(400).json({ error: "A business founder cannot be unassigned from their application's business." });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(participantBusinessMembershipsTable)
+      .where(eq(participantBusinessMembershipsTable.applicationId, participant.id));
+    if (body.data.businessId !== null && participant.businessId === null) {
+      await tx.insert(participantBusinessMembershipsTable).values({
+        applicationId: participant.id,
+        businessId: body.data.businessId,
+        assignedByStaffId: current.id,
+      });
+    }
+  });
+  res.json(AssignParticipantBusinessResponse.parse({
+    applicationId: participant.id,
+    businessId: participant.businessId ?? body.data.businessId,
+  }));
+});
+
 router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res): Promise<void> => {
-  const mentors = await db.select({
+  const primaryMentors = await db.select({ staffId: staffMembersTable.id })
+    .from(staffMembersTable)
+    .where(eq(staffMembersTable.role, "mentor"));
+  let programMentors: { staffId: number }[] = [];
+  try {
+    programMentors = await db.select({ staffId: staffProgramRolesTable.staffId })
+      .from(staffProgramRolesTable)
+      .innerJoin(programsTable, eq(programsTable.id, staffProgramRolesTable.programId))
+      .where(and(
+        eq(staffProgramRolesTable.role, "mentor"),
+        isNull(programsTable.archivedAt),
+      ));
+  } catch (error) {
+    if (!isUndefinedRelation(error)) throw error;
+  }
+  const mentorIds = [...new Set([
+    ...primaryMentors.map(({ staffId }) => staffId),
+    ...programMentors.map(({ staffId }) => staffId),
+  ])];
+  const mentors = mentorIds.length ? await db.select({
     staffId: staffMembersTable.id,
     email: staffMembersTable.email,
     status: staffMembersTable.status,
@@ -81,8 +413,8 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     calendlyFollowUpNote: staffMembersTable.calendlyFollowUpNote,
     googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
   }).from(staffMembersTable)
-    .where(eq(staffMembersTable.role, "mentor"))
-    .orderBy(asc(staffMembersTable.email));
+    .where(inArray(staffMembersTable.id, mentorIds))
+    .orderBy(asc(staffMembersTable.email)) : [];
 
   res.json(GetMentorBookingStatusResponse.parse(mentors.map(({ calendlyBookingUrl, googleCalendarAccountEmail, ...mentor }) => ({
     ...mentor,
@@ -105,11 +437,12 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
 
   const [mentor] = await db.select({
     staffId: staffMembersTable.id,
+    role: staffMembersTable.role,
     calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
   }).from(staffMembersTable)
-    .where(and(eq(staffMembersTable.id, params.data.id), eq(staffMembersTable.role, "mentor")))
+    .where(eq(staffMembersTable.id, params.data.id))
     .limit(1);
-  if (!mentor) {
+  if (!mentor || (mentor.role !== "mentor" && !await hasAnyProgramStaffRole(params.data.id, "mentor"))) {
     res.status(404).json({ error: "Mentor not found." });
     return;
   }
@@ -125,7 +458,6 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
     })
     .where(and(
       eq(staffMembersTable.id, params.data.id),
-      eq(staffMembersTable.role, "mentor"),
       isNull(staffMembersTable.calendlyBookingUrl),
     ))
     .returning({
@@ -167,7 +499,7 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
   const email = parsed.data.email.trim().toLowerCase();
   const programIds = [...new Set(parsed.data.programIds ?? [])];
   if (parsed.data.role === "coordinator" && programIds.length > 0) {
-    res.status(400).json({ error: "Coordinators have global access and cannot have program assignments." });
+    res.status(400).json({ error: "Admins have global access and cannot have program assignments." });
     return;
   }
   if (programIds.length > 0) {
@@ -179,6 +511,8 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
     }
   }
   const current = res.locals.staff as StaffAccess;
+  const roleSchemaAvailable = await specialistRoleTableAvailable();
+  const primarySpecialistRole = isProgramSpecialistRole(parsed.data.role) ? parsed.data.role : null;
   const member = await db.transaction(async (tx) => {
     const [created] = await tx.insert(staffMembersTable)
       .values({ email, role: parsed.data.role, status: "invited" })
@@ -191,6 +525,14 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
         programId,
         assignedByStaffId: current.id,
       })));
+      if (roleSchemaAvailable && primarySpecialistRole) {
+        await tx.insert(staffProgramRolesTable).values(programIds.map((programId) => ({
+          staffId: created.id,
+          programId,
+          role: primarySpecialistRole,
+          assignedByStaffId: current.id,
+        }))).onConflictDoNothing();
+      }
     }
     return created;
   });
@@ -199,7 +541,8 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
     return;
   }
 
-  res.status(201).json(CreateStaffResponse.parse({ ...member, programIds }));
+  const [memberWithAssignments] = await withProgramIds([member]);
+  res.status(201).json(CreateStaffResponse.parse(memberWithAssignments));
 });
 
 router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {
@@ -227,7 +570,7 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
       .from(staffMembersTable)
       .where(eq(staffMembersTable.role, "coordinator"));
     if ((coordinatorCount?.value ?? 0) <= 1) {
-      res.status(400).json({ error: "At least one coordinator must remain." });
+      res.status(400).json({ error: "At least one admin must remain." });
       return;
     }
   }
@@ -239,7 +582,7 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
     ? []
     : [...new Set(body.data.programIds ?? existingAssignments.map(({ programId }) => programId))];
   if (body.data.role === "coordinator" && (body.data.programIds?.length ?? 0) > 0) {
-    res.status(400).json({ error: "Coordinators have global access and cannot have program assignments." });
+    res.status(400).json({ error: "Admins have global access and cannot have program assignments." });
     return;
   }
   if (programIds.length > 0) {
@@ -250,6 +593,9 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
       return;
     }
   }
+  const roleSchemaAvailable = await specialistRoleTableAvailable();
+  const previousSpecialistRole = isProgramSpecialistRole(target.role) ? target.role : null;
+  const nextSpecialistRole = isProgramSpecialistRole(body.data.role) ? body.data.role : null;
   const [member] = await db.transaction(async (tx) => {
     const [updated] = await tx.update(staffMembersTable)
       .set({ role: body.data.role })
@@ -267,9 +613,31 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
         })));
       }
     }
+    if (roleSchemaAvailable && body.data.role !== target.role) {
+      if (previousSpecialistRole) {
+        await tx.delete(staffProgramRolesTable)
+          .where(and(
+            eq(staffProgramRolesTable.staffId, params.data.id),
+            eq(staffProgramRolesTable.role, previousSpecialistRole),
+          ));
+      }
+      if (nextSpecialistRole && programIds.length > 0) {
+        await tx.insert(staffProgramRolesTable).values(programIds.map((programId) => ({
+          staffId: params.data.id,
+          programId,
+          role: nextSpecialistRole,
+          assignedByStaffId: current.id,
+        }))).onConflictDoNothing();
+      }
+    }
     return [updated];
   });
-  res.json(UpdateStaffResponse.parse({ ...member, programIds }));
+  if (!member) {
+    res.status(404).json({ error: "Staff member not found." });
+    return;
+  }
+  const [memberWithAssignments] = await withProgramIds([member]);
+  res.json(UpdateStaffResponse.parse(memberWithAssignments));
 });
 
 router.delete("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {
@@ -296,7 +664,7 @@ router.delete("/staff/:id", requireCoordinator, async (req, res): Promise<void> 
       .from(staffMembersTable)
       .where(eq(staffMembersTable.role, "coordinator"));
     if ((coordinatorCount?.value ?? 0) <= 1) {
-      res.status(400).json({ error: "At least one coordinator must remain." });
+      res.status(400).json({ error: "At least one admin must remain." });
       return;
     }
   }

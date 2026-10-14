@@ -500,7 +500,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = GetLearningProgressAnalyticsQueryParams.safeParse(req.query);
   if (!staff || staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required." });
+    res.status(403).json({ error: "Admin access is required." });
     return;
   }
   if (!params.success) {
@@ -678,7 +678,7 @@ staffLearningProgressRouter.post("/analytics/learning-progress/applications/:id/
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = IssueCourseCertificateParams.safeParse(req.params);
   if (!staff || staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required." });
+    res.status(403).json({ error: "Admin access is required." });
     return;
   }
   if (!params.success) {
@@ -770,7 +770,7 @@ staffLearningProgressRouter.post("/analytics/learning-progress/certificates/:id/
   const params = RevokeCourseCertificateParams.safeParse(req.params);
   const body = RevokeCourseCertificateBody.safeParse(req.body);
   if (!staff || staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required." });
+    res.status(403).json({ error: "Admin access is required." });
     return;
   }
   if (!params.success || !body.success || !body.data.reason.trim()) {
@@ -833,7 +833,7 @@ staffLearningProgressRouter.post("/analytics/learning-progress/reminders/:id/ret
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = RetryCourseReminderParams.safeParse(req.params);
   if (!staff || staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access is required." });
+    res.status(403).json({ error: "Admin access is required." });
     return;
   }
   if (!params.success) {

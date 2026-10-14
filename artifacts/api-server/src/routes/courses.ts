@@ -128,7 +128,7 @@ function mapMaterial(material: CourseMaterial) {
 router.get("/management", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || !canViewCourseManagement(staff.role)) {
-    res.status(403).json({ error: "Coordinator, program staff, or assigned trainer access is required." });
+    res.status(403).json({ error: "Admin, program staff, or assigned trainer access is required." });
     return;
   }
   const programIds = await manageableProgramIds(staff);
@@ -219,7 +219,7 @@ router.get("/management", async (req, res): Promise<void> => {
 router.post("/modules", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   if (!staff || !canManageCourseContent(staff.role)) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   const body = CreateCourseModuleBody.safeParse(req.body);
@@ -262,7 +262,7 @@ router.patch("/modules/:id", async (req, res): Promise<void> => {
   const params = UpdateCourseModuleParams.safeParse(req.params);
   const body = UpdateCourseModuleBody.safeParse(req.body);
   if (!staff || (!canManageCourseContent(staff.role) && !canScheduleCourseRelease(staff.role))) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   if (!params.success) {
@@ -308,7 +308,7 @@ router.delete("/modules/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = DeleteCourseModuleParams.safeParse(req.params);
   if (!staff || !canManageCourseContent(staff.role)) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   if (!params.success) {
@@ -336,7 +336,7 @@ router.post("/modules/:id/materials", async (req, res): Promise<void> => {
   const params = CreateCourseMaterialParams.safeParse(req.params);
   const body = CreateCourseMaterialBody.safeParse(req.body);
   if (!staff || !canManageCourseContent(staff.role)) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   if (!params.success) {
@@ -430,7 +430,7 @@ router.patch("/materials/:id", async (req, res): Promise<void> => {
   const params = UpdateCourseMaterialParams.safeParse(req.params);
   const body = UpdateCourseMaterialBody.safeParse(req.body);
   if (!staff || !canManageCourseContent(staff.role)) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   if (!params.success) {
@@ -552,7 +552,7 @@ router.delete("/materials/:id", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = DeleteCourseMaterialParams.safeParse(req.params);
   if (!staff || !canManageCourseContent(staff.role)) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   if (!params.success) {
@@ -578,7 +578,7 @@ router.post("/uploads/request-url", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   const body = RequestCourseUploadUrlBody.safeParse(req.body);
   if (!staff || !canManageCourseContent(staff.role)) {
-    res.status(403).json({ error: "Coordinator access is required to manage course content." });
+    res.status(403).json({ error: "Admin access is required to manage course content." });
     return;
   }
   if (!body.success) {
@@ -614,7 +614,7 @@ router.get("/materials/:id/file", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess | undefined;
   const params = GetCourseMaterialFileParams.safeParse(req.params);
   if (!staff || !canViewCourseMaterialFile(staff.role)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access is required." });
+    res.status(403).json({ error: "Admin or assigned trainer access is required." });
     return;
   }
   if (!params.success) {

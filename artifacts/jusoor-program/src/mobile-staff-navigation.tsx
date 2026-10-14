@@ -15,6 +15,8 @@ import {
   Palette,
   Shield,
   Trophy,
+  UserRound,
+  UsersRound,
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { LanguageToggle, t } from './language';
@@ -48,9 +50,15 @@ export function getStaffNavigationItems(role: 'coordinator' | 'staff'): StaffNav
           { href: '/applications', label: 'Applications', icon: FileText },
           { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck },
           { href: '/team', label: 'Team access', icon: Shield },
+          { href: '/team-assignments', label: 'Team assignments', icon: Shield },
+          { href: '/profiles', label: 'Manage profiles', icon: UsersRound },
           { href: '/access', label: 'Role access', icon: Shield },
         ]
-      : [{ href: '/courses', label: 'Course schedule', icon: CalendarDays }]),
+      : [
+          { href: '/courses', label: 'Course schedule', icon: CalendarDays },
+          { href: '/team-assignments', label: 'Team assignments', icon: Shield },
+        ]),
+    { href: '/profile', label: 'Profile', icon: UserRound },
   ];
 }
 

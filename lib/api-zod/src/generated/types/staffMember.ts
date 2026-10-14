@@ -5,6 +5,7 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { ProgramStaffRole } from './programStaffRole';
 import type { StaffRole } from './staffRole';
 import type { StaffStatus } from './staffStatus';
 
@@ -12,7 +13,9 @@ export interface StaffMember {
   id: number;
   email: string;
   role: StaffRole;
+  primaryRole: StaffRole;
   status: StaffStatus;
   programIds: number[];
+  programRoles: ProgramStaffRole[];
   createdAt: Date;
 }

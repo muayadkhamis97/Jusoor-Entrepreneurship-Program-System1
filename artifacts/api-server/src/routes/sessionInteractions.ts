@@ -234,7 +234,7 @@ staffRouter.get("/sessions/:id/interactive-activities", async (req, res): Promis
     return;
   }
   if (!canManageSession(staff, session)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access required." });
+    res.status(403).json({ error: "Admin or assigned trainer access required." });
     return;
   }
   res.json(GetSessionInteractiveActivitiesResponse.parse({
@@ -250,7 +250,7 @@ staffRouter.post("/sessions/:id/interactive-activities", async (req, res): Promi
   }
   const staff = res.locals.staff as StaffAccess;
   if (staff.role !== "coordinator") {
-    res.status(403).json({ error: "Coordinator access required to create activities." });
+    res.status(403).json({ error: "Admin access required to create activities." });
     return;
   }
   const body = CreateSessionInteractiveActivityBody.safeParse(req.body);
@@ -308,14 +308,14 @@ staffRouter.patch("/interactive-activities/:id", async (req, res): Promise<void>
     return;
   }
   if (!canManageSession(staff, session)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access required." });
+    res.status(403).json({ error: "Admin or assigned trainer access required." });
     return;
   }
   const changesContent = body.data.title !== undefined ||
     body.data.description !== undefined ||
     body.data.questions !== undefined;
   if (changesContent && staff.role !== "coordinator") {
-    res.status(403).json({ error: "Only coordinators can edit activity content." });
+    res.status(403).json({ error: "Only admins can edit activity content." });
     return;
   }
   if (session.status === "cancelled" && body.data.status === "open") {
@@ -371,7 +371,7 @@ staffRouter.get("/sessions/:id/questions", async (req, res): Promise<void> => {
     return;
   }
   if (!canManageSession(staff, session)) {
-    res.status(403).json({ error: "Coordinator or assigned trainer access required." });
+    res.status(403).json({ error: "Admin or assigned trainer access required." });
     return;
   }
   res.json(GetSessionQuestionsResponse.parse(await getSessionQuestions(sessionId)));

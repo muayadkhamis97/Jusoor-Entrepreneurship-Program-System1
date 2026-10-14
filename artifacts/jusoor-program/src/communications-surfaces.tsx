@@ -58,7 +58,7 @@ export function CommunicationsPage() {
   const programs = programsQuery.data || [];
 
   return <main className="communications-page">
-    <div className="page-heading"><div><div className="eyebrow">{t('COHORT CARE / COORDINATOR BROADCASTS')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t('Keep every cohort informed with one clear update at a time.')}</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">{t('COHORT CARE / ADMIN BROADCASTS')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t('Keep every cohort informed with one clear update at a time.')}</p></div></div>
     <section className="communications-intro"><span className="communications-emblem"><Megaphone size={19} /></span><div><div className="eyebrow">{t('IN-APP ONLY')}</div><b>{t('One reliable place for what founders need to know.')}</b><p>{t('Published notes appear in the private participant portal. Share an update now or schedule a message for later.')}</p></div><span className="privacy-mark">{t('PRIVATE')}<br />{t('PORTAL')}</span></section>
     <div className="communications-layout">
       <section className="compose-panel panel">
@@ -83,7 +83,7 @@ export function CommunicationsPage() {
           : <div className="announcement-list">{visible.map(item => <article className="announcement-card" key={item.id} data-testid={`card-announcement-${item.id}`}><div className={`announcement-kind-mark ${item.kind}`} aria-hidden="true">{item.kind === 'reminder' ? <Bell size={15} /> : <Megaphone size={15} />}</div><div className="announcement-copy"><div className="announcement-meta"><span className={`announcement-status ${item.status}`}>{item.status === 'scheduled' ? 'Scheduled' : 'Published'}</span><span>{item.kind === 'reminder' ? 'Reminder' : 'Update'}</span><span>{item.programName || 'All cohorts'}</span></div><h3>{item.title}</h3><p>{item.body}</p><small><Clock3 size={12} />{item.status === 'scheduled' ? 'Goes live ' : 'Shared '}{fmtDate(item.scheduledFor)}</small>{confirmingDelete === item.id && <div className="announcement-confirm" role="group" aria-label={`Confirm removing ${item.title}`}><span>Remove this announcement?</span><button type="button" className="button button-quiet" onClick={() => setConfirmingDelete(null)}>Keep</button><button type="button" className="button button-danger" onClick={() => deleteAnnouncement(item)} disabled={remove.isPending} data-testid={`button-confirm-delete-announcement-${item.id}`}>{remove.isPending ? 'Removing…' : 'Remove'}</button></div>}{remove.isError && confirmingDelete === item.id && <div className="form-error" role="alert">Could not remove this message. Please try again.</div>}</div>{confirmingDelete !== item.id && <button type="button" className="icon-button icon-danger announcement-delete" onClick={() => setConfirmingDelete(item.id)} aria-label={`Remove ${item.title}`} data-testid={`button-delete-announcement-${item.id}`}><Trash2 size={15} /></button>}</article>)}</div>}
       </section>
     </div>
-    <p className="communications-privacy"><CheckCheck size={14} /> Only published announcements are visible to participants. Scheduled messages remain in coordinator view until their release time.</p>
+    <p className="communications-privacy"><CheckCheck size={14} /> Only published announcements are visible to participants. Scheduled messages remain in admin view until their release time.</p>
   </main>;
 }
 
@@ -103,7 +103,7 @@ export function ParticipantAnnouncements({ announcements }: { announcements: Par
   return <section className="participant-section participant-announcements" data-testid="participant-announcements">
     <div className="participant-section-head"><div><div className="eyebrow">{t('FROM YOUR PROGRAM TEAM')}</div><h2>{t('Updates & reminders')}</h2><p>{t('Important notes from your cohort, gathered here.')}</p></div><span className={`badge ${unread ? 'badge-warm' : 'badge-good'}`}>{unread ? `${unread} ${t('unread')}` : t('All caught up')}</span></div>
     {markRead.isError && <div className="form-error" role="alert"><AlertCircle size={15} />{t('We couldn’t update read status. Try again.')}</div>}
-    {!published.length ? <div className="empty-panel participant-announcement-empty"><span className="empty-icon"><Megaphone size={19} /></span><h3>{t('No announcements just yet.')}</h3><p>{t('When your coordinators share a cohort update or reminder, you’ll find it here.')}</p></div>
+    {!published.length ? <div className="empty-panel participant-announcement-empty"><span className="empty-icon"><Megaphone size={19} /></span><h3>{t('No announcements just yet.')}</h3><p>{t('When your admins share a cohort update or reminder, you’ll find it here.')}</p></div>
       : <div className="participant-announcement-list">{published.map(item => <article key={item.id} className={`participant-announcement ${item.readAt ? 'is-read' : 'is-unread'}`} data-testid={`participant-announcement-${item.id}`}>
         <span className={`participant-announcement-icon ${item.kind}`}>{item.kind === 'reminder' ? <Bell size={16} /> : <Megaphone size={16} />}</span>
         <div className="participant-announcement-copy">

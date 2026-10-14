@@ -1,0 +1,217 @@
+# Task: Comprehensive Platform-Wide UX/UI and Design Audit
+
+**Project:** Jusoor Entrepreneurship Program System
+
+## Objective
+
+Conduct a comprehensive, professional UX/UI audit of the entire platform. Evaluate the design, usability, consistency, responsiveness, accessibility, and user experience across all pages and workflows.
+
+**This is a READ-ONLY audit. Do not modify any files or implement fixes during this task.**
+
+The goal is to determine whether the platform looks and feels like a polished, professional, production-quality entrepreneurship program management system.
+
+## 1. Audit the Entire Platform
+
+First, map the application's routes, page components, layouts, shared UI components, design tokens, and navigation structures.
+
+Review every accessible page and major workflow, including:
+
+- Public landing page and informational pages.
+- Application forms and application status pages.
+- Participant dashboard and learning experience.
+- Program management and coordinator dashboard.
+- Staff management and program assignment pages.
+- Trainer, mentor, and judge interfaces.
+- Courses, learning modules, materials, quizzes, discussions, and certificates.
+- Sessions, attendance, recordings, announcements, and reminders.
+- Startup, business, pitch, grant, and evaluation workflows.
+- Analytics, KPI dashboards, reports, and exports.
+- Settings, profile pages, authentication, empty states, loading states, error states, and confirmation dialogs.
+
+Include any other routes, roles, and workflows discovered in the codebase.
+
+Do not assume a page is correct simply because it exists. Inspect its structure, visual hierarchy, interactions, and relevant source code.
+
+## 2. Visual Design and Professionalism
+
+Evaluate the platform's overall visual quality:
+
+- Typography, font hierarchy, font sizes, line heights, and readability.
+- Color palette, contrast, semantic colors, and consistency.
+- Spacing, padding, margins, alignment, and layout balance.
+- Page widths, content density, whitespace, and information hierarchy.
+- Buttons, links, cards, tables, badges, forms, tabs, dropdowns, and dialogs.
+- Icon consistency, sizing, alignment, and meaning.
+- Borders, shadows, corner radii, and component styling.
+- Page titles, breadcrumbs, section headings, and action placement.
+- Consistency between public pages and authenticated dashboards.
+- Consistency between different staff roles and participant interfaces.
+- Branding and whether the interface feels cohesive rather than assembled from unrelated components.
+
+Identify visual clutter, outdated patterns, unnecessary decoration, inconsistent components, and areas that feel unfinished.
+
+Do not recommend a complete redesign merely for aesthetic preference. Preserve effective existing patterns and propose changes that materially improve quality or usability.
+
+## 3. UX and Workflow Usability
+
+Assess how easily users can understand and complete their tasks.
+
+Inspect:
+
+- Navigation clarity and information architecture.
+- Whether primary and secondary actions are obvious.
+- Number of steps and unnecessary friction in key workflows.
+- Form labels, helper text, validation, required fields, and error recovery.
+- Search, filters, sorting, pagination, and bulk actions.
+- Tables and dashboards with large amounts of information.
+- Confirmation and feedback after important actions.
+- Empty states that explain what happened and what users should do next.
+- Loading, saving, success, failure, and network-error states.
+- Destructive actions and safeguards against accidental data loss.
+- Whether users can understand their current program, role, status, and next steps.
+- Whether terminology and actions remain consistent across the platform.
+
+Evaluate each major workflow from the user's perspective, not only from the developer's perspective.
+
+## 4. Responsive Design
+
+Review the platform at representative viewport sizes:
+
+- Mobile: approximately 375–390 px wide.
+- Tablet: approximately 768 px wide.
+- Desktop: approximately 1366–1440 px wide.
+- Wide desktop: approximately 1920 px wide.
+
+Inspect navigation, sidebars, tables, forms, dialogs, dashboards, charts, cards, and complex layouts.
+
+Look for horizontal overflow, clipped content, excessively narrow columns, unreadable text, overlapping controls, awkward whitespace, oversized headers, and interactions that are difficult on touch screens.
+
+Test actual browser rendering where a safe browser environment is available. If a viewport or page cannot be tested, clearly mark it as not verified.
+
+## 5. Accessibility
+
+Review the platform against practical WCAG 2.2 AA considerations where applicable:
+
+- Semantic HTML and heading hierarchy.
+- Keyboard navigation and visible focus indicators.
+- Dialog focus management and Escape behavior.
+- Accessible names for buttons, links, and icon-only controls.
+- Form labels, instructions, and validation announcements.
+- Color contrast and reliance on color alone.
+- Screen-reader semantics for tables, tabs, navigation, and status messages.
+- Touch target sizes and mobile usability.
+- Zoom and text resizing.
+- Reduced-motion preferences.
+- Language attributes and right-to-left behavior.
+
+Inspect both the source code and actual behavior where possible. Distinguish automated findings from issues confirmed through manual testing.
+
+## 6. Arabic and English Experience
+
+Review language handling across the platform, including Arabic RTL and English LTR.
+
+Check:
+
+- Layout direction, text alignment, and directional spacing.
+- Navigation, tables, forms, dialogs, dropdowns, and charts in RTL.
+- Icons and controls whose meaning or orientation depends on direction.
+- Mixed Arabic and English content, numbers, dates, and currency.
+- Missing translations and untranslated interface strings.
+- Text clipping, line wrapping, and components that assume English text length.
+- Consistency of terminology across applicant, participant, and staff workflows.
+
+Do not claim Arabic rendering is correct without actually inspecting Arabic-rendered pages. Record any limitations.
+
+## 7. Design System and Code Quality
+
+Review shared UI components and styling patterns for:
+
+- Duplicate or inconsistent components.
+- Repeated hardcoded colors, spacing, typography, and dimensions.
+- Inconsistent use of existing design tokens.
+- Unnecessary one-off styling.
+- Components that behave or appear differently across pages without a clear reason.
+- Responsive rules that conflict or fail at intermediate widths.
+- Accessibility problems embedded in shared components.
+- Opportunities to improve consistency through existing shared components.
+
+Do not perform a code refactor. Identify the best opportunities and explain their expected impact.
+
+## 8. Role-Based Experience
+
+Review the available interfaces for coordinators, other staff, trainers, mentors, judges, and participants.
+
+Check whether each role has:
+
+- Clear and appropriate navigation.
+- Relevant information without unnecessary clutter.
+- Obvious primary tasks and next actions.
+- Consistent page layouts and interaction patterns.
+- Useful feedback and understandable statuses.
+- Appropriate responsive behavior.
+
+Do not bypass authentication, change permissions, modify data, or access production systems to inspect role-specific screens. Use authorized test accounts or safe test environments if available. Otherwise, inspect source code and report the limitations.
+
+## 9. Audit Method and Safety
+
+- Begin by mapping routes and shared components so the audit covers the full application.
+- Use read-only source inspection and safe browser inspection.
+- Do not submit real applications, send emails, trigger external integrations, or change persistent data.
+- Do not connect to, modify, migrate, or seed any existing database.
+- Do not alter authentication, authorization, or production configuration.
+- Do not install dependencies unless explicitly authorized.
+- Do not publish or deploy.
+- Do not make code changes, even for small fixes.
+- Do not report a page as visually tested if you only inspected its source code.
+- Clearly distinguish confirmed findings, likely risks, recommendations, and unverified areas.
+
+## 10. Required Deliverables
+
+Create a detailed audit report in the project's documentation, using a new file named `docs/UX_UI_PLATFORM_AUDIT.md` unless a suitable comprehensive report already exists.
+
+Include the following:
+
+### A. Executive summary
+Overall assessment of the platform's design maturity, strongest areas, biggest weaknesses, and the most important improvements.
+
+### B. Coverage matrix
+List discovered routes or page groups, relevant user roles, viewport sizes inspected, inspection method, and verification status.
+
+### C. Findings register
+For each finding, include:
+
+- Unique ID.
+- Severity: Critical, High, Medium, or Low.
+- Category: Visual Design, UX, Responsive, Accessibility, Localization, or Design System.
+- Page, component, or workflow affected.
+- Specific evidence and reproduction steps where applicable.
+- User impact.
+- Recommended improvement.
+- Whether the finding is confirmed or unverified.
+
+Avoid vague feedback such as "make the UI more modern." Every finding should identify a concrete issue and an actionable recommendation.
+
+### D. Prioritized improvement roadmap
+Group recommendations into:
+
+1. Critical issues affecting safe or successful use.
+2. High-impact UX and accessibility fixes.
+3. Visual consistency and responsive improvements.
+4. Lower-priority polish.
+
+For each recommendation, explain its expected user benefit, scope, dependencies, and suggested implementation order.
+
+### E. Design system recommendations
+Identify which existing components and design patterns should be standardized or reused.
+
+### F. Verification and limitations
+Document the pages, roles, browsers, viewport sizes, keyboard interactions, and languages actually tested. List anything that could not be verified.
+
+### G. Recommended next implementation task
+Recommend the single highest-value, manageable batch of improvements to implement first. Do not implement it.
+
+## Final requirement
+
+At the end, provide a concise summary of audit coverage, the top five findings, the recommended implementation order, and any access or testing limitations.
+
+**Do not fix anything in this task. The deliverable is a thorough, evidence-based audit that can be used to plan the next implementation phase.**

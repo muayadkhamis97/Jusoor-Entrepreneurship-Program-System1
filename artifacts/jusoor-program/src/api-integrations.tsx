@@ -125,7 +125,7 @@ export function ApiIntegrationsPage() {
   return <div className="api-page" dir={ar ? 'rtl' : 'ltr'}>
     <header className="api-hero">
       <div className="api-hero-copy">
-        <div className="api-eyebrow"><span className="api-eyebrow-mark"><Code2 size={14} /></span>{copy('COORDINATOR TOOLS / DEVELOPER API', 'أدوات المنسق / واجهة المطورين')}</div>
+        <div className="api-eyebrow"><span className="api-eyebrow-mark"><Code2 size={14} /></span>{copy('ADMIN TOOLS / DEVELOPER API', 'أدوات المسؤول / واجهة المطورين')}</div>
         <h1>{copy('Connect the systems<br />that move your cohort.', 'اربط الأنظمة التي<br />تدفع مجموعتك للأمام.')}</h1>
         <p>{copy('Issue scoped credentials for trusted integrations. Every key belongs to one program, and every change stays auditable.', 'أنشئ بيانات اعتماد محددة للتكاملات الموثوقة. يرتبط كل مفتاح ببرنامج واحد، وتبقى كل التغييرات قابلة للتدقيق.')}</p>
       </div>

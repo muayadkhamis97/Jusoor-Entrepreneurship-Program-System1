@@ -326,7 +326,7 @@ export function ProgramAnalyticsPage() {
     <div className="analytics-wrap">
       <header className="analytics-heading">
         <div>
-          <div className="ana-eyebrow"><span className="ana-kicker-dot" />{t("PROGRAM INTELLIGENCE")} <span className="ana-slash">/</span> {t("COORDINATOR VIEW")}</div>
+          <div className="ana-eyebrow"><span className="ana-kicker-dot" />{t("PROGRAM INTELLIGENCE")} <span className="ana-slash">/</span> {t("ADMIN VIEW")}</div>
           <h1>{t("Progress, with")} <em>{t("proof.")}</em></h1>
           <p>{t("Track each founder’s journey, capture attendance and turn program activity into evidence.")}</p>
           <div className="ana-refresh-meta">{refreshedAt ? <>{t("Updated")} {refreshedAt}</> : t("Live from program records")} <span>·</span> {t("Filters apply across this view")}</div>
@@ -497,7 +497,7 @@ export function ProgramAnalyticsPage() {
             </div>)}</div> : <div className="ana-inline-empty"><CalendarDays size={18} /><span>No sessions are recorded in this date range.</span></div>}
           </article>
           <article className="ana-panel ana-kpi-panel">
-            <div className="ana-panel-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h3>Impact indicators</h3><p>Coordinator-defined KPIs and business-level observations.</p></div><button className="ana-icon-btn print-hide" onClick={() => setKpiEditor("new")} disabled={!selectedProgram} title={!selectedProgram ? "Choose a program to manage KPIs" : "Create impact KPI"} aria-label="Create impact KPI"><Plus size={17} /></button></div>
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h3>Impact indicators</h3><p>Admin-defined KPIs and business-level observations.</p></div><button className="ana-icon-btn print-hide" onClick={() => setKpiEditor("new")} disabled={!selectedProgram} title={!selectedProgram ? "Choose a program to manage KPIs" : "Create impact KPI"} aria-label="Create impact KPI"><Plus size={17} /></button></div>
             {!selectedProgram ? <div className="ana-inline-empty"><Target size={18} /><span>Select a single program to manage impact indicators.</span></div> : kpiQuery.isLoading ? <div className="ana-sessions-loading"><i /><i /></div> : kpiQuery.isError ? <div className="ana-inline-empty"><CircleAlert size={18} /><span>Impact indicators could not load. Refresh to try again.</span></div> : kpis.length ? <div className="ana-kpi-list">{kpis.map((kpi) => {
               const latest = [...kpi.values].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd))[0];
               const targetText = kpi.targetValue == null ? "Target not set" : `${kpi.targetValue} ${kpi.unit} target`;
@@ -511,7 +511,7 @@ export function ProgramAnalyticsPage() {
           </article>
         </section>
       </>}
-      <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> COORDINATOR ANALYTICS</span><span>Only recorded program activity is shown</span></footer>
+      <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> ADMIN ANALYTICS</span><span>Only recorded program activity is shown</span></footer>
     </div>
 
     {activeSession !== null && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setActiveSession(null); }}><section className="ana-modal ana-attendance-modal" role="dialog" aria-modal="true" aria-labelledby="attendance-title">
@@ -529,7 +529,7 @@ export function ProgramAnalyticsPage() {
           {queueAttendanceSync.isError && <p className="ana-sync-error" role="alert">Zoom attendance could not be queued. Check the session’s Zoom connection and try again.</p>}
         </div>
         {registerQuery.data?.unmatchedParticipants.length ? <section className="ana-unmatched-panel" aria-label="Unmatched Zoom attendees">
-          <div className="ana-unmatched-heading"><div><span className="ana-eyebrow">COORDINATOR REVIEW</span><b>{registerQuery.data.unmatchedParticipants.length} unmatched Zoom attendee{registerQuery.data.unmatchedParticipants.length === 1 ? "" : "s"}</b></div><small>Match each attendee to a business or ignore staff and guests.</small></div>
+          <div className="ana-unmatched-heading"><div><span className="ana-eyebrow">ADMIN REVIEW</span><b>{registerQuery.data.unmatchedParticipants.length} unmatched Zoom attendee{registerQuery.data.unmatchedParticipants.length === 1 ? "" : "s"}</b></div><small>Match each attendee to a business or ignore staff and guests.</small></div>
           <div className="ana-unmatched-list">{registerQuery.data.unmatchedParticipants.map((person) => <div className="ana-unmatched-row" key={person.id}>
             <div><b>{person.displayName}</b><span>{person.email || "Email unavailable"} · {Math.round(person.durationSeconds / 60)} min</span></div>
             <select aria-label={`Match ${person.displayName} to a business`} value={participantMatches[person.id] ?? ""} onChange={(event) => setParticipantMatches((current) => ({ ...current, [person.id]: event.target.value }))}>
@@ -585,7 +585,7 @@ export function ProgramAnalyticsPage() {
   <div className="ana-report-print" aria-hidden="true" lang={currentLanguage()} dir={currentLanguage() === "ar" ? "rtl" : "ltr"}>
       <header className="ana-print-brand">
         <span className="ana-print-mark">J</span>
-        <div className="ana-print-wordmark"><b>JUSOOR</b><span>{t("ENTREPRENEURSHIP PROGRAM · COORDINATOR REPORT")}</span></div>
+        <div className="ana-print-wordmark"><b>JUSOOR</b><span>{t("ENTREPRENEURSHIP PROGRAM · ADMIN REPORT")}</span></div>
         <span className="ana-print-issued">{t("Generated")} · {new Date().toLocaleDateString(currentLanguage() === "ar" ? "ar-JO" : "en-GB", { dateStyle: "medium" })}</span>
       </header>
       <div className="ana-print-title">
@@ -618,7 +618,7 @@ export function ProgramAnalyticsPage() {
           {kpi.values.length ? kpi.values.map((value) => <p key={`${value.businessId}-${value.periodEnd}`}>{value.businessName} · {value.value} {kpi.unit} · {t("period ending")} {dateLabel(value.periodEnd)}{value.notes ? ` · ${value.notes}` : ""}</p>) : <p>{t("No business outcomes recorded for this indicator.")}</p>}
         </div>) : <p>{t("No impact indicators have been defined for this program.")}</p>}
       </section>}
-      <footer className="ana-print-footer"><span>{t("Jusoor Entrepreneurship Program · Coordinator report")}</span><span>{t("Generated from recorded data. Missing records are reported as unavailable, not estimated.")}</span></footer>
+      <footer className="ana-print-footer"><span>{t("Jusoor Entrepreneurship Program · Admin report")}</span><span>{t("Generated from recorded data. Missing records are reported as unavailable, not estimated.")}</span></footer>
     </div>
   </section>;
 }

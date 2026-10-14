@@ -2455,6 +2455,24 @@ export const GetParticipantDashboardResponse = zod.object({
 
 
 /**
+ * @summary List startup-level business details and team members for the signed-in participant
+ */
+export const GetParticipantBusinessTeamsResponseItem = zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "industry": zod.string().nullable(),
+  "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
+  "members": zod.array(zod.object({
+  "founderName": zod.string(),
+  "isYou": zod.boolean()
+}))
+})
+export const GetParticipantBusinessTeamsResponse = zod.array(GetParticipantBusinessTeamsResponseItem)
+
+
+/**
  * @summary Get idea-validation workbooks for the signed-in participant's accepted programs
  */
 export const GetParticipantIdeaValidationResponse = zod.object({
@@ -4212,10 +4230,262 @@ export const GetAuthMeResponse = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "programIds": zod.array(zod.number().int()),
+  "programRoles": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "role": zod.enum(['trainer', 'mentor', 'judge'])
+})),
   "createdAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Get the signed-in staff member's profile
+ */
+export const GetOwnProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "accountType": zod.enum(['staff', 'participant', 'both']),
+  "phone": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "organization": zod.string().nullable(),
+  "photoUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update the signed-in staff member's profile
+ */
+export const updateOwnProfileBodyDisplayNameMax = 120;
+
+export const updateOwnProfileBodyPhoneMax = 40;
+
+export const updateOwnProfileBodyBioMax = 1000;
+
+export const updateOwnProfileBodyOrganizationMax = 160;
+
+export const updateOwnProfileBodyPhotoPathMax = 160;
+
+
+
+export const UpdateOwnProfileBody = zod.object({
+  "displayName": zod.string().min(1).max(updateOwnProfileBodyDisplayNameMax).optional(),
+  "phone": zod.string().max(updateOwnProfileBodyPhoneMax).nullish(),
+  "bio": zod.string().max(updateOwnProfileBodyBioMax).nullish(),
+  "organization": zod.string().max(updateOwnProfileBodyOrganizationMax).nullish(),
+  "photoPath": zod.string().max(updateOwnProfileBodyPhotoPathMax).nullish()
+})
+
+export const UpdateOwnProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "accountType": zod.enum(['staff', 'participant', 'both']),
+  "phone": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "organization": zod.string().nullable(),
+  "photoUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create a private upload URL for the signed-in staff member's profile photo
+ */
+export const createOwnProfilePhotoUploadUrlBodySizeMax = 5242880;
+
+
+
+export const CreateOwnProfilePhotoUploadUrlBody = zod.object({
+  "contentType": zod.string(),
+  "size": zod.number().int().min(1).max(createOwnProfilePhotoUploadUrlBodySizeMax)
+})
+
+export const CreateOwnProfilePhotoUploadUrlResponse = zod.object({
+  "uploadUrl": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Stream the signed-in staff member's private profile photo
+ */
+export const GetOwnProfilePhotoResponse = zod.unknown()
+
+
+/**
+ * @summary List staff and participant profiles for Admin
+ */
+export const ListUserProfilesResponseItem = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "accountType": zod.enum(['staff', 'participant', 'both']),
+  "phone": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "organization": zod.string().nullable(),
+  "photoUrl": zod.string().nullable()
+})
+export const ListUserProfilesResponse = zod.array(ListUserProfilesResponseItem)
+
+
+/**
+ * @summary Update a staff or participant profile as Admin
+ */
+export const updateUserProfilePathUserIdMax = 128;
+
+
+
+export const UpdateUserProfileParams = zod.object({
+  "userId": zod.coerce.string().min(1).max(updateUserProfilePathUserIdMax)
+})
+
+export const updateUserProfileBodyDisplayNameMax = 120;
+
+export const updateUserProfileBodyPhoneMax = 40;
+
+export const updateUserProfileBodyBioMax = 1000;
+
+export const updateUserProfileBodyOrganizationMax = 160;
+
+export const updateUserProfileBodyPhotoPathMax = 160;
+
+
+
+export const UpdateUserProfileBody = zod.object({
+  "displayName": zod.string().min(1).max(updateUserProfileBodyDisplayNameMax).optional(),
+  "phone": zod.string().max(updateUserProfileBodyPhoneMax).nullish(),
+  "bio": zod.string().max(updateUserProfileBodyBioMax).nullish(),
+  "organization": zod.string().max(updateUserProfileBodyOrganizationMax).nullish(),
+  "photoPath": zod.string().max(updateUserProfileBodyPhotoPathMax).nullish()
+})
+
+export const UpdateUserProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "accountType": zod.enum(['staff', 'participant', 'both']),
+  "phone": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "organization": zod.string().nullable(),
+  "photoUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create a private upload URL for a staff or participant profile photo as Admin
+ */
+export const createUserProfilePhotoUploadUrlPathUserIdMax = 128;
+
+
+
+export const CreateUserProfilePhotoUploadUrlParams = zod.object({
+  "userId": zod.coerce.string().min(1).max(createUserProfilePhotoUploadUrlPathUserIdMax)
+})
+
+export const createUserProfilePhotoUploadUrlBodySizeMax = 5242880;
+
+
+
+export const CreateUserProfilePhotoUploadUrlBody = zod.object({
+  "contentType": zod.string(),
+  "size": zod.number().int().min(1).max(createUserProfilePhotoUploadUrlBodySizeMax)
+})
+
+export const CreateUserProfilePhotoUploadUrlResponse = zod.object({
+  "uploadUrl": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Stream a staff or participant's private profile photo as Admin
+ */
+export const getUserProfilePhotoPathUserIdMax = 128;
+
+
+
+export const GetUserProfilePhotoParams = zod.object({
+  "userId": zod.coerce.string().min(1).max(getUserProfilePhotoPathUserIdMax)
+})
+
+export const GetUserProfilePhotoResponse = zod.unknown()
+
+
+/**
+ * @summary Get the signed-in participant's profile
+ */
+export const GetParticipantProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "accountType": zod.enum(['staff', 'participant', 'both']),
+  "phone": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "organization": zod.string().nullable(),
+  "photoUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Update the signed-in participant's profile
+ */
+export const updateParticipantProfileBodyDisplayNameMax = 120;
+
+export const updateParticipantProfileBodyPhoneMax = 40;
+
+export const updateParticipantProfileBodyBioMax = 1000;
+
+export const updateParticipantProfileBodyOrganizationMax = 160;
+
+export const updateParticipantProfileBodyPhotoPathMax = 160;
+
+
+
+export const UpdateParticipantProfileBody = zod.object({
+  "displayName": zod.string().min(1).max(updateParticipantProfileBodyDisplayNameMax).optional(),
+  "phone": zod.string().max(updateParticipantProfileBodyPhoneMax).nullish(),
+  "bio": zod.string().max(updateParticipantProfileBodyBioMax).nullish(),
+  "organization": zod.string().max(updateParticipantProfileBodyOrganizationMax).nullish(),
+  "photoPath": zod.string().max(updateParticipantProfileBodyPhotoPathMax).nullish()
+})
+
+export const UpdateParticipantProfileResponse = zod.object({
+  "userId": zod.string(),
+  "displayName": zod.string(),
+  "email": zod.string().email(),
+  "accountType": zod.enum(['staff', 'participant', 'both']),
+  "phone": zod.string().nullable(),
+  "bio": zod.string().nullable(),
+  "organization": zod.string().nullable(),
+  "photoUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Create a private upload URL for the signed-in participant's profile photo
+ */
+export const createParticipantProfilePhotoUploadUrlBodySizeMax = 5242880;
+
+
+
+export const CreateParticipantProfilePhotoUploadUrlBody = zod.object({
+  "contentType": zod.string(),
+  "size": zod.number().int().min(1).max(createParticipantProfilePhotoUploadUrlBodySizeMax)
+})
+
+export const CreateParticipantProfilePhotoUploadUrlResponse = zod.object({
+  "uploadUrl": zod.string().url(),
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Stream the signed-in participant's private profile photo
+ */
+export const GetParticipantProfilePhotoResponse = zod.unknown()
 
 
 /**
@@ -4280,8 +4550,13 @@ export const ListStaffResponseItem = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "programIds": zod.array(zod.number().int()),
+  "programRoles": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "role": zod.enum(['trainer', 'mentor', 'judge'])
+})),
   "createdAt": zod.coerce.date()
 })
 export const ListStaffResponse = zod.array(ListStaffResponseItem)
@@ -4303,8 +4578,13 @@ export const CreateStaffResponse = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "programIds": zod.array(zod.number().int()),
+  "programRoles": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "role": zod.enum(['trainer', 'mentor', 'judge'])
+})),
   "createdAt": zod.coerce.date()
 })
 
@@ -4328,8 +4608,13 @@ export const UpdateStaffResponse = zod.object({
   "id": zod.number().int(),
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "programIds": zod.array(zod.number().int()),
+  "programRoles": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "role": zod.enum(['trainer', 'mentor', 'judge'])
+})),
   "createdAt": zod.coerce.date()
 })
 
@@ -4342,6 +4627,91 @@ export const DeleteStaffParams = zod.object({
 })
 
 export const DeleteStaffResponse = zod.void()
+
+
+/**
+ * @summary List staff roles, accepted participants, and businesses for one assigned program
+ */
+
+
+
+export const GetProgramTeamAssignmentsParams = zod.object({
+  "programId": zod.coerce.number().int().min(1)
+})
+
+export const GetProgramTeamAssignmentsResponse = zod.object({
+  "programId": zod.number().int(),
+  "staff": zod.array(zod.object({
+  "staffId": zod.number().int(),
+  "email": zod.string().email(),
+  "status": zod.enum(['invited', 'active']),
+  "roles": zod.array(zod.enum(['trainer', 'mentor', 'judge']))
+})),
+  "participants": zod.array(zod.object({
+  "applicationId": zod.number().int(),
+  "founderName": zod.string(),
+  "email": zod.string().email(),
+  "businessName": zod.string(),
+  "assignedBusinessId": zod.number().int().nullable()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "businessName": zod.string(),
+  "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'])
+}))
+})
+
+
+/**
+ * @summary Replace a staff member's specialist roles in one program
+ */
+
+
+
+
+export const UpdateProgramStaffRolesParams = zod.object({
+  "programId": zod.coerce.number().int().min(1),
+  "staffId": zod.coerce.number().int().min(1)
+})
+
+export const updateProgramStaffRolesBodyRolesMax = 3;
+
+
+
+export const UpdateProgramStaffRolesBody = zod.object({
+  "roles": zod.array(zod.enum(['trainer', 'mentor', 'judge'])).max(updateProgramStaffRolesBodyRolesMax)
+})
+
+export const UpdateProgramStaffRolesResponse = zod.object({
+  "staffId": zod.number().int(),
+  "programId": zod.number().int(),
+  "roles": zod.array(zod.enum(['trainer', 'mentor', 'judge']))
+})
+
+
+/**
+ * @summary Assign or remove an accepted participant from a business team in one program
+ */
+
+
+
+export const AssignParticipantBusinessParams = zod.object({
+  "programId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+
+export const AssignParticipantBusinessBody = zod.object({
+  "applicationId": zod.number().int().min(1),
+  "businessId": zod.number().int().min(1).nullable()
+})
+
+export const AssignParticipantBusinessResponse = zod.object({
+  "applicationId": zod.number().int(),
+  "businessId": zod.number().int().nullable()
+})
 
 
 /**

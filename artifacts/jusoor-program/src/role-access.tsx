@@ -12,7 +12,7 @@ type MatrixRow = { area: string; detail: string; icon: typeof Shield; access: Re
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const roles: { id: RoleKey; title: string; kind: string; summary: string }[] = [
-  { id: 'coordinator', title: 'Coordinator', kind: 'Platform administrator', summary: 'Stewards access and the full program operation.' },
+  { id: 'coordinator', title: 'Admin', kind: 'Platform administrator', summary: 'Stewards access and the full program operation.' },
   { id: 'staff', title: 'Program Staff', kind: 'Program operations', summary: 'Moves cohorts and ventures through program delivery.' },
   { id: 'participant', title: 'Participant', kind: 'Founder workspace', summary: 'Follows their own application and program journey.' },
   { id: 'trainer', title: 'Trainer', kind: 'Cohort delivery', summary: 'Supports assigned sessions, learning and questions.' },
@@ -26,8 +26,8 @@ const matrix: MatrixRow[] = [
   { area: 'Programs & businesses', detail: 'Operate cohorts and venture records', icon: BriefcaseBusiness, access: { coordinator: 'full', staff: 'full', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Sessions & recordings', detail: 'Operate sessions; access assigned learning', icon: CalendarDays, access: { coordinator: 'full', staff: 'full', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
   { area: 'Course materials', detail: 'Released materials follow each resource’s role allowlist', icon: BookOpen, access: { coordinator: 'full', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
-  { area: 'Course quizzes', detail: 'Coordinators author and review all; trainers review assigned, released attempts; participants take published quizzes in accepted, released modules', icon: ClipboardCheck, access: { coordinator: 'full', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
-  { area: 'Module release schedule', detail: 'Program staff set dates; coordinators manage module content', icon: CalendarDays, access: { coordinator: 'full', staff: 'limited', participant: 'none', trainer: 'none', mentor: 'none', judge: 'none' } },
+  { area: 'Course quizzes', detail: 'Admins author and review all; trainers review assigned, released attempts; participants take published quizzes in accepted, released modules', icon: ClipboardCheck, access: { coordinator: 'full', staff: 'none', participant: 'limited', trainer: 'limited', mentor: 'none', judge: 'none' } },
+  { area: 'Module release schedule', detail: 'Program staff set dates; admins manage module content', icon: CalendarDays, access: { coordinator: 'full', staff: 'limited', participant: 'none', trainer: 'none', mentor: 'none', judge: 'none' } },
   { area: 'Support engagements', detail: 'Operate support; work assigned engagements', icon: Handshake, access: { coordinator: 'full', staff: 'full', participant: 'limited', trainer: 'none', mentor: 'limited', judge: 'none' } },
   { area: 'Pitch evaluations', detail: 'Record event results and judge feedback', icon: Presentation, access: { coordinator: 'full', staff: 'full', participant: 'none', trainer: 'none', mentor: 'none', judge: 'limited' } },
   { area: 'Financial grant tracking', detail: 'Record award receipts and corrections', icon: Presentation, access: { coordinator: 'full', staff: 'none', participant: 'none', trainer: 'none', mentor: 'none', judge: 'none' } },
@@ -40,7 +40,7 @@ const matrix: MatrixRow[] = [
 const previewData: Record<RoleKey, { headline: string; note: string; items: { label: string; title: string; meta: string; tag: string }[]; actions: string[] }> = {
   coordinator: {
     headline: 'Program operations at a glance',
-    note: 'Illustrative coordinator workspace',
+    note: 'Illustrative admin workspace',
     items: [
       { label: 'APPLICATIONS', title: 'New applications to review', meta: 'Decision queue · illustrative', tag: 'Review' },
       { label: 'COHORTS', title: 'Venture Launch · Spring', meta: 'Program setup and delivery', tag: 'Active' },
@@ -112,7 +112,7 @@ export function RoleAccessPage() {
   return <div className="access-page" data-testid="page-role-access">
     <header className="page-heading access-heading">
       <div><div className="eyebrow">GOVERNANCE / ROLE ACCESS</div><h1 className="app-title">Clear roles. Shared purpose.</h1><p>See what each Jusoor role can reach, and preview the workspace each role is designed for.</p></div>
-      <div className="access-heading-stamp"><Shield size={17} /><span>COORDINATOR VIEW</span></div>
+      <div className="access-heading-stamp"><Shield size={17} /><span>ADMIN VIEW</span></div>
     </header>
 
     <div className="access-notice" role="note">
@@ -127,7 +127,7 @@ export function RoleAccessPage() {
       </div>
       <div className="access-table-wrap">
         <table className="access-table">
-          <thead><tr><th scope="col">WORKSPACE AREA</th>{roles.map(item => <th scope="col" key={item.id}>{item.title}</th>)}</tr></thead>
+          <thead><tr><th scope="col">WORKSPACE AREA</th>{roles.map(item => <th scope="col" key={item.id}>{t(item.title)}</th>)}</tr></thead>
           <tbody>{matrix.map(row => {
             const Icon = row.icon;
             return <tr key={row.area} data-testid={`row-access-${slug(row.area)}`}>
@@ -162,7 +162,7 @@ export function RoleAccessPage() {
         </div>
         <div className="preview-bottom-note"><LockKeyhole size={13} /><span>Preview only — illustrative data; actions disabled; no role access is granted.</span></div>
       </article>
-      <div className="access-preview-caption"><span><b>{role.title}</b> · {role.summary}</span><span><Shield size={14} /> Your actual workspace depends on your approved role.</span></div>
+      <div className="access-preview-caption"><span><b>{t(role.title)}</b> · {role.summary}</span><span><Shield size={14} /> Your actual workspace depends on your approved role.</span></div>
     </section>
   </div>;
 }

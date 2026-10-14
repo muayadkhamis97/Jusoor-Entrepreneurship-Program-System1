@@ -1425,6 +1425,22 @@ paths:
           description: Sign in required
         "403":
           description: No application is linked to this account
+  /participant/business-teams:
+    get:
+      operationId: getParticipantBusinessTeams
+      tags: [participants]
+      summary: List startup-level business details and team members for the signed-in participant
+      responses:
+        "200":
+          description: Business profile details and names of accepted team members only
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ParticipantBusinessTeam"
+        "403":
+          description: A participant account is required
   /participant/idea-validation:
     get:
       operationId: getParticipantIdeaValidation
@@ -2587,6 +2603,275 @@ paths:
           description: Sign-in required
         "403":
           description: Account is not approved for staff access
+  /profile:
+    get:
+      operationId: getOwnProfile
+      tags: [profiles]
+      summary: Get the signed-in staff member's profile
+      responses:
+        "200":
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "503":
+          description: Profile database migration is not applied
+    patch:
+      operationId: updateOwnProfile
+      tags: [profiles]
+      summary: Update the signed-in staff member's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid profile fields or photo
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "503":
+          description: Profile database migration is not applied
+  /profile/photo/upload-url:
+    post:
+      operationId: createOwnProfilePhotoUploadUrl
+      tags: [profiles]
+      summary: Create a private upload URL for the signed-in staff member's profile photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePhotoUploadInput"
+      responses:
+        "200":
+          description: Short-lived direct upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePhotoUploadUrl"
+        "400":
+          description: Unsupported image type or size
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "503":
+          description: Private storage unavailable
+  /profile/photo:
+    get:
+      operationId: getOwnProfilePhoto
+      tags: [profiles]
+      summary: Stream the signed-in staff member's private profile photo
+      responses:
+        "200":
+          description: Profile photo
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Profile photo not found
+        "503":
+          description: Profile database migration is not applied
+  /profiles:
+    get:
+      operationId: listUserProfiles
+      tags: [profiles]
+      summary: List staff and participant profiles for Admin
+      responses:
+        "200":
+          description: Profiles for registered staff and participants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+        "403":
+          description: Admin access required
+        "503":
+          description: Profile database migration is not applied
+  /profiles/{userId}:
+    patch:
+      operationId: updateUserProfile
+      tags: [profiles]
+      summary: Update a staff or participant profile as Admin
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid profile fields or photo
+        "403":
+          description: Admin access required
+        "404":
+          description: Registered staff or participant account not found
+        "503":
+          description: Profile database migration is not applied
+  /profiles/{userId}/photo/upload-url:
+    post:
+      operationId: createUserProfilePhotoUploadUrl
+      tags: [profiles]
+      summary: Create a private upload URL for a staff or participant profile photo as Admin
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePhotoUploadInput"
+      responses:
+        "200":
+          description: Short-lived direct upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePhotoUploadUrl"
+        "400":
+          description: Unsupported image type or size
+        "403":
+          description: Admin access required
+        "404":
+          description: Registered staff or participant account not found
+        "503":
+          description: Private storage unavailable
+  /profiles/{userId}/photo:
+    get:
+      operationId: getUserProfilePhoto
+      tags: [profiles]
+      summary: Stream a staff or participant's private profile photo as Admin
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        "200":
+          description: Profile photo
+        "403":
+          description: Admin access required
+        "404":
+          description: Profile photo not found
+        "503":
+          description: Profile database migration is not applied
+  /participant/profile:
+    get:
+      operationId: getParticipantProfile
+      tags: [participant]
+      summary: Get the signed-in participant's profile
+      responses:
+        "200":
+          description: Current participant profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Participant access required
+        "503":
+          description: Profile database migration is not applied
+    patch:
+      operationId: updateParticipantProfile
+      tags: [participant]
+      summary: Update the signed-in participant's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid profile fields or photo
+        "401":
+          description: Sign-in required
+        "403":
+          description: Participant access required
+        "503":
+          description: Profile database migration is not applied
+  /participant/profile/photo/upload-url:
+    post:
+      operationId: createParticipantProfilePhotoUploadUrl
+      tags: [participant]
+      summary: Create a private upload URL for the signed-in participant's profile photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePhotoUploadInput"
+      responses:
+        "200":
+          description: Short-lived direct upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfilePhotoUploadUrl"
+        "400":
+          description: Unsupported image type or size
+        "401":
+          description: Sign-in required
+        "403":
+          description: Participant access required
+        "503":
+          description: Private storage unavailable
+  /participant/profile/photo:
+    get:
+      operationId: getParticipantProfilePhoto
+      tags: [participant]
+      summary: Stream the signed-in participant's private profile photo
+      responses:
+        "200":
+          description: Profile photo
+        "401":
+          description: Sign-in required
+        "403":
+          description: Participant access required
+        "404":
+          description: Profile photo not found
+        "503":
+          description: Profile database migration is not applied
   /staff/mentor-booking-status:
     get:
       operationId: getMentorBookingStatus
@@ -2707,6 +2992,89 @@ paths:
           description: Staff member not found
         "403":
           description: Coordinator role required
+  /programs/{programId}/team-assignments:
+    get:
+      operationId: getProgramTeamAssignments
+      tags: [staff]
+      summary: List staff roles, accepted participants, and businesses for one assigned program
+      parameters:
+        - in: path
+          name: programId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Assignment options scoped to the selected program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgramTeamAssignments"
+        "403":
+          description: The current user cannot manage assignments for this program
+        "404":
+          description: Program not found
+  /programs/{programId}/staff/{staffId}/roles:
+    put:
+      operationId: updateProgramStaffRoles
+      tags: [staff]
+      summary: Replace a staff member's specialist roles in one program
+      parameters:
+        - in: path
+          name: programId
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: path
+          name: staffId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramStaffRolesUpdate"
+      responses:
+        "200":
+          description: Updated program roles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgramStaffRoles"
+        "400":
+          description: Invalid role assignment
+        "403":
+          description: The current user cannot manage assignments for this program
+        "404":
+          description: Program or staff member not found
+  /programs/{programId}/participant-business-membership:
+    put:
+      operationId: assignParticipantBusiness
+      tags: [staff]
+      summary: Assign or remove an accepted participant from a business team in one program
+      parameters:
+        - in: path
+          name: programId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantBusinessMembershipInput"
+      responses:
+        "200":
+          description: Updated participant business-team membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantBusinessMembership"
+        "400":
+          description: Invalid participant or business assignment
+        "403":
+          description: The current user cannot manage assignments for this program
+        "404":
+          description: Program, participant, or business not found
   /courses/modules/{id}/quizzes:
     get:
       operationId: getCourseModuleQuizzes
@@ -4460,12 +4828,151 @@ components:
         id: { type: integer }
         email: { type: string, format: email }
         role: { $ref: "#/components/schemas/StaffRole" }
+        primaryRole: { $ref: "#/components/schemas/StaffRole" }
         status: { $ref: "#/components/schemas/StaffStatus" }
         programIds:
           type: array
           items: { type: integer }
+        programRoles:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramStaffRole" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, role, status, programIds, createdAt]
+      required: [id, email, role, primaryRole, status, programIds, programRoles, createdAt]
+    ProfileAccountType:
+      type: string
+      enum: [staff, participant, both]
+    UserProfile:
+      type: object
+      properties:
+        userId: { type: string }
+        displayName: { type: string }
+        email: { type: string, format: email }
+        accountType: { $ref: "#/components/schemas/ProfileAccountType" }
+        phone: { type: ["string", "null"] }
+        bio: { type: ["string", "null"] }
+        organization: { type: ["string", "null"] }
+        photoUrl: { type: ["string", "null"] }
+      required: [userId, displayName, email, accountType, phone, bio, organization, photoUrl]
+    UserProfileUpdate:
+      type: object
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        bio: { type: ["string", "null"], maxLength: 1000 }
+        organization: { type: ["string", "null"], maxLength: 160 }
+        photoPath: { type: ["string", "null"], maxLength: 160 }
+    ProfilePhotoUploadInput:
+      type: object
+      properties:
+        contentType: { type: string }
+        size: { type: integer, minimum: 1, maximum: 5242880 }
+      required: [contentType, size]
+    ProfilePhotoUploadUrl:
+      type: object
+      properties:
+        uploadUrl: { type: string, format: uri }
+        objectPath: { type: string }
+      required: [uploadUrl, objectPath]
+    ProgramStaffRole:
+      type: object
+      properties:
+        programId: { type: integer }
+        role: { $ref: "#/components/schemas/ProgramSpecialistRole" }
+      required: [programId, role]
+    ProgramSpecialistRole:
+      type: string
+      enum: [trainer, mentor, judge]
+    ProgramStaffRoleAssignment:
+      type: object
+      properties:
+        staffId: { type: integer }
+        email: { type: string, format: email }
+        status: { $ref: "#/components/schemas/StaffStatus" }
+        roles:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ProgramSpecialistRole" }
+      required: [staffId, email, status, roles]
+    ProgramParticipantCandidate:
+      type: object
+      properties:
+        applicationId: { type: integer }
+        founderName: { type: string }
+        email: { type: string, format: email }
+        businessName: { type: string }
+        assignedBusinessId: { type: ["integer", "null"] }
+      required: [applicationId, founderName, email, businessName, assignedBusinessId]
+    ProgramBusinessOption:
+      type: object
+      properties:
+        id: { type: integer }
+        businessName: { type: string }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+      required: [id, businessName, stage]
+    ProgramTeamAssignments:
+      type: object
+      properties:
+        programId: { type: integer }
+        staff:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramStaffRoleAssignment" }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramParticipantCandidate" }
+        businesses:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramBusinessOption" }
+      required: [programId, staff, participants, businesses]
+    ProgramStaffRolesUpdate:
+      type: object
+      properties:
+        roles:
+          type: array
+          uniqueItems: true
+          maxItems: 3
+          items: { $ref: "#/components/schemas/ProgramSpecialistRole" }
+      required: [roles]
+    ProgramStaffRoles:
+      type: object
+      properties:
+        staffId: { type: integer }
+        programId: { type: integer }
+        roles:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ProgramSpecialistRole" }
+      required: [staffId, programId, roles]
+    ParticipantBusinessMembershipInput:
+      type: object
+      properties:
+        applicationId: { type: integer, minimum: 1 }
+        businessId: { type: ["integer", "null"], minimum: 1 }
+      required: [applicationId, businessId]
+    ParticipantBusinessMembership:
+      type: object
+      properties:
+        applicationId: { type: integer }
+        businessId: { type: ["integer", "null"] }
+      required: [applicationId, businessId]
+    ParticipantBusinessTeamMember:
+      type: object
+      properties:
+        founderName: { type: string }
+        isYou: { type: boolean }
+      required: [founderName, isYou]
+    ParticipantBusinessTeam:
+      type: object
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        businessId: { type: integer }
+        businessName: { type: string }
+        industry: { type: ["string", "null"] }
+        stage: { $ref: "#/components/schemas/BusinessStage" }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantBusinessTeamMember" }
+      required: [programId, programName, businessId, businessName, industry, stage, members]
     MentorBookingStatus:
       type: object
       properties:

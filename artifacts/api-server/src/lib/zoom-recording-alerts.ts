@@ -133,7 +133,7 @@ async function sendReadyEmail(input: {
   const from = senderAddress();
   if (input.recipients.length === 0) {
     throw new RecordingEmailConfigurationError(
-      "No active coordinator account has an email address to receive alerts.",
+      "No active admin account has an email address to receive alerts.",
     );
   }
 

@@ -46,7 +46,7 @@ router.get("/programs", async (req, res): Promise<void> => {
 
   const staff = res.locals.staff as StaffAccess;
   if (query.data.includeArchived && staff.role !== "coordinator") {
-    res.status(403).json({ error: "Only coordinators can view archived programs." });
+    res.status(403).json({ error: "Only admins can view archived programs." });
     return;
   }
   if (staff.role === "staff" && staff.programIds.length === 0) {

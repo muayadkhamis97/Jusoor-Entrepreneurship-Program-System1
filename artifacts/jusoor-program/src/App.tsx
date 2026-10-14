@@ -15,7 +15,7 @@ import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
-   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, useGetProgramBranding, useListAllProgramLifecycleEvents,
+   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useArchiveProgram, useRestoreProgram, useListProgramLifecycleEvents, useDeleteSession, useDeleteSupport, useGetBusiness,
@@ -57,6 +57,7 @@ const RoleFrame = lazy(() => import('./role-surfaces').then(module => ({ default
 const RoleNotFound = lazy(() => import('./role-surfaces').then(module => ({ default: module.RoleNotFound })));
 const TrainerDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.TrainerDashboardPage })));
 const RoleAccessPage = lazy(() => import('./role-access').then(module => ({ default: module.RoleAccessPage })));
+const ProgramTeamAssignmentsPage = lazy(() => import('./team-assignments').then(module => ({ default: module.ProgramTeamAssignmentsPage })));
 const CommunicationsPage = lazy(() => import('./communications-surfaces').then(module => ({ default: module.CommunicationsPage })));
 const ProgramAnalyticsPage = lazy(() => import('./analytics-surfaces').then(module => ({ default: module.ProgramAnalyticsPage })));
 const CertificateVerificationPage = lazy(() => import('./learning-progress').then(module => ({ default: module.CertificateVerificationPage })));
@@ -64,6 +65,9 @@ const LearningProgressAnalytics = lazy(() => import('./learning-progress').then(
 const GrantManagementPage = lazy(() => import('./grant-surfaces').then(module => ({ default: module.GrantManagementPage })));
 const BrandingPage = lazy(() => import('./branding-surfaces').then(module => ({ default: module.BrandingPage })));
 const ApiIntegrationsPage = lazy(() => import('./api-integrations').then(module => ({ default: module.ApiIntegrationsPage })));
+const OwnProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.OwnProfilePage })));
+const AdminProfilesPage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.AdminProfilesPage })));
+const ParticipantProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.ParticipantProfilePage })));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -86,11 +90,12 @@ const stageNames: Record<string, string> = {
 };
 const businessStages: BusinessStage[] = ['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'];
 const dateLabel = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const industryLabel = (value?: string | null) => value ? t(value) : '—';
 type MentorFollowUpStatus = 'overdue' | 'upcoming' | 'undated';
 const localCalendarDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const mentorFollowUpStatus = (date: string | null, today: string): MentorFollowUpStatus => !date ? 'undated' : date < today ? 'overdue' : 'upcoming';
 const money = (value?: number | null) => new Intl.NumberFormat(currentLanguage() === 'ar' ? 'ar-JO' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
-const display = (v?: string | null) => v ? t(v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
+const display = (v?: string | null) => v ? t(v === 'coordinator' ? 'Admin' : v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
 const statusTone = (status: string) => {
   if (['active', 'completed', 'scheduled', 'awarded', 'grant_awarded', 'incubator'].includes(status)) return 'good';
   if (['declined', 'cancelled', 'not_awarded'].includes(status)) return 'bad';
@@ -146,7 +151,13 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const { signOut } = useClerk();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
-  const nav = getStaffNavigationItems(staff.role === 'coordinator' ? 'coordinator' : 'staff');
+  const specialistRoles = [...new Set(staff.programRoles.map(({ role }) => role))];
+  const specialistItems = specialistRoles.map(role => ({
+    href: `/${role}`,
+    label: role === 'trainer' ? 'Trainer workspace' : role === 'mentor' ? 'Mentor workspace' : 'Judge workspace',
+    icon: role === 'trainer' ? BookOpen : role === 'mentor' ? Handshake : Trophy,
+  }));
+  const nav = [...getStaffNavigationItems(staff.primaryRole === 'coordinator' ? 'coordinator' : 'staff'), ...specialistItems];
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
@@ -159,11 +170,11 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
       })}</nav>
       <div className="sidebar-bottom">
          <div className="sidebar-note"><Sparkles size={15} /><div><b>{t('One journey, in view.')}</b><span>{t('Move each founder forward.')}</span></div></div>
-         <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.role === 'coordinator' ? t('Jusoor coordinator') : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
+         <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.primaryRole === 'coordinator' ? t('Jusoor admin') : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
       </div>
     </aside>
     <main className="main-panel">
-       <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.role === 'coordinator' ? t('COORDINATOR') : t('STAFF')}</span><LanguageToggle /></div></header>
+       <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
        <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: basePath || '/' })} />
       <div className="page-content page-enter">{children}</div>
        <footer className="footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
@@ -251,7 +262,7 @@ const businessFields = (programs: Program[]): Field[] => [
   { name: 'stage', label: 'Pipeline stage', kind: 'select', options: businessStages.map(v => ({ value: v, label: stageNames[v] })) },
   { name: 'applicationDate', label: 'Application date', kind: 'date' },
   { name: 'needs', label: 'Support needs', kind: 'textarea', wide: true, placeholder: 'What would help this business progress?' },
-  { name: 'notes', label: 'Coordinator notes', kind: 'textarea', wide: true },
+  { name: 'notes', label: 'Admin notes', kind: 'textarea', wide: true },
 ];
 const sessionFields = (programs: Program[], trainers: StaffMember[] = [], includeTrainer = false): Field[] => [
   { name: 'title', label: 'Session title', required: true, wide: true },
@@ -292,7 +303,7 @@ const pitchFields = (businesses: Business[], coordinator: boolean): Field[] => [
 ];
 const staffRoleOptions = [
   { value: 'staff', label: 'Program staff' },
-  { value: 'coordinator', label: 'Coordinator' },
+  { value: 'coordinator', label: 'Admin' },
   { value: 'trainer', label: 'Trainer' },
   { value: 'mentor', label: 'Mentor' },
   { value: 'judge', label: 'Judge' },
@@ -344,7 +355,7 @@ function ProgramsPage({ coordinator }: { coordinator: boolean }) {
       </div>
     </div>}
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : programs.length === 0
-      ? <EmptyState title={showArchived ? 'No archived programs.' : coordinator ? 'A good program starts with a clear plan.' : 'No active programs are assigned to you.'} body={coordinator ? 'Create a cohort or switch views to review archived program history.' : 'Ask a coordinator to assign you to an active program.'} action={coordinator && !showArchived ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button> : undefined} />
+      ? <EmptyState title={showArchived ? 'No archived programs.' : coordinator ? 'A good program starts with a clear plan.' : 'No active programs are assigned to you.'} body={coordinator ? 'Create a cohort or switch views to review archived program history.' : 'Ask an admin to assign you to an active program.'} action={coordinator && !showArchived ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button> : undefined} />
       : <><div className="section-strip"><span><b>{programs.length}</b> {showArchived ? t('archived programs') : t('active cohorts')}</span><span><span className="live-dot" /> {t('Keep cohort dates current')}</span></div><div className="program-grid">{programs.map((program, index) => <article className="program-card" key={program.id} data-testid={`card-program-${program.id}`}><div className="program-card-top"><div className={`program-symbol program-symbol-${index % 3}`}>{program.format === 'bootcamp' ? 'B' : 'H'}</div><Badge value={program.archivedAt ? 'archived' : program.status} /><div className="row-actions">
         {coordinator && !program.archivedAt && <><button className="icon-button" onClick={() => setEditing(program)} aria-label={`Edit ${program.name}`} data-testid={`button-edit-program-${program.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setArchiving(program)} aria-label={`Archive ${program.name}`} data-testid={`button-archive-program-${program.id}`}><Trash2 size={15} /></button></>}
         {coordinator && program.archivedAt && <button className="icon-button" onClick={() => restoreProgram(program)} aria-label={`Restore ${program.name}`} data-testid={`button-restore-program-${program.id}`} disabled={restore.isPending}><RefreshCw size={15} /></button>}
@@ -434,12 +445,12 @@ function BusinessesPage() {
   const confirmRemove = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListBusinessesQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
      <PageHeading kicker="FOUNDER JOURNEY / PIPELINE" title="Businesses" summary={t('Browse founders in each cohort and classify ventures by startup industry.')} action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-business"><Plus size={16} /> {t('Add business')}</button>} />
-    <section className="pipeline-ribbon"><div className="ribbon-heading"><div className="eyebrow">JUSOOR JOURNEY</div><span>Follow progress, not just applications.</span></div><div className="ribbon-stages">{businessStages.slice(0, 7).map((s, i) => <div className="ribbon-stage" key={s}><span className={`ribbon-dot dot-${i}`} />{stageNames[s]}{i < 6 && <i />}</div>)}</div></section>
-     <section className="list-panel panel"><div className="toolbar"><div className="search-box"><Search size={16} /><input type="search" aria-label={t('Search businesses')} placeholder={t('Search business, founder, email or industry…')} value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-businesses" />{search && <button onClick={() => setSearch('')} aria-label={t('Clear search')}><X size={14} /></button>}</div><label className="filter-select"><Filter size={15} /><select value={programId} aria-label={t('Filter by cohort')} onChange={e => changeProgram(e.target.value)} data-testid="select-business-program"><option value="">{t('All programs')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={industry} aria-label={t('Filter by startup industry')} onChange={e => setIndustry(e.target.value)} data-testid="select-business-industry"><option value="">{t('All industries')}</option>{industries.map(value => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={stage} aria-label={t('Filter businesses by stage')} onChange={e => setStage(e.target.value)} data-testid="select-business-stage"><option value="">{t('All stages')}</option>{businessStages.map(s => <option key={s} value={s}>{stageNames[s]}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{visibleBusinesses.length}</b> records</div></div>
+    <section className="pipeline-ribbon"><div className="ribbon-heading"><div className="eyebrow">{t('JUSOOR JOURNEY')}</div><span>{t('Follow progress, not just applications.')}</span></div><div className="ribbon-stages">{businessStages.slice(0, 7).map((s, i) => <div className="ribbon-stage" key={s}><span className={`ribbon-dot dot-${i}`} />{t(stageNames[s])}{i < 6 && <i />}</div>)}</div></section>
+     <section className="list-panel panel"><div className="toolbar"><div className="search-box"><Search size={16} /><input type="search" aria-label={t('Search businesses')} placeholder={t('Search business, founder, email or industry…')} value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-businesses" />{search && <button onClick={() => setSearch('')} aria-label={t('Clear search')}><X size={14} /></button>}</div><label className="filter-select"><Filter size={15} /><select value={programId} aria-label={t('Filter by cohort')} onChange={e => changeProgram(e.target.value)} data-testid="select-business-program"><option value="">{t('All programs')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={industry} aria-label={t('Filter by startup industry')} onChange={e => setIndustry(e.target.value)} data-testid="select-business-industry"><option value="">{t('All industries')}</option>{industries.map(value => <option key={value} value={value}>{industryLabel(value)}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={stage} aria-label={t('Filter businesses by stage')} onChange={e => setStage(e.target.value)} data-testid="select-business-stage"><option value="">{t('All stages')}</option>{businessStages.map(s => <option key={s} value={s}>{t(stageNames[s])}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{visibleBusinesses.length}</b> {t('records')}</div></div>
        {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : visibleBusinesses.length === 0 ? <EmptyState title={hasFilters ? t('No businesses match this view.') : 'The founder pipeline is ready.'} body={hasFilters ? t('Try another cohort, industry, stage or search term.') : 'Add a business or applicant and start tracking the next step.'} action={hasFilters ? <button className="button button-outline" onClick={clearFilters}>{t('Clear all filters')}</button> : <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Add a business</button>} /> :
-       <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS / FOUNDER')}</th><th>{t('PROGRAM')}</th><th>{t('INDUSTRY')}</th><th>{t('STAGE')}</th><th>{t('APPLIED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>{visibleBusinesses.map(business => <tr key={business.id} data-testid={`row-business-${business.id}`}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName} · {business.email}</small></span></div></td><td>{programs.find(p => p.id === business.programId)?.name || `Program ${business.programId}`}</td><td>{business.industry || '—'}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(business)} aria-label={`Edit ${business.businessName}`} data-testid={`button-edit-business-${business.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(business)} aria-label={`Delete ${business.businessName}`} data-testid={`button-delete-business-${business.id}`}><Trash2 size={15} /></button></div></td></tr>)}</tbody></table></div>}
+       <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS / FOUNDER')}</th><th>{t('PROGRAM')}</th><th>{t('INDUSTRY')}</th><th>{t('STAGE')}</th><th>{t('APPLIED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>{visibleBusinesses.map(business => <tr key={business.id} data-testid={`row-business-${business.id}`}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName} · {business.email}</small></span></div></td><td>{programs.find(p => p.id === business.programId)?.name || `${t('Program')} ${business.programId}`}</td><td>{industryLabel(business.industry)}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(business)} aria-label={`${t('Edit')} ${business.businessName}`} data-testid={`button-edit-business-${business.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(business)} aria-label={`${t('Delete')} ${business.businessName}`} data-testid={`button-delete-business-${business.id}`}><Trash2 size={15} /></button></div></td></tr>)}</tbody></table></div>}
     </section>
-    <div className="list-footnote"><span><Users size={15} /> People first, stage second.</span><span>Use notes to keep the context behind the numbers.</span></div>
+     <div className="list-footnote"><span><Users size={15} /> {t('People first, stage second.')}</span><span>{t('Use notes to keep the context behind the numbers.')}</span></div>
      {editing !== undefined && (editing ? <BusinessEditDialog business={editing} programs={programs} onClose={() => setEditing(undefined)} onSave={save} loading={update.isPending} error={update.error ? 'Could not update this business. Please try again.' : undefined} /> : <FormDialog title="Add a business" description="Start a founder record and make the next step visible." fields={businessFields(programs)} initial={{ stage: 'application', ...(programId ? { programId } : programs[0] ? { programId: String(programs[0].id) } : {}) }} loading={create.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={create.error ? 'Could not create this business. Check the required fields.' : undefined} />)}
     {deleting && <ConfirmDialog item={deleting.businessName} onCancel={() => setDeleting(null)} onConfirm={confirmRemove} loading={remove.isPending} />}
   </>;
@@ -559,14 +570,14 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
       <Video size={18} />
       <div className="zoom-connect-copy">
         <b>{zoomStatus.isLoading ? 'Checking Zoom setup…' : zoomStatus.data?.connected ? 'Zoom account connected' : 'Connect Zoom for online sessions'}</b>
-        <span>Coordinators can create and update Zoom meetings here. After staff upload a recording to Google Drive, add its share link to the session; trainers and participants will see an embedded player.</span>
+        <span>Admins can create and update Zoom meetings here. After staff upload a recording to Google Drive, add its share link to the session; trainers and participants will see an embedded player.</span>
         {zoomCallbackResult && zoomNotice && <span className={zoomCallbackResult === 'error' ? 'zoom-status-error' : 'zoom-status-success'}>{zoomNotice}</span>}
         {zoomActionMessage && <span className={zoomActionMessage.tone === 'bad' ? 'zoom-status-error' : 'zoom-status-success'} role={zoomActionMessage.tone === 'bad' ? 'alert' : 'status'}>{zoomActionMessage.text}</span>}
         {zoomStatus.isError && <span className="zoom-status-error">Zoom connection status could not be loaded.</span>}
         {!zoomStatus.data?.clientConfigured && <span>Before connecting, add the Zoom OAuth Client ID and Client Secret to Replit Secrets as <code>ZOOM_CLIENT_ID</code> and <code>ZOOM_CLIENT_SECRET</code>.</span>}
         {zoomStatus.data?.callbackUrl && <span>Register this exact OAuth redirect URL in the Zoom app: <code className="zoom-callback-url">{zoomStatus.data.callbackUrl}</code></span>}
         <span>Enable the Zoom OAuth scope <code>meeting:write:meeting</code>. For recording-ready alerts, subscribe to <code>recording.completed</code> at this webhook URL: <code className="zoom-callback-url">{zoomStatus.data?.webhookUrl || 'Unavailable until this app has a registered URL'}</code>. Add recordings separately as Google Drive links; Zoom recording sync is disabled.</span>
-        {zoomStatus.data?.connected && <span>Connected by {zoomStatus.data.connectedBy || 'a coordinator'}{zoomStatus.data.connectedAt ? ` on ${dateLabel(zoomStatus.data.connectedAt)}` : ''}.</span>}
+        {zoomStatus.data?.connected && <span>Connected by {zoomStatus.data.connectedBy || 'an admin'}{zoomStatus.data.connectedAt ? ` on ${dateLabel(zoomStatus.data.connectedAt)}` : ''}.</span>}
         {confirmDisconnect && <span className="zoom-disconnect-confirm">Disconnect Zoom? Existing meeting links and session recordings remain available. Creating or updating Zoom meetings stops until it is reconnected.</span>}
       </div>
       <div className="zoom-connect-actions">
@@ -754,7 +765,7 @@ function MentorBookingStatusPage() {
         <Metric label="Calendly connected" value={calendlyConnectedCount} hint="Calendly account connected" icon={CalendarCheck} />
         <Metric label="Needs follow-up" value={needsFollowUpCount} hint="No date or note recorded" icon={CircleAlert} accent="metric-sand" />
       </section>
-      {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after a coordinator adds them under Team access." /> :
+      {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after an admin adds them under Team access." /> :
         <section className="panel staff-panel">
           <div className="panel-heading">
             <div><div className="eyebrow">BOOKING READINESS</div><h2 className="app-title">Mentor accounts</h2></div>
@@ -837,7 +848,7 @@ function TeamPage() {
     kind: 'multiselect',
     wide: true,
     options: programs.map(program => ({ value: String(program.id), label: program.name })),
-    hint: 'Program staff and specialists can access only the active programs assigned here. Coordinators have global access.',
+     hint: 'Program staff and specialists can access only the active programs assigned here. Admins have global access.',
   };
   const save = (values: Values) => {
     const role = (values.role || 'staff') as StaffInput['role'];
@@ -865,10 +876,10 @@ function TeamPage() {
 
   return <>
     <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button>} />
-    <div className="team-callout"><Shield size={18} /><div><b>Every role is tied to a verified email.</b><span>Choose coordinator, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.</span></div></div>
-    {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add a coordinator or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
+    <div className="team-callout"><Shield size={18} /><div><b>Every role is tied to a verified email.</b><span>Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.</span></div></div>
+    {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
       <section className="panel staff-panel">
-        <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only coordinators can change access</span></div>
+        <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only admins can change access</span></div>
         <div className="table-wrap"><table><thead><tr><th>EMAIL</th><th>ROLE</th><th>PROGRAMS</th><th>ACCOUNT</th><th>ADDED</th><th className="align-right">ACTIONS</th></tr></thead><tbody>
           {staff.map(member => <tr key={member.id} data-testid={`row-staff-${member.id}`}>
             <td><div className="staff-email"><span className="staff-avatar">{member.email.slice(0, 1).toUpperCase()}</span><b>{member.email}</b></div></td>
@@ -892,26 +903,46 @@ function NotFoundPage() {
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
   useAppLanguage();
   const [location] = useLocation();
-  if (staff.role === 'trainer') return location === '/trainer' ? <TrainerDashboardPage name={displayName} /> : location === '/courses' ? <RoleFrame role="trainer" name={displayName}><CourseManagementPage readOnly /></RoleFrame> : location === '/sessions' ? <RoleFrame role="trainer" name={displayName}><SessionsPage staffId={staff.id} trainerView /></RoleFrame> : <RoleNotFound role={staff.role} />;
-  if (staff.role === 'mentor') return location === '/mentor' ? <MentorDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
-  if (staff.role === 'judge') return location === '/judge' ? <JudgeDashboardPage name={displayName} /> : <RoleNotFound role={staff.role} />;
+  const availableRoles = [...new Set(staff.programRoles.map(({ role }) => role))];
+  const roleMatch = location.match(/^\/(trainer|mentor|judge)(?:\/|$)/);
+  const activeRole = roleMatch?.[1];
+  if (activeRole && availableRoles.includes(activeRole as typeof availableRoles[number])) {
+    if (activeRole === 'trainer') {
+      if (location === '/trainer') return <TrainerDashboardPage name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole} />;
+      if (location === '/trainer/courses') return <RoleFrame role="trainer" name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole}><CourseManagementPage readOnly /></RoleFrame>;
+      if (location === '/trainer/sessions') return <RoleFrame role="trainer" name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole}><SessionsPage staffId={staff.id} trainerView /></RoleFrame>;
+    }
+    if (activeRole === 'mentor' && location === '/mentor') return <MentorDashboardPage name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole} />;
+    if (activeRole === 'judge' && location === '/judge') return <JudgeDashboardPage name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole} />;
+    return <RoleNotFound role={activeRole as StaffMember['role']} />;
+  }
+  if (staff.primaryRole === 'trainer' && (location === '/courses' || location === '/sessions')) {
+    return location === '/courses'
+      ? <RoleFrame role="trainer" name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole}><CourseManagementPage readOnly /></RoleFrame>
+      : <RoleFrame role="trainer" name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole}><SessionsPage staffId={staff.id} trainerView /></RoleFrame>;
+  }
+  const isAdmin = staff.primaryRole === 'coordinator';
+  const isProgramStaff = staff.primaryRole === 'staff';
   return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>
     <Route path="/" component={Overview} />
     <Route path="/businesses" component={BusinessesPage} />
-    <Route path="/programs">{() => <ProgramsPage coordinator={staff.role === 'coordinator'} />}</Route>
-    <Route path="/analytics">{() => staff.role === 'coordinator' ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
-    <Route path="/branding" component={staff.role === 'coordinator' ? BrandingPage : NotFoundPage} />
-    <Route path="/api-integrations" component={staff.role === 'coordinator' ? ApiIntegrationsPage : NotFoundPage} />
-    <Route path="/courses">{() => staff.role === 'coordinator' ? <CourseManagementPage /> : staff.role === 'staff' ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
-    <Route path="/sessions">{() => <SessionsPage coordinator={staff.role === 'coordinator'} staffId={staff.id} />}</Route>
-    <Route path="/communications" component={staff.role === 'coordinator' ? CommunicationsPage : NotFoundPage} />
-    <Route path="/support">{() => <SupportPage coordinator={staff.role === 'coordinator'} />}</Route>
-    <Route path="/pitches">{() => <PitchesPage coordinator={staff.role === 'coordinator'} />}</Route>
-    <Route path="/grants" component={staff.role === 'coordinator' ? GrantManagementPage : NotFoundPage} />
-    <Route path="/applications" component={staff.role === 'coordinator' ? ApplicationsReviewPage : NotFoundPage} />
-    <Route path="/mentor-booking" component={staff.role === 'coordinator' ? MentorBookingStatusPage : NotFoundPage} />
-    <Route path="/team" component={staff.role === 'coordinator' ? TeamPage : NotFoundPage} />
-    <Route path="/access" component={staff.role === 'coordinator' ? RoleAccessPage : NotFoundPage} />
+    <Route path="/programs">{() => <ProgramsPage coordinator={isAdmin} />}</Route>
+    <Route path="/analytics">{() => isAdmin ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
+    <Route path="/branding" component={isAdmin ? BrandingPage : NotFoundPage} />
+    <Route path="/api-integrations" component={isAdmin ? ApiIntegrationsPage : NotFoundPage} />
+    <Route path="/courses">{() => isAdmin ? <CourseManagementPage /> : isProgramStaff ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
+    <Route path="/sessions">{() => <SessionsPage coordinator={isAdmin} staffId={staff.id} />}</Route>
+    <Route path="/communications" component={isAdmin ? CommunicationsPage : NotFoundPage} />
+    <Route path="/support">{() => <SupportPage coordinator={isAdmin} />}</Route>
+    <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>
+    <Route path="/grants" component={isAdmin ? GrantManagementPage : NotFoundPage} />
+    <Route path="/applications" component={isAdmin ? ApplicationsReviewPage : NotFoundPage} />
+    <Route path="/mentor-booking" component={isAdmin ? MentorBookingStatusPage : NotFoundPage} />
+    <Route path="/team" component={isAdmin ? TeamPage : NotFoundPage} />
+    <Route path="/team-assignments">{() => isAdmin || isProgramStaff ? <ProgramTeamAssignmentsPage isAdmin={isAdmin} /> : <NotFoundPage />}</Route>
+    <Route path="/access" component={isAdmin ? RoleAccessPage : NotFoundPage} />
+    <Route path="/profile" component={OwnProfilePage} />
+    <Route path="/profiles" component={isAdmin ? AdminProfilesPage : NotFoundPage} />
     <Route component={NotFoundPage} />
   </Switch></Shell></ErrorBoundary>;
 }
@@ -928,7 +959,7 @@ function AuthLanding() {
       <h1 className="app-title">{t('Good work,')}<br /><em>{t('moving forward.')}</em></h1>
       <p>{t('A private workspace for the team supporting founders from outreach and incubation to pitch day and grants.')}</p>
       <div className="auth-actions"><Link href="/apply" className="button button-primary">{t('Apply to a program')} <ArrowRight size={16} /></Link><Link href="/participant" className="auth-secondary">{t('Already applied? Sign in to track progress')}</Link><Link href="/sign-in" className="auth-secondary">{t('Program team sign in')}</Link></div>
-      <div className="auth-foot"><Shield size={15} /><span>{t('Founder progress is private to the applicant. Staff workspace access requires coordinator approval.')}</span></div>
+      <div className="auth-foot"><Shield size={15} /><span>{t('Founder progress is private to the applicant. Staff workspace access requires admin approval.')}</span></div>
     </section>
     <div className="auth-side-note"><span>01 — {t('PROGRAM OPERATIONS')}</span><b>{t('Every founder.')}<br />{t('Every next step.')}</b><i>{t('OUTREACH → INCUBATION → GRANTS')}</i></div>
   </main>;
@@ -942,14 +973,14 @@ function AuthPage({ mode, participantRedirect = false }: { mode: 'sign-in' | 'si
   return <main className="auth-page auth-form-page">
     <Link href="/" className="auth-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></Link>
     <LanguageToggle className="auth-language-toggle" />
-    <div className="auth-form-content"><div className="eyebrow">{t(isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}</div><h1 className="app-title">{t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}</h1><p>{t(isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require coordinator approval.')}</p>
+    <div className="auth-form-content"><div className="eyebrow">{t(isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}</div><h1 className="app-title">{t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}</h1><p>{t(isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require admin approval.')}</p>
       <div className="clerk-card">{isSignIn
         ? <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={participantRedirect ? `${basePath}/participant` : undefined} />
         : <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={`${basePath}/participant`} />}
       </div>
       <Link href="/" className="auth-back">← {t('Back to Jusoor Program Hub')}</Link>
     </div>
-    <div className="auth-form-note"><Shield size={15} /> Founder progress is private to the signed-in applicant. Staff workspace access remains coordinator-approved.</div>
+    <div className="auth-form-note"><Shield size={15} /> Founder progress is private to the signed-in applicant. Staff workspace access remains admin-approved.</div>
   </main>;
 }
 
@@ -960,7 +991,7 @@ function AuthLoading() {
 function AccessDenied({ retry }: { retry?: () => void }) {
   useAppLanguage();
   const { signOut } = useClerk();
-  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask a Jusoor coordinator to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
+  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask a Jusoor admin to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
 }
 
 function AccessCheckFailed({ retry, sessionExpired = false }: { retry: () => void; sessionExpired?: boolean }) {
@@ -976,29 +1007,43 @@ function AuthenticatedWorkspace() {
   const staffQuery = useGetAuthMe({
     query: { queryKey: getGetAuthMeQueryKey(), enabled: isLoaded && isSignedIn === true, retry: false },
   });
-  const roleHome = (role: StaffMember['role']) => role === 'trainer' ? '/trainer' : role === 'mentor' ? '/mentor' : role === 'judge' ? '/judge' : '/';
+  const ownProfileQuery = useGetOwnProfile({
+    query: { queryKey: getGetOwnProfileQueryKey(), enabled: Boolean(staffQuery.data), retry: false },
+  });
+  const roleHome = (role: StaffMember['primaryRole']) => role === 'trainer' ? '/trainer' : role === 'mentor' ? '/mentor' : role === 'judge' ? '/judge' : '/';
   const permitted = (staff: StaffMember, path: string) => {
-    if (staff.role === 'trainer') return path === '/trainer' || path === '/courses';
-    if (staff.role === 'mentor' || staff.role === 'judge') return path === roleHome(staff.role);
-    if (path === '/trainer' || path === '/mentor' || path === '/judge' || path === '/participant') return false;
-    if (staff.role !== 'coordinator' && (path === '/applications' || path === '/mentor-booking' || path === '/team' || path === '/access')) return false;
-    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', ...(staff.role === 'coordinator' ? ['/communications', '/courses', '/applications', '/mentor-booking', '/team', '/access', '/grants', '/branding'] : [])].includes(path);
+    if (path === '/profile') return true;
+    if (path === '/profiles') return staff.primaryRole === 'coordinator';
+    const roles = new Set(staff.programRoles.map(({ role }) => role));
+    const requestedRole = path.match(/^\/(trainer|mentor|judge)(?:\/|$)/)?.[1];
+    if (requestedRole) {
+      const validTrainerPath = requestedRole !== 'trainer' || ['/trainer', '/trainer/courses', '/trainer/sessions'].includes(path);
+      return roles.has(requestedRole as typeof staff.programRoles[number]['role']) && validTrainerPath;
+    }
+    if (staff.primaryRole === 'trainer' && (path === '/courses' || path === '/sessions')) return roles.has('trainer');
+    if (path === '/participant') return false;
+    if (staff.primaryRole !== 'coordinator' && staff.primaryRole !== 'staff') return false;
+    const isAdmin = staff.primaryRole === 'coordinator';
+    if (!isAdmin && ['/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/communications', '/grants'].includes(path)) return false;
+    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', '/courses', '/team-assignments', ...(isAdmin ? ['/communications', '/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/grants', '/profiles'] : [])].includes(path);
   };
   const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {
-    if (staffQuery.data && !permitted(staffQuery.data, location)) setLocation(roleHome(staffQuery.data.role));
-    if (staffQuery.isError && accessStatus === 403 && location !== '/participant') setLocation('/participant');
+    if (staffQuery.data && !permitted(staffQuery.data, location)) setLocation(roleHome(staffQuery.data.primaryRole));
+    if (staffQuery.isError && accessStatus === 403 && !location.startsWith('/participant')) setLocation('/participant');
   }, [staffQuery.data, staffQuery.isError, accessStatus, location, setLocation]);
   if (!isLoaded || (isSignedIn && (!userLoaded || staffQuery.isLoading))) return <AuthLoading />;
   if (!isSignedIn) return <AuthLanding />;
   if (staffQuery.data && !permitted(staffQuery.data, location)) return <AuthLoading />;
   if (staffQuery.isError || !staffQuery.data) {
     const status = (staffQuery.error as { status?: number } | null)?.status;
-    if (location === '/participant' && status === 403) return <ParticipantDashboardPage />;
+    if (location.startsWith('/participant') && status === 403) {
+      return location === '/participant/profile' ? <ParticipantProfilePage /> : <ParticipantDashboardPage />;
+    }
     if (status === 403) return <AccessDenied retry={() => void staffQuery.refetch()} />;
     return <AccessCheckFailed sessionExpired={status === 401} retry={() => void staffQuery.refetch()} />;
   }
-  const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || staffQuery.data.email;
+  const displayName = ownProfileQuery.data?.displayName || user?.fullName || user?.primaryEmailAddress?.emailAddress || staffQuery.data.email;
   return <Router staff={staffQuery.data} displayName={displayName} />;
 }
 
@@ -1119,7 +1164,7 @@ function AuthRouter() {
   const { isLoaded, isSignedIn } = useAuth();
   if (location === '/verify-certificate') return <CertificateVerificationPage />;
   if (location === '/apply') return <ApplyPage />;
-  if (location === '/participant' && isLoaded && !isSignedIn) return <AuthPage mode="sign-in" participantRedirect />;
+  if (location.startsWith('/participant') && isLoaded && !isSignedIn) return <AuthPage mode="sign-in" participantRedirect />;
   if (location.startsWith('/sign-in')) return <AuthPage mode="sign-in" />;
   if (location.startsWith('/sign-up')) return <AuthPage mode="sign-up" />;
   return <AuthenticatedWorkspace />;

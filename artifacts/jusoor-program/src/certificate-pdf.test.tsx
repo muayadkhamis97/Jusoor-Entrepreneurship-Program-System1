@@ -19,7 +19,7 @@ const certificate = Object.freeze({
   businessName: 'Olive Branch Foods شركة غصن الزيتون للأغذية المستدامة',
   programName: 'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور لحاضنات الأعمال الاجتماعية التي تقودها النساء',
   issuedAt: '2026-09-17T12:00:00.000Z',
-  issuedByName: 'Program Coordinator',
+  issuedByName: 'Program Admin',
 }) as Certificate;
 
 function pngChunk(type: string, data: Buffer): Buffer {

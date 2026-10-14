@@ -10,8 +10,9 @@ import {
   UpdateSupportParams,
   UpdateSupportResponse,
 } from "@workspace/api-zod";
-import { businessesTable, db, staffMembersTable, staffProgramAssignmentsTable, supportTable } from "@workspace/db";
+import { businessesTable, db, supportTable } from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
+import { hasProgramStaffRole } from "../lib/programStaffRoles";
 import type { StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
@@ -59,23 +60,9 @@ router.post("/support", async (req, res): Promise<void> => {
     return;
   }
   if (parsed.data.mentorStaffId !== undefined && parsed.data.mentorStaffId !== null) {
-    const [mentor] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
-      .where(and(eq(staffMembersTable.id, parsed.data.mentorStaffId), eq(staffMembersTable.role, "mentor"))).limit(1);
-    if (!mentor) {
-      res.status(400).json({ error: "Select an account with the Mentor role." });
+    if (!await hasProgramStaffRole(parsed.data.mentorStaffId, business.programId, "mentor")) {
+      res.status(400).json({ error: "Select a mentor assigned to this program." });
       return;
-    }
-    if (staff.role !== "coordinator") {
-      const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
-        .from(staffProgramAssignmentsTable)
-        .where(and(
-          eq(staffProgramAssignmentsTable.staffId, parsed.data.mentorStaffId),
-          eq(staffProgramAssignmentsTable.programId, business.programId),
-        )).limit(1);
-      if (!assignment) {
-        res.status(400).json({ error: "The mentor is not assigned to this program." });
-        return;
-      }
     }
   }
   const [engagement] = await db.insert(supportTable).values(parsed.data).returning();
@@ -107,23 +94,9 @@ router.patch("/support/:id", async (req, res): Promise<void> => {
     return;
   }
   if (body.data.mentorStaffId !== undefined && body.data.mentorStaffId !== null) {
-    const [mentor] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
-      .where(and(eq(staffMembersTable.id, body.data.mentorStaffId), eq(staffMembersTable.role, "mentor"))).limit(1);
-    if (!mentor) {
-      res.status(400).json({ error: "Select an account with the Mentor role." });
+    if (!await hasProgramStaffRole(body.data.mentorStaffId, nextBusiness.programId, "mentor")) {
+      res.status(400).json({ error: "Select a mentor assigned to this program." });
       return;
-    }
-    if (staff.role !== "coordinator") {
-      const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
-        .from(staffProgramAssignmentsTable)
-        .where(and(
-          eq(staffProgramAssignmentsTable.staffId, body.data.mentorStaffId),
-          eq(staffProgramAssignmentsTable.programId, nextBusiness.programId),
-        )).limit(1);
-      if (!assignment) {
-        res.status(400).json({ error: "The mentor is not assigned to this program." });
-        return;
-      }
     }
   }
   const values = {

@@ -33,6 +33,8 @@ import {
   participantSessionInteractionsRouter,
   staffSessionInteractionsRouter,
 } from "./routes/sessionInteractions";
+import profilesRouter from "./routes/profiles";
+import participantProfileRouter from "./routes/participantProfile";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -93,7 +95,8 @@ app.use("/api", programBrandingRouter);
 app.use("/api/v1", externalIntegrationApiRouter);
 app.use("/api", integrationApiKeysRouter);
 const participantAccess = options.participantMiddleware ?? requireParticipant;
-app.use("/api/participant", participantAccess, participantRouter);
+app.use("/api/participant/profile", participantAccess, participantProfileRouter);
+ app.use("/api/participant", participantAccess, participantRouter);
 app.use("/api/participant", participantAccess, participantSessionInteractionsRouter);
 app.use("/api/participant/courses", participantAccess, participantCourseDiscussionRouter);
 app.use("/api/participant/courses", participantAccess, participantCourseQuizRouter);
@@ -111,6 +114,7 @@ app.use("/api/trainer", requireStaff, requireRole("trainer"), trainerRouter);
 app.use("/api/mentor", requireStaff, requireRole("mentor"), mentorRouter);
 app.use("/api/judge", requireStaff, requireRole("judge"), judgeRouter);
 app.use("/api", requireStaff, staffLearningProgressRouter);
+app.use("/api", requireStaff, profilesRouter);
 app.use("/api", requireStaff);
 app.use("/api", staffSessionInteractionsRouter);
 app.use("/api", router);

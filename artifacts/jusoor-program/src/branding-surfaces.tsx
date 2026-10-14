@@ -58,7 +58,7 @@ export function BrandingPage() {
   if (query.isError) return <main className="branding-page"><section className="branding-error"><CircleAlert /><h1>{t('Brand settings could not load.')}</h1><p>{t('Your current identity is unchanged. Try again.')}</p><button className="button button-outline" onClick={() => void query.refetch()}>{t('Retry connection')}</button></section></main>;
   const updateField = (key: 'primaryColor' | 'accentColor', value: string) => change(key, value);
   return <main className="branding-page">
-    <header className="branding-heading"><div><div className="eyebrow">{t('PROGRAM IDENTITY / COORDINATOR')}</div><h1 className="app-title">{t('Branding')}</h1><p>{t('Set the name, mark and colors participants and staff see across Jusoor.')}</p></div><span className="branding-access"><Palette size={15} />{t('Coordinator controls')}</span></header>
+    <header className="branding-heading"><div><div className="eyebrow">{t('PROGRAM IDENTITY / ADMIN')}</div><h1 className="app-title">{t('Branding')}</h1><p>{t('Set the name, mark and colors participants and staff see across Jusoor.')}</p></div><span className="branding-access"><Palette size={15} />{t('Admin controls')}</span></header>
     <div className="branding-layout">
       <form className="branding-form" onSubmit={submit}>
         <div className="branding-form-top"><div><span className="branding-step">01</span><h2>{t('Your program identity')}</h2></div><p>{t('Changes take effect across the workspace and participant learning after saving.')}</p></div>

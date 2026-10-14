@@ -41,7 +41,7 @@ const participantRouter: IRouter = Router();
 function displayAuthor(role: string, businessName: string | null): string {
   if (role === "participant") return businessName || "Program participant";
   if (role === "trainer") return "Program trainer";
-  return "Jusoor coordinator";
+  return "Jusoor admin";
 }
 
 async function getStaffModule(moduleId: number, staff: StaffAccess) {
