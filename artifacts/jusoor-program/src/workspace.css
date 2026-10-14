@@ -212,6 +212,7 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .modal-card,.confirm-card { width: min(650px, 100%); max-height: min(90dvh, 850px); overflow-y: auto; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 13px; box-shadow: 0 24px 70px hsl(203 28% 12% / .23); }
 .lifecycle-history-modal { width: min(520px, 100%); }
+.lifecycle-history-actions { display: flex; align-items: center; gap: 8px; }
 .lifecycle-history-content { padding: 17px 23px 22px; }
 .lifecycle-history-list { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
 .lifecycle-history-event { position: relative; display: flex; gap: 12px; padding: 0 0 18px; }

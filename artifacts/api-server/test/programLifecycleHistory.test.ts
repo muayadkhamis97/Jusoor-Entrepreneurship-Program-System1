@@ -10,7 +10,7 @@ const { db, programLifecycleEventsTable, programsTable } = await import("@worksp
 const { default: programsRouter } = await import("../src/routes/programs");
 
 type Row = Record<string, unknown>;
-const lifecycleEvents: Row[] = [
+let lifecycleEvents: Row[] = [
   {
     id: 12,
     action: "restored",
@@ -134,4 +134,15 @@ test("lifecycle history returns not found for a missing program", async () => {
 
   assert.equal(response.status, 404);
   assert.deepEqual(await response.json(), { error: "Program not found" });
+});
+
+test("coordinators receive an empty array when a program has no lifecycle history", async () => {
+  role = "coordinator";
+  programExists = true;
+  lifecycleEvents = [];
+
+  const response = await request("/api/programs/7/lifecycle-events");
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), []);
 });

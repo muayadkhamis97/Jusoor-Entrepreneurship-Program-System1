@@ -32,9 +32,9 @@ import type {
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
-  Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
-  CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
-  FileText, Filter, Handshake, LayoutDashboard, MapPin,
+   Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
+   CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, Download, ExternalLink, LogOut, RefreshCw,
+   FileText, Filter, Handshake, LayoutDashboard, MapPin,
    History, Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
@@ -43,6 +43,7 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
+import { downloadProgramLifecycleCsv } from './program-lifecycle-export';
 
 const ApplicationsReviewPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplicationsReviewPage })));
 const ApplyPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplyPage })));
@@ -369,7 +370,7 @@ function ProgramLifecycleHistoryDialog({ program, onClose }: { program: Program;
   const events: ProgramLifecycleEvent[] = query.data || [];
   return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="modal-card lifecycle-history-modal" role="dialog" aria-modal="true" aria-labelledby="program-history-title" data-testid={`dialog-program-history-${program.id}`}>
-      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="program-history-title" className="app-title">{t('Archive and restore history')}</h2><p>{program.name}</p></div><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-program-history"><X size={18} /></button></div>
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="program-history-title" className="app-title">{t('Archive and restore history')}</h2><p>{program.name}</p></div><div className="lifecycle-history-actions"><button className="button button-quiet" type="button" onClick={() => downloadProgramLifecycleCsv(program.id, program.name, events)} disabled={query.isLoading || query.isError} data-testid="button-export-program-history-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</button><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-program-history"><X size={18} /></button></div></div>
       <div className="lifecycle-history-content">
         {query.isLoading ? <LoadingState /> : query.isError
           ? <div className="lifecycle-history-error"><p>{t('Program history could not be loaded.')}</p><button className="button button-quiet" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
