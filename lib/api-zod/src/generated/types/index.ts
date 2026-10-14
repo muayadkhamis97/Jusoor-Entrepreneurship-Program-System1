@@ -144,6 +144,7 @@ export * from './learningProgressProgram';
 export * from './listBusinessesParams';
 export * from './listPitchesParams';
 export * from './listProgramImpactKpisParams';
+export * from './listProgramsParams';
 export * from './listSessionsParams';
 export * from './listSupportParams';
 export * from './mentorBookingFollowUpUpdate';

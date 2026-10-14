@@ -13,5 +13,6 @@ export interface StaffMember {
   email: string;
   role: StaffRole;
   status: StaffStatus;
+  programIds: number[];
   createdAt: Date;
 }

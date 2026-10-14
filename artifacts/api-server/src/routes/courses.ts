@@ -45,6 +45,7 @@ import {
   streamCourseMaterialFile,
 } from "../lib/courseStorage";
 import { deleteCoursePackageCache, prepareCoursePackage, type CoursePackageInfo, type CoursePackageKind } from "../lib/coursePackageStorage";
+import { activeProgramIdsFor } from "../lib/programScope";
 
 const router: IRouter = Router();
 const maxUploadBytes = 250 * 1024 * 1024;
@@ -53,13 +54,15 @@ const courseMaterialRoles = ["participant", "trainer", "coordinator"] as const;
 
 type CourseMaterialRole = (typeof courseMaterialRoles)[number];
 
-async function manageableProgramIds(staff: StaffAccess): Promise<number[] | null> {
-  if (staff.role === "coordinator" || staff.role === "staff") return null;
+async function manageableProgramIds(staff: StaffAccess): Promise<number[]> {
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  if (staff.role === "coordinator" || staff.role === "staff") return activeProgramIds;
   if (staff.role !== "trainer") return [];
   const assignments = await db.select({ programId: sessionsTable.programId })
     .from(sessionsTable)
     .where(eq(sessionsTable.trainerStaffId, staff.id));
-  return [...new Set(assignments.flatMap(({ programId }) => programId === null ? [] : [programId]))];
+  const assignedIds = new Set(assignments.flatMap(({ programId }) => programId === null ? [] : [programId]));
+  return activeProgramIds.filter((programId) => assignedIds.has(programId));
 }
 
 async function findManageableModule(moduleId: number, staff: StaffAccess) {
@@ -67,7 +70,7 @@ async function findManageableModule(moduleId: number, staff: StaffAccess) {
     .where(eq(courseModulesTable.id, moduleId)).limit(1);
   if (!module) return null;
   const programIds = await manageableProgramIds(staff);
-  if (programIds !== null && !programIds.includes(module.programId)) return null;
+  if (!programIds.includes(module.programId)) return null;
   return module;
 }
 
@@ -82,7 +85,7 @@ async function findManageableMaterial(materialId: number, staff: StaffAccess) {
     .limit(1);
   if (!material) return null;
   const programIds = await manageableProgramIds(staff);
-  if (programIds !== null && !programIds.includes(material.module.programId)) return null;
+  if (!programIds.includes(material.module.programId)) return null;
   return material;
 }
 
@@ -150,7 +153,7 @@ router.get("/management", async (req, res): Promise<void> => {
     .from(programsTable)
     .leftJoin(courseModulesTable, eq(courseModulesTable.programId, programsTable.id))
     .leftJoin(courseMaterialsTable, eq(courseMaterialsTable.moduleId, courseModulesTable.id))
-    .where(programIds === null ? undefined : inArray(programsTable.id, programIds))
+    .where(inArray(programsTable.id, programIds))
     .orderBy(asc(programsTable.name), asc(courseModulesTable.position), asc(courseMaterialsTable.position));
 
   const programs = new Map<number, {
@@ -225,7 +228,7 @@ router.post("/modules", async (req, res): Promise<void> => {
     return;
   }
   const programIds = await manageableProgramIds(staff);
-  if (programIds !== null && !programIds.includes(body.data.programId)) {
+  if (!programIds.includes(body.data.programId)) {
     res.status(403).json({ error: "This program is not assigned to the trainer." });
     return;
   }
@@ -588,7 +591,7 @@ router.post("/uploads/request-url", async (req, res): Promise<void> => {
     return;
   }
   const programIds = await manageableProgramIds(staff);
-  if (programIds !== null && !programIds.includes(body.data.programId)) {
+  if (!programIds.includes(body.data.programId)) {
     res.status(403).json({ error: "This program is not assigned to the trainer." });
     return;
   }

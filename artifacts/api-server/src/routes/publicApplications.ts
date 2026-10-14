@@ -25,6 +25,7 @@ router.get("/public/application-programs", async (req, res): Promise<void> => {
     .from(programsTable)
     .where(and(
       eq(programsTable.status, "outreach"),
+      isNull(programsTable.archivedAt),
       or(isNull(programsTable.applicationDeadline), gte(programsTable.applicationDeadline, todayUtc())),
     ))
     .orderBy(asc(programsTable.applicationDeadline), asc(programsTable.name));
@@ -63,12 +64,14 @@ router.post("/applications", async (req, res): Promise<void> => {
     id: programsTable.id,
     status: programsTable.status,
     applicationDeadline: programsTable.applicationDeadline,
+    archivedAt: programsTable.archivedAt,
   }).from(programsTable)
     .where(eq(programsTable.id, input.programId))
     .limit(1);
 
   if (
     !program ||
+    program.archivedAt !== null ||
     program.status !== "outreach" ||
     (program.applicationDeadline !== null && program.applicationDeadline < todayUtc())
   ) {

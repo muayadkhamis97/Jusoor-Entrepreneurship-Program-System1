@@ -484,6 +484,12 @@ paths:
       operationId: listPrograms
       tags: [programs]
       summary: List program projects
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
       responses:
         "200":
           description: Programs
@@ -493,6 +499,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Program"
+        "403":
+          description: Archived programs are coordinator-only
     post:
       operationId: createProgram
       tags: [programs]
@@ -535,14 +543,56 @@ paths:
     delete:
       operationId: deleteProgram
       tags: [programs]
-      summary: Delete a program project
+      summary: Hard deletion is disabled; archive the program instead
       parameters:
         - $ref: "#/components/parameters/Id"
       responses:
-        "204":
-          description: Program deleted
+        "409":
+          description: Programs are archived instead of deleted
+        "403":
+          description: Coordinator role required
         "404":
           description: Program not found
+  /programs/{id}/archive:
+    post:
+      operationId: archiveProgram
+      tags: [programs]
+      summary: Archive a program without deleting its records
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Archived program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Program"
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Program not found
+        "409":
+          description: Program is already archived
+  /programs/{id}/restore:
+    post:
+      operationId: restoreProgram
+      tags: [programs]
+      summary: Restore an archived program
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored program
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Program"
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Program not found
+        "409":
+          description: Program is not archived
   /businesses:
     get:
       operationId: listBusinesses
@@ -4213,8 +4263,11 @@ components:
         email: { type: string, format: email }
         role: { $ref: "#/components/schemas/StaffRole" }
         status: { $ref: "#/components/schemas/StaffStatus" }
+        programIds:
+          type: array
+          items: { type: integer }
         createdAt: { type: string, format: date-time }
-      required: [id, email, role, status, createdAt]
+      required: [id, email, role, status, programIds, createdAt]
     MentorBookingStatus:
       type: object
       properties:
@@ -4238,11 +4291,19 @@ components:
       properties:
         email: { type: string, format: email }
         role: { $ref: "#/components/schemas/StaffRole" }
+        programIds:
+          type: array
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
       required: [email, role]
     StaffUpdate:
       type: object
       properties:
         role: { $ref: "#/components/schemas/StaffRole" }
+        programIds:
+          type: array
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
       required: [role]
     BusinessStage:
       type: string
@@ -4276,8 +4337,9 @@ components:
         endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         status: { type: string, enum: [planning, outreach, active, completed] }
+        archivedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
-      required: [id, name, format, status, createdAt]
+      required: [id, name, format, status, archivedAt, createdAt]
     ProgramInput:
       type: object
       properties:

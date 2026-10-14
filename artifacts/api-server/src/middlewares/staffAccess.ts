@@ -1,7 +1,7 @@
 import { clerkClient, getAuth } from "@clerk/express";
 import { and, eq, isNull } from "drizzle-orm";
 import type { RequestHandler } from "express";
-import { db, staffMembersTable } from "@workspace/db";
+import { db, programsTable, staffMembersTable, staffProgramAssignmentsTable } from "@workspace/db";
 
 type StaffAccess = {
   id: number;
@@ -13,6 +13,7 @@ type StaffAccess = {
   googleCalendarAccountEmail: string | null;
   googleCalendarBookingUrl: string | null;
   createdAt: Date;
+  programIds: number[];
 };
 
 let bootstrapInvite: Promise<void> | undefined;
@@ -95,6 +96,16 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
       return;
     }
 
+    const programAssignments = member.role === "coordinator" ? [] : await db
+      .select({ programId: staffProgramAssignmentsTable.programId })
+      .from(staffProgramAssignmentsTable)
+      .innerJoin(programsTable, eq(programsTable.id, staffProgramAssignmentsTable.programId))
+      .where(and(
+        eq(staffProgramAssignmentsTable.staffId, member.id),
+        isNull(programsTable.archivedAt),
+      ))
+      .orderBy(staffProgramAssignmentsTable.programId);
+
     res.locals.staff = {
       id: member.id,
       email: member.email,
@@ -105,6 +116,7 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
       googleCalendarAccountEmail: member.googleCalendarAccountEmail,
       googleCalendarBookingUrl: member.googleCalendarBookingUrl,
       createdAt: member.createdAt,
+      programIds: [...new Set(programAssignments.map(({ programId }) => programId))],
     } satisfies StaffAccess;
     next();
   } catch (error) {

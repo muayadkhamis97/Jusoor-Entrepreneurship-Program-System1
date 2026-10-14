@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   AssignPitchJudgeBody,
   AssignPitchJudgeParams,
@@ -16,9 +16,10 @@ import {
   UpdatePitchParams,
   UpdatePitchResponse,
 } from "@workspace/api-zod";
-import { db, grantReceiptsTable, pitchJudgesTable, pitchesTable, staffMembersTable } from "@workspace/db";
+import { businessesTable, db, grantReceiptsTable, pitchJudgesTable, pitchesTable, staffMembersTable } from "@workspace/db";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 import { cents, totalGrantReceived } from "../lib/grant-ledger";
+import { activeProgramIdsFor } from "../lib/programScope";
 
 const router: IRouter = Router();
 
@@ -106,7 +107,21 @@ router.get("/pitches", async (req, res): Promise<void> => {
     res.status(400).json({ error: query.error.message });
     return;
   }
+  const staff = res.locals.staff as StaffAccess;
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  if (activeProgramIds.length === 0) {
+    res.json([]);
+    return;
+  }
+  const scopedBusinesses = await db.select({ id: businessesTable.id }).from(businessesTable)
+    .where(inArray(businessesTable.programId, activeProgramIds));
+  const businessIds = scopedBusinesses.map(({ id }) => id);
+  if (businessIds.length === 0) {
+    res.json([]);
+    return;
+  }
   const filters = [];
+  filters.push(inArray(pitchesTable.businessId, businessIds));
   if (query.data.businessId !== undefined) filters.push(eq(pitchesTable.businessId, query.data.businessId));
   if (query.data.eventType) filters.push(eq(pitchesTable.eventType, query.data.eventType));
   const records = await db.select().from(pitchesTable)
@@ -131,6 +146,13 @@ router.post("/pitches", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Coordinator access is required to change grant awards." });
     return;
   }
+  const activeProgramIds = await activeProgramIdsFor(staff!);
+  const [business] = await db.select().from(businessesTable)
+    .where(eq(businessesTable.id, parsed.data.businessId)).limit(1);
+  if (!business || !activeProgramIds.includes(business.programId)) {
+    res.status(404).json({ error: "Business not found or not assigned." });
+    return;
+  }
   const [record] = await db.insert(pitchesTable).values(parsed.data).returning();
   res.status(201).json(CreatePitchResponse.parse(record));
 });
@@ -148,10 +170,23 @@ router.patch("/pitches/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Coordinator access is required to change grant awards." });
     return;
   }
+  const activeProgramIds = await activeProgramIdsFor(staff!);
   const result = await db.transaction(async (tx) => {
     const [current] = await tx.select().from(pitchesTable)
       .where(eq(pitchesTable.id, params.data.id)).for("update").limit(1);
     if (!current) return { kind: "not_found" as const };
+    const [currentBusiness] = await tx.select({ programId: businessesTable.programId })
+      .from(businessesTable).where(eq(businessesTable.id, current.businessId)).limit(1);
+    if (!currentBusiness || !activeProgramIds.includes(currentBusiness.programId)) {
+      return { kind: "not_found" as const };
+    }
+    if (body.data.businessId !== undefined) {
+      const [nextBusiness] = await tx.select({ programId: businessesTable.programId })
+        .from(businessesTable).where(eq(businessesTable.id, body.data.businessId)).limit(1);
+      if (!nextBusiness || !activeProgramIds.includes(nextBusiness.programId)) {
+        return { kind: "not_found" as const };
+      }
+    }
 
     const existingReceipts = await tx.select({
       kind: grantReceiptsTable.kind,
@@ -189,10 +224,17 @@ router.delete("/pitches/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const staff = res.locals.staff as StaffAccess;
+  const activeProgramIds = await activeProgramIdsFor(staff);
   const result = await db.transaction(async (tx) => {
-    const [current] = await tx.select({ id: pitchesTable.id }).from(pitchesTable)
+    const [current] = await tx.select({ id: pitchesTable.id, businessId: pitchesTable.businessId }).from(pitchesTable)
       .where(eq(pitchesTable.id, params.data.id)).for("update").limit(1);
     if (!current) return { kind: "not_found" as const };
+    const [business] = await tx.select({ programId: businessesTable.programId })
+      .from(businessesTable).where(eq(businessesTable.id, current.businessId)).limit(1);
+    if (!business || !activeProgramIds.includes(business.programId)) {
+      return { kind: "not_found" as const };
+    }
     const [receipt] = await tx.select({ id: grantReceiptsTable.id }).from(grantReceiptsTable)
       .where(eq(grantReceiptsTable.pitchId, current.id)).limit(1);
     if (receipt) return { kind: "has_receipts" as const };

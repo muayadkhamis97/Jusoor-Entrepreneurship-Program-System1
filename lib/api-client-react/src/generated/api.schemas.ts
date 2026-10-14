@@ -1997,6 +1997,7 @@ export interface StaffMember {
   email: string;
   role: StaffRole;
   status: StaffStatus;
+  programIds: number[];
   createdAt: string;
 }
 
@@ -2035,10 +2036,14 @@ export interface MentorBookingFollowUpUpdate {
 export interface StaffInput {
   email: string;
   role: StaffRole;
+  /** @items.minimum 1 */
+  programIds?: number[];
 }
 
 export interface StaffUpdate {
   role: StaffRole;
+  /** @items.minimum 1 */
+  programIds?: number[];
 }
 
 export type GrantDecision = typeof GrantDecision[keyof typeof GrantDecision];
@@ -2090,6 +2095,8 @@ export interface Program {
      */
   applicationDeadline?: string | null;
   status: ProgramStatus;
+  /** @nullable */
+  archivedAt: string | null;
   createdAt: string;
 }
 
@@ -3042,6 +3049,10 @@ programId?: number;
 
 export type ListProgramImpactKpisParams = {
 programId: number;
+};
+
+export type ListProgramsParams = {
+includeArchived?: boolean;
 };
 
 export type ListBusinessesParams = {

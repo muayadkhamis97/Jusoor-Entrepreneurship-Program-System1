@@ -9,4 +9,6 @@ import type { StaffRole } from './staffRole';
 
 export interface StaffUpdate {
   role: StaffRole;
+  /** @items.minimum 1 */
+  programIds?: number[];
 }

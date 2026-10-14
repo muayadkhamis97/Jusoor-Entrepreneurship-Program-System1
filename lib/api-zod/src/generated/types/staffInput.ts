@@ -10,4 +10,6 @@ import type { StaffRole } from './staffRole';
 export interface StaffInput {
   email: string;
   role: StaffRole;
+  /** @items.minimum 1 */
+  programIds?: number[];
 }

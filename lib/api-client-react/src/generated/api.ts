@@ -101,6 +101,7 @@ import type {
   ListBusinessesParams,
   ListPitchesParams,
   ListProgramImpactKpisParams,
+  ListProgramsParams,
   ListSessionsParams,
   ListSupportParams,
   MentorBookingFollowUpUpdate,
@@ -1841,20 +1842,27 @@ export const useSaveProgramImpactKpiValues = <TError = ErrorType<void>,
       return useMutation(getSaveProgramImpactKpiValuesMutationOptions(options));
     }
 
-export const getListProgramsUrl = () => {
+export const getListProgramsUrl = (params?: ListProgramsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/programs`
+  return stringifiedParams.length > 0 ? `/api/programs?${stringifiedParams}` : `/api/programs`
 }
 
 /**
  * @summary List program projects
  */
-export const listPrograms = async ( options?: Parameters<typeof customFetch>[1]): Promise<Program[]> => {
+export const listPrograms = async (params?: ListProgramsParams, options?: Parameters<typeof customFetch>[1]): Promise<Program[]> => {
 
-  return customFetch<Program[]>(getListProgramsUrl(),
+  return customFetch<Program[]>(getListProgramsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1867,23 +1875,23 @@ export const listPrograms = async ( options?: Parameters<typeof customFetch>[1])
 
 
 
-export const getListProgramsQueryKey = () => {
+export const getListProgramsQueryKey = (params?: ListProgramsParams,) => {
     return [
-    `/api/programs`
+    `/api/programs`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListProgramsQueryOptions = <TData = Awaited<ReturnType<typeof listPrograms>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrograms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListProgramsQueryOptions = <TData = Awaited<ReturnType<typeof listPrograms>>, TError = ErrorType<void>>(params?: ListProgramsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrograms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListProgramsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListProgramsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPrograms>>> = ({ signal }) => listPrograms({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPrograms>>> = ({ signal }) => listPrograms(params, { signal, ...requestOptions });
 
 
 
@@ -1893,19 +1901,19 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListProgramsQueryResult = NonNullable<Awaited<ReturnType<typeof listPrograms>>>
-export type ListProgramsQueryError = ErrorType<unknown>
+export type ListProgramsQueryError = ErrorType<void>
 
 
 /**
  * @summary List program projects
  */
 
-export function useListPrograms<TData = Awaited<ReturnType<typeof listPrograms>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrograms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListPrograms<TData = Awaited<ReturnType<typeof listPrograms>>, TError = ErrorType<void>>(
+ params?: ListProgramsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrograms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListProgramsQueryOptions(options)
+  const queryOptions = getListProgramsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2104,11 +2112,11 @@ export const getDeleteProgramUrl = (id: number,) => {
 }
 
 /**
- * @summary Delete a program project
+ * @summary Hard deletion is disabled; archive the program instead
  */
-export const deleteProgram = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const deleteProgram = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<void>(getDeleteProgramUrl(id),
+  return customFetch<unknown>(getDeleteProgramUrl(id),
   {
     ...options,
     method: 'DELETE'
@@ -2156,7 +2164,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteProgramMutationVariables = {id: number}
 
     /**
- * @summary Delete a program project
+ * @summary Hard deletion is disabled; archive the program instead
  */
 export const useDeleteProgram = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProgram>>, TError,DeleteProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2167,6 +2175,154 @@ export const useDeleteProgram = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteProgramMutationOptions(options));
+    }
+
+export const getArchiveProgramUrl = (id: number,) => {
+
+
+
+
+  return `/api/programs/${id}/archive`
+}
+
+/**
+ * @summary Archive a program without deleting its records
+ */
+export const archiveProgram = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Program> => {
+
+  return customFetch<Program>(getArchiveProgramUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getArchiveProgramMutationKey = () => ['archiveProgram'] as const;
+
+export const getArchiveProgramMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveProgram>>, TError,ArchiveProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveProgram>>, TError,ArchiveProgramMutationVariables, TContext> => {
+
+const mutationKey = getArchiveProgramMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveProgram>>, ArchiveProgramMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  archiveProgram(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveProgramMutationResult = NonNullable<Awaited<ReturnType<typeof archiveProgram>>>
+
+    export type ArchiveProgramMutationError = ErrorType<void>
+    export type ArchiveProgramMutationVariables = {id: number}
+
+    /**
+ * @summary Archive a program without deleting its records
+ */
+export const useArchiveProgram = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveProgram>>, TError,ArchiveProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveProgram>>,
+        TError,
+        ArchiveProgramMutationVariables,
+        TContext
+      > => {
+      return useMutation(getArchiveProgramMutationOptions(options));
+    }
+
+export const getRestoreProgramUrl = (id: number,) => {
+
+
+
+
+  return `/api/programs/${id}/restore`
+}
+
+/**
+ * @summary Restore an archived program
+ */
+export const restoreProgram = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Program> => {
+
+  return customFetch<Program>(getRestoreProgramUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreProgramMutationKey = () => ['restoreProgram'] as const;
+
+export const getRestoreProgramMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreProgram>>, TError,RestoreProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreProgram>>, TError,RestoreProgramMutationVariables, TContext> => {
+
+const mutationKey = getRestoreProgramMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreProgram>>, RestoreProgramMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreProgram(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreProgramMutationResult = NonNullable<Awaited<ReturnType<typeof restoreProgram>>>
+
+    export type RestoreProgramMutationError = ErrorType<void>
+    export type RestoreProgramMutationVariables = {id: number}
+
+    /**
+ * @summary Restore an archived program
+ */
+export const useRestoreProgram = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreProgram>>, TError,RestoreProgramMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreProgram>>,
+        TError,
+        RestoreProgramMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreProgramMutationOptions(options));
     }
 
 export const getListBusinessesUrl = (params?: ListBusinessesParams,) => {

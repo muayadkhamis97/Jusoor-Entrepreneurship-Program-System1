@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import {
   CreateSessionBody,
   CreateSessionResponse,
@@ -15,10 +15,12 @@ import {
   programAnnouncementsTable,
   sessionsTable,
   staffMembersTable,
+  staffProgramAssignmentsTable,
   zoomRecordingAlertsTable,
 } from "@workspace/db";
 import { isGoogleDriveRecordingUrl } from "../lib/zoom-recording-alerts";
 import { getRecordingLinkTransition } from "../lib/participant-recording-notices";
+import { activeProgramIdsFor } from "../lib/programScope";
 import type { StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
@@ -34,8 +36,26 @@ router.get("/sessions", async (req, res): Promise<void> => {
     res.status(400).json({ error: query.error.message });
     return;
   }
+  const activeProgramIds = await activeProgramIdsFor(staff);
   const filters = [];
-  if (query.data.programId !== undefined) filters.push(eq(sessionsTable.programId, query.data.programId));
+  if (staff.role === "coordinator") {
+    filters.push(activeProgramIds.length
+      ? or(isNull(sessionsTable.programId), inArray(sessionsTable.programId, activeProgramIds))!
+      : isNull(sessionsTable.programId));
+  } else {
+    if (activeProgramIds.length === 0) {
+      res.json([]);
+      return;
+    }
+    filters.push(inArray(sessionsTable.programId, activeProgramIds));
+  }
+  if (query.data.programId !== undefined) {
+    if (!activeProgramIds.includes(query.data.programId)) {
+      res.json([]);
+      return;
+    }
+    filters.push(eq(sessionsTable.programId, query.data.programId));
+  }
   if (query.data.type) filters.push(eq(sessionsTable.type, query.data.type));
   if (staff.role === "trainer") filters.push(eq(sessionsTable.trainerStaffId, staff.id));
   const sessions = await db.select().from(sessionsTable)
@@ -55,12 +75,33 @@ router.post("/sessions", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  if (parsed.data.programId === null && staff.role !== "coordinator") {
+    res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
+  if (parsed.data.programId !== null && !activeProgramIds.includes(parsed.data.programId)) {
+    res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
   if (parsed.data.trainerStaffId !== undefined && parsed.data.trainerStaffId !== null) {
     const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
       .where(and(eq(staffMembersTable.id, parsed.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
     if (!trainer) {
       res.status(400).json({ error: "Select an account with the Trainer role." });
       return;
+    }
+    if (staff.role !== "coordinator" && parsed.data.programId !== null) {
+      const [assignment] = await db.select({ id: staffProgramAssignmentsTable.id })
+        .from(staffProgramAssignmentsTable)
+        .where(and(
+          eq(staffProgramAssignmentsTable.staffId, parsed.data.trainerStaffId),
+          eq(staffProgramAssignmentsTable.programId, parsed.data.programId),
+        )).limit(1);
+      if (!assignment) {
+        res.status(400).json({ error: "The trainer is not assigned to this program." });
+        return;
+      }
     }
   }
   const session = await db.transaction(async (tx) => {
@@ -100,6 +141,7 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
   }
+  const activeProgramIds = await activeProgramIdsFor(staff);
   if (body.data.trainerStaffId !== undefined && body.data.trainerStaffId !== null) {
     const [trainer] = await db.select({ id: staffMembersTable.id }).from(staffMembersTable)
       .where(and(eq(staffMembersTable.id, body.data.trainerStaffId), eq(staffMembersTable.role, "trainer"))).limit(1);
@@ -114,6 +156,13 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
       .limit(1)
       .for("update");
     if (!current) return null;
+    if (current.programId === null
+      ? staff.role !== "coordinator"
+      : !activeProgramIds.includes(current.programId)) return null;
+    const nextProgramId = body.data.programId === undefined ? current.programId : body.data.programId;
+    if (nextProgramId === null
+      ? staff.role !== "coordinator"
+      : !activeProgramIds.includes(nextProgramId)) return null;
 
     const recordingUrl = body.data.recordingUrl !== undefined
       ? body.data.recordingUrl
@@ -178,7 +227,19 @@ router.delete("/sessions/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [session] = await db.delete(sessionsTable).where(eq(sessionsTable.id, params.data.id)).returning();
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  const [current] = await db.select().from(sessionsTable)
+    .where(eq(sessionsTable.id, params.data.id)).limit(1);
+  if (!current || (current.programId === null
+    ? staff.role !== "coordinator"
+    : !activeProgramIds.includes(current.programId))) {
+    res.status(404).json({ error: "Session not found." });
+    return;
+  }
+  const [session] = await db.delete(sessionsTable).where(and(
+    eq(sessionsTable.id, params.data.id),
+    current.programId === null ? isNull(sessionsTable.programId) : eq(sessionsTable.programId, current.programId),
+  )).returning();
   if (!session) {
     res.status(404).json({ error: "Session not found" });
     return;

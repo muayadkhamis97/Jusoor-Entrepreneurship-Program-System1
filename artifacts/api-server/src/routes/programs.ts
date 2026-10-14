@@ -1,24 +1,51 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
+  ArchiveProgramParams,
+  ArchiveProgramResponse,
   CreateProgramBody,
   CreateProgramResponse,
   DeleteProgramParams,
+  ListProgramsQueryParams,
   ListProgramsResponse,
+  RestoreProgramParams,
+  RestoreProgramResponse,
   UpdateProgramBody,
   UpdateProgramParams,
   UpdateProgramResponse,
 } from "@workspace/api-zod";
-import { db, programsTable } from "@workspace/db";
+import { db, programLifecycleEventsTable, programsTable } from "@workspace/db";
+import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
 
-router.get("/programs", async (_req, res): Promise<void> => {
-  const programs = await db.select().from(programsTable).orderBy(asc(programsTable.createdAt));
+router.get("/programs", async (req, res): Promise<void> => {
+  const query = ListProgramsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+
+  const staff = res.locals.staff as StaffAccess;
+  if (query.data.includeArchived && staff.role !== "coordinator") {
+    res.status(403).json({ error: "Only coordinators can view archived programs." });
+    return;
+  }
+  if (staff.role === "staff" && staff.programIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const filters = [];
+  if (!query.data.includeArchived) filters.push(isNull(programsTable.archivedAt));
+  if (staff.role === "staff") filters.push(inArray(programsTable.id, staff.programIds));
+  const programs = await db.select().from(programsTable)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(asc(programsTable.createdAt));
   res.json(ListProgramsResponse.parse(programs));
 });
 
-router.post("/programs", async (req, res): Promise<void> => {
+router.post("/programs", requireCoordinator, async (req, res): Promise<void> => {
   const parsed = CreateProgramBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -28,8 +55,8 @@ router.post("/programs", async (req, res): Promise<void> => {
   res.status(201).json(CreateProgramResponse.parse(program));
 });
 
-router.patch("/programs/:id", async (req, res): Promise<void> => {
-  const params = DeleteProgramParams.safeParse(req.params);
+router.patch("/programs/:id", requireCoordinator, async (req, res): Promise<void> => {
+  const params = UpdateProgramParams.safeParse(req.params);
   const body = UpdateProgramBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
@@ -44,7 +71,7 @@ router.patch("/programs/:id", async (req, res): Promise<void> => {
       : body.data.applicationDeadline,
   };
   const [program] = await db.update(programsTable).set(values)
-    .where(eq(programsTable.id, params.data.id)).returning();
+    .where(and(eq(programsTable.id, params.data.id), isNull(programsTable.archivedAt))).returning();
   if (!program) {
     res.status(404).json({ error: "Program not found" });
     return;
@@ -52,18 +79,93 @@ router.patch("/programs/:id", async (req, res): Promise<void> => {
   res.json(UpdateProgramResponse.parse(program));
 });
 
-router.delete("/programs/:id", async (req, res): Promise<void> => {
-  const params = UpdateProgramParams.safeParse(req.params);
+router.post("/programs/:id/archive", requireCoordinator, async (req, res): Promise<void> => {
+  const params = ArchiveProgramParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [program] = await db.delete(programsTable).where(eq(programsTable.id, params.data.id)).returning();
+
+  const staff = res.locals.staff as StaffAccess;
+  const result = await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(programsTable)
+      .where(eq(programsTable.id, params.data.id)).for("update").limit(1);
+    if (!existing) return { kind: "missing" as const };
+    if (existing.archivedAt) return { kind: "already_archived" as const };
+
+    const [program] = await tx.update(programsTable)
+      .set({ archivedAt: new Date() })
+      .where(and(eq(programsTable.id, params.data.id), isNull(programsTable.archivedAt)))
+      .returning();
+    if (!program) return { kind: "already_archived" as const };
+    await tx.insert(programLifecycleEventsTable).values({
+      programId: program.id,
+      action: "archived",
+      actorStaffId: staff.id,
+    });
+    return { kind: "ok" as const, program };
+  });
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "Program not found" });
+    return;
+  }
+  if (result.kind === "already_archived") {
+    res.status(409).json({ error: "Program is already archived." });
+    return;
+  }
+  res.json(ArchiveProgramResponse.parse(result.program));
+});
+
+router.post("/programs/:id/restore", requireCoordinator, async (req, res): Promise<void> => {
+  const params = RestoreProgramParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const staff = res.locals.staff as StaffAccess;
+  const result = await db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(programsTable)
+      .where(eq(programsTable.id, params.data.id)).for("update").limit(1);
+    if (!existing) return { kind: "missing" as const };
+    if (!existing.archivedAt) return { kind: "not_archived" as const };
+
+    const [program] = await tx.update(programsTable)
+      .set({ archivedAt: null })
+      .where(and(eq(programsTable.id, params.data.id), isNotNull(programsTable.archivedAt)))
+      .returning();
+    if (!program) return { kind: "not_archived" as const };
+    await tx.insert(programLifecycleEventsTable).values({
+      programId: program.id,
+      action: "restored",
+      actorStaffId: staff.id,
+    });
+    return { kind: "ok" as const, program };
+  });
+  if (result.kind === "missing") {
+    res.status(404).json({ error: "Program not found" });
+    return;
+  }
+  if (result.kind === "not_archived") {
+    res.status(409).json({ error: "Program is not archived." });
+    return;
+  }
+  res.json(RestoreProgramResponse.parse(result.program));
+});
+
+router.delete("/programs/:id", requireCoordinator, async (req, res): Promise<void> => {
+  const params = DeleteProgramParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [program] = await db.select({ id: programsTable.id })
+    .from(programsTable).where(eq(programsTable.id, params.data.id)).limit(1);
   if (!program) {
     res.status(404).json({ error: "Program not found" });
     return;
   }
-  res.sendStatus(204);
+  res.status(409).json({ error: "Programs are archived instead of deleted." });
 });
 
 export default router;

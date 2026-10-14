@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateStaffBody,
@@ -14,8 +14,13 @@ import {
   UpdateStaffParams,
   UpdateStaffResponse,
 } from "@workspace/api-zod";
-import { db, staffMembersTable } from "@workspace/db";
-import { requireCoordinator, requireOperationsStaff } from "../middlewares/staffAccess";
+import {
+  db,
+  programsTable,
+  staffMembersTable,
+  staffProgramAssignmentsTable,
+} from "@workspace/db";
+import { requireCoordinator, requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
 
@@ -23,9 +28,46 @@ router.get("/auth/me", (_req, res): void => {
   res.json(GetAuthMeResponse.parse(res.locals.staff));
 });
 
+async function withProgramIds<T extends { id: number }>(members: T[]) {
+  if (members.length === 0) return members.map((member) => ({ ...member, programIds: [] as number[] }));
+  const assignments = await db.select({
+    staffId: staffProgramAssignmentsTable.staffId,
+    programId: staffProgramAssignmentsTable.programId,
+  }).from(staffProgramAssignmentsTable)
+    .where(inArray(staffProgramAssignmentsTable.staffId, members.map(({ id }) => id)));
+  const programIdsByStaff = new Map<number, number[]>();
+  for (const { staffId, programId } of assignments) {
+    programIdsByStaff.set(staffId, [...(programIdsByStaff.get(staffId) ?? []), programId]);
+  }
+  return members.map((member) => ({
+    ...member,
+    programIds: [...new Set(programIdsByStaff.get(member.id) ?? [])],
+  }));
+}
+
 router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> => {
-  const members = await db.select().from(staffMembersTable).orderBy(asc(staffMembersTable.email));
-  res.json(ListStaffResponse.parse(members));
+  const current = res.locals.staff as StaffAccess;
+  if (current.role === "coordinator") {
+    const members = await db.select().from(staffMembersTable).orderBy(asc(staffMembersTable.email));
+    res.json(ListStaffResponse.parse(await withProgramIds(members)));
+    return;
+  }
+  if (current.programIds.length === 0) {
+    res.json([]);
+    return;
+  }
+  const assignments = await db.select({ staffId: staffProgramAssignmentsTable.staffId })
+    .from(staffProgramAssignmentsTable)
+    .where(inArray(staffProgramAssignmentsTable.programId, current.programIds));
+  const visibleStaffIds = [...new Set(assignments.map(({ staffId }) => staffId))];
+  if (visibleStaffIds.length === 0) {
+    res.json([]);
+    return;
+  }
+  const members = await db.select().from(staffMembersTable)
+    .where(inArray(staffMembersTable.id, visibleStaffIds))
+    .orderBy(asc(staffMembersTable.email));
+  res.json(ListStaffResponse.parse(await withProgramIds(members)));
 });
 
 router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res): Promise<void> => {
@@ -123,16 +165,41 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
   }
 
   const email = parsed.data.email.trim().toLowerCase();
-  const [member] = await db.insert(staffMembersTable)
-    .values({ email, role: parsed.data.role, status: "invited" })
-    .onConflictDoNothing({ target: staffMembersTable.email })
-    .returning();
+  const programIds = [...new Set(parsed.data.programIds ?? [])];
+  if (parsed.data.role === "coordinator" && programIds.length > 0) {
+    res.status(400).json({ error: "Coordinators have global access and cannot have program assignments." });
+    return;
+  }
+  if (programIds.length > 0) {
+    const activePrograms = await db.select({ id: programsTable.id }).from(programsTable)
+      .where(and(inArray(programsTable.id, programIds), isNull(programsTable.archivedAt)));
+    if (activePrograms.length !== programIds.length) {
+      res.status(400).json({ error: "Choose only active programs." });
+      return;
+    }
+  }
+  const current = res.locals.staff as StaffAccess;
+  const member = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(staffMembersTable)
+      .values({ email, role: parsed.data.role, status: "invited" })
+      .onConflictDoNothing({ target: staffMembersTable.email })
+      .returning();
+    if (!created) return null;
+    if (programIds.length > 0) {
+      await tx.insert(staffProgramAssignmentsTable).values(programIds.map((programId) => ({
+        staffId: created.id,
+        programId,
+        assignedByStaffId: current.id,
+      })));
+    }
+    return created;
+  });
   if (!member) {
     res.status(409).json({ error: "This email already has staff access." });
     return;
   }
 
-  res.status(201).json(CreateStaffResponse.parse(member));
+  res.status(201).json(CreateStaffResponse.parse({ ...member, programIds }));
 });
 
 router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {
@@ -165,11 +232,44 @@ router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> =
     }
   }
 
-  const [member] = await db.update(staffMembersTable)
-    .set({ role: body.data.role })
-    .where(eq(staffMembersTable.id, params.data.id))
-    .returning();
-  res.json(UpdateStaffResponse.parse(member));
+  const existingAssignments = await db.select({ programId: staffProgramAssignmentsTable.programId })
+    .from(staffProgramAssignmentsTable)
+    .where(eq(staffProgramAssignmentsTable.staffId, params.data.id));
+  const programIds = body.data.role === "coordinator"
+    ? []
+    : [...new Set(body.data.programIds ?? existingAssignments.map(({ programId }) => programId))];
+  if (body.data.role === "coordinator" && (body.data.programIds?.length ?? 0) > 0) {
+    res.status(400).json({ error: "Coordinators have global access and cannot have program assignments." });
+    return;
+  }
+  if (programIds.length > 0) {
+    const activePrograms = await db.select({ id: programsTable.id }).from(programsTable)
+      .where(and(inArray(programsTable.id, programIds), isNull(programsTable.archivedAt)));
+    if (activePrograms.length !== programIds.length) {
+      res.status(400).json({ error: "Choose only active programs." });
+      return;
+    }
+  }
+  const [member] = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(staffMembersTable)
+      .set({ role: body.data.role })
+      .where(eq(staffMembersTable.id, params.data.id))
+      .returning();
+    if (!updated) return [undefined];
+    if (body.data.programIds !== undefined || body.data.role === "coordinator") {
+      await tx.delete(staffProgramAssignmentsTable)
+        .where(eq(staffProgramAssignmentsTable.staffId, params.data.id));
+      if (programIds.length > 0) {
+        await tx.insert(staffProgramAssignmentsTable).values(programIds.map((programId) => ({
+          staffId: params.data.id,
+          programId,
+          assignedByStaffId: current.id,
+        })));
+      }
+    }
+    return [updated];
+  });
+  res.json(UpdateStaffResponse.parse({ ...member, programIds }));
 });
 
 router.delete("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {

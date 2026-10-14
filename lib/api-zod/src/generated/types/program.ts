@@ -30,5 +30,7 @@ export interface Program {
      */
   applicationDeadline?: string | null;
   status: ProgramStatus;
+  /** @nullable */
+  archivedAt: Date | null;
   createdAt: Date;
 }

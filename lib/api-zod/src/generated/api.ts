@@ -961,6 +961,10 @@ export const SaveProgramImpactKpiValuesResponse = zod.object({
 /**
  * @summary List program projects
  */
+export const ListProgramsQueryParams = zod.object({
+  "includeArchived": zod.coerce.boolean().optional()
+})
+
 export const listProgramsResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listProgramsResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listProgramsResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
@@ -975,6 +979,7 @@ export const ListProgramsResponseItem = zod.object({
   "endDate": zod.string().regex(listProgramsResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(listProgramsResponseApplicationDeadlineRegExp).nullish(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListProgramsResponse = zod.array(ListProgramsResponseItem)
@@ -1013,6 +1018,7 @@ export const CreateProgramResponse = zod.object({
   "endDate": zod.string().regex(createProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(createProgramResponseApplicationDeadlineRegExp).nullish(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -1051,18 +1057,71 @@ export const UpdateProgramResponse = zod.object({
   "endDate": zod.string().regex(updateProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(updateProgramResponseApplicationDeadlineRegExp).nullish(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Delete a program project
+ * @summary Hard deletion is disabled; archive the program instead
  */
 export const DeleteProgramParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
 export const DeleteProgramResponse = zod.void()
+
+
+/**
+ * @summary Archive a program without deleting its records
+ */
+export const ArchiveProgramParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const archiveProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const archiveProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const archiveProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ArchiveProgramResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "format": zod.enum(['bootcamp', 'hackathon']),
+  "description": zod.string().nullish(),
+  "startDate": zod.string().regex(archiveProgramResponseStartDateRegExp).nullish(),
+  "endDate": zod.string().regex(archiveProgramResponseEndDateRegExp).nullish(),
+  "applicationDeadline": zod.string().regex(archiveProgramResponseApplicationDeadlineRegExp).nullish(),
+  "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Restore an archived program
+ */
+export const RestoreProgramParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const restoreProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const restoreProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const restoreProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const RestoreProgramResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "format": zod.enum(['bootcamp', 'hackathon']),
+  "description": zod.string().nullish(),
+  "startDate": zod.string().regex(restoreProgramResponseStartDateRegExp).nullish(),
+  "endDate": zod.string().regex(restoreProgramResponseEndDateRegExp).nullish(),
+  "applicationDeadline": zod.string().regex(restoreProgramResponseApplicationDeadlineRegExp).nullish(),
+  "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
 
 
 /**
@@ -4015,6 +4074,7 @@ export const GetAuthMeResponse = zod.object({
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "programIds": zod.array(zod.number().int()),
   "createdAt": zod.coerce.date()
 })
 
@@ -4082,6 +4142,7 @@ export const ListStaffResponseItem = zod.object({
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "programIds": zod.array(zod.number().int()),
   "createdAt": zod.coerce.date()
 })
 export const ListStaffResponse = zod.array(ListStaffResponseItem)
@@ -4090,9 +4151,13 @@ export const ListStaffResponse = zod.array(ListStaffResponseItem)
 /**
  * @summary Approve a staff email and assign a role
  */
+
+
+
 export const CreateStaffBody = zod.object({
   "email": zod.string().email(),
-  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge'])
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "programIds": zod.array(zod.number().int().min(1)).optional()
 })
 
 export const CreateStaffResponse = zod.object({
@@ -4100,6 +4165,7 @@ export const CreateStaffResponse = zod.object({
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "programIds": zod.array(zod.number().int()),
   "createdAt": zod.coerce.date()
 })
 
@@ -4111,8 +4177,12 @@ export const UpdateStaffParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+
+
+
 export const UpdateStaffBody = zod.object({
-  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge'])
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "programIds": zod.array(zod.number().int().min(1)).optional()
 })
 
 export const UpdateStaffResponse = zod.object({
@@ -4120,6 +4190,7 @@ export const UpdateStaffResponse = zod.object({
   "email": zod.string().email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "programIds": zod.array(zod.number().int()),
   "createdAt": zod.coerce.date()
 })
 
@@ -4607,6 +4678,7 @@ export const GetExternalProgramResponse = zod.object({
   "endDate": zod.string().regex(getExternalProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(getExternalProgramResponseApplicationDeadlineRegExp).nullish(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -4645,6 +4717,7 @@ export const UpdateExternalProgramResponse = zod.object({
   "endDate": zod.string().regex(updateExternalProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(updateExternalProgramResponseApplicationDeadlineRegExp).nullish(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
+  "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
 })
 
