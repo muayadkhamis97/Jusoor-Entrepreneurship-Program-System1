@@ -25,6 +25,9 @@ const certificate = {
   programName: 'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور لحاضنات الأعمال الاجتماعية التي تقودها النساء',
   issuedAt: '2026-09-17T12:00:00.000Z',
   issuedByName: 'Program Coordinator',
+  revokedAt: null,
+  revokedByName: null,
+  revocationReason: null,
 } satisfies Certificate;
 
 const packageRoot = path.resolve(import.meta.dirname, '..');

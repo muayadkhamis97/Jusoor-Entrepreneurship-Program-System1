@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CertificatePdfPage, downloadCertificatePdf, type CertificateLanguage } from './certificate-pdf';
 import { AssessmentComparison } from './assessment-comparison';
+import { downloadCohortLearningOutcomesCsv } from './learning-outcomes-export';
 import {
   getGetLearningProgressAnalyticsQueryKey,
   getGetParticipantLearningProgressQueryKey,
@@ -415,10 +416,17 @@ function CohortAssessmentHistory({
   };
 
   return <section className="lp-assessment-history" data-testid="panel-assessment-history">
-    <header>
+    <header className="lp-history-header">
       <div><span className="lp-eyebrow">{t('HISTORICAL LEARNING')}</span><h3>{t('Assessment results across program runs')}</h3>
         <p>{t('Compare first-attempt pre-course and post-course averages. Each average includes only participants with an eligible result.')}</p>
       </div>
+      <button
+        type="button"
+        className="lp-button lp-button-outline lp-history-export"
+        onClick={() => downloadCohortLearningOutcomesCsv(selectedPrograms)}
+        disabled={!selectedPrograms.length}
+        data-testid="button-export-learning-outcomes"
+      ><Download size={14} />{t('Export CSV')}</button>
     </header>
     <fieldset className="lp-history-select">
       <legend>{t('SELECT PROGRAM RUNS')}</legend>
