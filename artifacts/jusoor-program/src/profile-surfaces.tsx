@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useClerk } from '@clerk/react';
 import {
   getGetOwnProfileQueryKey,
   getListUserProfilesQueryKey,
@@ -18,6 +19,7 @@ import type { UserProfile, UserProfileUpdate } from '@workspace/api-client-react
 import { Camera, CircleAlert, LoaderCircle, Search, ShieldCheck, UserRound } from 'lucide-react';
 import { Link } from 'wouter';
 import { LanguageToggle, t, useAppLanguage } from './language';
+import { ParticipantAccountActions } from './participant-account-actions';
 import './profile-surfaces.css';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -298,12 +300,16 @@ function ProfileLoadError({ retry, participant = false, admin = false }: { retry
 }
 
 function ParticipantProfileLayout({ children }: { children: ReactNode }) {
+  const { signOut } = useClerk();
   return <div className="intake-page profile-intake">
     <header className="intake-top profile-intake-top">
       <Link href="/participant" className="profile-intake-brand"><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></Link>
       <div className="intake-header-actions"><LanguageToggle /><Link className="text-link" href="/participant" data-testid="link-profile-back-participant">{t('Back to your progress')}</Link></div>
     </header>
-    <main className="participant-wrap profile-participant-wrap">{children}</main>
+    <main className="participant-wrap profile-participant-wrap">
+      <div className="participant-profile-account"><ParticipantAccountActions signOut={signOut} /></div>
+      {children}
+    </main>
     <footer className="intake-footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
   </div>;
 }

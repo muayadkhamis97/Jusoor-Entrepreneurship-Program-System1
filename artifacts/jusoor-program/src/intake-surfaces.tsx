@@ -12,7 +12,7 @@ import {
   useSubmitApplication, useSubmitTrainingAnswer, useAskTrainingQuestion,
 } from '@workspace/api-client-react';
 import type { ApplicationProgram, EntrepreneurApplication, EntrepreneurApplicationInput, ParticipantBusinessTeam, ParticipantEnrollment, ParticipantAssignment, ParticipantQuestion, TrainingAnswerInput, TrainingQuestionInput } from '@workspace/api-client-react';
-import { useUser } from '@clerk/react';
+import { useClerk, useUser } from '@clerk/react';
 import { Link } from 'wouter';
 import { ParticipantAnnouncements } from './communications-surfaces';
 import { SessionCalendar } from './session-calendar';
@@ -31,6 +31,7 @@ import { ParticipantLearningProgress } from './learning-progress';
 import { ParticipantIdeaValidation } from './idea-validation';
 import { ParticipantBusinessPlan } from './founder-business-plan';
 import { ParticipantPeerDirectory } from './peer-directory';
+import { ParticipantAccountActions } from './participant-account-actions';
 import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
@@ -230,13 +231,14 @@ export function ApplicationsReviewPage() {
 
 export function ParticipantDashboardPage() {
   useAppLanguage();
+  const { signOut } = useClerk();
   const query = useGetParticipantDashboard({ query: { queryKey: getGetParticipantDashboardQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 } });
   const profileQuery = useGetParticipantProfile({ query: { queryKey: getGetParticipantProfileQueryKey(), retry: false } });
   const { user } = useUser();
   const enrollments = query.data?.applications || [];
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
   return <div className="intake-page"><header className="intake-top"><IntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Jusoor hub')} <ArrowRight size={14} /></Link></div></header>
-    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR JUSOOR JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your application status, upcoming sessions and support in one place.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span></div></div>
+    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR JUSOOR JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your application status, upcoming sessions and support in one place.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
         : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>
          : enrollments.length === 0 ? <><div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h1>{t('No program access linked yet.')}</h1><p>{t('This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div><ParticipantAnnouncements announcements={query.data?.announcements || []} /></>

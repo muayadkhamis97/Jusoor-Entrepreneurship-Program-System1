@@ -83,3 +83,17 @@ The successful production build still emits Vite’s non-blocking large-chunk ad
 The web build emitted source-map location warnings for `tooltip.tsx` and `label.tsx`, plus a large-chunk warning for its 2.6 MB minified JavaScript bundle. These warnings did not fail the build.
 
 The API tests ran with a synthetic `DATABASE_URL` pointed at `127.0.0.1:1` and a fake session secret. No application database, migration, Drizzle push, external provider, email, browser engine, or deployment was used. Passing these checks does not establish live database, provider, browser, or deployment behavior.
+
+## Participant account action validation (2026-10-15)
+
+The participant dashboard and participant profile now render “Sign out” and “Switch account” controls backed by the existing Clerk `useClerk().signOut` function. Sign-out redirects to the app base path; switching signs out and redirects to `/participant`, which the existing router sends through the participant Clerk sign-in flow. Signed-out participant routes do not render the participant pages containing these controls. No role checks or permissions were changed.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Jusoor web typecheck | PASS | `pnpm --filter @workspace/jusoor-program run typecheck`, exit code 0. |
+| Jusoor web unit tests | PASS | `pnpm --filter @workspace/jusoor-program run test:unit`: 28 passed, 0 failed. Includes redirect-base-path and Arabic label/feedback checks. |
+| Participant account browser fixture | PASS | `pnpm --filter @workspace/jusoor-program exec tsx --test src/participant-account-actions.browser.test.tsx`: 1 passed, 0 failed. Chromium checked visible controls, keyboard activation, requested redirect paths, signed-out fixture visibility, retry after failure, and 390px/1440px button bounds. The fixture injects a synthetic callback; it does not authenticate with Clerk. |
+| Full existing UI browser suite | FAIL — unrelated existing assertion | `pnpm --filter @workspace/jusoor-program run test:ui-browser` stopped at the staff-navigation fixture: it expected 16 coordinator links but received 19. This mismatch is outside this participant account task and was left unchanged. |
+| `git diff --check` | PASS | No whitespace errors. |
+
+**Not verified:** actual Clerk session invalidation, Clerk redirect behavior, signing in with a different email, or the signed-in participant dashboard/profile in a real browser. No production or development database was accessed; no provider, email, deployment, or publishing action was performed. Only the new account-action labels/status/error were added in Arabic (reusing the existing “Sign out” translation); this does not resolve the broader Arabic coverage finding.

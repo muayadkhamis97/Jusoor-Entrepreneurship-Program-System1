@@ -10,7 +10,7 @@
 
 The platform has a recognizable, coherent visual foundation and substantial role-specific functionality. Its warm neutral surfaces, green primary actions, dark operations sidebar, restrained cards, Lucide icons, and consistent page headings are worth preserving. A complete redesign is not justified by this audit.
 
-However, source inspection identifies important accessibility, localization, account-management, and workflow-consistency gaps. The platform should not yet be described as comprehensively verified for production-quality UX. In particular, the shared accessible dialog implementation has not reached several consequential workflows; Arabic support is incomplete even where translations already exist; default secondary text colors fall below normal-text contrast requirements; and participants lack an explicit sign-out/account-switch action.
+However, source inspection identifies important accessibility, localization, account-management, and workflow-consistency gaps. The platform should not yet be described as comprehensively verified for production-quality UX. In particular, the shared accessible dialog implementation has not reached several consequential workflows; Arabic support is incomplete even where translations already exist; default secondary text colors fall below normal-text contrast requirements; and the participant sign-out/account-switch action added after this audit still needs an authenticated Clerk check.
 
 This is **not a visual certification of the entire application**. Signed-in pages were not rendered. The only current browser view inspected was the guarded English loading state at `/`, Chromium 390×844. Blocking database-backed API requests and identity initialization prevented the public landing content from rendering; this is an audit-induced limitation, not a demonstrated application defect.
 
@@ -29,7 +29,7 @@ This is **not a visual certification of the entire application**. Signed-in page
 ### Most important improvements
 
 1. Extend existing accessible modal infrastructure to remaining custom dialogs.
-2. Provide a clear participant sign-out/account-switch action.
+2. Verify the participant sign-out/account-switch flow against Clerk with an authorized account.
 3. Correct default secondary-text contrast and review functional text sizes.
 4. Complete Arabic coverage for real interface text, not just existing `t()` calls.
 5. Improve account/application error recovery and program-context clarity.
@@ -72,8 +72,8 @@ All source references below are under `artifacts/jusoor-program/src/` unless ano
 | `/sign-in/*`, `/sign-up/*` | All account types | `AuthPage`, Clerk appearance/localization and router in `App.tsx` | None | Source-reviewed; actual Clerk widget, account recovery, Arabic widget layout not verified. |
 | `/apply` | Applicant registration | `intake-surfaces.tsx:95–171`, shared form infrastructure, intake CSS | None | Label/validation/retry/success structure reviewed. No application submitted; all populated form rendering unverified. |
 | `/verify-certificate` | Public certificate checking | `CertificateVerificationPage` in `learning-progress.tsx` | None | Verification states reviewed in source; no certificate/API request made. |
-| `/participant` | Founder application/enrollment status and learning | Participant dashboard/enrollment cards in `intake-surfaces.tsx` | None | Source-reviewed: enrollment status, sessions/support, assignments/questions, updates, teams, peer directory, workbooks, progress and learning. Long-page/account-navigation risks. |
-| `/participant/profile` | Participant profile editing | `ParticipantProfilePage`, shared profile editor in `profile-surfaces.tsx` | None | Source-reviewed; uploads/saves not executed. No explicit participant sign-out found. |
+| `/participant` | Founder application/enrollment status and learning | Participant dashboard/enrollment cards in `intake-surfaces.tsx` | None | Source-reviewed: enrollment status, sessions/support, assignments/questions, updates, teams, peer directory, workbooks, progress and learning. Long-page/account-navigation risks. Participant account actions are covered separately below. |
+| `/participant/profile` | Participant profile editing | `ParticipantProfilePage`, shared profile editor in `profile-surfaces.tsx` | None | Source-reviewed; uploads/saves not executed. Participant account actions are covered separately below. |
 | `/` operations overview | Admin/project staff | `Overview`, `Shell`, navigation, `workspace.css` | None | Metrics, stage pipeline, upcoming sessions, empty/error states reviewed. |
 | `/businesses` | Admin/project staff; startup records | `BusinessesPage`, business edit form, table/filter CSS | None | Search/stage/industry/program filters, edit/delete confirmation reviewed. No current sidebar-scroll reproduction. |
 | `/programs` | Admin/project staff; cohort management | `ProgramsPage`, archive/restore and lifecycle-history dialogs | None | Source-reviewed: program states, archive/restoration controls and history. No archive/restore action performed. |
@@ -133,14 +133,14 @@ All source references below are under `artifacts/jusoor-program/src/` unless ano
 - **Recommendation:** Darken functional secondary text tokens, avoid low-opacity instructional text, and verify rendered combinations after changes. Check custom branding independently.
 - **Status:** Confirmed — calculation from default CSS, not a rendered platform-wide contrast scan. Decorative/disabled exceptions are not the basis of this finding.
 
-### UX-04 — Participant pages offer no explicit sign-out/account-switch action
+### UX-04 — Participant sign-out/account-switch flow needs an authenticated Clerk check
 
 - **Severity/category:** High / UX
 - **Affected:** `/participant`, `/participant/profile`.
-- **Evidence:** `ParticipantDashboardPage` header at `intake-surfaces.tsx:238–240` offers language, hub and profile links; no sign-out. Participant profile layout in `profile-surfaces.tsx` similarly lacks a sign-out/account control. No `signOut`, `useClerk` or `UserButton` use exists in these two files. Staff `Shell` and specialist `RoleFrame` do provide sign-out.
-- **Impact:** A founder on a shared device cannot clearly end the session; users signed in with the wrong application email lack an obvious account-switch path. A “Sign in again” link is not an explicit sign-out.
-- **Recommendation:** Add a consistent accessible participant account action with sign-out and clear current-email context, preserving verified-email matching.
-- **Status:** Confirmed — source absence. Session/account-switch behavior not exercised.
+- **Evidence:** `ParticipantAccountActions` is mounted in both `ParticipantDashboardPage` (`intake-surfaces.tsx`) and `ParticipantProfileLayout` (`profile-surfaces.tsx`), and delegates to Clerk’s existing `useClerk().signOut`. `App.tsx:1220` routes signed-out participant URLs through the existing Clerk sign-in flow; `App.tsx:1031` returns signed-in participants to `/participant`. A standalone Chromium fixture exercised the component with a synthetic sign-out callback; no Clerk session was used.
+- **Impact (before implementation):** A founder on a shared device could not clearly end the session; users signed in with the wrong application email lacked an obvious account-switch path. A “Sign in again” link is not an explicit sign-out.
+- **Recommendation:** Verify the real Clerk handoff with an authorized participant session. Consider showing the current verified account email near the controls so founders can confirm which identity they are leaving.
+- **Status:** Implemented in source and synthetic browser-tested. “Sign out” returns to the app landing route; “Switch account” ends the session and returns to `/participant`, where the existing Clerk sign-in flow is shown. This is not a live in-session identity picker. Real Clerk session invalidation, redirect, and reauthentication remain **not verified**; the signed-in page was not rendered. Failure feedback and retry, keyboard activation, and 390px/1440px control bounds passed in the synthetic fixture.
 
 ### UX-05 — Functional typography is frequently too small
 
