@@ -145,9 +145,22 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
       applicationIds.has(item.applicationId) &&
       (!requestPath.endsWith("/certificate") || selectedRequiredModuleIds.has(item.moduleId)));
   } else if (table === courseCertificatesTable) {
-    rows = certificates.map((certificate) => joined
-      ? { certificate, issuedByName: "coordinator@example.com" }
-      : { id: certificate.id });
+    if (requestPath.endsWith("/verification")) {
+      const requestedCode = requestPath.split("/").at(-2)?.toUpperCase();
+      rows = certificates
+        .filter((certificate) => certificate.certificateCode === requestedCode)
+        .map((certificate) => ({
+          certificateCode: certificate.certificateCode,
+          participantName: certificate.participantName,
+          businessName: certificate.businessName,
+          programName: certificate.programName,
+          issuedAt: certificate.issuedAt,
+        }));
+    } else {
+      rows = certificates.map((certificate) => joined
+        ? { certificate, issuedByName: "coordinator@example.com" }
+        : { id: certificate.id });
+    }
   }
   return typeof limit === "number" ? rows.slice(0, limit) : rows;
 }
@@ -245,7 +258,7 @@ before(async () => {
     courseModuleProgressTable: schema.courseModuleProgressTable,
     courseModulesTable: schema.courseModulesTable,
   };
-  const { participantCourseProgressRouter, staffLearningProgressRouter } =
+  const { participantCourseProgressRouter, publicCertificateVerificationRouter, staffLearningProgressRouter } =
     await import("../src/routes/courseProgress");
   resetState();
 
@@ -283,6 +296,7 @@ before(async () => {
     next();
   });
   app.use("/api", participantCourseProgressRouter);
+  app.use("/api", publicCertificateVerificationRouter);
   app.use("/api", staffLearningProgressRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -319,6 +333,69 @@ async function request(path: string, options: {
 function certificatePath(applicationId = 101): string {
   return `/api/analytics/learning-progress/applications/${applicationId}/certificate`;
 }
+
+test("public certificate verification returns only the issued certificate details", async () => {
+  resetState();
+  const issuedAt = new Date("2026-10-11T13:45:00.000Z");
+  certificates.push({
+    id: 1,
+    applicationId: 101,
+    programId: 9,
+    certificateCode: "D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1",
+    participantName: "Amina Founder",
+    businessName: "Amina Ventures",
+    programName,
+    issuedByStaffId: 7,
+    issuedAt,
+  });
+
+  const response = await request(`/api/certificates/${certificates[0].certificateCode.toLowerCase()}/verification`);
+  const body = await response.json() as Record<string, unknown>;
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(Object.keys(body).sort(), [
+    "businessName",
+    "certificateCode",
+    "issuedAt",
+    "participantName",
+    "programName",
+    "status",
+  ]);
+  assert.equal(body.status, "issued");
+  assert.equal(body.participantName, "Amina Founder");
+  assert.equal(body.businessName, "Amina Ventures");
+  assert.equal(body.programName, programName);
+  assert.equal(body.certificateCode, certificates[0].certificateCode);
+  assert.equal(body.issuedAt, issuedAt.toISOString());
+  assert.equal(certificates.length, 1);
+
+  certificates.push({
+    id: 2,
+    applicationId: 102,
+    programId: 9,
+    certificateCode: "JUS-2026-AR-8F31D2",
+    participantName: "Bilal Founder",
+    businessName: "Bilal Ventures",
+    programName,
+    issuedByStaffId: 7,
+    issuedAt,
+  });
+  const legacyResponse = await request("/api/certificates/jus-2026-ar-8f31d2/verification");
+  assert.equal(legacyResponse.status, 200);
+  assert.equal((await legacyResponse.json() as { certificateCode: string }).certificateCode, "JUS-2026-AR-8F31D2");
+});
+
+test("invalid and unknown public certificate codes are clearly distinguished", async () => {
+  resetState();
+  const invalid = await request("/api/certificates/not-a-code/verification");
+  const unknown = await request("/api/certificates/D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1/verification");
+
+  assert.equal(invalid.status, 400);
+  assert.equal(unknown.status, 404);
+  assert.match((await invalid.json() as { error: string }).error, /valid certificate code/i);
+  assert.match((await unknown.json() as { error: string }).error, /No active certificate/i);
+  assert.equal(certificates.length, 0);
+});
 
 test("participant progress is private to the accepted participant account", async () => {
   resetState();

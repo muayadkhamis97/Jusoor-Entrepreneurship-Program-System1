@@ -575,6 +575,31 @@ export interface CourseCertificate {
   issuedByName: string;
 }
 
+export type CertificateVerificationStatus = typeof CertificateVerificationStatus[keyof typeof CertificateVerificationStatus];
+
+
+export const CertificateVerificationStatus = {
+  issued: 'issued',
+} as const;
+
+/**
+ * @pattern ^(?:[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|JUS-[0-9]{4}-[A-Z]{2}-[0-9A-Fa-f]{6})$
+ */
+export type CertificateCode = string;
+
+export interface CertificateVerification {
+  status: CertificateVerificationStatus;
+  certificateCode: CertificateCode;
+  participantName: string;
+  businessName: string;
+  programName: string;
+  issuedAt: string;
+}
+
+export interface ApiError {
+  error: string;
+}
+
 export interface ParticipantLearningProgram {
   programId: number;
   programName: string;

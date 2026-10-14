@@ -4,8 +4,10 @@ import { CertificatePdfPage, createCertificatePdf, renderCertificatePdf } from '
 import {
   getGetLearningProgressAnalyticsQueryKey,
   getGetParticipantLearningProgressQueryKey,
+  getVerifyCertificateQueryKey,
   useGetLearningProgressAnalytics,
   useGetParticipantLearningProgress,
+  useVerifyCertificate,
   useIssueCourseCertificate,
   useRetryCourseReminder,
   useRecordParticipantCourseActivity,
@@ -14,7 +16,7 @@ import {
 import type { CourseProgressModule, CourseProgressQuiz, CourseReminderFailure, LearningProgressParticipant, LearningProgressProgram, ParticipantLearningProgram } from '@workspace/api-client-react';
 import {
   Activity, Award, BookOpen, CalendarClock, Check, CircleAlert, Clock3,
-  Download, FileCheck2, Hourglass, Medal, RefreshCw, Sparkles,
+  Download, FileCheck2, Hourglass, Medal, RefreshCw, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import { currentLanguage, t, useAppLanguage } from './language';
 import './learning-progress.css';
@@ -22,6 +24,7 @@ import './learning-progress.css';
 const fmtDate = (value?: string | null) => value ? new Date(value).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('Not set');
 const fmtDateTime = (value?: string | null) => value ? new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : t('No activity yet');
 const fmtTimestamp = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+const certificateVerificationUrl = (code: string) => `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/verify-certificate?code=${encodeURIComponent(code)}`;
 const fmtTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor(seconds % 3600 / 60);
@@ -112,6 +115,7 @@ function CertificateCard({ certificate }: { certificate: NonNullable<Participant
   const certificateRef = useRef<HTMLElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadFailed, setDownloadFailed] = useState(false);
+  const verificationUrl = certificateVerificationUrl(certificate.certificateCode);
   const downloadCertificate = async () => {
     const certificateElement = certificateRef.current;
     if (!certificateElement || downloading) return;
@@ -119,7 +123,7 @@ function CertificateCard({ certificate }: { certificate: NonNullable<Participant
     setDownloadFailed(false);
     try {
       const canvas = await renderCertificatePdf(certificateElement);
-      const pdf = createCertificatePdf(canvas);
+      const pdf = createCertificatePdf(canvas, verificationUrl);
       pdf.save(`Jusoor-Certificate-${certificate.certificateCode}.pdf`);
     } catch (error) {
       console.error('Could not generate the certificate PDF.', error);
@@ -130,7 +134,7 @@ function CertificateCard({ certificate }: { certificate: NonNullable<Participant
   };
   return <article className="learning-certificate" data-testid={`card-certificate-${certificate.id}`}>
     <div className="certificate-seal"><Award size={21} /></div>
-    <div className="certificate-copy"><span className="lp-eyebrow">{t('CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span></div></div>
+    <div className="certificate-copy"><span className="lp-eyebrow">{t('CERTIFICATE ISSUED')}</span><h3>{certificate.programName}</h3><p>{t('Awarded to')} <b>{certificate.participantName}</b>{certificate.businessName ? ` · ${certificate.businessName}` : ''}</p><div className="certificate-meta"><span>{t('CODE')} <b data-testid={`text-certificate-code-${certificate.id}`}>{certificate.certificateCode}</b></span><span>{t('ISSUED')} {fmtDate(certificate.issuedAt)}</span><span>{t('BY')} {certificate.issuedByName}</span></div><a className="certificate-verify-link" href={verificationUrl}>{t('Verify this certificate')}</a></div>
     <button type="button" className="lp-button lp-button-outline print-hide" onClick={downloadCertificate} disabled={downloading} data-testid={`button-download-certificate-${certificate.id}`}><Download size={15} />{downloading ? t('Preparing PDF…') : t('Download PDF')}</button>
     {downloadFailed && <p className="certificate-download-error" role="alert">{t('Certificate PDF could not be downloaded. Please try again.')}</p>}
     <CertificatePdfPage
@@ -138,6 +142,7 @@ function CertificateCard({ certificate }: { certificate: NonNullable<Participant
       certificate={certificate}
       issuedDateEnglish={fmtDate(certificate.issuedAt)}
       issuedDateArabic={new Date(certificate.issuedAt).toLocaleDateString('ar-JO', { day: 'numeric', month: 'long', year: 'numeric' })}
+      verificationUrl={verificationUrl}
     />
   </article>;
 }
@@ -178,6 +183,69 @@ export function ParticipantLearningProgress() {
       : programs.map(program => <ProgramProgress key={program.programId} program={program} onToggle={toggle} savingModule={savingModule} />)}
     {record.isError && <p className="lp-mutation-error" role="alert" data-testid="error-module-progress">{t('Progress could not be saved. Please try again.')}</p>}
   </section>;
+}
+
+export function CertificateVerificationPage() {
+  useAppLanguage();
+  const initialCode = new URLSearchParams(window.location.search).get('code') ?? '';
+  const [code, setCode] = useState(initialCode);
+  const [requestedCode, setRequestedCode] = useState(initialCode.trim().toUpperCase());
+  const verification = useVerifyCertificate(requestedCode, {
+    query: { enabled: Boolean(requestedCode), retry: false, queryKey: getVerifyCertificateQueryKey(requestedCode) },
+  });
+  const errorStatus = (verification.error as { status?: number } | null)?.status;
+
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalized = code.trim().toUpperCase();
+    setCode(normalized);
+    setRequestedCode(normalized);
+    const url = new URL(window.location.href);
+    if (normalized) url.searchParams.set('code', normalized);
+    else url.searchParams.delete('code');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  return <main className="certificate-verification-page" data-testid="certificate-verification-page">
+    <a className="certificate-verification-brand" href="/">{t('Jusoor Program Hub')}</a>
+    <section className="certificate-verification-card">
+      <span className="lp-eyebrow">{t('PUBLIC CERTIFICATE CHECK')}</span>
+      <h1>{t('Verify a certificate')}</h1>
+      <p>{t('Enter the unique code printed on a Jusoor certificate to confirm its issuance.')}</p>
+      <form className="certificate-verification-form" onSubmit={submit}>
+        <label htmlFor="certificate-code-input">{t('Certificate code')}</label>
+        <input
+          id="certificate-code-input"
+          value={code}
+          onChange={event => setCode(event.target.value)}
+          placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+          autoCapitalize="characters"
+          autoComplete="off"
+          maxLength={64}
+          required
+          data-testid="input-certificate-code"
+        />
+        <button className="lp-button lp-button-primary" type="submit" disabled={verification.isFetching} data-testid="button-verify-certificate">
+          <ShieldCheck size={16} />{verification.isFetching ? t('Checking…') : t('Verify certificate')}
+        </button>
+      </form>
+      {verification.isFetching && <div className="certificate-verification-result" role="status">{t('Checking the certificate record…')}</div>}
+      {verification.data && <div className="certificate-verification-result is-issued" role="status" data-testid="certificate-verification-issued">
+        <div className="certificate-verification-status"><ShieldCheck size={20} /><b>{t('Certificate issued')}</b></div>
+        <dl>
+          <div><dt>{t('Participant')}</dt><dd>{verification.data.participantName}</dd></div>
+          <div><dt>{t('Business')}</dt><dd>{verification.data.businessName}</dd></div>
+          <div><dt>{t('Program')}</dt><dd>{verification.data.programName}</dd></div>
+          <div><dt>{t('Issue date')}</dt><dd>{fmtDate(verification.data.issuedAt)}</dd></div>
+          <div><dt>{t('Certificate code')}</dt><dd>{verification.data.certificateCode}</dd></div>
+        </dl>
+      </div>}
+      {verification.isError && errorStatus === 400 && <div className="certificate-verification-result is-invalid" role="alert" data-testid="certificate-verification-invalid">{t('This certificate code is invalid. Check the code and try again.')}</div>}
+      {verification.isError && errorStatus === 404 && <div className="certificate-verification-result is-invalid" role="alert" data-testid="certificate-verification-not-found">{t('No active certificate was found for this code. It may be unknown or revoked.')}</div>}
+      {verification.isError && errorStatus !== 400 && errorStatus !== 404 && <div className="certificate-verification-result is-invalid" role="alert">{t('Certificate verification is temporarily unavailable. Please try again.')}</div>}
+      <small className="certificate-verification-privacy">{t('Only certificate details needed to confirm issuance are shown.')}</small>
+    </section>
+  </main>;
 }
 
 function ProgramProgress({ program, onToggle, savingModule }: { program: ParticipantLearningProgram; onToggle: (module: CourseProgressModule) => void; savingModule: number | null }) {

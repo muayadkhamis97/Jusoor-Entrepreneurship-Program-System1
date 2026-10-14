@@ -10,12 +10,14 @@ type CertificatePdfPageProps = {
   certificate: Certificate;
   issuedDateEnglish: string;
   issuedDateArabic: string;
+  verificationUrl: string;
 };
 
 export const CertificatePdfPage = React.forwardRef<HTMLElement, CertificatePdfPageProps>(function CertificatePdfPage({
   certificate,
   issuedDateEnglish,
   issuedDateArabic,
+  verificationUrl,
 }, ref): ReactNode {
   return <section ref={ref} className="certificate-pdf-page" aria-hidden="true">
     <div className="certificate-pdf-frame">
@@ -36,7 +38,7 @@ export const CertificatePdfPage = React.forwardRef<HTMLElement, CertificatePdfPa
       <footer className="certificate-pdf-footer">
         <div><span>ISSUE DATE <b>·</b> تاريخ الإصدار</span><strong>{issuedDateEnglish}</strong><small lang="ar" dir="rtl">{issuedDateArabic}</small></div>
         <div className="certificate-pdf-seal" aria-hidden="true">J</div>
-        <div className="certificate-pdf-code"><span>CERTIFICATE CODE <b>·</b> رمز الشهادة</span><strong>{certificate.certificateCode}</strong></div>
+        <div className="certificate-pdf-code"><span>CERTIFICATE CODE <b>·</b> رمز الشهادة</span><strong>{certificate.certificateCode}</strong><small>{verificationUrl}</small></div>
       </footer>
     </div>
   </section>;
@@ -72,8 +74,9 @@ export async function renderCertificatePdf(page: HTMLElement): Promise<HTMLCanva
   });
 }
 
-export function createCertificatePdf(canvas: HTMLCanvasElement): jsPDF {
+export function createCertificatePdf(canvas: HTMLCanvasElement, verificationUrl?: string): jsPDF {
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 297, 210, undefined, 'FAST');
+  if (verificationUrl) pdf.link(206, 191, 86, 11, { url: verificationUrl });
   return pdf;
 }

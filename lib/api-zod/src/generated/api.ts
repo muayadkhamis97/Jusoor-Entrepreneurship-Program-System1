@@ -435,6 +435,29 @@ export const IssueCourseCertificateResponse = zod.object({
 
 
 /**
+ * @summary Publicly verify a certificate by its unique code
+ */
+export const verifyCertificatePathCodeRegExp = new RegExp('^(?:[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|JUS-[0-9]{4}-[A-Z]{2}-[0-9A-Fa-f]{6})$');
+
+
+export const VerifyCertificateParams = zod.object({
+  "code": zod.coerce.string().regex(verifyCertificatePathCodeRegExp)
+})
+
+export const verifyCertificateResponseCertificateCodeRegExp = new RegExp('^(?:[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|JUS-[0-9]{4}-[A-Z]{2}-[0-9A-Fa-f]{6})$');
+
+
+export const VerifyCertificateResponse = zod.object({
+  "status": zod.enum(['issued']),
+  "certificateCode": zod.string().regex(verifyCertificateResponseCertificateCodeRegExp),
+  "participantName": zod.string(),
+  "businessName": zod.string(),
+  "programName": zod.string(),
+  "issuedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Retry a failed course reminder email
  */
 export const RetryCourseReminderParams = zod.object({

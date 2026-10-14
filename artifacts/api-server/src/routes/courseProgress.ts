@@ -5,6 +5,8 @@ import {
   GetLearningProgressAnalyticsQueryParams,
   GetLearningProgressAnalyticsResponse,
   GetParticipantLearningProgressResponse,
+  VerifyCertificateParams,
+  VerifyCertificateResponse,
   IssueCourseCertificateParams,
   IssueCourseCertificateResponse,
   RecordParticipantCourseActivityBody,
@@ -38,6 +40,36 @@ import { isCourseModuleReleased } from "../lib/courseAccess";
 
 export const participantCourseProgressRouter: IRouter = Router();
 export const staffLearningProgressRouter: IRouter = Router();
+export const publicCertificateVerificationRouter: IRouter = Router();
+
+publicCertificateVerificationRouter.get("/certificates/:code/verification", async (req, res): Promise<void> => {
+  const rawCode = Array.isArray(req.params.code) ? req.params.code[0] : req.params.code;
+  const params = VerifyCertificateParams.safeParse({
+    ...req.params,
+    code: typeof rawCode === "string" ? rawCode.toUpperCase() : rawCode,
+  });
+  if (!params.success) {
+    res.status(400).json({ error: "Enter a valid certificate code." });
+    return;
+  }
+
+  const [certificate] = await db.select({
+    certificateCode: courseCertificatesTable.certificateCode,
+    participantName: courseCertificatesTable.participantName,
+    businessName: courseCertificatesTable.businessName,
+    programName: courseCertificatesTable.programName,
+    issuedAt: courseCertificatesTable.issuedAt,
+  }).from(courseCertificatesTable)
+    .where(eq(courseCertificatesTable.certificateCode, params.data.code.toUpperCase()))
+    .limit(1);
+
+  if (!certificate) {
+    res.status(404).json({ error: "No active certificate was found for this code." });
+    return;
+  }
+
+  res.json(VerifyCertificateResponse.parse({ status: "issued", ...certificate }));
+});
 
 type AcceptedApplication = {
   id: number;

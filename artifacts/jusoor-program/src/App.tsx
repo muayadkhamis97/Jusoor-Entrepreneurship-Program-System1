@@ -46,7 +46,7 @@ import { SessionCalendar } from './session-calendar';
 import { CommunicationsPage } from './communications-surfaces';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { ProgramAnalyticsPage } from './analytics-surfaces';
-import { LearningProgressAnalytics } from './learning-progress';
+import { CertificateVerificationPage, LearningProgressAnalytics } from './learning-progress';
 import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
@@ -1037,6 +1037,7 @@ function AuthRouter() {
   useAppLanguage();
   const [location] = useLocation();
   const { isLoaded, isSignedIn } = useAuth();
+  if (location === '/verify-certificate') return <CertificateVerificationPage />;
   if (location === '/apply') return <ApplyPage />;
   if (location === '/participant' && isLoaded && !isSignedIn) return <AuthPage mode="sign-in" participantRedirect />;
   if (location.startsWith('/sign-in')) return <AuthPage mode="sign-in" />;

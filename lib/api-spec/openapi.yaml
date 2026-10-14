@@ -199,6 +199,31 @@ paths:
           description: Accepted participant application not found
         "409":
           description: A certificate has already been issued for this application
+  /certificates/{code}/verification:
+    get:
+      operationId: verifyCertificate
+      tags: [certificates]
+      summary: Publicly verify a certificate by its unique code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/CertificateCode" }
+      responses:
+        "200":
+          description: Certificate record is currently issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CertificateVerification"
+        "400":
+          description: The supplied certificate code is invalid
+        "404":
+          description: No active certificate was found for this code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /analytics/learning-progress/reminders/{id}/retry:
     post:
       operationId: retryCourseReminder
@@ -3094,6 +3119,25 @@ components:
         issuedAt: { type: string, format: date-time }
         issuedByName: { type: string }
       required: [id, applicationId, programId, programName, participantName, businessName, certificateCode, issuedAt, issuedByName]
+    CertificateVerification:
+      type: object
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [issued] }
+        certificateCode: { $ref: "#/components/schemas/CertificateCode" }
+        participantName: { type: string }
+        businessName: { type: string }
+        programName: { type: string }
+        issuedAt: { type: string, format: date-time }
+      required: [status, certificateCode, participantName, businessName, programName, issuedAt]
+    CertificateCode:
+      type: string
+      pattern: '^(?:[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|JUS-[0-9]{4}-[A-Z]{2}-[0-9A-Fa-f]{6})$'
+    ApiError:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
     ParticipantLearningProgram:
       type: object
       properties:

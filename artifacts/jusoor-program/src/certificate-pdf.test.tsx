@@ -60,6 +60,7 @@ test('renders long English and Arabic certificate details, issue date, and uniqu
       certificate={certificate}
       issuedDateEnglish="17 Sept 2026"
       issuedDateArabic="١٧ أيلول ٢٠٢٦"
+      verificationUrl="https://jusoor.example/verify-certificate?code=JUS-2026-AR-8F31D2"
     />,
   );
 
@@ -70,6 +71,7 @@ test('renders long English and Arabic certificate details, issue date, and uniqu
     '17 Sept 2026',
     '١٧ أيلول ٢٠٢٦',
     certificate.certificateCode,
+    'https://jusoor.example/verify-certificate?code=JUS-2026-AR-8F31D2',
   ]) {
     assert.ok(markup.includes(requiredText), `Missing certificate content: ${requiredText}`);
   }
@@ -82,13 +84,17 @@ test('renders long English and Arabic certificate details, issue date, and uniqu
 test('creates one landscape A4 PDF page without changing the saved certificate data', () => {
   const before = JSON.stringify(certificate);
   const image = `data:image/png;base64,${onePixelPng()}`;
-  const pdf = createCertificatePdf({ toDataURL: () => image } as HTMLCanvasElement);
+  const verificationUrl = 'https://jusoor.example/verify-certificate?code=JUS-2026-AR-8F31D2';
+  const pdf = createCertificatePdf({ toDataURL: () => image } as HTMLCanvasElement, verificationUrl);
   const pdfBytes = new Uint8Array(pdf.output('arraybuffer'));
+  const pdfText = new TextDecoder().decode(pdfBytes);
 
   assert.equal(pdf.getNumberOfPages(), 1);
   assert.ok(Math.abs(pdf.internal.pageSize.getWidth() - 297) < 0.01);
   assert.ok(Math.abs(pdf.internal.pageSize.getHeight() - 210) < 0.01);
   assert.equal(new TextDecoder().decode(pdfBytes.subarray(0, 8)), '%PDF-1.3');
+  assert.ok(pdfText.includes('/URI'));
+  assert.ok(pdfText.includes(verificationUrl));
   assert.equal(JSON.stringify(certificate), before);
 });
 

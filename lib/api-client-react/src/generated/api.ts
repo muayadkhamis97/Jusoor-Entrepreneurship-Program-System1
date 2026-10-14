@@ -25,6 +25,7 @@ import type {
   AnnouncementInput,
   AnnouncementReadResult,
   AnnouncementsList,
+  ApiError,
   ApplicationProgram,
   ApplicationReceipt,
   ApplicationReviewUpdate,
@@ -34,6 +35,8 @@ import type {
   CalendlyAuthorization,
   CalendlyAuthorizationInput,
   CalendlyWebhookEnvelope,
+  CertificateCode,
+  CertificateVerification,
   CompleteCalendlyConnectionParams,
   CompleteGoogleCalendarConnectionParams,
   CompleteZoomConnectionParams,
@@ -840,6 +843,83 @@ export const useIssueCourseCertificate = <TError = ErrorType<void>,
       > => {
       return useMutation(getIssueCourseCertificateMutationOptions(options));
     }
+
+export const getVerifyCertificateUrl = (code: CertificateCode,) => {
+
+
+
+
+  return `/api/certificates/${code}/verification`
+}
+
+/**
+ * @summary Publicly verify a certificate by its unique code
+ */
+export const verifyCertificate = async (code: CertificateCode, options?: Parameters<typeof customFetch>[1]): Promise<CertificateVerification> => {
+
+  return customFetch<CertificateVerification>(getVerifyCertificateUrl(code),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getVerifyCertificateQueryKey = (code: CertificateCode,) => {
+    return [
+    `/api/certificates/${code}/verification`
+    ] as const;
+    }
+
+
+export const getVerifyCertificateQueryOptions = <TData = Awaited<ReturnType<typeof verifyCertificate>>, TError = ErrorType<void | ApiError>>(code: CertificateCode, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyCertificate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getVerifyCertificateQueryKey(code);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof verifyCertificate>>> = ({ signal }) => verifyCertificate(code, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: code !== null && code !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof verifyCertificate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type VerifyCertificateQueryResult = NonNullable<Awaited<ReturnType<typeof verifyCertificate>>>
+export type VerifyCertificateQueryError = ErrorType<void | ApiError>
+
+
+/**
+ * @summary Publicly verify a certificate by its unique code
+ */
+
+export function useVerifyCertificate<TData = Awaited<ReturnType<typeof verifyCertificate>>, TError = ErrorType<void | ApiError>>(
+ code: CertificateCode, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyCertificate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getVerifyCertificateQueryOptions(code,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRetryCourseReminderUrl = (id: number,) => {
 

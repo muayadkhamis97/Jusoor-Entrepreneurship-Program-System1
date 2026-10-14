@@ -25,6 +25,7 @@ import {
 import { participantCoursePackageRouter } from "./routes/coursePackages";
 import {
   participantCourseProgressRouter,
+  publicCertificateVerificationRouter,
   staffLearningProgressRouter,
 } from "./routes/courseProgress";
 import xapiRouter from "./routes/xapi";
@@ -95,6 +96,7 @@ app.use("/api/participant/courses", requireParticipant, participantCourseDiscuss
 app.use("/api/participant/courses", requireParticipant, participantCourseQuizRouter);
 app.use("/api/participant/courses", requireParticipant, participantCoursePackageRouter);
 app.use("/api/participant/courses", requireParticipant, participantCourseProgressRouter);
+app.use("/api", publicCertificateVerificationRouter);
 app.use("/api/courses", requireStaff, staffCourseDiscussionRouter);
 app.use("/api/courses", requireStaff, staffCourseQuizRouter);
 app.use("/api/courses", requireStaff, coursesRouter);
