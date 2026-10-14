@@ -10,3 +10,4 @@
 - [Generated API type freshness](api-generated-type-freshness.md) — After merges that change OpenAPI contracts, regenerate workspace clients before changing downstream app code to resolve stale declarations.
 - [Certificate revocation privacy](certificate-revocation-privacy.md) — Show revoked status and time outside staff views, but keep coordinator reason and identity private.
 - [Clerk guard testing](clerk-auth-guard-testing.md) — Isolated Express tests can inject a user-ID resolver while exercising the production participant guard and app route mounting.
+- [Playwright browser engines on Nix](playwright-browser-engines.md) — Firefox runs with Playwright here; the downloaded Ubuntu WebKit build needs ABI-specific system libraries unavailable through the Nix package setup.

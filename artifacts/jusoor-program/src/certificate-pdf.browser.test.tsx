@@ -8,7 +8,7 @@ import { createServer } from 'node:net';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { chromium } from 'playwright-core';
+import { chromium, firefox, webkit } from 'playwright-core';
 import { createServer as createViteServer } from 'vite';
 import type { ParticipantLearningProgram } from '@workspace/api-client-react';
 import { CertificatePdfPage } from './certificate-pdf';
@@ -32,6 +32,11 @@ const certificate = {
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
+const browserEngines = [
+  { name: 'Chromium', type: chromium },
+  { name: 'Firefox', type: firefox },
+  { name: 'WebKit', type: webkit },
+] as const;
 const issuedCertificates = new Map([
   ['D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1', {
     status: 'issued',
@@ -75,11 +80,13 @@ async function unusedPort(): Promise<number> {
   return port;
 }
 
-test('browser download renders long English and Arabic details on one landscape A4 page', { timeout: 120_000 }, async () => {
-  const browserPath = await import('node:fs/promises').then(({ access }) => access(chromiumPath).then(() => chromiumPath));
+for (const engine of browserEngines) test(`${engine.name} download renders long English and Arabic details on one landscape A4 page`, { timeout: 120_000 }, async () => {
+  const browserPath = engine.name === 'Chromium'
+    ? await import('node:fs/promises').then(({ access }) => access(chromiumPath).then(() => chromiumPath))
+    : undefined;
   const outputOverride = process.env.CERTIFICATE_BROWSER_ARTIFACT_DIR;
   const outputDir = outputOverride
-    ? path.resolve(outputOverride)
+    ? path.join(path.resolve(outputOverride), engine.name.toLowerCase())
     : await mkdtemp(path.join(tmpdir(), 'jusoor-certificate-browser-'));
   await mkdir(outputDir, { recursive: true });
 
@@ -99,8 +106,8 @@ test('browser download renders long English and Arabic details on one landscape 
     });
     await vite.listen();
 
-    browser = await chromium.launch({
-      executablePath: browserPath,
+    browser = await engine.type.launch({
+      ...(browserPath ? { executablePath: browserPath } : {}),
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     });
@@ -260,9 +267,11 @@ test('browser download renders long English and Arabic details on one landscape 
     assert.ok(image.length > 10_000, 'The rasterized certificate page should contain visible content.');
     assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], 'PDF raster must be a valid PNG image.');
 
-    const pdfBrowserUrl = pathToFileURL(pdfPath).href;
-    await page.goto(pdfBrowserUrl, { waitUntil: 'domcontentloaded' });
-    assert.equal(page.url(), pdfBrowserUrl, 'The browser should open the generated PDF file.');
+    if (engine.name === 'Chromium') {
+      const pdfBrowserUrl = pathToFileURL(pdfPath).href;
+      await page.goto(pdfBrowserUrl, { waitUntil: 'domcontentloaded' });
+      assert.equal(page.url(), pdfBrowserUrl, 'The browser should open the generated PDF file.');
+    }
 
     const assertIssuedResult = async (url: string, code: string, participantName: string, businessName: string) => {
       await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -318,8 +327,8 @@ test('browser download renders long English and Arabic details on one landscape 
     assert.equal(await page.getByTestId('input-certificate-code').inputValue(), unknownCode);
     assert.match(await page.getByTestId('certificate-verification-not-found').innerText(), /No certificate was found/i);
 
-    console.log(`Certificate PDF visual review image: ${imagePath}`);
-    console.log(`Browser font faces: ${exportResult.loadedFonts.join(', ') || '(system fallback)'}`);
+    console.log(`${engine.name} certificate PDF visual review image: ${imagePath}`);
+    console.log(`${engine.name} font faces: ${exportResult.loadedFonts.join(', ') || '(system fallback)'}`);
     await context.close();
   } finally {
     if (browser) await browser.close();
