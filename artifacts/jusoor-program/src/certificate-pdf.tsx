@@ -80,3 +80,10 @@ export function createCertificatePdf(canvas: HTMLCanvasElement, verificationUrl?
   if (verificationUrl) pdf.link(206, 191, 86, 11, { url: verificationUrl });
   return pdf;
 }
+
+export async function downloadCertificatePdf(page: HTMLElement, verificationUrl: string, filename: string): Promise<{ pdf: jsPDF; canvas: HTMLCanvasElement }> {
+  const canvas = await renderCertificatePdf(page);
+  const pdf = createCertificatePdf(canvas, verificationUrl);
+  pdf.save(filename);
+  return { pdf, canvas };
+}

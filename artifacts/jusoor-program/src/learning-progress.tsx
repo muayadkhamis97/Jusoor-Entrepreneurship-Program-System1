@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CertificatePdfPage, createCertificatePdf, renderCertificatePdf } from './certificate-pdf';
+import { CertificatePdfPage, downloadCertificatePdf } from './certificate-pdf';
 import { AssessmentComparison } from './assessment-comparison';
 import {
   getGetLearningProgressAnalyticsQueryKey,
@@ -107,9 +107,11 @@ function CertificateCard({ certificate }: { certificate: NonNullable<Participant
     setDownloading(true);
     setDownloadFailed(false);
     try {
-      const canvas = await renderCertificatePdf(certificateElement);
-      const pdf = createCertificatePdf(canvas, verificationUrl);
-      pdf.save(`Jusoor-Certificate-${certificate.certificateCode}.pdf`);
+      await downloadCertificatePdf(
+        certificateElement,
+        verificationUrl,
+        `Jusoor-Certificate-${certificate.certificateCode}.pdf`,
+      );
     } catch (error) {
       console.error('Could not generate the certificate PDF.', error);
       setDownloadFailed(true);
