@@ -1,0 +1,51 @@
+# Task: Verify Program Assignment and Archival Migration in an Isolated Database
+
+Work only on the current **Jusoor Entrepreneurship Program System** project.
+
+## Objective
+Verify that `20261014_program_assignments_and_archival.sql` applies correctly to a genuinely disposable PostgreSQL database and that program assignment, archival, restoration, and data-retention behavior work as intended.
+
+## 1. Preflight and isolation
+- Inspect the migration, schema changes, database configuration, and available test scripts before executing anything.
+- Confirm that the test database is newly created, disposable, and owned by this test run.
+- Confirm the database connection cannot target the application's existing development database or production.
+- Use synthetic test data only.
+- If isolation cannot be positively established, stop without initializing the database or running the migration.
+- Do not change or spoof managed runtime/environment markers to bypass safeguards.
+
+## 2. Migration verification
+Against the isolated disposable database only:
+- Apply the migration and capture its actual result.
+- Verify the expected program-assignment and archival schema changes.
+- Check constraints, foreign keys, indexes, and defaults.
+- Verify migration behavior on a clean schema and document any assumptions about existing schema state.
+- Do not run destructive schema-push or force-push commands.
+
+## 3. Data-integrity tests
+Use synthetic records to verify:
+- Staff can be assigned to and removed from programs according to authorization rules.
+- Program archival preserves applications, businesses, courses, participants, evaluations, and audit history.
+- Restoration makes an archived program available again without duplicating records.
+- Hard deletion cannot cascade into unintended data loss.
+- Unauthorized cross-program access remains denied.
+
+## 4. Cleanup
+- Confirm that cleanup targets only resources created by this test run.
+- Stop the disposable database before removing its temporary data directory.
+- If shutdown fails, stop cleanup and preserve the directory for investigation.
+- Do not clean up or modify any pre-existing database or application records.
+
+## 5. Reporting
+Update `docs/QA_SECURITY_DATA_INTEGRITY.md` and the relevant project QA notes with:
+- The exact migration and tests executed.
+- Actual pass/fail results.
+- Database isolation evidence.
+- Any failures and required fixes.
+- Tests not run and why.
+
+Keep browser verification, external integrations, and any non-disposable database migration marked NOT VERIFIED unless separately tested.
+
+## Strict boundaries
+Do not access or modify production or the existing application database. Do not send email, call external providers, change managed runtime markers, publish, or deploy. Do not weaken safety guards to make the migration run.
+
+If the current Replit Agent environment cannot provide a genuinely isolated runtime, stop and report the blocker instead of attempting the migration there.
