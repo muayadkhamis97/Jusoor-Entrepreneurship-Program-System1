@@ -2618,8 +2618,8 @@ paths:
     post:
       operationId: createIntegrationApiKey
       tags: [integrations]
-      summary: Create an API key limited to one program
-      description: Coordinator-only. The secret is returned once and cannot be retrieved later.
+      summary: Create an API key limited to selected data and actions in one program
+      description: Coordinator-only. Select read and write permissions independently by data group. The secret is returned once and cannot be retrieved later.
       requestBody:
         required: true
         content:
@@ -2631,7 +2631,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/IntegrationApiKeyCreated" }
-        "400": { description: Invalid key label or program }
+        "400": { description: "Invalid key label, program, or permission selection" }
         "401": { description: Sign-in required }
         "403": { description: Coordinator access required }
   /integrations/api-keys/{id}/revoke:
@@ -2666,7 +2666,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Program" }
         "401": { description: Invalid or revoked key }
-        "403": { description: Key is limited to another program }
+        "403": { description: "Key is limited to another program or lacks permission to read it" }
         "404": { description: Program not found }
     patch:
       operationId: updateExternalProgram
@@ -2686,7 +2686,7 @@ paths:
               schema: { $ref: "#/components/schemas/Program" }
         "400": { description: Invalid program details }
         "401": { description: Invalid or revoked key }
-        "403": { description: Key is limited to another program }
+        "403": { description: "Key is limited to another program or lacks permission to update it" }
   /v1/programs/{programId}/resources/{resource}:
     parameters:
       - $ref: "#/components/parameters/ProgramId"
@@ -2732,7 +2732,7 @@ paths:
               schema: { $ref: "#/components/schemas/IntegrationApiRecordResponse" }
         "400": { description: Invalid resource payload }
         "401": { description: Invalid or revoked key }
-        "403": { description: Key or a related record is outside this program }
+        "403": { description: "Key lacks permission for this resource or the key/related record is outside this program" }
         "409": { description: Record conflicts with a final workflow decision }
   /v1/programs/{programId}/resources/{resource}/{recordId}:
     parameters:
@@ -2764,7 +2764,7 @@ paths:
               schema: { $ref: "#/components/schemas/IntegrationApiRecordResponse" }
         "400": { description: Invalid update or immutable resource }
         "401": { description: Invalid or revoked key }
-        "403": { description: Record is outside the key's program }
+        "403": { description: "Key lacks write permission for this resource or the record is outside the key's program" }
         "404": { description: Record not found }
         "409": { description: A final workflow decision cannot be changed }
 components:
@@ -2793,7 +2793,12 @@ components:
       properties:
         label: { type: string, minLength: 1, maxLength: 100 }
         programId: { type: integer, minimum: 1 }
-      required: [label, programId]
+        permissions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/IntegrationApiPermission" }
+      required: [label, programId, permissions]
     IntegrationApiKey:
       type: object
       properties:
@@ -2802,10 +2807,13 @@ components:
         keyPrefix: { type: string }
         programId: { type: integer }
         programName: { type: string }
+        permissions:
+          type: array
+          items: { $ref: "#/components/schemas/IntegrationApiPermission" }
         createdAt: { type: string, format: date-time }
         lastUsedAt: { type: ["string", "null"], format: date-time }
         revokedAt: { type: ["string", "null"], format: date-time }
-      required: [id, label, keyPrefix, programId, programName, createdAt, lastUsedAt, revokedAt]
+      required: [id, label, keyPrefix, programId, programName, permissions, createdAt, lastUsedAt, revokedAt]
     IntegrationApiKeysResponse:
       type: object
       properties:
@@ -2827,6 +2835,17 @@ components:
         id: { type: integer }
         revokedAt: { type: string, format: date-time }
       required: [id, revokedAt]
+    IntegrationApiPermission:
+      type: string
+      enum:
+        - programs_sessions:read
+        - programs_sessions:write
+        - applications_businesses:read
+        - applications_businesses:write
+        - courses_attendance:read
+        - courses_attendance:write
+        - mentoring_grants:read
+        - mentoring_grants:write
     IntegrationApiResource:
       type: string
       enum: [applications, businesses, sessions, course-modules, attendance, learning-progress, mentoring, pitches, grant-receipts]

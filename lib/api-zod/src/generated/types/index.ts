@@ -127,6 +127,7 @@ export * from './integrationApiKeyCreated';
 export * from './integrationApiKeyInput';
 export * from './integrationApiKeyRevocation';
 export * from './integrationApiKeysResponse';
+export * from './integrationApiPermission';
 export * from './integrationApiRecord';
 export * from './integrationApiRecordInput';
 export * from './integrationApiRecordResponse';

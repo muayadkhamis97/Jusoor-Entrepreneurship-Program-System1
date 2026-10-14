@@ -5,6 +5,7 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+import type { IntegrationApiPermission } from './integrationApiPermission';
 
 export interface IntegrationApiKeyInput {
   /**
@@ -14,4 +15,6 @@ export interface IntegrationApiKeyInput {
   label: string;
   /** @minimum 1 */
   programId: number;
+  /** @minItems 1 */
+  permissions: IntegrationApiPermission[];
 }

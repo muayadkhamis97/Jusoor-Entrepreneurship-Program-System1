@@ -10965,8 +10965,8 @@ export const getCreateIntegrationApiKeyUrl = () => {
 }
 
 /**
- * Coordinator-only. The secret is returned once and cannot be retrieved later.
- * @summary Create an API key limited to one program
+ * Coordinator-only. Select read and write permissions independently by data group. The secret is returned once and cannot be retrieved later.
+ * @summary Create an API key limited to selected data and actions in one program
  */
 export const createIntegrationApiKey = async (integrationApiKeyInput: IntegrationApiKeyInput, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationApiKeyCreated> => {
 
@@ -11032,7 +11032,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateIntegrationApiKeyMutationVariables = {data: BodyType<IntegrationApiKeyInput>}
 
     /**
- * @summary Create an API key limited to one program
+ * @summary Create an API key limited to selected data and actions in one program
  */
 export const useCreateIntegrationApiKey = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIntegrationApiKey>>, TError,CreateIntegrationApiKeyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

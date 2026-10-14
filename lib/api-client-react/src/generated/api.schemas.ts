@@ -5,6 +5,20 @@
  * Program management for the Jusoor Entrepreneurship Program
  * OpenAPI spec version: 0.1.0
  */
+export type IntegrationApiPermission = typeof IntegrationApiPermission[keyof typeof IntegrationApiPermission];
+
+
+export const IntegrationApiPermission = {
+  'programs_sessions:read': 'programs_sessions:read',
+  'programs_sessions:write': 'programs_sessions:write',
+  'applications_businesses:read': 'applications_businesses:read',
+  'applications_businesses:write': 'applications_businesses:write',
+  'courses_attendance:read': 'courses_attendance:read',
+  'courses_attendance:write': 'courses_attendance:write',
+  'mentoring_grants:read': 'mentoring_grants:read',
+  'mentoring_grants:write': 'mentoring_grants:write',
+} as const;
+
 export interface IntegrationApiKeyInput {
   /**
      * @minLength 1
@@ -13,6 +27,8 @@ export interface IntegrationApiKeyInput {
   label: string;
   /** @minimum 1 */
   programId: number;
+  /** @minItems 1 */
+  permissions: IntegrationApiPermission[];
 }
 
 export interface IntegrationApiKey {
@@ -21,6 +37,7 @@ export interface IntegrationApiKey {
   keyPrefix: string;
   programId: number;
   programName: string;
+  permissions: IntegrationApiPermission[];
   createdAt: string;
   /** @nullable */
   lastUsedAt: string | null;

@@ -11,6 +11,8 @@ import {
   db,
   integrationApiKeysTable,
   programsTable,
+  type IntegrationApiPermission,
+  type IntegrationApiPermissionGroup,
 } from "@workspace/db";
 import { requireCoordinator, requireStaff, type StaffAccess } from "../middlewares/staffAccess";
 
@@ -18,7 +20,44 @@ export type IntegrationApiKeyContext = {
   id: number;
   programId: number;
   createdByStaffId: number;
+  permissions: IntegrationApiPermission[];
 };
+
+const resourcePermissionGroups: Record<string, IntegrationApiPermissionGroup> = {
+  applications: "applications_businesses",
+  businesses: "applications_businesses",
+  sessions: "programs_sessions",
+  "course-modules": "courses_attendance",
+  attendance: "courses_attendance",
+  "learning-progress": "courses_attendance",
+  mentoring: "mentoring_grants",
+  pitches: "mentoring_grants",
+  "grant-receipts": "mentoring_grants",
+};
+
+export function integrationApiPermissionForRequest(method: string, path: string): IntegrationApiPermission | null {
+  const action = method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD"
+    ? "read"
+    : method.toUpperCase() === "POST" || method.toUpperCase() === "PATCH"
+      ? "write"
+      : null;
+  if (!action) return null;
+
+  if (/^\/programs\/\d+\/?$/.test(path)) return `programs_sessions:${action}`;
+  const resourceMatch = /^\/programs\/\d+\/resources\/([^/]+)(?:\/\d+)?\/?$/.exec(path);
+  if (!resourceMatch) return null;
+  const group = resourcePermissionGroups[resourceMatch[1]];
+  return group ? `${group}:${action}` as IntegrationApiPermission : null;
+}
+
+export function integrationApiKeyAllowsRequest(
+  permissions: readonly IntegrationApiPermission[],
+  method: string,
+  path: string,
+): boolean {
+  const requiredPermission = integrationApiPermissionForRequest(method, path);
+  return requiredPermission === null || permissions.includes(requiredPermission);
+}
 
 export function hashIntegrationApiKey(secret: string): string {
   return createHash("sha256").update(secret).digest("hex");
@@ -46,6 +85,7 @@ export const requireIntegrationApiKey: RequestHandler = async (req, res, next): 
       id: integrationApiKeysTable.id,
       programId: integrationApiKeysTable.programId,
       createdByStaffId: integrationApiKeysTable.createdByStaffId,
+      permissions: integrationApiKeysTable.permissions,
     }).from(integrationApiKeysTable)
       .where(and(
         eq(integrationApiKeysTable.keyHash, keyHash),
@@ -80,6 +120,11 @@ export const requireIntegrationApiKey: RequestHandler = async (req, res, next): 
         eq(integrationApiKeysTable.id, key.id),
         isNull(integrationApiKeysTable.revokedAt),
       ));
+    const permission = integrationApiPermissionForRequest(req.method, req.path);
+    if (!integrationApiKeyAllowsRequest(key.permissions, req.method, req.path)) {
+      res.status(403).json({ error: `This API key does not have ${permission?.split(":")[1]} access to this data.` });
+      return;
+    }
     res.locals.integrationApiKey = key satisfies IntegrationApiKeyContext;
     next();
   } catch (error) {
@@ -97,6 +142,7 @@ router.get("/integrations/api-keys", async (_req, res): Promise<void> => {
     label: integrationApiKeysTable.label,
     keyPrefix: integrationApiKeysTable.keyPrefix,
     programId: integrationApiKeysTable.programId,
+    permissions: integrationApiKeysTable.permissions,
     programName: programsTable.name,
     createdAt: integrationApiKeysTable.createdAt,
     lastUsedAt: integrationApiKeysTable.lastUsedAt,
@@ -134,12 +180,14 @@ router.post("/integrations/api-keys", async (req, res): Promise<void> => {
     keyHash: hashIntegrationApiKey(secret),
     keyPrefix: secret.slice(0, 18),
     programId: program.id,
+    permissions: parsed.data.permissions,
     createdByStaffId: staff.id,
   }).returning({
     id: integrationApiKeysTable.id,
     label: integrationApiKeysTable.label,
     keyPrefix: integrationApiKeysTable.keyPrefix,
     programId: integrationApiKeysTable.programId,
+    permissions: integrationApiKeysTable.permissions,
     createdAt: integrationApiKeysTable.createdAt,
     lastUsedAt: integrationApiKeysTable.lastUsedAt,
     revokedAt: integrationApiKeysTable.revokedAt,

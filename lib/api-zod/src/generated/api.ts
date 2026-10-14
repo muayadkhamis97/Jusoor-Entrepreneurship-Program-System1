@@ -4389,6 +4389,7 @@ export const ListIntegrationApiKeysResponse = zod.object({
   "keyPrefix": zod.string(),
   "programId": zod.number().int(),
   "programName": zod.string(),
+  "permissions": zod.array(zod.enum(['programs_sessions:read', 'programs_sessions:write', 'applications_businesses:read', 'applications_businesses:write', 'courses_attendance:read', 'courses_attendance:write', 'mentoring_grants:read', 'mentoring_grants:write'])),
   "createdAt": zod.coerce.date(),
   "lastUsedAt": zod.coerce.date().nullable(),
   "revokedAt": zod.coerce.date().nullable()
@@ -4397,17 +4398,19 @@ export const ListIntegrationApiKeysResponse = zod.object({
 
 
 /**
- * Coordinator-only. The secret is returned once and cannot be retrieved later.
- * @summary Create an API key limited to one program
+ * Coordinator-only. Select read and write permissions independently by data group. The secret is returned once and cannot be retrieved later.
+ * @summary Create an API key limited to selected data and actions in one program
  */
 export const createIntegrationApiKeyBodyLabelMax = 100;
 
 
 
 
+
 export const CreateIntegrationApiKeyBody = zod.object({
   "label": zod.string().min(1).max(createIntegrationApiKeyBodyLabelMax),
-  "programId": zod.number().int().min(1)
+  "programId": zod.number().int().min(1),
+  "permissions": zod.array(zod.enum(['programs_sessions:read', 'programs_sessions:write', 'applications_businesses:read', 'applications_businesses:write', 'courses_attendance:read', 'courses_attendance:write', 'mentoring_grants:read', 'mentoring_grants:write'])).min(1)
 })
 
 export const CreateIntegrationApiKeyResponse = zod.object({
@@ -4417,6 +4420,7 @@ export const CreateIntegrationApiKeyResponse = zod.object({
   "keyPrefix": zod.string(),
   "programId": zod.number().int(),
   "programName": zod.string(),
+  "permissions": zod.array(zod.enum(['programs_sessions:read', 'programs_sessions:write', 'applications_businesses:read', 'applications_businesses:write', 'courses_attendance:read', 'courses_attendance:write', 'mentoring_grants:read', 'mentoring_grants:write'])),
   "createdAt": zod.coerce.date(),
   "lastUsedAt": zod.coerce.date().nullable(),
   "revokedAt": zod.coerce.date().nullable()
