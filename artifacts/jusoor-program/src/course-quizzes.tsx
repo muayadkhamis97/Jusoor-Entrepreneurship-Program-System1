@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetCourseModuleQuizzesQueryKey, getGetCourseQuizAttemptsQueryKey,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { currentLanguage, t, useAppLanguage } from './language';
 import { AccessibleDialogSurface } from './accessible-dialog';
+import { clearCourseQuizDraft, courseQuizDraftStorageKey, readCourseQuizDraft, writeCourseQuizDraft } from './course-quiz-drafts';
 import './course-quizzes.css';
 
 type DraftQuestion = CourseQuizQuestionInput & { key: string };
@@ -81,9 +82,17 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
   const create = useCreateCourseQuiz();
   const update = useUpdateCourseQuiz();
   const client = useQueryClient();
-  const [draft, setDraft] = useState<QuizDraft>(() => cleanDraft(quiz));
+  const draftStorageKey = courseQuizDraftStorageKey(moduleId, quiz?.id);
+  const [draft, setDraft] = useState<QuizDraft>(() => readCourseQuizDraft(draftStorageKey, cleanDraft(quiz)));
   const [error, setError] = useState('');
   const pending = create.isPending || update.isPending;
+  useEffect(() => {
+    writeCourseQuizDraft(draftStorageKey, draft);
+  }, [draftStorageKey, draft]);
+  const discardDraft = () => {
+    clearCourseQuizDraft(draftStorageKey);
+    onClose();
+  };
   const patchQuestion = (key: string, patch: Partial<DraftQuestion>) => setDraft(current => ({ ...current, questions: current.questions.map(question => question.key === key ? { ...question, ...patch } : question) }));
   const changeType = (question: DraftQuestion, type: DraftQuestion['questionType']) => {
     let choices = type === 'true_false'
@@ -137,6 +146,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
         client.invalidateQueries({ queryKey: getGetParticipantCoursesQueryKey() }),
         ...(quiz ? [client.invalidateQueries({ queryKey: getGetCourseQuizAttemptsQueryKey(quiz.id) })] : []),
       ]);
+      clearCourseQuizDraft(draftStorageKey);
       onSaved();
     };
     if (quiz) update.mutate({ id: quiz.id, data }, { onSuccess: done, onError: () => setError(t('Quiz could not be saved. Try again.')) });
@@ -183,7 +193,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
         <label className="quiz-publish-check"><input type="checkbox" checked={draft.isPublished} onChange={event => setDraft(current => ({ ...current, isPublished: event.target.checked }))} /> <span><b>{t('Publish this quiz')}</b><small>{t('Participants can see it only after this module is published and released.')}</small></span></label>
       </div>
       {error && <p className="quiz-form-error" role="alert"><AlertCircle size={15} />{error}</p>}
-      <footer className="quiz-editor-actions"><button className="button button-quiet" type="button" onClick={onClose}>{t('Cancel')}</button><button className="button button-primary" type="button" onClick={save} disabled={pending} data-testid="button-save-quiz">{pending ? t('Saving quiz…') : <><Save size={14} />{t('Save quiz')}</>}</button></footer>
+      <footer className="quiz-editor-actions"><button className="button button-quiet" type="button" onClick={onClose}>{t('Close')}</button><button className="button button-quiet" type="button" onClick={discardDraft} disabled={pending} data-testid="button-discard-quiz-draft">{t('Discard draft')}</button><button className="button button-primary" type="button" onClick={save} disabled={pending} data-testid="button-save-quiz">{pending ? t('Saving quiz…') : <><Save size={14} />{t('Save quiz')}</>}</button></footer>
   </AccessibleDialogSurface>;
 }
 

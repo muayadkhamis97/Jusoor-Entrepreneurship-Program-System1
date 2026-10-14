@@ -1079,6 +1079,7 @@ const arabic: Record<string, string> = {
   'Close editor': 'إغلاق المحرر',
   'Save activity': 'حفظ النشاط',
   'Close': 'إغلاق',
+  'Discard draft': 'تجاهل المسودة',
   'Reopen': 'إعادة الفتح',
   'View responses': 'عرض الإجابات',
   'Hide responses': 'إخفاء الإجابات',
