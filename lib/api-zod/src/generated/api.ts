@@ -2493,6 +2493,64 @@ export const SaveParticipantIdeaValidationResponse = zod.object({
 
 
 /**
+ * @summary Get private customer-acquisition and operations plans for the signed-in participant's accepted applications
+ */
+export const GetParticipantBusinessPlansResponse = zod.object({
+  "plans": zod.array(zod.object({
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "businessName": zod.string(),
+  "acquisitionChannels": zod.string(),
+  "outreachActions": zod.string(),
+  "fulfillmentSteps": zod.string(),
+  "reviewSignals": zod.string(),
+  "updatedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Save the signed-in participant's private customer-acquisition and operations plan
+ */
+
+
+
+export const SaveParticipantBusinessPlanParams = zod.object({
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+export const saveParticipantBusinessPlanBodyAcquisitionChannelsMax = 3000;
+
+export const saveParticipantBusinessPlanBodyOutreachActionsMax = 5000;
+
+export const saveParticipantBusinessPlanBodyFulfillmentStepsMax = 5000;
+
+export const saveParticipantBusinessPlanBodyReviewSignalsMax = 3000;
+
+
+
+export const SaveParticipantBusinessPlanBody = zod.object({
+  "acquisitionChannels": zod.string().max(saveParticipantBusinessPlanBodyAcquisitionChannelsMax),
+  "outreachActions": zod.string().max(saveParticipantBusinessPlanBodyOutreachActionsMax),
+  "fulfillmentSteps": zod.string().max(saveParticipantBusinessPlanBodyFulfillmentStepsMax),
+  "reviewSignals": zod.string().max(saveParticipantBusinessPlanBodyReviewSignalsMax)
+})
+
+export const SaveParticipantBusinessPlanResponse = zod.object({
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "businessName": zod.string(),
+  "acquisitionChannels": zod.string(),
+  "outreachActions": zod.string(),
+  "fulfillmentSteps": zod.string(),
+  "reviewSignals": zod.string(),
+  "updatedAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * @summary Mark a cohort announcement as read by the signed-in participant
  */
 export const MarkAnnouncementReadParams = zod.object({

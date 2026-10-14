@@ -27,6 +27,7 @@ import { ParticipantModuleQuizzes } from './course-quizzes';
 import { CoursePackagePlayer } from './course-package-player';
 import { ParticipantLearningProgress } from './learning-progress';
 import { ParticipantIdeaValidation } from './idea-validation';
+import { ParticipantBusinessPlan } from './founder-business-plan';
 import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
@@ -225,7 +226,7 @@ export function ParticipantDashboardPage() {
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
        : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same email used on your application. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>
         : enrollments.length === 0 ? <><div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h1>{t('No applications linked yet.')}</h1><p>{t('This account does not have an application associated with it. Sign in using the same verified email you entered on your application, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div><ParticipantAnnouncements announcements={query.data?.announcements || []} /></>
-         : <>{enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}<ParticipantAnnouncements announcements={query.data?.announcements || []} /><ParticipantIdeaValidation enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /><ParticipantLearningProgress /><ParticipantProgramLearning /></>}
+          : <>{enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}<ParticipantAnnouncements announcements={query.data?.announcements || []} /><ParticipantIdeaValidation enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /><ParticipantBusinessPlan enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /><ParticipantLearningProgress /><ParticipantProgramLearning /></>}
     </main><footer className="intake-footer"><span>JUSOOR ENTREPRENEURSHIP PROGRAM</span><span>YOUR PROGRESS IS PRIVATE TO YOU</span></footer>
   </div>;
 }

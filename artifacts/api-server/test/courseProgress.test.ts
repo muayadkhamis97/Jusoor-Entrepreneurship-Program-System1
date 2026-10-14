@@ -17,6 +17,7 @@ let certificates: Array<Record<string, any>>;
 let quizzes: Array<Record<string, any>>;
 let quizAttempts: Array<Record<string, any>>;
 let ideaValidationWorkbooks: Array<Record<string, any>>;
+let participantBusinessPlans: Array<Record<string, any>>;
 let selectedApplicationIds = new Set<number>();
 let selectedRequiredModuleIds = new Set<number>();
 let transactionTail: Promise<void> = Promise.resolve();
@@ -94,6 +95,7 @@ function resetState(): void {
   quizzes = [];
   quizAttempts = [];
   ideaValidationWorkbooks = [];
+  participantBusinessPlans = [];
   selectedApplicationIds = new Set();
   selectedRequiredModuleIds = new Set();
   transactionTail = Promise.resolve();
@@ -124,6 +126,7 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     courseModuleProgressTable,
     courseModulesTable,
     ideaValidationWorkbooksTable,
+    participantBusinessPlansTable,
     courseQuizAttemptsTable,
     courseQuizzesTable,
   } = requireDbTables;
@@ -132,7 +135,7 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     if (requestPath.endsWith("/certificate") && joined) {
       const found = applications.find((item) => item.id === Number(requestPath.split("/").at(-2)));
       rows = found ? [{ application: found, programName }] : [];
-    } else if (joined && requestUserId && requestPath.includes("/idea-validation/")) {
+    } else if (joined && requestUserId && (requestPath.includes("/idea-validation/") || requestPath.includes("/business-plans/"))) {
       const applicationId = Number(requestPath.split("/").at(-1));
       rows = applications
         .filter((item) => item.id === applicationId &&
@@ -173,6 +176,8 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
       .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
   } else if (table === ideaValidationWorkbooksTable) {
     rows = ideaValidationWorkbooks.filter((item) => selectedApplicationIds.has(item.applicationId));
+  } else if (table === participantBusinessPlansTable) {
+    rows = participantBusinessPlans.filter((item) => selectedApplicationIds.has(item.applicationId));
   } else if (table === courseCertificatesTable) {
     if (requestPath.endsWith("/verification")) {
       const requestedCode = requestPath.split("/").at(-2)?.toUpperCase();
@@ -214,6 +219,7 @@ let requireDbTables: {
   courseModuleProgressTable: unknown;
   courseModulesTable: unknown;
   ideaValidationWorkbooksTable: unknown;
+  participantBusinessPlansTable: unknown;
   courseQuizAttemptsTable: unknown;
   courseQuizzesTable: unknown;
 };
@@ -332,12 +338,13 @@ function makeInsert(table: unknown) {
       return query;
     },
     returning: async () => {
-      if (table !== requireDbTables.ideaValidationWorkbooksTable) return [];
-      let workbook = ideaValidationWorkbooks.find((item) => item.applicationId === values.applicationId);
+      if (table !== requireDbTables.ideaValidationWorkbooksTable && table !== requireDbTables.participantBusinessPlansTable) return [];
+      const records = table === requireDbTables.ideaValidationWorkbooksTable ? ideaValidationWorkbooks : participantBusinessPlans;
+      let workbook = records.find((item) => item.applicationId === values.applicationId);
       if (workbook) Object.assign(workbook, values, conflictValues);
       else {
-        workbook = { id: ideaValidationWorkbooks.length + 1, createdAt: new Date(), ...values };
-        ideaValidationWorkbooks.push(workbook);
+        workbook = { id: records.length + 1, createdAt: new Date(), ...values };
+        records.push(workbook);
       }
       return [workbook];
     },
@@ -356,6 +363,7 @@ before(async () => {
     courseModuleProgressTable: schema.courseModuleProgressTable,
     courseModulesTable: schema.courseModulesTable,
     ideaValidationWorkbooksTable: schema.ideaValidationWorkbooksTable,
+    participantBusinessPlansTable: schema.participantBusinessPlansTable,
     courseQuizAttemptsTable: schema.courseQuizAttemptsTable,
     courseQuizzesTable: schema.courseQuizzesTable,
   };
@@ -489,6 +497,55 @@ test("idea-validation workbooks save per accepted application and remain private
     user: "participant-a",
     method: "PUT",
     body: { ...responses, customerSegment: "x".repeat(2001) },
+  });
+  assert.equal(invalid.status, 400);
+});
+
+test("participant business plans save per accepted application and remain private to that participant", async () => {
+  resetState();
+  const anonymous = await request("/api/participant/business-plans");
+  assert.equal(anonymous.status, 403);
+
+  const emptyResponse = await request("/api/participant/business-plans", { user: "participant-a" });
+  assert.equal(emptyResponse.status, 200);
+  const empty = await emptyResponse.json() as { plans: Array<Record<string, any>> };
+  assert.equal(empty.plans.length, 1);
+  assert.equal(empty.plans[0].acquisitionChannels, "");
+  assert.equal(empty.plans[0].updatedAt, null);
+
+  const plan = {
+    acquisitionChannels: "Referrals and local market events",
+    outreachActions: "Contact five shop owners each week",
+    fulfillmentSteps: "Confirm order, prepare items, deliver, follow up",
+    reviewSignals: "Weekly conversations, paid orders, repeat customers",
+  };
+  const saved = await request("/api/participant/business-plans/101", {
+    user: "participant-a",
+    method: "PUT",
+    body: plan,
+  });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json() as Record<string, any>).fulfillmentSteps, plan.fulfillmentSteps);
+
+  const reloaded = await request("/api/participant/business-plans", { user: "participant-a" });
+  const ownPlans = await reloaded.json() as { plans: Array<Record<string, any>> };
+  assert.equal(ownPlans.plans[0].reviewSignals, plan.reviewSignals);
+
+  const otherParticipant = await request("/api/participant/business-plans", { user: "participant-b" });
+  const otherPlans = await otherParticipant.json() as { plans: Array<Record<string, any>> };
+  assert.equal(otherPlans.plans[0].outreachActions, "");
+
+  const crossParticipantWrite = await request("/api/participant/business-plans/101", {
+    user: "participant-b",
+    method: "PUT",
+    body: plan,
+  });
+  assert.equal(crossParticipantWrite.status, 404);
+
+  const invalid = await request("/api/participant/business-plans/101", {
+    user: "participant-a",
+    method: "PUT",
+    body: { ...plan, acquisitionChannels: "x".repeat(3001) },
   });
   assert.equal(invalid.status, 400);
 });

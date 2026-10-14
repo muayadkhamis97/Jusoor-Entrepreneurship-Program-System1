@@ -1432,6 +1432,53 @@ paths:
           description: Sign in required
         "404":
           description: Accepted application not found for this participant
+  /participant/business-plans:
+    get:
+      operationId: getParticipantBusinessPlans
+      tags: [participants]
+      summary: Get private customer-acquisition and operations plans for the signed-in participant's accepted applications
+      responses:
+        "200":
+          description: Private plans and accepted-application context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantBusinessPlansResponse"
+        "401":
+          description: Sign in required
+        "403":
+          description: Participant access is required
+  /participant/business-plans/{applicationId}:
+    put:
+      operationId: saveParticipantBusinessPlan
+      tags: [participants]
+      summary: Save the signed-in participant's private customer-acquisition and operations plan
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantBusinessPlanUpdate"
+      responses:
+        "200":
+          description: Saved business plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantBusinessPlan"
+        "400":
+          description: Invalid plan fields
+        "401":
+          description: Sign in required
+        "403":
+          description: Participant access is required
+        "404":
+          description: Accepted application not found for this participant
   /participant/announcements/{id}/read:
     post:
       operationId: markAnnouncementRead
@@ -3920,6 +3967,34 @@ components:
         successSignal: { type: string, maxLength: 2000 }
         evidenceAndNextStep: { type: string, maxLength: 5000 }
       required: [customerSegment, problemStatement, riskiestAssumption, mvpExperiment, successSignal, evidenceAndNextStep]
+    ParticipantBusinessPlansResponse:
+      type: object
+      properties:
+        plans:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantBusinessPlan" }
+      required: [plans]
+    ParticipantBusinessPlan:
+      type: object
+      properties:
+        applicationId: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        businessName: { type: string }
+        acquisitionChannels: { type: string }
+        outreachActions: { type: string }
+        fulfillmentSteps: { type: string }
+        reviewSignals: { type: string }
+        updatedAt: { type: ["string", "null"], format: date-time }
+      required: [applicationId, programId, programName, businessName, acquisitionChannels, outreachActions, fulfillmentSteps, reviewSignals, updatedAt]
+    ParticipantBusinessPlanUpdate:
+      type: object
+      properties:
+        acquisitionChannels: { type: string, maxLength: 3000 }
+        outreachActions: { type: string, maxLength: 5000 }
+        fulfillmentSteps: { type: string, maxLength: 5000 }
+        reviewSignals: { type: string, maxLength: 3000 }
+      required: [acquisitionChannels, outreachActions, fulfillmentSteps, reviewSignals]
     ParticipantAssignment:
       type: object
       properties:

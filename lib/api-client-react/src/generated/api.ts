@@ -111,6 +111,9 @@ import type {
   MentorDashboard,
   MentorEngagement,
   MentorEngagementUpdate,
+  ParticipantBusinessPlan,
+  ParticipantBusinessPlanUpdate,
+  ParticipantBusinessPlansResponse,
   ParticipantCourseQuizResponse,
   ParticipantCourses,
   ParticipantDashboard,
@@ -5911,6 +5914,172 @@ export const useSaveParticipantIdeaValidation = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSaveParticipantIdeaValidationMutationOptions(options));
+    }
+
+export const getGetParticipantBusinessPlansUrl = () => {
+
+
+
+
+  return `/api/participant/business-plans`
+}
+
+/**
+ * @summary Get private customer-acquisition and operations plans for the signed-in participant's accepted applications
+ */
+export const getParticipantBusinessPlans = async ( options?: Parameters<typeof customFetch>[1]): Promise<ParticipantBusinessPlansResponse> => {
+
+  return customFetch<ParticipantBusinessPlansResponse>(getGetParticipantBusinessPlansUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParticipantBusinessPlansQueryKey = () => {
+    return [
+    `/api/participant/business-plans`
+    ] as const;
+    }
+
+
+export const getGetParticipantBusinessPlansQueryOptions = <TData = Awaited<ReturnType<typeof getParticipantBusinessPlans>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantBusinessPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParticipantBusinessPlansQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParticipantBusinessPlans>>> = ({ signal }) => getParticipantBusinessPlans({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParticipantBusinessPlans>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParticipantBusinessPlansQueryResult = NonNullable<Awaited<ReturnType<typeof getParticipantBusinessPlans>>>
+export type GetParticipantBusinessPlansQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get private customer-acquisition and operations plans for the signed-in participant's accepted applications
+ */
+
+export function useGetParticipantBusinessPlans<TData = Awaited<ReturnType<typeof getParticipantBusinessPlans>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParticipantBusinessPlans>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParticipantBusinessPlansQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveParticipantBusinessPlanUrl = (applicationId: number,) => {
+
+
+
+
+  return `/api/participant/business-plans/${applicationId}`
+}
+
+/**
+ * @summary Save the signed-in participant's private customer-acquisition and operations plan
+ */
+export const saveParticipantBusinessPlan = async (applicationId: number,
+    participantBusinessPlanUpdate: ParticipantBusinessPlanUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantBusinessPlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ParticipantBusinessPlan>(getSaveParticipantBusinessPlanUrl(applicationId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(participantBusinessPlanUpdate)
+  }
+);}
+
+
+
+
+
+export const getSaveParticipantBusinessPlanMutationKey = () => ['saveParticipantBusinessPlan'] as const;
+
+export const getSaveParticipantBusinessPlanMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveParticipantBusinessPlan>>, TError,SaveParticipantBusinessPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveParticipantBusinessPlan>>, TError,SaveParticipantBusinessPlanMutationVariables, TContext> => {
+
+const mutationKey = getSaveParticipantBusinessPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveParticipantBusinessPlan>>, SaveParticipantBusinessPlanMutationVariables> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  saveParticipantBusinessPlan(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveParticipantBusinessPlanMutationResult = NonNullable<Awaited<ReturnType<typeof saveParticipantBusinessPlan>>>
+    export type SaveParticipantBusinessPlanMutationBody = BodyType<ParticipantBusinessPlanUpdate>
+    export type SaveParticipantBusinessPlanMutationError = ErrorType<void>
+    export type SaveParticipantBusinessPlanMutationVariables = {applicationId: number;data: BodyType<ParticipantBusinessPlanUpdate>}
+
+    /**
+ * @summary Save the signed-in participant's private customer-acquisition and operations plan
+ */
+export const useSaveParticipantBusinessPlan = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveParticipantBusinessPlan>>, TError,SaveParticipantBusinessPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveParticipantBusinessPlan>>,
+        TError,
+        SaveParticipantBusinessPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveParticipantBusinessPlanMutationOptions(options));
     }
 
 export const getMarkAnnouncementReadUrl = (id: number,) => {

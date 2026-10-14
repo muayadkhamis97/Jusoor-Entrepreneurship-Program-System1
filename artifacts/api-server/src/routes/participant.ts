@@ -7,7 +7,11 @@ import {
   GetParticipantCoursesResponse,
   GetParticipantDashboardResponse,
   GetParticipantIdeaValidationResponse,
+  GetParticipantBusinessPlansResponse,
   MarkAnnouncementReadResponse,
+  SaveParticipantBusinessPlanBody,
+  SaveParticipantBusinessPlanParams,
+  SaveParticipantBusinessPlanResponse,
   SaveParticipantIdeaValidationBody,
   SaveParticipantIdeaValidationParams,
   SaveParticipantIdeaValidationResponse,
@@ -24,6 +28,7 @@ import {
   courseModulesTable,
   db,
   ideaValidationWorkbooksTable,
+  participantBusinessPlansTable,
   programsTable,
   programAnnouncementsTable,
   sessionsTable,
@@ -142,6 +147,104 @@ router.put("/idea-validation/:applicationId", async (req, res): Promise<void> =>
     successSignal: workbook.successSignal,
     evidenceAndNextStep: workbook.evidenceAndNextStep,
     updatedAt: workbook.updatedAt,
+  }));
+});
+
+router.get("/business-plans", async (_req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+
+  const applications = await db.select({
+    applicationId: applicationsTable.id,
+    programId: applicationsTable.programId,
+    programName: programsTable.name,
+    businessName: applicationsTable.businessName,
+  }).from(applicationsTable)
+    .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+    .where(and(
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .orderBy(asc(programsTable.name), asc(applicationsTable.id));
+
+  if (!applications.length) {
+    res.json(GetParticipantBusinessPlansResponse.parse({ plans: [] }));
+    return;
+  }
+
+  const saved = await db.select().from(participantBusinessPlansTable)
+    .where(inArray(participantBusinessPlansTable.applicationId, applications.map(({ applicationId }) => applicationId)));
+  const savedByApplication = new Map(saved.map((plan) => [plan.applicationId, plan]));
+  const plans = applications.map((application) => {
+    const plan = savedByApplication.get(application.applicationId);
+    return {
+      ...application,
+      acquisitionChannels: plan?.acquisitionChannels ?? "",
+      outreachActions: plan?.outreachActions ?? "",
+      fulfillmentSteps: plan?.fulfillmentSteps ?? "",
+      reviewSignals: plan?.reviewSignals ?? "",
+      updatedAt: plan?.updatedAt ?? null,
+    };
+  });
+  res.json(GetParticipantBusinessPlansResponse.parse({ plans }));
+});
+
+router.put("/business-plans/:applicationId", async (req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+
+  const params = SaveParticipantBusinessPlanParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = SaveParticipantBusinessPlanBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [application] = await db.select({
+    applicationId: applicationsTable.id,
+    programId: applicationsTable.programId,
+    programName: programsTable.name,
+    businessName: applicationsTable.businessName,
+  }).from(applicationsTable)
+    .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+    .where(and(
+      eq(applicationsTable.id, params.data.applicationId),
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .limit(1);
+
+  if (!application) {
+    res.status(404).json({ error: "Accepted application not found for this participant." });
+    return;
+  }
+
+  const updatedAt = new Date();
+  const [plan] = await db.insert(participantBusinessPlansTable)
+    .values({ applicationId: application.applicationId, ...body.data, updatedAt })
+    .onConflictDoUpdate({
+      target: participantBusinessPlansTable.applicationId,
+      set: { ...body.data, updatedAt },
+    })
+    .returning();
+
+  res.json(SaveParticipantBusinessPlanResponse.parse({
+    ...application,
+    acquisitionChannels: plan.acquisitionChannels,
+    outreachActions: plan.outreachActions,
+    fulfillmentSteps: plan.fulfillmentSteps,
+    reviewSignals: plan.reviewSignals,
+    updatedAt: plan.updatedAt,
   }));
 });
 

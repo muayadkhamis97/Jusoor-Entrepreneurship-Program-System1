@@ -1457,6 +1457,34 @@ export interface ParticipantIdeaValidationUpdate {
   evidenceAndNextStep: string;
 }
 
+export interface ParticipantBusinessPlan {
+  applicationId: number;
+  programId: number;
+  programName: string;
+  businessName: string;
+  acquisitionChannels: string;
+  outreachActions: string;
+  fulfillmentSteps: string;
+  reviewSignals: string;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface ParticipantBusinessPlansResponse {
+  plans: ParticipantBusinessPlan[];
+}
+
+export interface ParticipantBusinessPlanUpdate {
+  /** @maxLength 3000 */
+  acquisitionChannels: string;
+  /** @maxLength 5000 */
+  outreachActions: string;
+  /** @maxLength 5000 */
+  fulfillmentSteps: string;
+  /** @maxLength 3000 */
+  reviewSignals: string;
+}
+
 export type AnnouncementStatus = typeof AnnouncementStatus[keyof typeof AnnouncementStatus];
 
 
