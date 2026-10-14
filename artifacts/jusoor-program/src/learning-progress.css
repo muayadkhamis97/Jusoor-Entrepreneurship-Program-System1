@@ -81,6 +81,14 @@
 .certificate-download-controls .certificate-download-error { margin:0; }
 .certificate-verify-link { display:inline-block; margin-top:7px; color:var(--lp-teal); font-size:9px; font-weight:700; text-decoration:underline; text-underline-offset:2px; }
 .certificate-pdf-page { position:fixed; z-index:-1; top:0; left:-12000px; box-sizing:border-box; width:1122px; height:794px; padding:28px; background:#fffdf7; color:#233b38; opacity:.01; pointer-events:none; font-family:'DM Sans',Arial,sans-serif; }
+.certificate-preview-dialog { display:flex; flex-direction:column; gap:14px; width:min(1200px,96vw); max-width:none; max-height:94dvh; overflow:auto; padding:20px; }
+.certificate-preview-recipient { display:flex; flex-wrap:wrap; gap:6px 16px; color:hsl(var(--muted-foreground)); font-size:11px; }
+.certificate-preview-recipient b { color:hsl(var(--foreground)); }
+.certificate-preview-code-note { flex-basis:100%; font-size:10px; }
+.certificate-preview-stage { position:relative; width:100%; aspect-ratio:1122 / 794; overflow:hidden; border:1px solid var(--lp-line); border-radius:5px; background:#fffdf7; }
+.certificate-pdf-page.is-preview { position:absolute; z-index:auto; top:0; left:0; opacity:1; pointer-events:auto; transform:scale(var(--certificate-preview-scale,1)); transform-origin:top left; }
+.certificate-preview-actions { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.certificate-preview-actions>div { display:flex; gap:8px; }
 .certificate-pdf-frame { position:relative; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; width:100%; height:100%; padding:34px 54px 27px; border:2px solid #b79a52; outline:1px solid #d7c99f; outline-offset:-10px; text-align:center; }
 .certificate-pdf-brand { display:grid; gap:5px; color:#38685e; font-size:12px; font-weight:700; letter-spacing:.13em; }
 .certificate-pdf-wordmark { font:800 23px/1 'Manrope','DM Sans',Arial,sans-serif; letter-spacing:.12em; }.certificate-pdf-wordmark i { margin-left:7px; font:600 22px/1 Arial,sans-serif; letter-spacing:0; }

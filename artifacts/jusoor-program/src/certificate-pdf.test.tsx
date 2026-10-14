@@ -113,6 +113,26 @@ test('renders the selected certificate language without changing issued certific
   assert.equal(JSON.stringify(certificate), before);
 });
 
+test('renders an accessible preview layout without a permanent verification link', () => {
+  const markup = renderToStaticMarkup(
+    <CertificatePdfPage
+      certificate={{ ...certificate, certificateCode: 'Assigned after issuance' }}
+      issuedDateEnglish="14 Oct 2026"
+      issuedDateArabic="١٤ تشرين الأول ٢٠٢٦"
+      verificationUrl=""
+      preview
+    />,
+  );
+
+  assert.match(markup, /class="certificate-pdf-page is-preview"/);
+  assert.match(markup, /<section class="certificate-pdf-page is-preview" aria-hidden="false"/);
+  assert.match(markup, /Layla Al-Haddad/);
+  assert.match(markup, /Olive Branch Foods/);
+  assert.match(markup, /Jusoor Women-Led Social Enterprise Incubation Program/);
+  assert.match(markup, /Assigned after issuance/);
+  assert.doesNotMatch(markup, /<small>https:/);
+});
+
 test('creates one landscape A4 PDF page without changing the saved certificate data', () => {
   const before = JSON.stringify(certificate);
   const image = `data:image/png;base64,${onePixelPng()}`;

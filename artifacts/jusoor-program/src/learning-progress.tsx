@@ -22,6 +22,7 @@ import {
   Download, FileCheck2, Hourglass, Medal, RefreshCw, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import { currentLanguage, t, useAppLanguage } from './language';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './components/ui/dialog';
 import './learning-progress.css';
 
 const fmtDate = (value?: string | null) => value ? new Date(value).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('Not set');
@@ -161,6 +162,53 @@ function CertificateDownload({ certificate, testIdPrefix }: {
       issuedDateArabic={new Date(certificate.issuedAt).toLocaleDateString('ar-JO', { day: 'numeric', month: 'long', year: 'numeric' })}
       verificationUrl={verificationUrl}
       language={language}
+    />
+  </div>;
+}
+
+function CertificatePreview({ participant, issuedAt, language }: {
+  participant: LearningProgressParticipant;
+  issuedAt: string;
+  language: CertificateLanguage;
+}) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const updateScale = () => setScale(Math.min(1, stage.clientWidth / 1122));
+    updateScale();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateScale);
+      return () => window.removeEventListener('resize', updateScale);
+    }
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+  const previewCertificate: NonNullable<ParticipantLearningProgram['certificate']> = {
+    id: 0,
+    applicationId: participant.applicationId,
+    programId: participant.programId,
+    programName: participant.programName,
+    participantName: participant.founderName,
+    businessName: participant.businessName,
+    certificateCode: t('Assigned after issuance'),
+    issuedAt,
+    issuedByName: '',
+    revokedAt: null,
+    revokedByName: null,
+    revocationReason: null,
+  };
+  return <div className="certificate-preview-stage" ref={stageRef} data-testid="certificate-preview-stage">
+    <CertificatePdfPage
+      certificate={previewCertificate}
+      issuedDateEnglish={new Date(issuedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+      issuedDateArabic={new Date(issuedAt).toLocaleDateString('ar-JO', { day: 'numeric', month: 'long', year: 'numeric' })}
+      verificationUrl=""
+      language={language}
+      preview
+      style={{ '--certificate-preview-scale': scale } as React.CSSProperties}
     />
   </div>;
 }
@@ -491,12 +539,25 @@ export function LearningProgressAnalytics() {
       : [...currentlySelected, programId]);
   };
   const [issuing, setIssuing] = useState<number | null>(null);
+  const [previewParticipant, setPreviewParticipant] = useState<LearningProgressParticipant | null>(null);
+  const [previewIssuedAt, setPreviewIssuedAt] = useState('');
+  const [previewLanguage, setPreviewLanguage] = useState<CertificateLanguage>('both');
   const [revokingCertificateId, setRevokingCertificateId] = useState<number | null>(null);
   const [retryingReminder, setRetryingReminder] = useState<number | null>(null);
-  const issueCertificate = (person: LearningProgressParticipant) => {
+  const openCertificatePreview = (person: LearningProgressParticipant) => {
+    issue.reset();
+    setPreviewIssuedAt(new Date().toISOString());
+    setPreviewParticipant(person);
+  };
+  const confirmCertificateIssue = () => {
+    if (!previewParticipant || issuing !== null) return;
+    const person = previewParticipant;
     setIssuing(person.applicationId);
     issue.mutate({ id: person.applicationId }, {
-      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey() }),
+      onSuccess: () => {
+        void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey() });
+        setPreviewParticipant(null);
+      },
       onError: () => undefined,
       onSettled: () => setIssuing(null),
     });
@@ -540,8 +601,44 @@ export function LearningProgressAnalytics() {
            <CohortAssessmentGainPanel programId={program.programId} summary={program.assessmentGain} />
            <ReminderDeliveryPanel program={program} retryingId={retryingReminder} onRetry={retryFailedReminder} />
           <div className="lp-roster-head"><span>{t('PARTICIPANT / BUSINESS')}</span><span>{t('COURSE COMPLETION')}</span><span>{t('ACTIVE TIME')}</span><span>{t('CERTIFICATE STATE')}</span></div>
-          {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={issueCertificate} pending={issuing === person.applicationId} onRevoke={revokeCertificate} revoking={revokingCertificateId === person.certificate?.id} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}
+           {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={openCertificatePreview} pending={issuing === person.applicationId} onRevoke={revokeCertificate} revoking={revokingCertificateId === person.certificate?.id} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}
         </article>)}
       </>}
+    <Dialog open={previewParticipant !== null} onOpenChange={open => {
+      if (!open && issuing === null) setPreviewParticipant(null);
+    }}>
+      <DialogContent className="certificate-preview-dialog" data-testid="dialog-certificate-preview">
+        <DialogHeader>
+          <DialogTitle>{t('Preview certificate')}</DialogTitle>
+          <DialogDescription>{t('Review the certificate details and layout. No certificate will be created unless you confirm issuance.')}</DialogDescription>
+        </DialogHeader>
+        {previewParticipant && <>
+          <div className="certificate-preview-recipient">
+            <span>{t('Participant')} <b>{previewParticipant.founderName}</b></span>
+            <span>{t('Business')} <b>{previewParticipant.businessName}</b></span>
+            <span>{t('Program')} <b>{previewParticipant.programName}</b></span>
+            <span className="certificate-preview-code-note">{t('The certificate code and verification link will be assigned after issuance.')}</span>
+          </div>
+          <CertificatePreview participant={previewParticipant} issuedAt={previewIssuedAt} language={previewLanguage} />
+          <div className="certificate-preview-actions">
+            <label className="certificate-language-picker" htmlFor="select-certificate-preview-language">
+              <span>{t('Certificate language')}</span>
+              <select id="select-certificate-preview-language" value={previewLanguage} onChange={event => setPreviewLanguage(event.target.value as CertificateLanguage)} data-testid="select-certificate-preview-language">
+                <option value="en">{t('English')}</option>
+                <option value="ar">{t('Arabic')}</option>
+                <option value="both">{t('Bilingual')}</option>
+              </select>
+            </label>
+            <div>
+              <button type="button" className="lp-button lp-button-outline" onClick={() => setPreviewParticipant(null)} disabled={issuing !== null} data-testid="button-cancel-certificate-issue">{t('Cancel')}</button>
+              <button type="button" className="lp-button lp-button-primary" onClick={confirmCertificateIssue} disabled={issuing !== null} data-testid="button-confirm-certificate-issue">
+                <Award size={14} />{issuing !== null ? t('Issuing…') : t('Confirm issuance')}
+              </button>
+            </div>
+          </div>
+          {issue.isError && <div className="lp-mutation-error" role="alert" data-testid="error-preview-certificate-issue">{t('Certificate could not be issued. Confirm eligibility and try again.')}</div>}
+        </>}
+      </DialogContent>
+    </Dialog>
   </section>;
 }

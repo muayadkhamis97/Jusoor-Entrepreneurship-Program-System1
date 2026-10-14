@@ -13,6 +13,8 @@ type CertificatePdfPageProps = {
   issuedDateArabic: string;
   verificationUrl: string;
   language?: CertificateLanguage;
+  preview?: boolean;
+  style?: React.CSSProperties;
 };
 
 export const CertificatePdfPage = React.forwardRef<HTMLElement, CertificatePdfPageProps>(function CertificatePdfPage({
@@ -21,10 +23,12 @@ export const CertificatePdfPage = React.forwardRef<HTMLElement, CertificatePdfPa
   issuedDateArabic,
   verificationUrl,
   language = 'both',
+  preview = false,
+  style,
 }, ref): ReactNode {
   const showEnglish = language !== 'ar';
   const showArabic = language !== 'en';
-  return <section ref={ref} className="certificate-pdf-page" aria-hidden="true">
+  return <section ref={ref} className={`certificate-pdf-page${preview ? ' is-preview' : ''}`} aria-hidden={!preview} style={style}>
     <div className="certificate-pdf-frame">
       <header className="certificate-pdf-brand">
         <span className="certificate-pdf-wordmark">{showEnglish && 'JUSOOR'}{showEnglish && showArabic && ' '}{showArabic && <i lang="ar" dir="rtl">جسور</i>}</span>
@@ -57,7 +61,7 @@ export const CertificatePdfPage = React.forwardRef<HTMLElement, CertificatePdfPa
             : <strong lang="ar" dir="rtl">{issuedDateArabic}</strong>)}
         </div>
         <div className="certificate-pdf-seal" aria-hidden="true">J</div>
-        <div className="certificate-pdf-code"><span>{showEnglish && 'CERTIFICATE CODE'}{showEnglish && showArabic && <b> · </b>}{showArabic && <span lang="ar" dir="rtl">رمز الشهادة</span>}</span><strong>{certificate.certificateCode}</strong><small>{verificationUrl}</small></div>
+        <div className="certificate-pdf-code"><span>{showEnglish && 'CERTIFICATE CODE'}{showEnglish && showArabic && <b> · </b>}{showArabic && <span lang="ar" dir="rtl">رمز الشهادة</span>}</span><strong>{certificate.certificateCode}</strong>{verificationUrl && <small>{verificationUrl}</small>}</div>
       </footer>
     </div>
   </section>;
