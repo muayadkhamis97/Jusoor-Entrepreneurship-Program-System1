@@ -12,7 +12,7 @@ const quizzes = [
 ];
 const submittedAt = (day: number) => new Date(`2026-10-${String(day).padStart(2, "0")}T12:00:00.000Z`);
 
-test("cohort gain uses first attempts and averages only participants with both assessment types", () => {
+test("cohort averages use each participant's first attempt for every available assessment", () => {
   const comparison = calculateCohortAssessmentGain([
     {
       quizzes,
@@ -45,15 +45,20 @@ test("cohort gain uses first attempts and averages only participants with both a
     { quizzes, attempts: [] },
   ]);
 
-  assert.deepEqual(comparison, {
+  assert.deepEqual({
+    eligibleParticipants: comparison.eligibleParticipants,
+    participantsWithPre: comparison.participantsWithPre,
+    participantsWithPost: comparison.participantsWithPost,
+    pairedParticipants: comparison.pairedParticipants,
+  }, {
     eligibleParticipants: 5,
     participantsWithPre: 3,
     participantsWithPost: 3,
     pairedParticipants: 2,
-    preAveragePercent: 30,
-    postAveragePercent: 55,
-    averageGainPercentagePoints: 25,
   });
+  assert.ok(Math.abs(comparison.preAveragePercent! - 160 / 3) < 1e-10);
+  assert.ok(Math.abs(comparison.postAveragePercent! - 110 / 3) < 1e-10);
+  assert.ok(Math.abs(comparison.averageGainPercentagePoints! - -50 / 3) < 1e-10);
 });
 
 test("missing assessment results remain unavailable rather than becoming zero scores", () => {
@@ -70,7 +75,7 @@ test("missing assessment results remain unavailable rather than becoming zero sc
     participantsWithPre: 1,
     participantsWithPost: 0,
     pairedParticipants: 0,
-    preAveragePercent: null,
+    preAveragePercent: 0,
     postAveragePercent: null,
     averageGainPercentagePoints: null,
   });

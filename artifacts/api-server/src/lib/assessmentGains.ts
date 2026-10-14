@@ -82,8 +82,8 @@ export function calculateCohortAssessmentGain(
 
   const paired = scores.filter((score): score is { pre: number; post: number } =>
     score.pre !== null && score.post !== null);
-  const preAveragePercent = mean(paired.map((score) => score.pre));
-  const postAveragePercent = mean(paired.map((score) => score.post));
+  const preAveragePercent = mean(scores.flatMap((score) => score.pre === null ? [] : [score.pre]));
+  const postAveragePercent = mean(scores.flatMap((score) => score.post === null ? [] : [score.post]));
 
   return {
     eligibleParticipants: participants.length,
@@ -92,6 +92,8 @@ export function calculateCohortAssessmentGain(
     pairedParticipants: paired.length,
     preAveragePercent,
     postAveragePercent,
-    averageGainPercentagePoints: mean(paired.map((score) => score.post - score.pre)),
+    averageGainPercentagePoints: preAveragePercent === null || postAveragePercent === null
+      ? null
+      : postAveragePercent - preAveragePercent,
   };
 }

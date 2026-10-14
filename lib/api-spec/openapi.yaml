@@ -162,7 +162,7 @@ paths:
     get:
       operationId: getLearningProgressAnalytics
       tags: [dashboard]
-      summary: Get coordinator-only participant course progress and learning analytics, including paired cohort assessment gains
+      summary: Get coordinator-only participant course progress and first-attempt cohort assessment averages
       parameters:
         - name: programId
           in: query
@@ -170,7 +170,7 @@ paths:
           schema: { type: integer }
       responses:
         "200":
-          description: Completion, active time, quiz performance, first-attempt paired cohort assessment gains, and certificate status
+          description: Completion, active time, quiz performance, first-attempt cohort assessment averages and coverage, and certificate status
           content:
             application/json:
               schema:
@@ -3282,6 +3282,7 @@ components:
       properties:
         programId: { type: integer }
         programName: { type: string }
+        startDate: { type: ["string", "null"], pattern: '^\d{4}-\d{2}-\d{2}$' }
         participantCount: { type: integer, minimum: 0 }
         completedParticipants: { type: integer, minimum: 0 }
         averageCompletionPercent: { type: number, minimum: 0, maximum: 100 }
@@ -3296,10 +3297,10 @@ components:
         participants:
           type: array
           items: { $ref: "#/components/schemas/LearningProgressParticipant" }
-      required: [programId, programName, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, assessmentGain, certificatesIssued, reminders, participants]
+      required: [programId, programName, startDate, participantCount, completedParticipants, averageCompletionPercent, averageActiveSeconds, averageQuizPercent, assessmentGain, certificatesIssued, reminders, participants]
     CohortAssessmentGain:
       type: object
-      description: Paired first-attempt averages; participants without both assessment types are counted for coverage but excluded from the comparison rather than treated as zero.
+      description: First-attempt averages use all participants eligible for each assessment independently; missing results are excluded rather than treated as zero. Change is available only when both assessment averages have eligible data.
       properties:
         eligibleParticipants: { type: integer, minimum: 0 }
         participantsWithPre: { type: integer, minimum: 0 }

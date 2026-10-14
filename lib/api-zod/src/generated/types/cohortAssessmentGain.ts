@@ -7,7 +7,7 @@
  */
 
 /**
- * Paired first-attempt averages; participants without both assessment types are counted for coverage but excluded from the comparison rather than treated as zero.
+ * First-attempt averages use all participants eligible for each assessment independently; missing results are excluded rather than treated as zero. Change is available only when both assessment averages have eligible data.
  */
 export interface CohortAssessmentGain {
   /** @minimum 0 */

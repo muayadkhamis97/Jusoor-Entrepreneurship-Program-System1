@@ -639,6 +639,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
     return {
       programId: program.id,
       programName: program.name,
+      startDate: program.startDate,
       participantCount: participants.length,
       completedParticipants,
       averageCompletionPercent: participants.length

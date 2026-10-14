@@ -269,12 +269,13 @@ export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
 
 
 /**
- * @summary Get coordinator-only participant course progress and learning analytics, including paired cohort assessment gains
+ * @summary Get coordinator-only participant course progress and first-attempt cohort assessment averages
  */
 export const GetLearningProgressAnalyticsQueryParams = zod.object({
   "programId": zod.coerce.number().int().optional()
 })
 
+export const getLearningProgressAnalyticsResponseProgramsItemStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantCountMin = 0;
 
 export const getLearningProgressAnalyticsResponseProgramsItemCompletedParticipantsMin = 0;
@@ -347,6 +348,7 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "programs": zod.array(zod.object({
   "programId": zod.number().int(),
   "programName": zod.string(),
+  "startDate": zod.string().regex(getLearningProgressAnalyticsResponseProgramsItemStartDateRegExp).nullable(),
   "participantCount": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantCountMin),
   "completedParticipants": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCompletedParticipantsMin),
   "averageCompletionPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMax),
@@ -360,7 +362,7 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "preAveragePercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPreAveragePercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPreAveragePercentMax).nullable(),
   "postAveragePercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPostAveragePercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPostAveragePercentMax).nullable(),
   "averageGainPercentagePoints": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainAverageGainPercentagePointsMin).max(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainAverageGainPercentagePointsMax).nullable()
-}).describe('Paired first-attempt averages; participants without both assessment types are counted for coverage but excluded from the comparison rather than treated as zero.'),
+}).describe('First-attempt averages use all participants eligible for each assessment independently; missing results are excluded rather than treated as zero. Change is available only when both assessment averages have eligible data.'),
   "certificatesIssued": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin),
   "reminders": zod.object({
   "pending": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersPendingMin),

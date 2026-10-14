@@ -373,20 +373,89 @@ function CohortAssessmentGainPanel({
   const gain = summary.averageGainPercentagePoints;
   const gainLabel = gain == null ? '—' : `${gain > 0 ? '+' : ''}${gain.toFixed(1)} ${t('pp')}`;
   return <section className="lp-cohort-assessment" data-testid={`panel-cohort-assessment-${programId}`}>
-    <header><div><span className="lp-eyebrow">{t('COHORT ASSESSMENT')}</span><h4>{t('Assessment gains')}</h4><p>{t('First-attempt averages use only participants who have both pre-course and post-course results.')}</p></div></header>
+    <header><div><span className="lp-eyebrow">{t('COHORT ASSESSMENT')}</span><h4>{t('Assessment gains')}</h4><p>{t('First-attempt averages use participants with an eligible result for each assessment. Missing results are not counted as zero.')}</p></div></header>
     <div className="lp-assessment-comparison">
-      <div><span>{t('Pre-course average, paired participants')}</span><b data-testid={`text-assessment-gain-pre-${programId}`}>{score(summary.preAveragePercent)}</b></div>
-      <div><span>{t('Post-course average, paired participants')}</span><b data-testid={`text-assessment-gain-post-${programId}`}>{score(summary.postAveragePercent)}</b></div>
+      <div><span>{t('Pre-course average')}</span><b data-testid={`text-assessment-gain-pre-${programId}`}>{score(summary.preAveragePercent)}</b></div>
+      <div><span>{t('Post-course average')}</span><b data-testid={`text-assessment-gain-post-${programId}`}>{score(summary.postAveragePercent)}</b></div>
       <div className={gain == null ? '' : gain > 0 ? 'is-gain' : gain < 0 ? 'is-loss' : ''}>
         <span>{t('Average change')}</span><b data-testid={`text-assessment-gain-change-${programId}`}>{gainLabel}</b>
       </div>
     </div>
     <div className="lp-assessment-coverage" aria-label={t('Assessment participation counts')}>
-      <div><b data-testid={`text-assessment-pre-count-${programId}`}>{summary.participantsWithPre} / {summary.eligibleParticipants}</b><span>{t('with a pre-course result')}</span></div>
-      <div><b data-testid={`text-assessment-post-count-${programId}`}>{summary.participantsWithPost} / {summary.eligibleParticipants}</b><span>{t('with a post-course result')}</span></div>
+      <div><b data-testid={`text-assessment-pre-count-${programId}`}>{summary.participantsWithPre} / {summary.eligibleParticipants}</b><span>{t('eligible for the pre-course average')}</span></div>
+      <div><b data-testid={`text-assessment-post-count-${programId}`}>{summary.participantsWithPost} / {summary.eligibleParticipants}</b><span>{t('eligible for the post-course average')}</span></div>
       <div><b data-testid={`text-assessment-paired-count-${programId}`}>{summary.pairedParticipants} / {summary.eligibleParticipants}</b><span>{t('with both results')}</span></div>
     </div>
-    {summary.pairedParticipants === 0 && <p className="lp-assessment-no-pairs">{t('No paired assessment results yet. Missing results are not counted as zero.')}</p>}
+    {(summary.preAveragePercent === null || summary.postAveragePercent === null) && <p className="lp-assessment-no-pairs">{t('A change is shown only when both assessments have eligible first-attempt results.')}</p>}
+  </section>;
+}
+
+function CohortAssessmentHistory({
+  programs,
+  selectedProgramIds,
+  onToggleProgram,
+}: {
+  programs: LearningProgressProgram[];
+  selectedProgramIds: number[] | null;
+  onToggleProgram: (programId: number) => void;
+}) {
+  const selectedPrograms = programs
+    .filter(program => selectedProgramIds === null || selectedProgramIds.includes(program.programId))
+    .sort((left, right) => {
+      if (left.startDate && right.startDate) return left.startDate.localeCompare(right.startDate) || left.programId - right.programId;
+      if (left.startDate) return -1;
+      if (right.startDate) return 1;
+      return left.programId - right.programId;
+    });
+  const score = (value: number | null) => value == null ? '—' : `${value.toFixed(1)}%`;
+  const change = (program: LearningProgressProgram) => {
+    const { preAveragePercent, postAveragePercent, averageGainPercentagePoints } = program.assessmentGain;
+    if (preAveragePercent === null || postAveragePercent === null || averageGainPercentagePoints === null) return '—';
+    return `${averageGainPercentagePoints > 0 ? '+' : ''}${averageGainPercentagePoints.toFixed(1)} ${t('pp')}`;
+  };
+
+  return <section className="lp-assessment-history" data-testid="panel-assessment-history">
+    <header>
+      <div><span className="lp-eyebrow">{t('HISTORICAL LEARNING')}</span><h3>{t('Assessment results across program runs')}</h3>
+        <p>{t('Compare first-attempt pre-course and post-course averages. Each average includes only participants with an eligible result.')}</p>
+      </div>
+    </header>
+    <fieldset className="lp-history-select">
+      <legend>{t('SELECT PROGRAM RUNS')}</legend>
+      <div>{programs.map(program => {
+        const checked = selectedProgramIds === null || selectedProgramIds.includes(program.programId);
+        return <label key={program.programId}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => onToggleProgram(program.programId)}
+            data-testid={`checkbox-assessment-history-program-${program.programId}`}
+          />
+          <span>{program.programName}</span>
+        </label>;
+      })}</div>
+    </fieldset>
+    {selectedPrograms.length ? <div className="lp-history-table-wrap">
+      <table className="lp-history-table">
+        <thead><tr>
+          <th>{t('Program run')}</th>
+          <th>{t('Pre-course average')}</th>
+          <th>{t('Post-course average')}</th>
+          <th>{t('Average change')}</th>
+        </tr></thead>
+        <tbody>{selectedPrograms.map(program => {
+          const summary = program.assessmentGain;
+          const delta = summary.averageGainPercentagePoints;
+          return <tr key={program.programId} data-testid={`row-assessment-history-${program.programId}`}>
+            <th scope="row"><strong>{program.programName}</strong><small>{fmtDate(program.startDate)}</small></th>
+            <td><strong>{score(summary.preAveragePercent)}</strong><small>{summary.participantsWithPre} / {summary.eligibleParticipants} {t('participants')}</small></td>
+            <td><strong>{score(summary.postAveragePercent)}</strong><small>{summary.participantsWithPost} / {summary.eligibleParticipants} {t('participants')}</small></td>
+            <td className={delta == null ? '' : delta > 0 ? 'is-gain' : delta < 0 ? 'is-loss' : ''}><strong>{change(program)}</strong></td>
+          </tr>;
+        })}</tbody>
+      </table>
+    </div> : <p className="lp-history-empty">{t('Select at least one program run to compare assessment results.')}</p>}
+    <p className="lp-history-footnote">{t('Change is omitted when either average has no eligible results. Missing assessments are not treated as zero.')}</p>
   </section>;
 }
 
@@ -394,8 +463,8 @@ export function LearningProgressAnalytics() {
   useAppLanguage();
   const client = useQueryClient();
   const [selected, setSelected] = useState('');
-  const params = useMemo(() => selected ? { programId: Number(selected) } : undefined, [selected]);
-  const query = useGetLearningProgressAnalytics(params, { query: { queryKey: getGetLearningProgressAnalyticsQueryKey(params), refetchOnWindowFocus: true, refetchInterval: 30_000 } });
+  const [selectedHistoryPrograms, setSelectedHistoryPrograms] = useState<number[] | null>(null);
+  const query = useGetLearningProgressAnalytics(undefined, { query: { queryKey: getGetLearningProgressAnalyticsQueryKey(), refetchOnWindowFocus: true, refetchInterval: 30_000 } });
   const issue = useIssueCourseCertificate();
   const revoke = useRevokeCourseCertificate();
   const retryReminder = useRetryCourseReminder();
@@ -407,13 +476,19 @@ export function LearningProgressAnalytics() {
   }
   const programCatalog = programCatalogRef.current;
   const visiblePrograms = selected ? programs.filter(program => String(program.programId) === selected) : programs;
+  const toggleHistoryProgram = (programId: number) => {
+    const currentlySelected = selectedHistoryPrograms ?? programs.map(program => program.programId);
+    setSelectedHistoryPrograms(currentlySelected.includes(programId)
+      ? currentlySelected.filter(id => id !== programId)
+      : [...currentlySelected, programId]);
+  };
   const [issuing, setIssuing] = useState<number | null>(null);
   const [revokingCertificateId, setRevokingCertificateId] = useState<number | null>(null);
   const [retryingReminder, setRetryingReminder] = useState<number | null>(null);
   const issueCertificate = (person: LearningProgressParticipant) => {
     setIssuing(person.applicationId);
     issue.mutate({ id: person.applicationId }, {
-      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey(params) }),
+      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey() }),
       onError: () => undefined,
       onSettled: () => setIssuing(null),
     });
@@ -423,7 +498,7 @@ export function LearningProgressAnalytics() {
     setRevokingCertificateId(certificateId);
     revoke.mutate({ id: certificateId, data: { reason } }, {
       onSuccess: () => {
-        void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey(params) });
+        void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey() });
         onSuccess();
       },
       onSettled: () => setRevokingCertificateId(null),
@@ -434,7 +509,7 @@ export function LearningProgressAnalytics() {
     retryReminder.reset();
     setRetryingReminder(delivery.id);
     retryReminder.mutate({ id: delivery.id }, {
-      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey(params) }),
+      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey() }),
       onSettled: () => setRetryingReminder(null),
     });
   };
@@ -448,6 +523,7 @@ export function LearningProgressAnalytics() {
       : !programs.length ? <div className="lp-state"><Activity size={20} /><div><b>{t('No learning records yet.')}</b><span>{t('Progress appears after a cohort has published learning modules.')}</span></div></div>
       : <>
         <div className="lp-metrics"><article><span><Activity size={15} />{t('PARTICIPANTS')}</span><b data-testid="text-learning-participant-count">{allParticipants.length}</b><small>{t('Across selected programs')}</small></article><article><span><Check size={15} />{t('AVERAGE COMPLETION')}</span><b>{completion.toFixed(1)}%</b><small>{t('Required learning pathway')}</small></article><article><span><Hourglass size={15} />{t('ACTIVE LEARNING')}</span><b>{fmtTime(totalTime)}</b><small>{t('Combined recorded time')}</small></article><article><span><Award size={15} />{t('CERTIFICATES')}</span><b>{certs}</b><small>{t('Issued by coordinators')}</small></article></div>
+         <CohortAssessmentHistory programs={programs} selectedProgramIds={selectedHistoryPrograms} onToggleProgram={toggleHistoryProgram} />
         {issue.isError && <div className="lp-mutation-error" role="alert" data-testid="error-issue-certificate">{t('Certificate could not be issued. Confirm eligibility and try again.')}</div>}
         {revoke.isError && <div className="lp-mutation-error" role="alert" data-testid="error-revoke-certificate">{t('Certificate could not be revoked. Refresh the record and try again.')}</div>}
          {retryReminder.isError && <div className="lp-mutation-error" role="alert" data-testid="error-retry-course-reminder">{t('Reminder could not be queued. Refresh the cohort status and try again.')}</div>}

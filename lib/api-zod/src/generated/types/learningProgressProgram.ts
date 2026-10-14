@@ -12,6 +12,11 @@ import type { LearningProgressParticipant } from './learningProgressParticipant'
 export interface LearningProgressProgram {
   programId: number;
   programName: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  startDate: string | null;
   /** @minimum 0 */
   participantCount: number;
   /** @minimum 0 */
