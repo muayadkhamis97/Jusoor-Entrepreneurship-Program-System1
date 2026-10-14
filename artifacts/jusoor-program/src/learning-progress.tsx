@@ -426,7 +426,7 @@ function CohortAssessmentHistory({
         onClick={() => downloadCohortLearningOutcomesCsv(selectedPrograms)}
         disabled={!selectedPrograms.length}
         data-testid="button-export-learning-outcomes"
-      ><Download size={14} />{t('Export CSV')}</button>
+      ><Download size={14} />{t('Export spreadsheet (CSV)')}</button>
     </header>
     <fieldset className="lp-history-select">
       <legend>{t('SELECT PROGRAM RUNS')}</legend>

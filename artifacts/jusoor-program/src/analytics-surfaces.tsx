@@ -25,6 +25,8 @@ import {
   ClipboardCheck, Download, FileText, Moon, Printer, RefreshCw, Sun, Target,
   Users, X, CircleAlert, Plus, Pencil, Trash2,
 } from "lucide-react";
+import { downloadProgramAnalyticsCsv } from "./program-analytics-export";
+import type { ProgramAnalyticsCsvRow } from "./program-analytics-export";
 import {
   Area, AreaChart, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
@@ -247,6 +249,78 @@ export function ProgramAnalyticsPage() {
     { title: "Assignment completion", value: summary?.assignmentCompletionRate == null ? "—" : `${summary.assignmentCompletionRate.toFixed(1)}%`, hint: summary?.assignmentCompletionRate == null ? "No assignment records in range" : `${fmt(summary.submissions)} of ${fmt(summary.assignments)} submissions`, icon: FileText, hue: "gold" },
     { title: "Grants awarded", value: summary ? fmt(summary.grantsAwarded) : "—", hint: summary ? `${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(summary.grantAmount)} total` : "No program data", icon: Target, hue: "slate" },
   ];
+
+  function exportReportSpreadsheet() {
+    const rows: ProgramAnalyticsCsvRow[] = [];
+    const unavailable = currentLanguage() === "ar" ? "غير متاح" : "Unavailable";
+    const add = (section: string, item: string, detail: string, value: string | number | null) => {
+      rows.push({ section: t(section), item: t(item), detail, value: value ?? unavailable });
+    };
+    if (reportParts.summary && summary) {
+      [
+        ["Applications", summary.applications],
+        ["Accepted applications", summary.acceptedApplications],
+        ["Active businesses", summary.activeBusinesses],
+        ["Enrolled businesses", summary.businesses],
+        ["Attendance rate (%)", summary.attendanceRate],
+        ["Present marks", summary.present],
+        ["Total attendance marks", summary.attendanceMarks],
+        ["Assignment completion rate (%)", summary.assignmentCompletionRate],
+        ["Assignments submitted", summary.submissions],
+        ["Assignments available", summary.assignments],
+        ["Sessions in range", summary.sessionsInRange],
+        ["Completed support", summary.completedSupport],
+        ["Unanswered questions", summary.unansweredQuestions],
+        ["Grants awarded", summary.grantsAwarded],
+        ["Grant amount (USD)", summary.grantAmount],
+      ].forEach(([item, value]) => add("Program summary", String(item), "", value as number | null));
+    }
+    if (reportParts.stages) {
+      stageRows.forEach((row) => add("Founder stage distribution", STAGE_LABELS[row.stage] ?? row.stage, "", row.count));
+    }
+    if (reportParts.attendance) {
+      trendRows.forEach((row) => {
+        const values = [
+          ["Present", row.present],
+          ["Absent", row.absent],
+          ["Excused", row.excused],
+        ] as const;
+        values.forEach(([item, value]) => add("Attendance trend", item, row.period, value));
+      });
+      sessions.forEach((session) => {
+        add("Session attendance", session.title, dateLabel(session.scheduledDate), session.present);
+        add("Session attendance", session.title, `${dateLabel(session.scheduledDate)} · ${t("Attendance marks")}`, session.attendanceMarks);
+      });
+    }
+    if (reportParts.engagement) {
+      engagementRows.forEach((person) => {
+        add("Founder engagement", person.businessName, `${t("Current stage")}: ${t(STAGE_LABELS[person.stage] ?? person.stage)} · ${t("Attendance rate (%)")}`, person.attendanceRate);
+        add("Founder engagement", person.businessName, t("Assignments submitted / available"), `${person.assignmentsSubmitted} / ${person.assignmentsAvailable}`);
+      });
+    }
+    if (reportParts.impact) {
+      kpis.forEach((kpi) => {
+        kpi.values.forEach((value) => {
+          add("Impact indicators and business outcomes", value.businessName, `${kpi.name} (${kpi.unit}) · ${dateLabel(value.periodEnd)}`, value.value);
+          if (value.notes) add("Impact indicator notes", value.businessName, `${kpi.name} · ${dateLabel(value.periodEnd)}`, value.notes);
+        });
+        if (kpi.targetValue !== null) add("Impact indicator targets", kpi.name, kpi.unit, kpi.targetValue);
+      });
+    }
+
+    const programName = selectedProgram
+      ? data?.programs.find((program) => program.id === selectedProgram)?.name ?? t("Selected program")
+      : t("All programs");
+    const locale = currentLanguage() === "ar" ? "ar-JO" : "en-GB";
+    downloadProgramAnalyticsCsv({
+      title: reportTitle.trim() || t("Program progress report"),
+      scope: programName,
+      from: from ? dateLabel(from) : t("Start"),
+      through: to ? dateLabel(to) : t("Today"),
+      generatedAt: new Date().toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" }),
+    }, rows, currentLanguage() === "ar" ? "ar" : "en");
+    setReportOpen(false);
+  }
 
   return <section className="analytics-page">
     <div className="analytics-wrap">
@@ -504,17 +578,47 @@ export function ProgramAnalyticsPage() {
       <div className="ana-form"><label>Report title<input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} maxLength={100} /></label>
          <div className="ana-report-parts">{Object.entries({ summary: "Program summary", stages: "Founder stage distribution", attendance: "Attendance trend and sessions", engagement: "Founder engagement table", impact: "Impact indicators and business outcomes" }).map(([key, label]) => <label key={key}><input type="checkbox" checked={reportParts[key as keyof typeof reportParts]} onChange={(event) => setReportParts((parts) => ({ ...parts, [key]: event.target.checked }))} /><span>{label}</span></label>)}</div>
         <div className="ana-report-scope"><b>Included scope</b><span>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"}</span><span>{from ? dateLabel(from) : "Start"} to {to ? dateLabel(to) : "Today"}</span></div>
-        <div className="ana-modal-actions"><button className="ana-button subtle" onClick={() => setReportOpen(false)}>Cancel</button><button className="ana-button primary" onClick={() => { setReportOpen(false); window.setTimeout(() => window.print(), 100); }}><Printer size={14} /> Print / Save PDF</button></div>
+         <div className="ana-modal-actions ana-report-actions"><button className="ana-button subtle" onClick={() => setReportOpen(false)}>{t("Cancel")}</button><button className="ana-button subtle" onClick={exportReportSpreadsheet} data-testid="button-export-program-report-csv"><Download size={14} /> {t("Export spreadsheet (CSV)")}</button><button className="ana-button primary" onClick={() => { setReportOpen(false); window.setTimeout(() => window.print(), 100); }} data-testid="button-print-program-report"><Printer size={14} /> {t("Print / Save branded PDF")}</button></div>
       </div>
     </section></div>}
 
-  <div className="ana-report-print" aria-hidden="true"><div className="ana-print-title"><span>JUSOOR PROGRAM HUB · IMPACT &amp; PROGRESS</span><h1>{reportTitle || "Program progress report"}</h1><p>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"} · {from ? dateLabel(from) : "Start"} — {to ? dateLabel(to) : "Today"}</p></div>
-      {reportParts.summary && summary && <section><h2>Program summary</h2><div className="ana-print-stats">{metrics.map((metric) => <div key={metric.title}><span>{metric.title}</span><b>{metric.value}</b><small>{metric.hint}</small></div>)}</div><p>Applications: {fmt(summary.applications)} · Accepted: {fmt(summary.acceptedApplications)} · Sessions: {fmt(summary.sessionsInRange)} · Completed support: {fmt(summary.completedSupport)} · Unanswered questions: {fmt(summary.unansweredQuestions)}</p></section>}
-      {reportParts.stages && <section><h2>Founder stage distribution</h2>{stageRows.length ? stageRows.map((row) => <p key={row.stage}>{STAGE_LABELS[row.stage] ?? row.stage}: {fmt(row.count)}</p>) : <p>No stage data recorded.</p>}</section>}
-      {reportParts.attendance && <section><h2>Attendance trend and sessions</h2>{hasAttendanceData ? trendRows.map((row) => <p key={row.period}>{row.period}: {row.present === null ? "No attendance marks recorded" : `${row.present} present · ${row.absent} absent · ${row.excused} excused`}</p>) : <p>No attendance data recorded for this range.</p>}{sessions.map((session) => <p key={session.id}>{dateLabel(session.scheduledDate)} · {session.title}: {session.present} present / {session.attendanceMarks} marked</p>)}</section>}
-      {reportParts.engagement && <section><h2>Founder engagement</h2>{engagementRows.length ? engagementRows.map((person) => <p key={person.businessId}>{person.businessName} · {STAGE_LABELS[person.stage] ?? person.stage} · {person.attendanceRate == null ? "No attendance records" : `${person.attendanceRate.toFixed(1)}% attendance`} · {person.assignmentsSubmitted}/{person.assignmentsAvailable} assignments</p>) : <p>No founder activity data recorded.</p>}</section>}
-      {reportParts.impact && <section><h2>Impact indicators and business outcomes</h2>{!selectedProgram ? <p>Select one program to include its impact indicators.</p> : kpis.length ? kpis.map((kpi) => <div key={kpi.id}><h3>{kpi.name} ({kpi.unit}){kpi.targetValue == null ? "" : ` · Target ${kpi.targetValue}`}</h3>{kpi.values.length ? kpi.values.map((value) => <p key={`${value.businessId}-${value.periodEnd}`}>{value.businessName} · {value.value} {kpi.unit} · period ending {dateLabel(value.periodEnd)}{value.notes ? ` · ${value.notes}` : ""}</p>) : <p>No business outcomes recorded for this indicator.</p>}</div>) : <p>No impact indicators have been defined for this program.</p>}</section>}
-      <small>Generated from recorded Jusoor Program Hub data. Missing records are reported as unavailable, not estimated.</small>
+  <div className="ana-report-print" aria-hidden="true" lang={currentLanguage()} dir={currentLanguage() === "ar" ? "rtl" : "ltr"}>
+      <header className="ana-print-brand">
+        <span className="ana-print-mark">J</span>
+        <div className="ana-print-wordmark"><b>JUSOOR</b><span>{t("ENTREPRENEURSHIP PROGRAM · COORDINATOR REPORT")}</span></div>
+        <span className="ana-print-issued">{t("Generated")} · {new Date().toLocaleDateString(currentLanguage() === "ar" ? "ar-JO" : "en-GB", { dateStyle: "medium" })}</span>
+      </header>
+      <div className="ana-print-title">
+        <span>{t("IMPACT & PROGRESS")}</span>
+        <h1>{reportTitle || t("Program progress report")}</h1>
+        <p>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : t("All programs")} · {from ? dateLabel(from) : t("Start")} — {to ? dateLabel(to) : t("Today")}</p>
+      </div>
+      {reportParts.summary && summary && <section>
+        <h2>{t("Program summary")}</h2>
+        <div className="ana-print-stats">{metrics.map((metric) => <div key={metric.title}><span>{t(metric.title)}</span><b>{metric.value}</b></div>)}</div>
+        <p>{t("Applications")}: {fmt(summary.applications)} · {t("Accepted applications")}: {fmt(summary.acceptedApplications)} · {t("Sessions")}: {fmt(summary.sessionsInRange)} · {t("Completed support")}: {fmt(summary.completedSupport)} · {t("Unanswered questions")}: {fmt(summary.unansweredQuestions)}</p>
+      </section>}
+      {reportParts.stages && <section>
+        <h2>{t("Founder stage distribution")}</h2>
+        {stageRows.length ? stageRows.map((row) => <p key={row.stage}>{t(STAGE_LABELS[row.stage] ?? row.stage)}: {fmt(row.count)}</p>) : <p>{t("No stage data recorded.")}</p>}
+      </section>}
+      {reportParts.attendance && <section>
+        <h2>{t("Attendance trend and sessions")}</h2>
+        {hasAttendanceData ? trendRows.map((row) => <p key={row.period}>{row.period}: {row.present === null ? t("No attendance marks recorded") : `${fmt(row.present)} ${t("present")} · ${fmt(row.absent ?? 0)} ${t("absent")} · ${fmt(row.excused ?? 0)} ${t("excused")}`}</p>) : <p>{t("No attendance data recorded for this range.")}</p>}
+        {sessions.map((session) => <p key={session.id}>{dateLabel(session.scheduledDate)} · {session.title}: {fmt(session.present)} {t("present")} / {fmt(session.attendanceMarks)} {t("marked")}</p>)}
+      </section>}
+      {reportParts.engagement && <section>
+        <h2>{t("Founder engagement")}</h2>
+        {engagementRows.length ? engagementRows.map((person) => <p key={person.businessId}>{person.businessName} · {t(STAGE_LABELS[person.stage] ?? person.stage)} · {person.attendanceRate == null ? t("No attendance records") : `${person.attendanceRate.toFixed(1)}% ${t("attendance")}`} · {person.assignmentsSubmitted}/{person.assignmentsAvailable} {t("assignments")}</p>) : <p>{t("No founder activity data recorded.")}</p>}
+      </section>}
+      {reportParts.impact && <section>
+        <h2>{t("Impact indicators and business outcomes")}</h2>
+        {!selectedProgram ? <p>{t("Select one program to include its impact indicators.")}</p> : kpis.length ? kpis.map((kpi) => <div key={kpi.id}>
+          <h3>{kpi.name} ({kpi.unit}){kpi.targetValue == null ? "" : ` · ${t("Target")} ${kpi.targetValue}`}</h3>
+          {kpi.values.length ? kpi.values.map((value) => <p key={`${value.businessId}-${value.periodEnd}`}>{value.businessName} · {value.value} {kpi.unit} · {t("period ending")} {dateLabel(value.periodEnd)}{value.notes ? ` · ${value.notes}` : ""}</p>) : <p>{t("No business outcomes recorded for this indicator.")}</p>}
+        </div>) : <p>{t("No impact indicators have been defined for this program.")}</p>}
+      </section>}
+      <footer className="ana-print-footer"><span>{t("Jusoor Entrepreneurship Program · Coordinator report")}</span><span>{t("Generated from recorded data. Missing records are reported as unavailable, not estimated.")}</span></footer>
     </div>
   </section>;
 }
