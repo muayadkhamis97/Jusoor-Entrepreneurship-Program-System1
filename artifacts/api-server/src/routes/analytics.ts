@@ -263,7 +263,6 @@ router.get("/analytics", async (req, res): Promise<void> => {
 
   const [applications, sessions, assignments, questions, pitches] = await Promise.all([
     db.select({ id: applicationsTable.id, status: applicationsTable.status }).from(applicationsTable).where(and(
-      eq(applicationsTable.enrollmentSource, "application"),
       applicationProgramFilter,
       gte(applicationsTable.createdAt, timestampStart(from)),
       lte(applicationsTable.createdAt, timestampEnd(to)),

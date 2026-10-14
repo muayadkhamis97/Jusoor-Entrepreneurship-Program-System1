@@ -16,7 +16,6 @@ import {
 import { requireCoordinator } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
-const INVITATION_SOURCE = "admin_invitation";
 
 function missingSchema(error: unknown): boolean {
   return Boolean(
@@ -58,7 +57,7 @@ router.get("/staff/participant-invitations", requireCoordinator, async (_req, re
     .innerJoin(applicationsTable, eq(applicationsTable.id, participantInvitationsTable.applicationId))
     .innerJoin(programsTable, eq(programsTable.id, applicationsTable.programId))
     .innerJoin(businessesTable, eq(businessesTable.id, applicationsTable.businessId))
-    .orderBy(desc(applicationsTable.createdAt), asc(applicationsTable.id));
+    .orderBy(desc(participantInvitationsTable.createdAt), asc(applicationsTable.id));
 
   res.json(ListParticipantInvitationsResponse.parse(records.map(({ clerkUserId, ...record }) => ({
     ...record,
