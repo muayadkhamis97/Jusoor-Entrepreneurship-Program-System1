@@ -41,7 +41,7 @@ import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter
 import { SessionCalendar } from './session-calendar';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { AccessibleDialogSurface } from './accessible-dialog';
-import { MobileStaffNavigation } from './mobile-staff-navigation';
+import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
@@ -146,19 +146,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const { signOut } = useClerk();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
-  const nav = [
-    { href: '/', label: 'Overview', icon: LayoutDashboard },
-    { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
-    { href: '/programs', label: 'Programs', icon: Activity },
-    ...(staff.role === 'coordinator' ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }, { href: '/branding', label: 'Branding', icon: Palette }, { href: '/api-integrations', label: 'API integrations', icon: KeyRound }] : []),
-    { href: '/sessions', label: 'Sessions', icon: CalendarDays },
-    ...(staff.role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
-    { href: '/support', label: 'Support', icon: Handshake },
-    { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
-    ...(staff.role === 'coordinator' ? [{ href: '/grants', label: 'Grant tracking', icon: CircleDollarSign }] : []),
-    ...(staff.role === 'coordinator' ? [{ href: '/courses', label: 'Learning', icon: BookOpen }, { href: '/applications', label: 'Applications', icon: FileText }, { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck }, { href: '/team', label: 'Team access', icon: Shield }, { href: '/access', label: 'Role access', icon: Shield }] : []),
-    ...(staff.role === 'staff' ? [{ href: '/courses', label: 'Course schedule', icon: CalendarDays }] : []),
-  ];
+  const nav = getStaffNavigationItems(staff.role === 'coordinator' ? 'coordinator' : 'staff');
   const label = nav.find(item => item.href === path)?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">

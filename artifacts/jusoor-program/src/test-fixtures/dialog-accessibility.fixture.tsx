@@ -1,24 +1,21 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, BookOpen, CalendarDays, LayoutDashboard, Users } from 'lucide-react';
-import { Router as WouterRouter } from 'wouter';
+import { Router as WouterRouter, useLocation } from 'wouter';
 import { AccessibleDialogSurface } from '../accessible-dialog';
 import { LanguageProvider, LanguageToggle, t, useAppLanguage } from '../language';
-import { MobileStaffNavigation, type StaffNavigationItem } from '../mobile-staff-navigation';
+import { getStaffNavigationItems, MobileStaffNavigation } from '../mobile-staff-navigation';
+import '../index.css';
 import '../workspace.css';
 
-const fixtureLocationHook = (): [string, (path: string) => void] => ['/sessions', () => undefined];
-const navigationItems: StaffNavigationItem[] = [
-  { href: '/', label: 'Overview', icon: LayoutDashboard },
-  { href: '/businesses', label: 'Businesses', icon: Users },
-  { href: '/programs', label: 'Programs', icon: Activity },
-  { href: '/sessions', label: 'Sessions', icon: CalendarDays },
-  { href: '/courses', label: 'Learning', icon: BookOpen },
-  { href: '/communications', label: 'Communications', icon: Activity },
-];
+const fixtureLocationHook = (): [string, (path: string) => void] => {
+  const [path, setPath] = useState('/sessions');
+  return [path, setPath];
+};
 
 function DialogAccessibilityFixture() {
   const { language } = useAppLanguage();
+  const [currentPath] = useLocation();
+  const [staffRole, setStaffRole] = useState<'coordinator' | 'staff'>('coordinator');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -37,6 +34,10 @@ function DialogAccessibilityFixture() {
       <LanguageToggle />
       <span data-testid="language-state">{language}</span>
       <p data-testid="localized-copy">{t('Choose your cohort')}</p>
+      <div aria-label="Staff role">
+        <button type="button" data-testid="role-coordinator" onClick={() => setStaffRole('coordinator')}>Coordinator menu</button>
+        <button type="button" data-testid="role-staff" onClick={() => setStaffRole('staff')}>Program staff menu</button>
+      </div>
       <button type="button" id="open-application-review" onClick={() => setReviewOpen(true)}>
         Open application review
       </button>
@@ -159,7 +160,7 @@ function DialogAccessibilityFixture() {
         </AccessibleDialogSurface>
       )}
 
-      <MobileStaffNavigation items={navigationItems} currentPath="/sessions" onSignOut={() => undefined} />
+      <MobileStaffNavigation items={getStaffNavigationItems(staffRole)} currentPath={currentPath} onSignOut={() => undefined} />
     </main>
   );
 }

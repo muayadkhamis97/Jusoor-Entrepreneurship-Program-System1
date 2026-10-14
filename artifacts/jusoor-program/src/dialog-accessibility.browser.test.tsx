@@ -8,6 +8,93 @@ import { createServer as createViteServer } from 'vite';
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
 
+const menuLabels = {
+  coordinator: {
+    en: ['Overview', 'Businesses', 'Programs', 'Analytics', 'Branding', 'API integrations', 'Sessions', 'Communications', 'Support', 'Pitch & grants', 'Grant tracking', 'Learning', 'Applications', 'Mentor booking', 'Team access', 'Role access'],
+    ar: ['نظرة عامة', 'المشاريع', 'البرامج', 'التحليلات', 'الهوية البصرية', 'تكاملات API', 'الجلسات', 'التواصل', 'الدعم', 'العروض والمنح', 'متابعة المنح', 'التعلّم', 'طلبات الانضمام', 'حجز جلسات الإرشاد', 'صلاحيات الفريق', 'صلاحيات الأدوار'],
+  },
+  staff: {
+    en: ['Overview', 'Businesses', 'Programs', 'Sessions', 'Support', 'Pitch & grants', 'Course schedule'],
+    ar: ['نظرة عامة', 'المشاريع', 'البرامج', 'الجلسات', 'الدعم', 'العروض والمنح', 'جدول إتاحة الوحدات'],
+  },
+} as const;
+
+async function checkStaffMenu(page: import('playwright-core').Page, role: 'coordinator' | 'staff', language: 'en' | 'ar') {
+  const labels = menuLabels[role][language];
+  const roleButton = page.getByTestId(role === 'coordinator' ? 'role-coordinator' : 'role-staff');
+  await roleButton.click();
+  const navigation = page.getByTestId('mobile-staff-navigation');
+  const activeLabel = role === 'coordinator' ? labels[6] : labels[3];
+  const activeHref = '/sessions';
+
+  const links = navigation.getByRole('link');
+  assert.equal(await links.count(), labels.length, `${role} should expose every permitted destination in ${language}.`);
+  for (const [index, label] of labels.entries()) {
+    const link = links.nth(index);
+    assert.equal((await link.locator('span').textContent())?.trim(), label, `${role} destination ${index + 1} should be labeled in ${language}.`);
+    assert.ok(await link.isVisible(), `${role} destination "${label}" should remain visible in ${language}.`);
+  }
+
+  const activeLink = navigation.getByRole('link', { name: activeLabel, exact: true });
+  assert.equal(await activeLink.getAttribute('href'), activeHref);
+  assert.equal(await activeLink.getAttribute('aria-current'), 'page', `${role} active page should be announced in ${language}.`);
+  assert.match(await activeLink.getAttribute('class') || '', /mobile-active/, `${role} active page should be visually marked in ${language}.`);
+  const activeStyle = await activeLink.evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    color: getComputedStyle(element).color,
+  }));
+  const inactiveStyle = await links.nth(0).evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    color: getComputedStyle(element).color,
+  }));
+  assert.notEqual(activeStyle.background, inactiveStyle.background, `${role} active page needs a visible background distinction in ${language}.`);
+  assert.notEqual(activeStyle.color, inactiveStyle.color, `${role} active page needs a visible text distinction in ${language}.`);
+
+  const scrollMetrics = await navigation.evaluate(element => ({
+    width: element.clientWidth,
+    contentWidth: element.scrollWidth,
+    overflowX: getComputedStyle(element).overflowX,
+  }));
+  assert.equal(scrollMetrics.overflowX, 'auto');
+  assert.ok(scrollMetrics.contentWidth > scrollMetrics.width, `${role} menu should scroll horizontally in ${language}.`);
+
+  const assertFocusedLinkIsInView = async () => {
+    const rect = await page.evaluate(() => {
+      const item = document.activeElement?.getBoundingClientRect();
+      const nav = document.querySelector<HTMLElement>('[data-testid="mobile-staff-navigation"]')?.getBoundingClientRect();
+      return item && nav ? { itemLeft: item.left, itemRight: item.right, navLeft: nav.left, navRight: nav.right } : null;
+    });
+    assert.ok(rect && rect.itemRight > rect.navLeft && rect.itemLeft < rect.navRight, `${role} keyboard focus should scroll its destination into view in ${language}.`);
+  };
+
+  await links.first().focus();
+  await assertFocusedLinkIsInView();
+  for (let index = 1; index < labels.length; index += 1) {
+    await page.keyboard.press('Tab');
+    const focusedTestId = await page.evaluate(() => document.activeElement?.getAttribute('data-testid'));
+    assert.equal(focusedTestId, await links.nth(index).getAttribute('data-testid'), `${role} destination ${index + 1} should be reachable by keyboard in ${language}.`);
+    await assertFocusedLinkIsInView();
+  }
+
+  await navigation.scrollIntoViewIfNeeded();
+  assert.equal(await page.evaluate(() => 'ontouchstart' in window), true, 'The browser fixture should expose touch input.');
+  const lastLink = links.nth(labels.length - 1);
+  const touchResult = await navigation.evaluate((element, direction) => {
+    const menu = element as HTMLElement;
+    menu.scrollLeft = direction === 'rtl' ? -menu.scrollWidth : menu.scrollWidth;
+    const item = menu.querySelectorAll('a')[menu.querySelectorAll('a').length - 1]!.getBoundingClientRect();
+    const nav = menu.getBoundingClientRect();
+    return {
+      overflowX: getComputedStyle(menu).overflowX,
+      scrollPosition: menu.scrollLeft,
+      visible: item.right > nav.left && item.left < nav.right,
+    };
+  }, language === 'ar' ? 'rtl' : 'ltr');
+  assert.equal(touchResult.overflowX, 'auto', `${role} menu should allow touch scrolling in ${language}.`);
+  assert.notEqual(touchResult.scrollPosition, 0, `${role} menu should scroll to its final item in ${language}.`);
+  assert.ok(touchResult.visible, `${role} final destination should be reachable in the touch-scroll container in ${language}.`);
+}
+
 async function unusedPort(): Promise<number> {
   const listener = createNetServer();
   await new Promise<void>((resolve, reject) => {
@@ -42,7 +129,7 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     });
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
     await page.goto(`http://127.0.0.1:${port}/src/test-fixtures/dialog-accessibility.html`, { waitUntil: 'domcontentloaded' });
 
     const reviewOpener = page.getByRole('button', { name: 'Open application review' });
@@ -134,27 +221,19 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await page.waitForFunction(() => document.activeElement?.id === 'open-confirmation');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'open-confirmation', 'Closing a confirmation should restore focus to its opener.');
 
-    const navigation = page.getByRole('navigation', { name: 'Main navigation' });
-    assert.equal(await navigation.getByRole('link', { name: 'Sessions' }).getAttribute('aria-current'), 'page');
-    assert.match(await navigation.getByRole('link', { name: 'Sessions' }).getAttribute('class') || '', /mobile-active/);
-    assert.ok(await navigation.getByRole('link', { name: 'Programs' }).isVisible(), 'Mobile navigation items should have visible text labels.');
-    assert.ok(await navigation.getByRole('button', { name: 'Sign out' }).isVisible(), 'The sign-out action should keep a visible text label.');
-    const scrolling = await navigation.evaluate(element => ({
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-      overflowX: getComputedStyle(element).overflowX,
-    }));
-    assert.equal(scrolling.overflowX, 'auto');
-    assert.ok(scrolling.scrollWidth > scrolling.clientWidth, 'All labeled destinations should remain available in the scrollable navigation.');
-
+    await page.setViewportSize({ width: 320, height: 800 });
     const languageToggle = page.getByTestId('button-language-toggle').first();
     assert.equal(await page.getByTestId('localized-copy').textContent(), 'Choose your cohort');
-    await languageToggle.click();
-    await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
-    assert.equal(await page.getByTestId('language-state').textContent(), 'ar');
-    assert.equal(await page.getByTestId('localized-copy').textContent(), 'اختر المجموعة');
-    await languageToggle.click();
-    await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
+    for (const role of ['coordinator', 'staff'] as const) {
+      await checkStaffMenu(page, role, 'en');
+      await languageToggle.click();
+      await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
+      assert.equal(await page.getByTestId('language-state').textContent(), 'ar');
+      assert.equal(await page.getByTestId('localized-copy').textContent(), 'اختر المجموعة');
+      await checkStaffMenu(page, role, 'ar');
+      await languageToggle.click();
+      await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
+    }
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();
