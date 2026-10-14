@@ -32,21 +32,21 @@ import { ParticipantPeerDirectory } from './peer-directory';
 import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, useFormField,
 } from '@/components/ui/form';
 
 const CoursePackagePlayer = lazy(() => import('./course-package-player').then(module => ({ default: module.CoursePackagePlayer })));
 
 const applicationSchema = z.object({
   programId: z.string().min(1, 'Choose a cohort to apply to.'),
-  founderName: z.string().trim().min(2, 'Enter your full name.').max(160),
-  email: z.string().trim().email('Enter a valid email address.').max(320),
-  phone: z.string().max(50).optional(),
-  businessName: z.string().trim().min(2, 'Enter your venture name.').max(180),
-  industry: z.string().max(120).optional(),
-  website: z.string().max(500).optional().refine(value => !value || /^https?:\/\//i.test(value), 'Include http:// or https://'),
-  summary: z.string().trim().min(30, 'Tell us at least 30 characters about your venture.').max(3000),
-  supportNeeds: z.string().trim().min(10, 'Tell us at least 10 characters about the support you need.').max(1500),
+  founderName: z.string().trim().min(2, 'Enter your full name.').max(160, 'Founder name must be 160 characters or fewer.'),
+  email: z.string().trim().email('Enter a valid email address.').max(320, 'Email address must be 320 characters or fewer.'),
+  phone: z.string().max(50, 'Phone number must be 50 characters or fewer.').optional(),
+  businessName: z.string().trim().min(2, 'Enter your venture name.').max(180, 'Venture name must be 180 characters or fewer.'),
+  industry: z.string().max(120, 'Industry must be 120 characters or fewer.').optional(),
+  website: z.string().max(500, 'Website must be 500 characters or fewer.').optional().refine(value => !value || /^https?:\/\//i.test(value), 'Include http:// or https://'),
+  summary: z.string().trim().min(30, 'Tell us at least 30 characters about your venture.').max(3000, 'Venture description must be 3,000 characters or fewer.'),
+  supportNeeds: z.string().trim().min(10, 'Tell us at least 10 characters about the support you need.').max(1500, 'Support request must be 1,500 characters or fewer.'),
 });
 type ApplicationFormValues = z.infer<typeof applicationSchema>;
 
@@ -57,16 +57,24 @@ const statusClass = (status: string) => ['accepted', 'completed', 'confirmed'].i
 
 const meetingDateTime = (value: string, timezone?: string | null) => {
   const date = new Date(value);
+  const locale = currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB';
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(locale, {
       dateStyle: 'medium',
       timeStyle: 'short',
       ...(timezone ? { timeZone: timezone } : {}),
     }).format(date);
   } catch {
-    return date.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+    return date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
   }
 };
+
+function ApplicationFormMessage() {
+  const { error, formMessageId } = useFormField();
+  const message = error?.message == null ? '' : String(error.message);
+  if (!message) return null;
+  return <p id={formMessageId} className="text-[0.8rem] font-medium text-destructive">{t(message)}</p>;
+}
 function IntakeBrand() {
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const brand = brandingQuery.data;
@@ -79,7 +87,7 @@ function IntakeFrame({ children }: { children: React.ReactNode }) {
 }
 
 function ProgramLoading() {
-  return <div className="loading-panel" aria-label="Loading application programs"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>;
+  return <div className="loading-panel" aria-label={t('Loading application programs')}><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>;
 }
 
 export function ApplyPage() {
@@ -127,7 +135,7 @@ export function ApplyPage() {
     : <div className="intake-grid">
       <Form {...form}><form className="intake-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <section className="intake-form-section"><div className="intake-section-head"><span className="intake-step">01</span><div><h2>{t('Choose your cohort')}</h2><p>{t('Start with the program that fits the work ahead.')}</p></div></div>
-          <FormField control={form.control} name="programId" render={({ field }) => <FormItem className="intake-field"><FormLabel>{t('Open program')} <i>*</i></FormLabel><FormControl><select {...field} data-testid="input-programId"><option value="">{t('Select a program')}</option>{programs.map((program: ApplicationProgram) => <option key={program.id} value={String(program.id)}>{program.name} · {word(program.format)}</option>)}</select></FormControl><FormMessage />{selectedProgram && <small>{t(selectedProgram.description || 'A Jusoor program designed to help founders make their next move.')}{selectedProgram.applicationDeadline ? ` ${t('Applications close')} ${dateText(selectedProgram.applicationDeadline)}.` : ''}</small>}</FormItem>} />
+            <FormField control={form.control} name="programId" render={({ field }) => <FormItem className="intake-field"><FormLabel>{t('Open program')} <i>*</i></FormLabel><FormControl><select {...field} data-testid="input-programId"><option value="">{t('Select a program')}</option>{programs.map((program: ApplicationProgram) => <option key={program.id} value={String(program.id)}>{program.name} · {word(program.format)}</option>)}</select></FormControl><ApplicationFormMessage />{selectedProgram && <small>{t(selectedProgram.description || 'A Jusoor program designed to help founders make their next move.')}{selectedProgram.applicationDeadline ? ` ${t('Applications close')} ${dateText(selectedProgram.applicationDeadline)}.` : ''}</small>}</FormItem>} />
         </section>
         <section className="intake-form-section"><div className="intake-section-head"><span className="intake-step">02</span><div><h2>{t('The people and the venture')}</h2><p>{t('We use this to understand who is building and what you are building.')}</p></div></div>
           <div className="intake-fields">
@@ -154,11 +162,11 @@ export function ApplyPage() {
 }
 
 function TextField({ form, name, label, placeholder, type = 'text', testId }: { form: ReturnType<typeof useForm<ApplicationFormValues>>; name: 'founderName' | 'email' | 'phone' | 'businessName' | 'industry' | 'website'; label: string; placeholder: string; type?: string; testId: string }) {
-  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field"><FormLabel>{t(label)}{['founderName', 'email', 'businessName'].includes(name) && <i> *</i>}</FormLabel><FormControl><input {...field} type={type} autoComplete={name === 'founderName' ? 'name' : name === 'email' ? 'email' : 'off'} placeholder={t(placeholder)} data-testid={testId} /></FormControl><FormMessage /></FormItem>} />;
+  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field"><FormLabel>{t(label)}{['founderName', 'email', 'businessName'].includes(name) && <i> *</i>}</FormLabel><FormControl><input {...field} type={type} autoComplete={name === 'founderName' ? 'name' : name === 'email' ? 'email' : 'off'} placeholder={t(placeholder)} data-testid={testId} /></FormControl><ApplicationFormMessage /></FormItem>} />;
 }
 
 function TextAreaField({ form, name, label, placeholder, helper, testId }: { form: ReturnType<typeof useForm<ApplicationFormValues>>; name: 'summary' | 'supportNeeds'; label: string; placeholder: string; helper: string; testId: string }) {
-  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field field-span"><FormLabel>{t(label)} <i>*</i></FormLabel><FormControl><textarea {...field} placeholder={t(placeholder)} data-testid={testId} /></FormControl><small>{t(helper)}</small><FormMessage /></FormItem>} />;
+  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field field-span"><FormLabel>{t(label)} <i>*</i></FormLabel><FormControl><textarea {...field} placeholder={t(placeholder)} data-testid={testId} /></FormControl><small>{t(helper)}</small><ApplicationFormMessage /></FormItem>} />;
 }
 
 export function ApplicationsReviewPage() {
@@ -209,11 +217,11 @@ export function ApplicationsReviewPage() {
        : <div className="table-wrap"><table><thead><tr><th>{t('FOUNDER / VENTURE')}</th><th>{t('PROGRAM')}</th><th>{t('SUBMITTED')}</th><th>{t('STATUS')}</th><th /></tr></thead><tbody>{filtered.map((record: EntrepreneurApplication) => <tr key={record.id} data-testid={`row-application-${record.id}`}><td><div className="company-cell"><span className="company-monogram">{record.founderName.slice(0, 1).toUpperCase()}</span><span><b>{record.founderName}</b><small>{record.businessName} · {record.email}</small></span></div></td><td>{record.programName}</td><td>{dateText(record.createdAt)}</td><td><span className={`badge ${statusClass(record.status)}`}><span />{t(statusWords[record.status] || word(record.status))}</span></td><td><button className="button button-quiet" onClick={() => setActiveId(record.id)} data-testid={`button-review-application-${record.id}`}>{t('Review')} <ArrowRight size={13} /></button></td></tr>)}</tbody></table></div>}
     </section>
      {active && <AccessibleDialogSurface className="modal-card" labelledBy="application-review-title" describedBy="application-review-description" initialFocusSelector="#application-review-title" onClose={() => setActiveId(null)} testId={`dialog-application-${active.id}`}>
-      <div className="modal-head"><div><div className="eyebrow">APPLICATION / JSR-{String(active.id).padStart(5, '0')}</div><h2 id="application-review-title" className="app-title" tabIndex={-1}>{active.businessName}</h2><p id="application-review-description">{active.founderName} · {active.programName}</p></div><button className="icon-button" aria-label="Close review" onClick={() => setActiveId(null)} data-testid="button-close-review">×</button></div>
+       <div className="modal-head"><div><div className="eyebrow">{t('APPLICATION')} / JSR-{String(active.id).padStart(5, '0')}</div><h2 id="application-review-title" className="app-title" tabIndex={-1}>{active.businessName}</h2><p id="application-review-description">{active.founderName} · {active.programName}</p></div><button className="icon-button" aria-label={t('Close review')} onClick={() => setActiveId(null)} data-testid="button-close-review">×</button></div>
       <div className="modal-form"><div className="application-detail"><div className="application-detail-main">
-        <div className="application-detail-card"><h3>Founder and venture</h3><div className="application-meta"><div><span>FOUNDER</span><b>{active.founderName}</b></div><div><span>EMAIL</span><a href={`mailto:${active.email}`}>{active.email}</a></div><div><span>PHONE</span><b>{active.phone || 'Not provided'}</b></div><div><span>INDUSTRY</span><b>{active.industry || 'Not specified'}</b></div><div><span>WEBSITE</span>{active.website ? <a href={active.website} target="_blank" rel="noreferrer">{active.website}</a> : <b>Not provided</b>}</div><div><span>SUBMITTED</span><b>{dateText(active.createdAt)}</b></div></div></div>
-        <div className="application-detail-card"><h3>About the venture</h3><p>{active.summary}</p></div><div className="application-detail-card"><h3>Support requested</h3><p>{active.supportNeeds}</p></div>
-       </div><aside className="review-aside"><h3>Coordinator decision</h3><label className="field">Application status<select className="form-control" value={status} onChange={event => setStatus(event.target.value as typeof status)} disabled={active.status === 'accepted' || active.status === 'declined'} data-testid="select-review-status"><option value="under_review">In review</option><option value="accepted">Accepted</option><option value="declined">Declined</option></select></label>{['accepted', 'declined'].includes(active.status) && <small>This is a final decision. You can update its internal notes here.</small>}<label className="field">Internal review notes<textarea className="review-note" value={notes} onChange={event => setNotes(event.target.value)} maxLength={3000} placeholder="Notes for the program team only" data-testid="input-review-notes" /><small>These notes are visible to coordinators only.</small></label>{review.isError && <div className="form-error" role="alert"><CircleAlert size={15} />Decision not saved. Try again.</div>}<button className="button button-primary" onClick={saveReview} disabled={review.isPending} data-testid="button-save-review">{review.isPending ? 'Saving decision…' : <><Check size={15} /> Save decision</>}</button></aside></div></div>
+         <div className="application-detail-card"><h3>{t('Founder and venture')}</h3><div className="application-meta"><div><span>{t('FOUNDER')}</span><b>{active.founderName}</b></div><div><span>{t('EMAIL')}</span><a href={`mailto:${active.email}`}>{active.email}</a></div><div><span>{t('PHONE')}</span><b>{active.phone || t('Not provided')}</b></div><div><span>{t('INDUSTRY')}</span><b>{active.industry || t('Not specified')}</b></div><div><span>{t('WEBSITE')}</span>{active.website ? <a href={active.website} target="_blank" rel="noreferrer">{active.website}</a> : <b>{t('Not provided')}</b>}</div><div><span>{t('SUBMITTED')}</span><b>{dateText(active.createdAt)}</b></div></div></div>
+         <div className="application-detail-card"><h3>{t('About the venture')}</h3><p>{active.summary}</p></div><div className="application-detail-card"><h3>{t('Support requested')}</h3><p>{active.supportNeeds}</p></div>
+        </div><aside className="review-aside"><h3>{t('Coordinator decision')}</h3><label className="field">{t('Application status')}<select className="form-control" value={status} onChange={event => setStatus(event.target.value as typeof status)} disabled={active.status === 'accepted' || active.status === 'declined'} data-testid="select-review-status"><option value="under_review">{t('In review')}</option><option value="accepted">{t('Accepted')}</option><option value="declined">{t('Declined')}</option></select></label>{['accepted', 'declined'].includes(active.status) && <small>{t('This is a final decision. You can update its internal notes here.')}</small>}<label className="field">{t('Internal review notes')}<textarea className="review-note" value={notes} onChange={event => setNotes(event.target.value)} maxLength={3000} placeholder={t('Notes for the program team only')} data-testid="input-review-notes" /><small>{t('These notes are visible to coordinators only.')}</small></label>{review.isError && <div className="form-error" role="alert"><CircleAlert size={15} />{t('Decision not saved. Try again.')}</div>}<button className="button button-primary" onClick={saveReview} disabled={review.isPending} data-testid="button-save-review">{review.isPending ? t('Saving decision…') : <><Check size={15} /> {t('Save decision')}</>}</button></aside></div></div>
      </AccessibleDialogSurface>}
   </>;
 }

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Activity, BookOpen, CalendarDays, LayoutDashboard, Users } from 'lucide-react';
 import { Router as WouterRouter } from 'wouter';
 import { AccessibleDialogSurface } from '../accessible-dialog';
-import { LanguageProvider } from '../language';
+import { LanguageProvider, LanguageToggle, t, useAppLanguage } from '../language';
 import { MobileStaffNavigation, type StaffNavigationItem } from '../mobile-staff-navigation';
 import '../workspace.css';
 
@@ -18,6 +18,8 @@ const navigationItems: StaffNavigationItem[] = [
 ];
 
 function DialogAccessibilityFixture() {
+  const { language } = useAppLanguage();
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [value, setValue] = useState('');
@@ -26,6 +28,12 @@ function DialogAccessibilityFixture() {
 
   return (
     <main>
+      <LanguageToggle />
+      <span data-testid="language-state">{language}</span>
+      <p data-testid="localized-copy">{t('Choose your cohort')}</p>
+      <button type="button" id="open-application-review" onClick={() => setReviewOpen(true)}>
+        Open application review
+      </button>
       <button type="button" id="open-sample-form" onClick={() => { setShowError(false); setFormOpen(true); }}>
         Open sample form
       </button>
@@ -33,6 +41,21 @@ function DialogAccessibilityFixture() {
         Open confirmation
       </button>
       {confirmed && <p role="status">Confirmation dismissed</p>}
+
+      {reviewOpen && (
+        <AccessibleDialogSurface
+          className="modal-card"
+          labelledBy="fixture-review-title"
+          describedBy="fixture-review-description"
+          initialFocusSelector="#fixture-review-title"
+          onClose={() => setReviewOpen(false)}
+          testId="fixture-application-review"
+        >
+          <h2 id="fixture-review-title" tabIndex={-1}>Application review</h2>
+          <p id="fixture-review-description">Synthetic applicant and venture details.</p>
+          <button type="button" aria-label="Close review" onClick={() => setReviewOpen(false)}>×</button>
+        </AccessibleDialogSurface>
+      )}
 
       {formOpen && (
         <AccessibleDialogSurface

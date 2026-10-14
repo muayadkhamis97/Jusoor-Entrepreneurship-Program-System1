@@ -45,6 +45,17 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(`http://127.0.0.1:${port}/src/test-fixtures/dialog-accessibility.html`, { waitUntil: 'domcontentloaded' });
 
+    const reviewOpener = page.getByRole('button', { name: 'Open application review' });
+    await reviewOpener.click();
+    const applicationReview = page.getByRole('dialog', { name: 'Application review' });
+    await applicationReview.waitFor();
+    assert.equal(await applicationReview.getAttribute('aria-modal'), 'true');
+    assert.equal(await applicationReview.getAttribute('aria-describedby'), 'fixture-review-description');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-review-title', 'Application review should focus its heading.');
+    await page.keyboard.press('Escape');
+    await applicationReview.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-application-review');
+
     const openForm = page.getByRole('button', { name: 'Open sample form' });
     await openForm.click();
     const formDialog = page.getByRole('dialog', { name: 'Edit sample record' });
@@ -104,6 +115,15 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     }));
     assert.equal(scrolling.overflowX, 'auto');
     assert.ok(scrolling.scrollWidth > scrolling.clientWidth, 'All labeled destinations should remain available in the scrollable navigation.');
+
+    const languageToggle = page.getByTestId('button-language-toggle');
+    assert.equal(await page.getByTestId('localized-copy').textContent(), 'Choose your cohort');
+    await languageToggle.click();
+    await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
+    assert.equal(await page.getByTestId('language-state').textContent(), 'ar');
+    assert.equal(await page.getByTestId('localized-copy').textContent(), 'اختر المجموعة');
+    await languageToggle.click();
+    await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();
