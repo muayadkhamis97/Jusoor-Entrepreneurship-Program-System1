@@ -37,7 +37,7 @@ export function CohortAssessmentHistory({
   return <section className="lp-assessment-history" data-testid="panel-assessment-history">
     <header className="lp-history-header">
       <div><span className="lp-eyebrow">{t('HISTORICAL LEARNING')}</span><h3>{t('Assessment results across program runs')}</h3>
-        <p>{t('Compare first-attempt pre-course and post-course averages. Each average includes only participants with an eligible result.')}</p>
+        <p>{t('Compare first-attempt pre-course and post-course averages. Each average includes only participants with an eligible result. Averages with fewer than 5 eligible participants are flagged because small samples may be less representative.')}</p>
       </div>
       <button
         type="button"
@@ -75,8 +75,8 @@ export function CohortAssessmentHistory({
           const delta = summary.averageGainPercentagePoints;
           return <tr key={program.programId} data-testid={`row-assessment-history-${program.programId}`}>
             <th scope="row"><strong>{program.programName}</strong><small>{fmtDate(program.startDate)}</small></th>
-            <td><strong>{score(summary.preAveragePercent)}</strong><small>{summary.participantsWithPre} / {summary.eligibleParticipants} {t('participants')}</small></td>
-            <td><strong>{score(summary.postAveragePercent)}</strong><small>{summary.participantsWithPost} / {summary.eligibleParticipants} {t('participants')}</small></td>
+            <td><strong>{score(summary.preAveragePercent)}</strong><small>{summary.participantsWithPre} / {summary.eligibleParticipants} {t('participants')}{summary.participantsWithPre < 5 && <span className="lp-history-small-sample" data-testid={`badge-small-sample-pre-${program.programId}`}>{t('Small sample')}</span>}</small></td>
+            <td><strong>{score(summary.postAveragePercent)}</strong><small>{summary.participantsWithPost} / {summary.eligibleParticipants} {t('participants')}{summary.participantsWithPost < 5 && <span className="lp-history-small-sample" data-testid={`badge-small-sample-post-${program.programId}`}>{t('Small sample')}</span>}</small></td>
             <td className={delta == null ? '' : delta > 0 ? 'is-gain' : 'is-loss'}><strong>{change(program)}</strong></td>
           </tr>;
         })}</tbody>

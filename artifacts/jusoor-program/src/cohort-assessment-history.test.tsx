@@ -74,8 +74,33 @@ test('selected program runs render chronologically with pre- and post-course cov
   const autumn = markup.slice(autumnRow);
   assert.match(spring, /4 \/ 4 participants/);
   assert.match(spring, /1 \/ 4 participants/);
+  assert.match(spring, /data-testid="badge-small-sample-pre-10"/);
+  assert.match(spring, /data-testid="badge-small-sample-post-10"/);
   assert.match(spring, /<strong>—<\/strong>/);
   assert.match(autumn, /3 \/ 5 participants/);
   assert.match(autumn, /2 \/ 5 participants/);
+  assert.match(autumn, /data-testid="badge-small-sample-pre-30"/);
+  assert.match(autumn, /data-testid="badge-small-sample-post-30"/);
   assert.match(autumn, /<strong>0\.0%<\/strong>/);
+});
+
+test('small-sample indicators use assessment-specific eligible counts', () => {
+  const markup = renderToStaticMarkup(
+    <CohortAssessmentHistory
+      programs={[program(40, 'Summer 2026', '2026-06-01', {
+        eligibleParticipants: 8,
+        participantsWithPre: 5,
+        participantsWithPost: 4,
+        pairedParticipants: 3,
+        preAveragePercent: 60,
+        postAveragePercent: 70,
+        averageGainPercentagePoints: 10,
+      })]}
+      selectedProgramIds={null}
+      onToggleProgram={() => {}}
+    />,
+  );
+  assert.doesNotMatch(markup, /badge-small-sample-pre-40/, 'five eligible pre-course results meet the threshold');
+  assert.match(markup, /badge-small-sample-post-40/, 'four eligible post-course results are flagged independently');
+  assert.match(markup, /small samples may be less representative/i);
 });

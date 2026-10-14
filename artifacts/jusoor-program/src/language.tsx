@@ -1193,6 +1193,8 @@ const arabic: Record<string, string> = {
   'HISTORICAL LEARNING': 'نتائج التعلم التاريخية',
   'Assessment results across program runs': 'نتائج التقييم عبر الدفعات',
   'Compare first-attempt pre-course and post-course averages. Each average includes only participants with an eligible result.': 'قارن متوسطات المحاولة الأولى قبل الدورة وبعدها. يشمل كل متوسط المشاركين الذين لديهم نتيجة مؤهلة فقط.',
+  'Compare first-attempt pre-course and post-course averages. Each average includes only participants with an eligible result. Averages with fewer than 5 eligible participants are flagged because small samples may be less representative.': 'قارن متوسطات المحاولة الأولى قبل الدورة وبعدها. يشمل كل متوسط المشاركين الذين لديهم نتيجة مؤهلة فقط. تُعلّم المتوسطات التي تضم أقل من 5 مشاركين مؤهلين لأن العينات الصغيرة قد تكون أقل تمثيلاً.',
+  'Small sample': 'عينة صغيرة',
   'SELECT PROGRAM RUNS': 'اختر الدفعات',
   'Program run': 'الدفعة',
   'participants': 'المشاركون',
