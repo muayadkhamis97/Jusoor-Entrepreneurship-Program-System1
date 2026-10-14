@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,7 +24,6 @@ import './course-learning.css';
 import { CourseDiscussion } from './course-discussion';
 import { ParticipantSessionInteractions } from './session-interactions';
 import { ParticipantModuleQuizzes } from './course-quizzes';
-import { CoursePackagePlayer } from './course-package-player';
 import { ParticipantLearningProgress } from './learning-progress';
 import { ParticipantIdeaValidation } from './idea-validation';
 import { ParticipantBusinessPlan } from './founder-business-plan';
@@ -34,6 +33,8 @@ import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
+
+const CoursePackagePlayer = lazy(() => import('./course-package-player').then(module => ({ default: module.CoursePackagePlayer })));
 
 const applicationSchema = z.object({
   programId: z.string().min(1, 'Choose a cohort to apply to.'),
@@ -258,7 +259,7 @@ function ParticipantProgramLearning() {
           })}</div><ParticipantModuleQuizzes moduleId={module.id} /><CourseDiscussion moduleId={module.id} participant /></div></section>)}
       </article>;
     })}
-   </section>{activePackage && <CoursePackagePlayer materialId={activePackage.id} title={activePackage.title} onClose={() => setActivePackage(null)} />}</>;
+   </section>{activePackage && <Suspense fallback={<div className="modal-backdrop" role="presentation"><section className="modal-card" role="status">{t('Loading course package…')}</section></div>}><CoursePackagePlayer materialId={activePackage.id} title={activePackage.title} onClose={() => setActivePackage(null)} /></Suspense>}</>;
 }
 
 function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {

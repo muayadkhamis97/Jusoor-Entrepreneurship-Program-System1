@@ -1,7 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import type { ParticipantLearningProgram } from '@workspace/api-client-react';
 
 type Certificate = NonNullable<ParticipantLearningProgram['certificate']>;
@@ -82,6 +81,7 @@ export function assertCertificateFits(page: HTMLElement) {
 export async function renderCertificatePdf(page: HTMLElement): Promise<HTMLCanvasElement> {
   await document.fonts.ready;
   assertCertificateFits(page);
+  const { default: html2canvas } = await import('html2canvas');
   return html2canvas(page, {
     backgroundColor: '#fffdf7',
     scale: 2,
@@ -97,7 +97,8 @@ export async function renderCertificatePdf(page: HTMLElement): Promise<HTMLCanva
   });
 }
 
-export function createCertificatePdf(canvas: HTMLCanvasElement, verificationUrl?: string): jsPDF {
+export async function createCertificatePdf(canvas: HTMLCanvasElement, verificationUrl?: string): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 297, 210, undefined, 'FAST');
   if (verificationUrl) pdf.link(206, 191, 86, 11, { url: verificationUrl });
@@ -106,7 +107,7 @@ export function createCertificatePdf(canvas: HTMLCanvasElement, verificationUrl?
 
 export async function downloadCertificatePdf(page: HTMLElement, verificationUrl: string, filename: string): Promise<{ pdf: jsPDF; canvas: HTMLCanvasElement }> {
   const canvas = await renderCertificatePdf(page);
-  const pdf = createCertificatePdf(canvas, verificationUrl);
+  const pdf = await createCertificatePdf(canvas, verificationUrl);
   pdf.save(filename);
   return { pdf, canvas };
 }

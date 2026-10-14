@@ -133,11 +133,11 @@ test('renders an accessible preview layout without a permanent verification link
   assert.doesNotMatch(markup, /<small>https:/);
 });
 
-test('creates one landscape A4 PDF page without changing the saved certificate data', () => {
+test('creates one landscape A4 PDF page without changing the saved certificate data', async () => {
   const before = JSON.stringify(certificate);
   const image = `data:image/png;base64,${onePixelPng()}`;
   const verificationUrl = 'https://jusoor.example/verify-certificate?code=JUS-2026-AR-8F31D2';
-  const pdf = createCertificatePdf({ toDataURL: () => image } as HTMLCanvasElement, verificationUrl);
+  const pdf = await createCertificatePdf({ toDataURL: () => image } as HTMLCanvasElement, verificationUrl);
   const pdfBytes = new Uint8Array(pdf.output('arraybuffer'));
   const pdfText = new TextDecoder().decode(pdfBytes);
 

@@ -3,7 +3,7 @@ import './role-workspace.css';
 import './role-access.css';
 import './session-recording.css';
 import './language.css';
-import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -38,21 +38,29 @@ import {
    History, Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
-import { ApplicationsReviewPage, ApplyPage, ParticipantDashboardPage } from './intake-surfaces';
-import { CourseManagementPage } from './course-surfaces';
-import { JudgeDashboardPage, MentorDashboardPage, RoleFrame, RoleNotFound, TrainerDashboardPage } from './role-surfaces';
-import { RoleAccessPage } from './role-access';
 import { SessionCalendar } from './session-calendar';
-import { CommunicationsPage } from './communications-surfaces';
 import { SessionRecordingPlayer } from './session-recording-player';
-import { ProgramAnalyticsPage } from './analytics-surfaces';
-import { CertificateVerificationPage, LearningProgressAnalytics } from './learning-progress';
-import { GrantManagementPage } from './grant-surfaces';
 import { trackEvent } from './lib/analytics';
 import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
-import { BrandingPage } from './branding-surfaces';
-import { ApiIntegrationsPage } from './api-integrations';
+
+const ApplicationsReviewPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplicationsReviewPage })));
+const ApplyPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplyPage })));
+const ParticipantDashboardPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ParticipantDashboardPage })));
+const CourseManagementPage = lazy(() => import('./course-surfaces').then(module => ({ default: module.CourseManagementPage })));
+const JudgeDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.JudgeDashboardPage })));
+const MentorDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.MentorDashboardPage })));
+const RoleFrame = lazy(() => import('./role-surfaces').then(module => ({ default: module.RoleFrame })));
+const RoleNotFound = lazy(() => import('./role-surfaces').then(module => ({ default: module.RoleNotFound })));
+const TrainerDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.TrainerDashboardPage })));
+const RoleAccessPage = lazy(() => import('./role-access').then(module => ({ default: module.RoleAccessPage })));
+const CommunicationsPage = lazy(() => import('./communications-surfaces').then(module => ({ default: module.CommunicationsPage })));
+const ProgramAnalyticsPage = lazy(() => import('./analytics-surfaces').then(module => ({ default: module.ProgramAnalyticsPage })));
+const CertificateVerificationPage = lazy(() => import('./learning-progress').then(module => ({ default: module.CertificateVerificationPage })));
+const LearningProgressAnalytics = lazy(() => import('./learning-progress').then(module => ({ default: module.LearningProgressAnalytics })));
+const GrantManagementPage = lazy(() => import('./grant-surfaces').then(module => ({ default: module.GrantManagementPage })));
+const BrandingPage = lazy(() => import('./branding-surfaces').then(module => ({ default: module.BrandingPage })));
+const ApiIntegrationsPage = lazy(() => import('./api-integrations').then(module => ({ default: module.ApiIntegrationsPage })));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -1109,7 +1117,7 @@ function AuthRouter() {
 }
 
 function App() {
-  return <LanguageProvider><TooltipProvider><WouterRouter base={basePath}><ClerkApp /></WouterRouter></TooltipProvider></LanguageProvider>;
+  return <LanguageProvider><TooltipProvider><WouterRouter base={basePath}><Suspense fallback={<AuthLoading />}><ClerkApp /></Suspense></WouterRouter></TooltipProvider></LanguageProvider>;
 }
 
 export default App;
