@@ -2872,6 +2872,47 @@ paths:
           description: Profile photo not found
         "503":
           description: Profile database migration is not applied
+  /staff/participant-invitations:
+    get:
+      operationId: listParticipantInvitations
+      tags: [staff]
+      summary: List Admin-created participant invitations
+      responses:
+        "200":
+          description: Participant invitations and account-link status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantInvitationList"
+        "403":
+          description: Admin access required
+    post:
+      operationId: createParticipantInvitation
+      tags: [staff]
+      summary: Invite a participant to an existing program business
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantInvitationInput"
+      responses:
+        "201":
+          description: Participant access invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantInvitation"
+        "400":
+          description: Invalid invitation
+        "403":
+          description: Admin access required
+        "404":
+          description: Active business not found
+        "409":
+          description: Email already has an application or invitation for this program
+        "503":
+          description: Business-team assignment migration is not applied
   /staff/mentor-booking-status:
     get:
       operationId: getMentorBookingStatus
@@ -4345,6 +4386,7 @@ components:
       type: object
       properties:
         applicationId: { type: integer }
+        enrollmentSource: { type: string, enum: [application, admin_invitation] }
         applicationStatus: { $ref: "#/components/schemas/ApplicationStatus" }
         submittedAt: { type: string, format: date-time }
         program: { $ref: "#/components/schemas/ParticipantProgram" }
@@ -4364,7 +4406,34 @@ components:
         questions:
           type: array
           items: { $ref: "#/components/schemas/ParticipantQuestion" }
-      required: [applicationId, applicationStatus, submittedAt, program, business, sessions, support, calendlyMeetings, assignments, questions]
+      required: [applicationId, enrollmentSource, applicationStatus, submittedAt, program, business, sessions, support, calendlyMeetings, assignments, questions]
+    ParticipantInvitationStatus:
+      type: string
+      enum: [pending, active]
+    ParticipantInvitation:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        participantName: { type: string }
+        programId: { type: integer }
+        programName: { type: string }
+        businessId: { type: integer }
+        businessName: { type: string }
+        status: { $ref: "#/components/schemas/ParticipantInvitationStatus" }
+        createdAt: { type: string, format: date-time }
+      required: [id, email, participantName, programId, programName, businessId, businessName, status, createdAt]
+    ParticipantInvitationList:
+      type: array
+      items:
+        $ref: "#/components/schemas/ParticipantInvitation"
+    ParticipantInvitationInput:
+      type: object
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        displayName: { type: string, minLength: 2, maxLength: 160 }
+        businessId: { type: integer, minimum: 1 }
+      required: [email, businessId]
     ParticipantAnnouncement:
       type: object
       properties:

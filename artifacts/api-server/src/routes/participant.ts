@@ -54,6 +54,7 @@ import {
   isCurrentRecordingNotice,
 } from "../lib/participant-recording-notices";
 import { participantBusinessTeamMembers } from "../lib/participantBusinessTeamAccess";
+import { getAdminInvitedApplicationIds } from "../lib/participantInvitations";
 
 const router: IRouter = Router();
 
@@ -655,6 +656,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     .where(eq(applicationsTable.clerkUserId, participant.userId))
     .orderBy(desc(applicationsTable.createdAt));
 
+  const invitationIds = await getAdminInvitedApplicationIds(rows.map(({ application }) => application.id));
   const eligible = rows.filter(({ application, business }) => application.status === "accepted" && business);
   const programIds = [...new Set(eligible.map(({ application }) => application.programId))];
   const acceptedProgramIds = [...new Set(rows
@@ -802,6 +804,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
 
   const result = rows.map(({ application, program, business }) => ({
     applicationId: application.id,
+    enrollmentSource: invitationIds.has(application.id) ? "admin_invitation" : "application",
     applicationStatus: application.status,
     submittedAt: application.createdAt,
     program: {

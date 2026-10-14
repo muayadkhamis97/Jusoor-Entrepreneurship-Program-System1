@@ -15,7 +15,7 @@ import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
-   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
+   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, getListParticipantInvitationsQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useArchiveProgram, useRestoreProgram, useListProgramLifecycleEvents, useDeleteSession, useDeleteSupport, useGetBusiness,
@@ -23,7 +23,7 @@ import {
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
-  useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail,
+   useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail, useCreateParticipantInvitation, useListParticipantInvitations,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
@@ -311,6 +311,11 @@ const staffRoleOptions = [
 const staffInviteFields: Field[] = [
   { name: 'email', label: 'Approved staff email', kind: 'email', required: true, wide: true },
   { name: 'role', label: 'Access role', kind: 'select', required: true, options: staffRoleOptions },
+];
+const participantInviteFields: Field[] = [
+  { name: 'email', label: 'Participant email', kind: 'email', required: true, wide: true },
+  { name: 'displayName', label: 'Participant name (optional)', kind: 'text', wide: true },
+  { name: 'businessId', label: 'Program and business', kind: 'select', required: true, wide: true },
 ];
 const staffRoleFields: Field[] = [
   { name: 'role', label: 'Access role', kind: 'select', required: true, options: staffRoleOptions },
@@ -833,15 +838,21 @@ function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookin
 function TeamPage() {
   const query = useListStaff();
   const staff = query.data || [];
+  const participantInvitationsQuery = useListParticipantInvitations();
+  const participantInvitations = participantInvitationsQuery.data || [];
   const programsQuery = useListPrograms();
   const programs = programsQuery.data || [];
   const programNames = new Map(programs.map(program => [program.id, program.name]));
+  const businessesQuery = useListBusinesses();
+  const businesses = businessesQuery.data || [];
   const client = useQueryClient();
   const create = useCreateStaff();
+  const createParticipantInvitation = useCreateParticipantInvitation();
   const update = useUpdateStaff();
   const remove = useDeleteStaff();
   const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<StaffMember | null>(null);
+  const [invitingParticipant, setInvitingParticipant] = useState(false);
   const programAssignmentField: Field = {
     name: 'programIds',
     label: 'Assigned programs',
@@ -849,6 +860,15 @@ function TeamPage() {
     wide: true,
     options: programs.map(program => ({ value: String(program.id), label: program.name })),
      hint: 'Program staff and specialists can access only the active programs assigned here. Admins have global access.',
+  };
+  const participantBusinessField: Field = {
+    ...participantInviteFields[2],
+    options: businesses
+      .filter(business => programNames.has(business.programId))
+      .map(business => ({
+        value: String(business.id),
+        label: `${programNames.get(business.programId)} — ${business.businessName}`,
+      })),
   };
   const save = (values: Values) => {
     const role = (values.role || 'staff') as StaffInput['role'];
@@ -873,10 +893,28 @@ function TeamPage() {
   });
   const formError = (create.error || update.error) as { data?: { error?: string } } | undefined;
   const deleteError = remove.error as { data?: { error?: string } } | null;
+  const participantInviteError = createParticipantInvitation.error as { data?: { error?: string } } | null;
+  const participantListError = participantInvitationsQuery.error as { data?: { error?: string } } | null;
+  const saveParticipantInvitation = (values: Values) => {
+    const email = values.email.trim().toLowerCase();
+    const displayName = values.displayName.trim();
+    createParticipantInvitation.mutate({
+      data: {
+        email,
+        businessId: Number(values.businessId),
+        ...(displayName ? { displayName } : {}),
+      },
+    }, {
+      onSuccess: () => {
+        invalidate(client, [getListParticipantInvitationsQueryKey()]);
+        setInvitingParticipant(false);
+      },
+    });
+  };
 
   return <>
-    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button>} />
-    <div className="team-callout"><Shield size={18} /><div><b>Every role is tied to a verified email.</b><span>Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.</span></div></div>
+    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<div className="team-invite-actions"><button className="button button-outline" onClick={() => setInvitingParticipant(true)} data-testid="button-invite-participant"><UserPlus size={16} /> {t('Invite participant')}</button><button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button></div>} />
+    <div className="team-callout"><Shield size={18} /><div><b>{t('Every role is tied to a verified email.')}</b><span>{t('Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.')}</span></div></div>
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
       <section className="panel staff-panel">
         <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only admins can change access</span></div>
@@ -891,7 +929,22 @@ function TeamPage() {
           </tr>)}
         </tbody></table></div>
       </section>}
+    <section className="panel staff-panel participant-invitation-panel">
+      <div className="panel-heading"><div><div className="eyebrow">{t('PARTICIPANT ACCESS')}</div><h2 className="app-title">{t('Participant invitations')}</h2></div><span className="section-meta">{t('Program and existing business access')}</span></div>
+      {participantInvitationsQuery.isLoading ? <LoadingState label="Loading participant invitations" /> :
+        participantInvitationsQuery.isError ? <div className="form-error" role="alert"><CircleAlert size={16} /><span>{t('Could not load participant invitations.')}{participantListError?.data?.error ? ` ${t(participantListError.data.error)}` : ''}</span><button className="button button-quiet" onClick={() => void participantInvitationsQuery.refetch()}>{t('Retry')}</button></div> :
+          participantInvitations.length === 0 ? <p className="empty-inline">{t('No participant invitations yet.')}</p> :
+            <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('PARTICIPANT')}</th><th>{t('PROGRAM / BUSINESS')}</th><th>{t('ACCOUNT')}</th><th>{t('ADDED')}</th></tr></thead><tbody>
+              {participantInvitations.map(invitation => <tr key={invitation.id} data-testid={`row-participant-invitation-${invitation.id}`}>
+                <td><b>{invitation.email}</b></td><td>{invitation.participantName}</td>
+                <td>{invitation.programName}<div className="table-secondary">{invitation.businessName}</div></td>
+                <td><Badge value={invitation.status} label={invitation.status === 'active' ? 'Joined' : 'Waiting for sign-in'} /></td>
+                <td>{dateLabel(invitation.createdAt)}</td>
+              </tr>)}
+            </tbody></table></div>}
+    </section>
     {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions and program scope this team member should have.' : 'Approve this verified email for the selected role and programs. The person can sign in with this same address.'} fields={[...(editing ? staffRoleFields : staffInviteFields), programAssignmentField]} initial={editing ? { role: editing.role, programIds: editing.programIds.filter(id => programNames.has(id)).join(',') } : { role: 'staff', programIds: '' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
+    {invitingParticipant && <FormDialog title="Invite a participant" description="Grant access to the selected program and existing business. The participant must sign in with this email; this action does not send email." fields={[participantInviteFields[0], participantInviteFields[1], participantBusinessField]} loading={createParticipantInvitation.isPending} onClose={() => setInvitingParticipant(false)} onSubmit={saveParticipantInvitation} error={participantInviteError ? participantInviteError.data?.error || 'The participant invitation could not be saved.' : undefined} />}
     {deleting && <ConfirmDialog item={`staff access for ${deleting.email}`} onCancel={() => setDeleting(null)} onConfirm={revoke} loading={remove.isPending} error={deleteError ? deleteError.data?.error || 'The access could not be revoked.' : undefined} />}
   </>;
 }

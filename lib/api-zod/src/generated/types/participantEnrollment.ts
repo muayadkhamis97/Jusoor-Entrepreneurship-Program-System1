@@ -9,6 +9,7 @@ import type { ApplicationStatus } from './applicationStatus';
 import type { ParticipantAssignment } from './participantAssignment';
 import type { ParticipantBusiness } from './participantBusiness';
 import type { ParticipantCalendlyMeeting } from './participantCalendlyMeeting';
+import type { ParticipantEnrollmentEnrollmentSource } from './participantEnrollmentEnrollmentSource';
 import type { ParticipantProgram } from './participantProgram';
 import type { ParticipantQuestion } from './participantQuestion';
 import type { ParticipantSession } from './participantSession';
@@ -16,6 +17,7 @@ import type { ParticipantSupport } from './participantSupport';
 
 export interface ParticipantEnrollment {
   applicationId: number;
+  enrollmentSource: ParticipantEnrollmentEnrollmentSource;
   applicationStatus: ApplicationStatus;
   submittedAt: Date;
   program: ParticipantProgram;

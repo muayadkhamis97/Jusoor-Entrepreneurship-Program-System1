@@ -198,6 +198,37 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
   collectFlowTranslationKeys('intake-surfaces.tsx', keys);
   collectFlowTranslationKeys('App.tsx', keys);
   collectFlowTranslationKeys('profile-surfaces.tsx', keys);
+  [
+    'Invite participant',
+    'Participant email',
+    'Participant name (optional)',
+    'Program and business',
+    'Participant invitations',
+    'Program and existing business access',
+    'No participant invitations yet.',
+    'Could not load participant invitations.',
+    'PARTICIPANT ACCESS',
+    'EMAIL',
+    'PARTICIPANT',
+    'PROGRAM / BUSINESS',
+    'ACCOUNT',
+    'ADDED',
+    'Joined',
+    'Waiting for sign-in',
+    'Invite a participant',
+    'Grant access to the selected program and existing business. The participant must sign in with this email; this action does not send email.',
+    'The participant invitation could not be saved.',
+    'This email already has an application or invitation for this program.',
+    'Choose a business in an active program.',
+    'Participant access assigned',
+    'No program access linked yet.',
+    'Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.',
+    'This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.',
+    'Every role is tied to a verified email.',
+    'Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.',
+    'Participant invitations require the additive participant invitation migration.',
+    'Participant business-team assignments require the assignment migration.',
+  ].forEach(key => keys.add(key));
   const missing = [...keys]
     .filter(key => !hasArabicTranslation(key) && !intentionallyEnglishExamples.has(key))
     .sort();

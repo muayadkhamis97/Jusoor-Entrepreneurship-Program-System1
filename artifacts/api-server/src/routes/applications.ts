@@ -13,6 +13,7 @@ import {
   programsTable,
 } from "@workspace/db";
 import { requireCoordinator } from "../middlewares/staffAccess";
+import { getAdminInvitedApplicationIds } from "../lib/participantInvitations";
 
 const router: IRouter = Router();
 
@@ -24,7 +25,9 @@ router.get("/applications", requireCoordinator, async (_req, res): Promise<void>
     .from(applicationsTable)
     .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
     .orderBy(desc(applicationsTable.createdAt));
-  const applications = records.map(({ application, programName }) => ({
+  const invitationIds = await getAdminInvitedApplicationIds(records.map(({ application }) => application.id));
+  const applications = records.filter(({ application }) => !invitationIds.has(application.id))
+    .map(({ application, programName }) => ({
     id: application.id,
     programId: application.programId,
     programName,
@@ -52,10 +55,17 @@ router.patch("/applications/:id", requireCoordinator, async (req, res): Promise<
     return;
   }
 
+  if ((await getAdminInvitedApplicationIds([params.data.id])).has(params.data.id)) {
+    res.status(404).json({ error: "Application not found." });
+    return;
+  }
+
   const staff = res.locals.staff as { id: number; role: string } | undefined;
   const result = await db.transaction(async (tx) => {
     const [current] = await tx.select().from(applicationsTable)
-      .where(eq(applicationsTable.id, params.data.id))
+      .where(and(
+        eq(applicationsTable.id, params.data.id),
+      ))
       .limit(1)
       .for("update");
     if (!current) return { kind: "missing" as const };

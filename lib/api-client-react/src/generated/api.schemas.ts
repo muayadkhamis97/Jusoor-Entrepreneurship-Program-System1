@@ -1322,6 +1322,14 @@ export interface ParticipantCalendlyMeeting {
   status: ParticipantCalendlyMeetingStatus;
 }
 
+export type ParticipantEnrollmentEnrollmentSource = typeof ParticipantEnrollmentEnrollmentSource[keyof typeof ParticipantEnrollmentEnrollmentSource];
+
+
+export const ParticipantEnrollmentEnrollmentSource = {
+  application: 'application',
+  admin_invitation: 'admin_invitation',
+} as const;
+
 /**
  * @nullable
  */
@@ -1373,6 +1381,7 @@ export interface ParticipantQuestion {
 
 export interface ParticipantEnrollment {
   applicationId: number;
+  enrollmentSource: ParticipantEnrollmentEnrollmentSource;
   applicationStatus: ApplicationStatus;
   submittedAt: string;
   program: ParticipantProgram;
@@ -1382,6 +1391,40 @@ export interface ParticipantEnrollment {
   calendlyMeetings: ParticipantCalendlyMeeting[];
   assignments: ParticipantAssignment[];
   questions: ParticipantQuestion[];
+}
+
+export type ParticipantInvitationStatus = typeof ParticipantInvitationStatus[keyof typeof ParticipantInvitationStatus];
+
+
+export const ParticipantInvitationStatus = {
+  pending: 'pending',
+  active: 'active',
+} as const;
+
+export interface ParticipantInvitation {
+  id: number;
+  email: string;
+  participantName: string;
+  programId: number;
+  programName: string;
+  businessId: number;
+  businessName: string;
+  status: ParticipantInvitationStatus;
+  createdAt: string;
+}
+
+export type ParticipantInvitationList = ParticipantInvitation[];
+
+export interface ParticipantInvitationInput {
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  displayName?: string;
+  /** @minimum 1 */
+  businessId: number;
 }
 
 export type AnnouncementKind = typeof AnnouncementKind[keyof typeof AnnouncementKind];
@@ -3385,3 +3428,4 @@ export type ListPitchesParams = {
 businessId?: number;
 eventType?: PitchEventType;
 };
+

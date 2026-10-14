@@ -427,6 +427,10 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 .team-error { margin-bottom: 14px; }
 .staff-panel { padding: 19px 21px 5px; }
 .staff-panel .panel-heading { margin-bottom: 12px; }
+.participant-invitation-panel { margin-top: 16px; }
+.team-invite-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.table-secondary { color: hsl(var(--muted-foreground)); font-size: 11px; margin-top: 3px; }
+.empty-inline { color: hsl(var(--muted-foreground)); font-size: 12px; padding: 10px 0 16px; }
 .staff-email { display: flex; align-items: center; gap: 9px; }
 .staff-email b { color: hsl(var(--foreground)); font-size: 10px; font-weight: 600; }
 .staff-avatar { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 8px; background: hsl(var(--primary) / .09); color: hsl(var(--primary)); font: 700 11px 'Manrope', sans-serif; }
@@ -485,6 +489,7 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
   .auth-form-note { font-size: 9px; }
   .team-callout { padding: 12px; }
   .staff-panel { padding: 15px 13px 5px; }
+  .team-invite-actions { justify-content: flex-start; }
   .section-meta { font-size: 9px; }
 }
 

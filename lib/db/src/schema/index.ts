@@ -31,6 +31,7 @@ export * from "./pitches";
 export * from "./staff";
 export * from "./applications";
 export * from "./participant-business-memberships";
+export * from "./participant-invitations";
 export * from "./training";
 export * from "./pitch-judges";
 export * from "./courses";

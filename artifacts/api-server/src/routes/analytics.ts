@@ -56,6 +56,7 @@ import {
   zoomAttendanceParticipantsTable,
 } from "@workspace/db";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
+import { getAdminInvitedApplicationIds } from "../lib/participantInvitations";
 import {
   getZoomAttendanceReport,
   queueZoomAttendanceSync,
@@ -261,7 +262,8 @@ router.get("/analytics", async (req, res): Promise<void> => {
   const businessIds = businessRows.map(({ id }) => id);
 
   const [applications, sessions, assignments, questions, pitches] = await Promise.all([
-    db.select({ status: applicationsTable.status }).from(applicationsTable).where(and(
+    db.select({ id: applicationsTable.id, status: applicationsTable.status }).from(applicationsTable).where(and(
+      eq(applicationsTable.enrollmentSource, "application"),
       applicationProgramFilter,
       gte(applicationsTable.createdAt, timestampStart(from)),
       lte(applicationsTable.createdAt, timestampEnd(to)),
@@ -327,6 +329,8 @@ router.get("/analytics", async (req, res): Promise<void> => {
           lte(pitchesTable.eventDate, to),
         )),
   ]);
+  const invitationIds = await getAdminInvitedApplicationIds(applications.map(({ id }) => id));
+  const reportedApplications = applications.filter(({ id }) => !invitationIds.has(id));
 
   const sessionIds = sessions.map(({ id }) => id);
   const assignmentIds = assignments.map(({ id }) => id);
@@ -479,8 +483,8 @@ router.get("/analytics", async (req, res): Promise<void> => {
     from,
     to,
     summary: {
-      applications: applications.length,
-      acceptedApplications: applications.filter(({ status }) => status === "accepted").length,
+      applications: reportedApplications.length,
+      acceptedApplications: reportedApplications.filter(({ status }) => status === "accepted").length,
       businesses: businessRows.length,
       activeBusinesses: businessRows.filter(({ stage }) =>
         ["incubator", "pitch", "demo_day", "grant_awarded"].includes(stage),

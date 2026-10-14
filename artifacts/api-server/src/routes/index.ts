@@ -7,6 +7,7 @@ import supportRouter from "./support";
 import pitchesRouter from "./pitches";
 import staffRouter from "./staff";
 import applicationsRouter from "./applications";
+import participantInvitationsRouter from "./participantInvitations";
 import communicationsRouter from "./communications";
 import analyticsRouter from "./analytics";
 import grantsRouter from "./grants";
@@ -15,6 +16,7 @@ import { requireOperationsStaff } from "../middlewares/staffAccess";
 const router: IRouter = Router();
 
 router.use(staffRouter);
+router.use(participantInvitationsRouter);
 router.use(requireOperationsStaff);
 router.use(applicationsRouter);
 router.use(communicationsRouter);
