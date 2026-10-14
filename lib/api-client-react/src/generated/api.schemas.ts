@@ -2158,6 +2158,22 @@ export interface Program {
   createdAt: string;
 }
 
+export type ProgramLifecycleEventAction = typeof ProgramLifecycleEventAction[keyof typeof ProgramLifecycleEventAction];
+
+
+export const ProgramLifecycleEventAction = {
+  archived: 'archived',
+  restored: 'restored',
+} as const;
+
+export interface ProgramLifecycleEvent {
+  id: number;
+  action: ProgramLifecycleEventAction;
+  createdAt: string;
+  /** @nullable */
+  actorEmail: string | null;
+}
+
 export type ProgramInputFormat = typeof ProgramInputFormat[keyof typeof ProgramInputFormat];
 
 

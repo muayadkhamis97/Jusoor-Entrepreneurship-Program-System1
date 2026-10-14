@@ -138,6 +138,7 @@ import type {
   ProgramBranding,
   ProgramBrandingInput,
   ProgramInput,
+  ProgramLifecycleEvent,
   ProgramSessionInteractionAnalytics,
   ProgramUpdate,
   PutXapiActivityStateParams,
@@ -2182,6 +2183,83 @@ export const useDeleteProgram = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteProgramMutationOptions(options));
     }
+
+export const getListProgramLifecycleEventsUrl = (id: number,) => {
+
+
+
+
+  return `/api/programs/${id}/lifecycle-events`
+}
+
+/**
+ * @summary Review archive and restore history for a program
+ */
+export const listProgramLifecycleEvents = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramLifecycleEvent[]> => {
+
+  return customFetch<ProgramLifecycleEvent[]>(getListProgramLifecycleEventsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProgramLifecycleEventsQueryKey = (id: number,) => {
+    return [
+    `/api/programs/${id}/lifecycle-events`
+    ] as const;
+    }
+
+
+export const getListProgramLifecycleEventsQueryOptions = <TData = Awaited<ReturnType<typeof listProgramLifecycleEvents>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramLifecycleEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProgramLifecycleEventsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProgramLifecycleEvents>>> = ({ signal }) => listProgramLifecycleEvents(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProgramLifecycleEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProgramLifecycleEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listProgramLifecycleEvents>>>
+export type ListProgramLifecycleEventsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Review archive and restore history for a program
+ */
+
+export function useListProgramLifecycleEvents<TData = Awaited<ReturnType<typeof listProgramLifecycleEvents>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramLifecycleEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProgramLifecycleEventsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getArchiveProgramUrl = (id: number,) => {
 

@@ -553,6 +553,26 @@ paths:
           description: Coordinator role required
         "404":
           description: Program not found
+  /programs/{id}/lifecycle-events:
+    get:
+      operationId: listProgramLifecycleEvents
+      tags: [programs]
+      summary: Review archive and restore history for a program
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Program archive and restore history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgramLifecycleEvent"
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Program not found
   /programs/{id}/archive:
     post:
       operationId: archiveProgram
@@ -4502,6 +4522,14 @@ components:
         archivedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
       required: [id, name, format, status, archivedAt, createdAt]
+    ProgramLifecycleEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string, enum: [archived, restored] }
+        createdAt: { type: string, format: date-time }
+        actorEmail: { type: ["string", "null"] }
+      required: [id, action, createdAt, actorEmail]
     ProgramInput:
       type: object
       properties:

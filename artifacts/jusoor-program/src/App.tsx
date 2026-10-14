@@ -18,7 +18,7 @@ import {
    getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, useGetProgramBranding,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
-  useArchiveProgram, useRestoreProgram, useDeleteSession, useDeleteSupport, useGetBusiness,
+  useArchiveProgram, useRestoreProgram, useListProgramLifecycleEvents, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
@@ -27,7 +27,7 @@ import {
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
-  PitchRecord, PitchUpdate, Program, ProgramInput, ProgramUpdate,
+  PitchRecord, PitchUpdate, Program, ProgramInput, ProgramLifecycleEvent, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
@@ -35,7 +35,7 @@ import {
   Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
   CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, ExternalLink, LogOut, RefreshCw,
   FileText, Filter, Handshake, LayoutDashboard, MapPin,
-   Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
+   History, Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { ApplicationsReviewPage, ApplyPage, ParticipantDashboardPage } from './intake-surfaces';
@@ -311,6 +311,7 @@ const valueOf = (value?: string | number | null) => value == null ? '' : String(
 
 function ProgramsPage({ coordinator }: { coordinator: boolean }) {
   const [showArchived, setShowArchived] = useState(false);
+  const [historyProgram, setHistoryProgram] = useState<Program | null>(null);
   const query = useListPrograms(coordinator && showArchived ? { includeArchived: true } : undefined);
   const programs = query.data || [];
   const client = useQueryClient();
@@ -346,11 +347,32 @@ function ProgramsPage({ coordinator }: { coordinator: boolean }) {
       : <><div className="section-strip"><span><b>{programs.length}</b> {showArchived ? t('archived programs') : t('active cohorts')}</span><span><span className="live-dot" /> {t('Keep cohort dates current')}</span></div><div className="program-grid">{programs.map((program, index) => <article className="program-card" key={program.id} data-testid={`card-program-${program.id}`}><div className="program-card-top"><div className={`program-symbol program-symbol-${index % 3}`}>{program.format === 'bootcamp' ? 'B' : 'H'}</div><Badge value={program.archivedAt ? 'archived' : program.status} /><div className="row-actions">
         {coordinator && !program.archivedAt && <><button className="icon-button" onClick={() => setEditing(program)} aria-label={`Edit ${program.name}`} data-testid={`button-edit-program-${program.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setArchiving(program)} aria-label={`Archive ${program.name}`} data-testid={`button-archive-program-${program.id}`}><Trash2 size={15} /></button></>}
         {coordinator && program.archivedAt && <button className="icon-button" onClick={() => restoreProgram(program)} aria-label={`Restore ${program.name}`} data-testid={`button-restore-program-${program.id}`} disabled={restore.isPending}><RefreshCw size={15} /></button>}
+        {coordinator && <button className="icon-button" onClick={() => setHistoryProgram(program)} aria-label={`View archive and restore history for ${program.name}`} data-testid={`button-program-history-${program.id}`}><History size={15} /></button>}
       </div></div><div className="eyebrow">{display(program.format)} COHORT {program.archivedAt ? `· ${t('ARCHIVED')}` : ''}</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div>{!program.archivedAt && <Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link>}</article>)}</div></>}
     {(archive.error || restore.error) && <div className="form-error">{apiErrorMessage(archive.error || restore.error, 'The program archive change could not be completed.')}</div>}
+    {historyProgram && <ProgramLifecycleHistoryDialog program={historyProgram} onClose={() => setHistoryProgram(null)} />}
     {editing !== undefined && <FormDialog title={editing ? 'Edit program' : 'Create a program'} description="A cohort is the backbone of the founder journey." fields={programFields} initial={editing ? { name: editing.name, format: editing.format, status: editing.status, description: editing.description || '', startDate: valueOf(editing.startDate), endDate: valueOf(editing.endDate), applicationDeadline: valueOf(editing.applicationDeadline) } : { format: 'bootcamp', status: 'planning' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this program. Check required fields and try again.' : undefined} />}
     {archiving && <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="archive-program-title"><div className="confirm-symbol"><Trash2 size={20} /></div><h2 id="archive-program-title" className="app-title">{t('Archive this program?')}</h2><p><strong>{archiving.name}</strong> {t('will be hidden from active operations. Its applications, businesses and reports will be retained, and you can restore it later.')}</p>{archive.error && <div className="form-error">{apiErrorMessage(archive.error, 'The program could not be archived.')}</div>}<div className="modal-actions"><button className="button button-quiet" onClick={() => setArchiving(null)}>{t('Cancel')}</button><button className="button button-danger" onClick={confirmArchive} disabled={archive.isPending}>{archive.isPending ? t('Archiving…') : t('Archive program')}</button></div></section></div>}
   </>;
+}
+
+function ProgramLifecycleHistoryDialog({ program, onClose }: { program: Program; onClose: () => void }) {
+  const query = useListProgramLifecycleEvents(program.id);
+  const events: ProgramLifecycleEvent[] = query.data || [];
+  return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="modal-card lifecycle-history-modal" role="dialog" aria-modal="true" aria-labelledby="program-history-title" data-testid={`dialog-program-history-${program.id}`}>
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="program-history-title" className="app-title">{t('Archive and restore history')}</h2><p>{program.name}</p></div><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-program-history"><X size={18} /></button></div>
+      <div className="lifecycle-history-content">
+        {query.isLoading ? <LoadingState /> : query.isError
+          ? <div className="lifecycle-history-error"><p>{t('Program history could not be loaded.')}</p><button className="button button-quiet" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
+          : events.length === 0 ? <p className="lifecycle-history-empty">{t('No archive or restore actions have been recorded for this program.')}</p>
+            : <ol className="lifecycle-history-list">{events.map(event => <li className="lifecycle-history-event" key={event.id} data-testid={`program-history-event-${event.id}`}>
+              <span className={`lifecycle-history-mark ${event.action}`} aria-hidden="true"><History size={15} /></span>
+              <div className="lifecycle-history-details"><strong>{t(event.action === 'archived' ? 'Program archived' : 'Program restored')}</strong><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</time><small>{event.actorEmail || t('Actor account no longer exists')}</small></div>
+            </li>)}</ol>}
+      </div>
+    </section>
+  </div>;
 }
 
 function BusinessEditDialog({ business, programs, onClose, onSave, loading, error }: { business: Business; programs: Program[]; onClose: () => void; onSave: (values: Values) => void; loading: boolean; error?: string }) {

@@ -1073,6 +1073,22 @@ export const DeleteProgramResponse = zod.void()
 
 
 /**
+ * @summary Review archive and restore history for a program
+ */
+export const ListProgramLifecycleEventsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListProgramLifecycleEventsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "action": zod.enum(['archived', 'restored']),
+  "createdAt": zod.coerce.date(),
+  "actorEmail": zod.string().nullable()
+})
+export const ListProgramLifecycleEventsResponse = zod.array(ListProgramLifecycleEventsResponseItem)
+
+
+/**
  * @summary Archive a program without deleting its records
  */
 export const ArchiveProgramParams = zod.object({

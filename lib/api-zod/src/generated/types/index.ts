@@ -205,6 +205,8 @@ export * from './programFormat';
 export * from './programInput';
 export * from './programInputFormat';
 export * from './programInputStatus';
+export * from './programLifecycleEvent';
+export * from './programLifecycleEventAction';
 export * from './programSessionInteractionAnalytics';
 export * from './programStatus';
 export * from './programUpdate';

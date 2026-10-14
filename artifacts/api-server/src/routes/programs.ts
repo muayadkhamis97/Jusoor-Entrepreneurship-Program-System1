@@ -1,11 +1,13 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
   ArchiveProgramParams,
   ArchiveProgramResponse,
   CreateProgramBody,
   CreateProgramResponse,
   DeleteProgramParams,
+  ListProgramLifecycleEventsParams,
+  ListProgramLifecycleEventsResponse,
   ListProgramsQueryParams,
   ListProgramsResponse,
   RestoreProgramParams,
@@ -14,7 +16,7 @@ import {
   UpdateProgramParams,
   UpdateProgramResponse,
 } from "@workspace/api-zod";
-import { db, programLifecycleEventsTable, programsTable } from "@workspace/db";
+import { db, programLifecycleEventsTable, programsTable, staffMembersTable } from "@workspace/db";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
@@ -43,6 +45,34 @@ router.get("/programs", async (req, res): Promise<void> => {
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(asc(programsTable.createdAt));
   res.json(ListProgramsResponse.parse(programs));
+});
+
+router.get("/programs/:id/lifecycle-events", requireCoordinator, async (req, res): Promise<void> => {
+  const params = ListProgramLifecycleEventsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [program] = await db.select({ id: programsTable.id })
+    .from(programsTable)
+    .where(eq(programsTable.id, params.data.id))
+    .limit(1);
+  if (!program) {
+    res.status(404).json({ error: "Program not found" });
+    return;
+  }
+
+  const events = await db.select({
+    id: programLifecycleEventsTable.id,
+    action: programLifecycleEventsTable.action,
+    createdAt: programLifecycleEventsTable.createdAt,
+    actorEmail: staffMembersTable.email,
+  }).from(programLifecycleEventsTable)
+    .leftJoin(staffMembersTable, eq(programLifecycleEventsTable.actorStaffId, staffMembersTable.id))
+    .where(eq(programLifecycleEventsTable.programId, params.data.id))
+    .orderBy(desc(programLifecycleEventsTable.createdAt), desc(programLifecycleEventsTable.id));
+  res.json(ListProgramLifecycleEventsResponse.parse(events));
 });
 
 router.post("/programs", requireCoordinator, async (req, res): Promise<void> => {

@@ -211,6 +211,18 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: hsl(203 28% 13% / .46); backdrop-filter: blur(3px); animation: fade-in .16s ease-out; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .modal-card,.confirm-card { width: min(650px, 100%); max-height: min(90dvh, 850px); overflow-y: auto; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 13px; box-shadow: 0 24px 70px hsl(203 28% 12% / .23); }
+.lifecycle-history-modal { width: min(520px, 100%); }
+.lifecycle-history-content { padding: 17px 23px 22px; }
+.lifecycle-history-list { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
+.lifecycle-history-event { position: relative; display: flex; gap: 12px; padding: 0 0 18px; }
+.lifecycle-history-event:not(:last-child):before { position: absolute; content: ''; left: 15px; top: 31px; bottom: 0; width: 1px; background: hsl(var(--border)); }
+.lifecycle-history-mark { position: relative; z-index: 1; display: grid; flex: 0 0 31px; width: 31px; height: 31px; place-items: center; border-radius: 50%; color: hsl(var(--primary)); background: hsl(var(--primary) / .09); }
+.lifecycle-history-mark.archived { color: hsl(var(--accent)); background: hsl(var(--accent) / .1); }
+.lifecycle-history-details { display: grid; gap: 3px; padding-top: 1px; }
+.lifecycle-history-details strong { color: hsl(var(--foreground)); font-size: 11px; }
+.lifecycle-history-details time,.lifecycle-history-details small { color: hsl(var(--muted-foreground)); font-size: 10px; }
+.lifecycle-history-empty,.lifecycle-history-error { margin: 0; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.6; }
+.lifecycle-history-error p { margin: 0 0 10px; }
 .modal-head { display: flex; justify-content: space-between; gap: 18px; padding: 21px 23px 15px; border-bottom: 1px solid hsl(var(--border) / .7); }
 .modal-head h2 { margin: 5px 0 3px; font: 700 23px 'Manrope', sans-serif; letter-spacing: -.04em; }
 .modal-head p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 10px; }
