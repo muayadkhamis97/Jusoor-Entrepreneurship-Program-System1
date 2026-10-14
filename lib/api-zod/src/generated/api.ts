@@ -2323,6 +2323,74 @@ export const GetParticipantDashboardResponse = zod.object({
 
 
 /**
+ * @summary Get idea-validation workbooks for the signed-in participant's accepted programs
+ */
+export const GetParticipantIdeaValidationResponse = zod.object({
+  "workbooks": zod.array(zod.object({
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "businessName": zod.string(),
+  "customerSegment": zod.string(),
+  "problemStatement": zod.string(),
+  "riskiestAssumption": zod.string(),
+  "mvpExperiment": zod.string(),
+  "successSignal": zod.string(),
+  "evidenceAndNextStep": zod.string(),
+  "updatedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Save the signed-in participant's private idea-validation workbook
+ */
+
+
+
+export const SaveParticipantIdeaValidationParams = zod.object({
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+export const saveParticipantIdeaValidationBodyCustomerSegmentMax = 2000;
+
+export const saveParticipantIdeaValidationBodyProblemStatementMax = 5000;
+
+export const saveParticipantIdeaValidationBodyRiskiestAssumptionMax = 3000;
+
+export const saveParticipantIdeaValidationBodyMvpExperimentMax = 5000;
+
+export const saveParticipantIdeaValidationBodySuccessSignalMax = 2000;
+
+export const saveParticipantIdeaValidationBodyEvidenceAndNextStepMax = 5000;
+
+
+
+export const SaveParticipantIdeaValidationBody = zod.object({
+  "customerSegment": zod.string().max(saveParticipantIdeaValidationBodyCustomerSegmentMax),
+  "problemStatement": zod.string().max(saveParticipantIdeaValidationBodyProblemStatementMax),
+  "riskiestAssumption": zod.string().max(saveParticipantIdeaValidationBodyRiskiestAssumptionMax),
+  "mvpExperiment": zod.string().max(saveParticipantIdeaValidationBodyMvpExperimentMax),
+  "successSignal": zod.string().max(saveParticipantIdeaValidationBodySuccessSignalMax),
+  "evidenceAndNextStep": zod.string().max(saveParticipantIdeaValidationBodyEvidenceAndNextStepMax)
+})
+
+export const SaveParticipantIdeaValidationResponse = zod.object({
+  "applicationId": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "businessName": zod.string(),
+  "customerSegment": zod.string(),
+  "problemStatement": zod.string(),
+  "riskiestAssumption": zod.string(),
+  "mvpExperiment": zod.string(),
+  "successSignal": zod.string(),
+  "evidenceAndNextStep": zod.string(),
+  "updatedAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * @summary Mark a cohort announcement as read by the signed-in participant
  */
 export const MarkAnnouncementReadParams = zod.object({

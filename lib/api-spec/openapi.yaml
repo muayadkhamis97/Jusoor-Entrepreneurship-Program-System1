@@ -1311,6 +1311,49 @@ paths:
           description: Sign in required
         "403":
           description: No application is linked to this account
+  /participant/idea-validation:
+    get:
+      operationId: getParticipantIdeaValidation
+      tags: [participants]
+      summary: Get idea-validation workbooks for the signed-in participant's accepted programs
+      responses:
+        "200":
+          description: Private workbook drafts and program context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantIdeaValidationResponse"
+        "401":
+          description: Sign in required
+  /participant/idea-validation/{applicationId}:
+    put:
+      operationId: saveParticipantIdeaValidation
+      tags: [participants]
+      summary: Save the signed-in participant's private idea-validation workbook
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipantIdeaValidationUpdate"
+      responses:
+        "200":
+          description: Saved workbook
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantIdeaValidationWorkbook"
+        "400":
+          description: Invalid workbook fields
+        "401":
+          description: Sign in required
+        "404":
+          description: Accepted application not found for this participant
   /participant/announcements/{id}/read:
     post:
       operationId: markAnnouncementRead
@@ -3756,6 +3799,38 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ParticipantAnnouncement" }
       required: [applications, announcements]
+    ParticipantIdeaValidationResponse:
+      type: object
+      properties:
+        workbooks:
+          type: array
+          items: { $ref: "#/components/schemas/ParticipantIdeaValidationWorkbook" }
+      required: [workbooks]
+    ParticipantIdeaValidationWorkbook:
+      type: object
+      properties:
+        applicationId: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        businessName: { type: string }
+        customerSegment: { type: string }
+        problemStatement: { type: string }
+        riskiestAssumption: { type: string }
+        mvpExperiment: { type: string }
+        successSignal: { type: string }
+        evidenceAndNextStep: { type: string }
+        updatedAt: { type: ["string", "null"], format: date-time }
+      required: [applicationId, programId, programName, businessName, customerSegment, problemStatement, riskiestAssumption, mvpExperiment, successSignal, evidenceAndNextStep, updatedAt]
+    ParticipantIdeaValidationUpdate:
+      type: object
+      properties:
+        customerSegment: { type: string, maxLength: 2000 }
+        problemStatement: { type: string, maxLength: 5000 }
+        riskiestAssumption: { type: string, maxLength: 3000 }
+        mvpExperiment: { type: string, maxLength: 5000 }
+        successSignal: { type: string, maxLength: 2000 }
+        evidenceAndNextStep: { type: string, maxLength: 5000 }
+      required: [customerSegment, problemStatement, riskiestAssumption, mvpExperiment, successSignal, evidenceAndNextStep]
     ParticipantAssignment:
       type: object
       properties:

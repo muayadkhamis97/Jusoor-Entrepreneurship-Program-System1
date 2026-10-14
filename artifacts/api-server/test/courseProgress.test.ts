@@ -7,6 +7,7 @@ const nativeFetch = globalThis.fetch;
 let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
+let restoreInsert: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
 let applications: Array<Record<string, any>>;
 let modules: Array<Record<string, any>>;
@@ -14,6 +15,7 @@ let progress: Array<Record<string, any>>;
 let certificates: Array<Record<string, any>>;
 let quizzes: Array<Record<string, any>>;
 let quizAttempts: Array<Record<string, any>>;
+let ideaValidationWorkbooks: Array<Record<string, any>>;
 let selectedApplicationIds = new Set<number>();
 let selectedRequiredModuleIds = new Set<number>();
 let transactionTail: Promise<void> = Promise.resolve();
@@ -90,6 +92,7 @@ function resetState(): void {
   certificates = [];
   quizzes = [];
   quizAttempts = [];
+  ideaValidationWorkbooks = [];
   selectedApplicationIds = new Set();
   selectedRequiredModuleIds = new Set();
   transactionTail = Promise.resolve();
@@ -98,7 +101,7 @@ function resetState(): void {
 }
 
 function replaceDbMethod(
-  name: "select" | "transaction",
+  name: "select" | "insert" | "transaction",
   replacement: (...args: never[]) => unknown,
 ): () => void {
   const original = Object.getOwnPropertyDescriptor(db, name);
@@ -119,6 +122,7 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     courseCertificatesTable,
     courseModuleProgressTable,
     courseModulesTable,
+    ideaValidationWorkbooksTable,
     courseQuizAttemptsTable,
     courseQuizzesTable,
   } = requireDbTables;
@@ -127,10 +131,17 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     if (requestPath.endsWith("/certificate") && joined) {
       const found = applications.find((item) => item.id === Number(requestPath.split("/").at(-2)));
       rows = found ? [{ application: found, programName }] : [];
+    } else if (joined && requestUserId && requestPath.includes("/idea-validation/")) {
+      const applicationId = Number(requestPath.split("/").at(-1));
+      rows = applications
+        .filter((item) => item.id === applicationId &&
+          item.clerkUserId === requestUserId && item.status === "accepted")
+        .map((item) => ({ ...item, applicationId: item.id, programName }));
+      selectedApplicationIds = new Set(rows.map((item) => item.id));
     } else if (joined && requestUserId) {
       rows = applications
         .filter((item) => item.clerkUserId === requestUserId && item.status === "accepted")
-        .map((item) => ({ ...item, programName }));
+        .map((item) => ({ ...item, applicationId: item.id, programName }));
       selectedApplicationIds = new Set(rows.map((item) => item.id));
     } else if (requestUserId) {
       const found = applications.find((item) =>
@@ -159,6 +170,8 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
       .filter((item) => item.participantClerkUserId === requestUserId &&
         quizzes.some((quiz) => quiz.id === item.quizId))
       .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
+  } else if (table === ideaValidationWorkbooksTable) {
+    rows = ideaValidationWorkbooks.filter((item) => selectedApplicationIds.has(item.applicationId));
   } else if (table === courseCertificatesTable) {
     if (requestPath.endsWith("/verification")) {
       const requestedCode = requestPath.split("/").at(-2)?.toUpperCase();
@@ -185,6 +198,7 @@ let requireDbTables: {
   courseCertificatesTable: unknown;
   courseModuleProgressTable: unknown;
   courseModulesTable: unknown;
+  ideaValidationWorkbooksTable: unknown;
   courseQuizAttemptsTable: unknown;
   courseQuizzesTable: unknown;
 };
@@ -264,6 +278,32 @@ function makeTransaction() {
   return tx;
 }
 
+function makeInsert(table: unknown) {
+  let values: Record<string, any> = {};
+  let conflictValues: Record<string, any> = {};
+  const query = {
+    values(next: Record<string, any>) {
+      values = next;
+      return query;
+    },
+    onConflictDoUpdate({ set }: { set: Record<string, any> }) {
+      conflictValues = set;
+      return query;
+    },
+    returning: async () => {
+      if (table !== requireDbTables.ideaValidationWorkbooksTable) return [];
+      let workbook = ideaValidationWorkbooks.find((item) => item.applicationId === values.applicationId);
+      if (workbook) Object.assign(workbook, values, conflictValues);
+      else {
+        workbook = { id: ideaValidationWorkbooks.length + 1, createdAt: new Date(), ...values };
+        ideaValidationWorkbooks.push(workbook);
+      }
+      return [workbook];
+    },
+  };
+  return query;
+}
+
 before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";
@@ -274,14 +314,17 @@ before(async () => {
     courseCertificatesTable: schema.courseCertificatesTable,
     courseModuleProgressTable: schema.courseModuleProgressTable,
     courseModulesTable: schema.courseModulesTable,
+    ideaValidationWorkbooksTable: schema.ideaValidationWorkbooksTable,
     courseQuizAttemptsTable: schema.courseQuizAttemptsTable,
     courseQuizzesTable: schema.courseQuizzesTable,
   };
   const { participantCourseProgressRouter, publicCertificateVerificationRouter, staffLearningProgressRouter } =
     await import("../src/routes/courseProgress");
+  const participantRouter = (await import("../src/routes/participant")).default;
   resetState();
 
   restoreSelect = replaceDbMethod("select", (() => makeSelect()) as (...args: never[]) => unknown);
+  restoreInsert = replaceDbMethod("insert", ((table: unknown) => makeInsert(table)) as (...args: never[]) => unknown);
   restoreTransaction = replaceDbMethod("transaction", ((callback: unknown) => {
     const previous = transactionTail;
     let release!: () => void;
@@ -315,6 +358,7 @@ before(async () => {
     next();
   });
   app.use("/api", participantCourseProgressRouter);
+  app.use("/api/participant", participantRouter);
   app.use("/api", publicCertificateVerificationRouter);
   app.use("/api", staffLearningProgressRouter);
   server = createServer(app);
@@ -323,6 +367,7 @@ before(async () => {
 
 after(async () => {
   restoreTransaction?.();
+  restoreInsert?.();
   restoreSelect?.();
   globalThis.fetch = nativeFetch;
   await new Promise<void>((resolve, reject) => {
@@ -352,6 +397,58 @@ async function request(path: string, options: {
 function certificatePath(applicationId = 101): string {
   return `/api/analytics/learning-progress/applications/${applicationId}/certificate`;
 }
+
+test("idea-validation workbooks save per accepted application and remain private to that participant", async () => {
+  resetState();
+  const anonymous = await request("/api/participant/idea-validation");
+  assert.equal(anonymous.status, 403);
+
+  const responses = {
+    customerSegment: "Independent food sellers",
+    problemStatement: "They struggle to manage repeat orders.",
+    riskiestAssumption: "They will use a low-cost mobile ordering tool.",
+    mvpExperiment: "Offer a manual WhatsApp ordering pilot to five sellers.",
+    successSignal: "Three sellers use it for two weeks.",
+    evidenceAndNextStep: "Two sellers completed the pilot; interview them before changing the offer.",
+  };
+
+  const missing = await request("/api/participant/idea-validation", { user: "participant-a" });
+  assert.equal(missing.status, 200);
+  const empty = await missing.json() as { workbooks: Array<Record<string, any>> };
+  assert.equal(empty.workbooks.length, 1);
+  assert.equal(empty.workbooks[0].problemStatement, "");
+  assert.equal(empty.workbooks[0].updatedAt, null);
+
+  const saved = await request("/api/participant/idea-validation/101", {
+    user: "participant-a",
+    method: "PUT",
+    body: responses,
+  });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json() as Record<string, any>).problemStatement, responses.problemStatement);
+
+  const reloaded = await request("/api/participant/idea-validation", { user: "participant-a" });
+  const ownWorkbooks = await reloaded.json() as { workbooks: Array<Record<string, any>> };
+  assert.equal(ownWorkbooks.workbooks[0].evidenceAndNextStep, responses.evidenceAndNextStep);
+
+  const otherParticipant = await request("/api/participant/idea-validation", { user: "participant-b" });
+  const otherWorkbooks = await otherParticipant.json() as { workbooks: Array<Record<string, any>> };
+  assert.equal(otherWorkbooks.workbooks[0].problemStatement, "");
+
+  const crossParticipantWrite = await request("/api/participant/idea-validation/101", {
+    user: "participant-b",
+    method: "PUT",
+    body: responses,
+  });
+  assert.equal(crossParticipantWrite.status, 404);
+
+  const invalid = await request("/api/participant/idea-validation/101", {
+    user: "participant-a",
+    method: "PUT",
+    body: { ...responses, customerSegment: "x".repeat(2001) },
+  });
+  assert.equal(invalid.status, 400);
+});
 
 test("public certificate verification returns only the issued certificate details", async () => {
   resetState();

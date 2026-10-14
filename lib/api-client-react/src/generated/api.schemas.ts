@@ -1401,6 +1401,40 @@ export interface ParticipantDashboard {
   announcements: ParticipantAnnouncement[];
 }
 
+export interface ParticipantIdeaValidationWorkbook {
+  applicationId: number;
+  programId: number;
+  programName: string;
+  businessName: string;
+  customerSegment: string;
+  problemStatement: string;
+  riskiestAssumption: string;
+  mvpExperiment: string;
+  successSignal: string;
+  evidenceAndNextStep: string;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface ParticipantIdeaValidationResponse {
+  workbooks: ParticipantIdeaValidationWorkbook[];
+}
+
+export interface ParticipantIdeaValidationUpdate {
+  /** @maxLength 2000 */
+  customerSegment: string;
+  /** @maxLength 5000 */
+  problemStatement: string;
+  /** @maxLength 3000 */
+  riskiestAssumption: string;
+  /** @maxLength 5000 */
+  mvpExperiment: string;
+  /** @maxLength 2000 */
+  successSignal: string;
+  /** @maxLength 5000 */
+  evidenceAndNextStep: string;
+}
+
 export type AnnouncementStatus = typeof AnnouncementStatus[keyof typeof AnnouncementStatus];
 
 

@@ -6,7 +6,11 @@ import {
   GetParticipantCourseMaterialFileParams,
   GetParticipantCoursesResponse,
   GetParticipantDashboardResponse,
+  GetParticipantIdeaValidationResponse,
   MarkAnnouncementReadResponse,
+  SaveParticipantIdeaValidationBody,
+  SaveParticipantIdeaValidationParams,
+  SaveParticipantIdeaValidationResponse,
   SubmitTrainingAnswerBody,
   SubmitTrainingAnswerParams,
   SubmitTrainingAnswerResponse,
@@ -19,6 +23,7 @@ import {
   courseMaterialsTable,
   courseModulesTable,
   db,
+  ideaValidationWorkbooksTable,
   programsTable,
   programAnnouncementsTable,
   sessionsTable,
@@ -37,6 +42,108 @@ import {
 } from "../lib/participant-recording-notices";
 
 const router: IRouter = Router();
+
+router.get("/idea-validation", async (_req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+
+  const applications = await db.select({
+    applicationId: applicationsTable.id,
+    programId: applicationsTable.programId,
+    programName: programsTable.name,
+    businessName: applicationsTable.businessName,
+  }).from(applicationsTable)
+    .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+    .where(and(
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .orderBy(asc(programsTable.name), asc(applicationsTable.id));
+
+  if (!applications.length) {
+    res.json(GetParticipantIdeaValidationResponse.parse({ workbooks: [] }));
+    return;
+  }
+
+  const saved = await db.select().from(ideaValidationWorkbooksTable)
+    .where(inArray(ideaValidationWorkbooksTable.applicationId, applications.map(({ applicationId }) => applicationId)));
+  const savedByApplication = new Map(saved.map((workbook) => [workbook.applicationId, workbook]));
+  const workbooks = applications.map((application) => {
+    const workbook = savedByApplication.get(application.applicationId);
+    return {
+      ...application,
+      customerSegment: workbook?.customerSegment ?? "",
+      problemStatement: workbook?.problemStatement ?? "",
+      riskiestAssumption: workbook?.riskiestAssumption ?? "",
+      mvpExperiment: workbook?.mvpExperiment ?? "",
+      successSignal: workbook?.successSignal ?? "",
+      evidenceAndNextStep: workbook?.evidenceAndNextStep ?? "",
+      updatedAt: workbook?.updatedAt ?? null,
+    };
+  });
+  res.json(GetParticipantIdeaValidationResponse.parse({ workbooks }));
+});
+
+router.put("/idea-validation/:applicationId", async (req, res): Promise<void> => {
+  const participant = res.locals.participant as ParticipantAccess | undefined;
+  if (!participant) {
+    res.status(403).json({ error: "Participant access is required." });
+    return;
+  }
+
+  const params = SaveParticipantIdeaValidationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = SaveParticipantIdeaValidationBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [application] = await db.select({
+    applicationId: applicationsTable.id,
+    programId: applicationsTable.programId,
+    programName: programsTable.name,
+    businessName: applicationsTable.businessName,
+  }).from(applicationsTable)
+    .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+    .where(and(
+      eq(applicationsTable.id, params.data.applicationId),
+      eq(applicationsTable.clerkUserId, participant.userId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .limit(1);
+
+  if (!application) {
+    res.status(404).json({ error: "Accepted application not found for this participant." });
+    return;
+  }
+
+  const updatedAt = new Date();
+  const [workbook] = await db.insert(ideaValidationWorkbooksTable)
+    .values({ applicationId: application.applicationId, ...body.data, updatedAt })
+    .onConflictDoUpdate({
+      target: ideaValidationWorkbooksTable.applicationId,
+      set: { ...body.data, updatedAt },
+    })
+    .returning();
+
+  res.json(SaveParticipantIdeaValidationResponse.parse({
+    ...application,
+    customerSegment: workbook.customerSegment,
+    problemStatement: workbook.problemStatement,
+    riskiestAssumption: workbook.riskiestAssumption,
+    mvpExperiment: workbook.mvpExperiment,
+    successSignal: workbook.successSignal,
+    evidenceAndNextStep: workbook.evidenceAndNextStep,
+    updatedAt: workbook.updatedAt,
+  }));
+});
 
 router.get("/courses", async (_req, res): Promise<void> => {
   const participant = res.locals.participant as ParticipantAccess;
