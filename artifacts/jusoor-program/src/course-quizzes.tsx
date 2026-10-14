@@ -17,6 +17,7 @@ import {
   GripVertical, LockKeyhole, Pencil, Plus, RotateCcw, Save, ShieldCheck,
 } from 'lucide-react';
 import { currentLanguage, t, useAppLanguage } from './language';
+import { AccessibleDialogSurface } from './accessible-dialog';
 import './course-quizzes.css';
 
 type DraftQuestion = CourseQuizQuestionInput & { key: string };
@@ -141,9 +142,17 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
     if (quiz) update.mutate({ id: quiz.id, data }, { onSuccess: done, onError: () => setError(t('Quiz could not be saved. Try again.')) });
     else create.mutate({ id: moduleId, data }, { onSuccess: done, onError: () => setError(t('Quiz could not be created. Try again.')) });
   };
-  return <div className="quiz-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="quiz-editor" role="dialog" aria-modal="true" aria-labelledby="quiz-editor-title" data-testid="dialog-quiz-editor">
-      <header className="quiz-editor-head"><div><span className="eyebrow">{t('COHORT LEARNING / ASSESSMENT')}</span><h2 id="quiz-editor-title">{t(quiz ? 'Edit quiz' : 'Create a quiz')}</h2><p>{t('Build clear checks for understanding. Answers stay private until a founder submits.')}</p></div><button className="quiz-close" type="button" onClick={onClose} aria-label={t('Close quiz editor')}>×</button></header>
+  return <AccessibleDialogSurface
+    className="quiz-editor"
+    labelledBy="quiz-editor-title"
+    describedBy="quiz-editor-description"
+    initialFocusSelector="[data-testid='input-quiz-title']"
+    onClose={onClose}
+    closeOnEscape={!pending}
+    closeOnOutsideInteraction={!pending}
+    testId="dialog-quiz-editor"
+  >
+      <header className="quiz-editor-head"><div><span className="eyebrow">{t('COHORT LEARNING / ASSESSMENT')}</span><h2 id="quiz-editor-title">{t(quiz ? 'Edit quiz' : 'Create a quiz')}</h2><p id="quiz-editor-description">{t('Build clear checks for understanding. Answers stay private until a founder submits.')}</p></div><button className="quiz-close" type="button" onClick={onClose} aria-label={t('Close quiz editor')}>×</button></header>
       <div className="quiz-editor-scroll">
         <label className="quiz-field">{t('Quiz title')}<input value={draft.title} maxLength={180} onChange={event => setDraft(current => ({ ...current, title: event.target.value }))} placeholder={t('e.g. Customer discovery check-in')} data-testid="input-quiz-title" /></label>
         <label className="quiz-field">{t('Description')}<textarea rows={2} maxLength={2000} value={draft.description} onChange={event => setDraft(current => ({ ...current, description: event.target.value }))} placeholder={t('What should founders take away?')} data-testid="input-quiz-description" /></label>
@@ -175,8 +184,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
       </div>
       {error && <p className="quiz-form-error" role="alert"><AlertCircle size={15} />{error}</p>}
       <footer className="quiz-editor-actions"><button className="button button-quiet" type="button" onClick={onClose}>{t('Cancel')}</button><button className="button button-primary" type="button" onClick={save} disabled={pending} data-testid="button-save-quiz">{pending ? t('Saving quiz…') : <><Save size={14} />{t('Save quiz')}</>}</button></footer>
-    </section>
-  </div>;
+  </AccessibleDialogSurface>;
 }
 
 export function CourseQuizManagement({ moduleId, readOnly = false }: { moduleId: number; readOnly?: boolean }) {

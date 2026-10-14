@@ -93,6 +93,37 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await reopenedForm.waitFor({ state: 'detached' });
     await page.waitForFunction(() => document.activeElement?.id === 'open-sample-form');
 
+    const openCourse = page.getByRole('button', { name: 'Open course content' });
+    await openCourse.click();
+    const courseDialog = page.getByRole('dialog', { name: 'Edit course content' });
+    await courseDialog.waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-course-input', 'Opening course content should focus its first field.');
+    const courseTitle = page.getByLabel('Course title');
+    await courseTitle.fill('Course title with retained edits');
+    await page.getByRole('button', { name: 'Save course' }).click();
+    await page.getByRole('alert').getByText('Course content could not be saved.').waitFor();
+    assert.equal(await courseTitle.inputValue(), 'Course title with retained edits', 'Course form values must remain after a validation error.');
+    await page.getByRole('button', { name: 'Close course form' }).click();
+    await courseDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-course-content');
+
+    const openQuiz = page.getByRole('button', { name: 'Open quiz editor' });
+    await openQuiz.click();
+    const quizDialog = page.getByRole('dialog', { name: 'Create a quiz' });
+    await quizDialog.waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-quiz-input', 'Opening the quiz editor should focus its first field.');
+    const quizTitle = page.getByLabel('Quiz title');
+    await page.getByRole('button', { name: 'Save quiz' }).click();
+    await page.getByRole('alert').getByText('Add a quiz title.').waitFor();
+    await quizTitle.fill('Knowledge check');
+    assert.equal(await quizTitle.inputValue(), 'Knowledge check', 'Quiz draft values must remain editable after a validation error.');
+    await page.getByRole('button', { name: 'Save quiz' }).focus();
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Close quiz editor', 'Tab from the last quiz action should wrap to the first control.');
+    await page.keyboard.press('Escape');
+    await quizDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-quiz-editor');
+
     const openConfirm = page.getByRole('button', { name: 'Open confirmation' });
     await openConfirm.click();
     const confirmDialog = page.getByRole('alertdialog', { name: 'Confirm removal' });

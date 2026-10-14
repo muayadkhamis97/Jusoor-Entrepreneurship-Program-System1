@@ -22,8 +22,14 @@ function DialogAccessibilityFixture() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [courseOpen, setCourseOpen] = useState(false);
+  const [quizOpen, setQuizOpen] = useState(false);
   const [value, setValue] = useState('');
+  const [courseTitle, setCourseTitle] = useState('');
+  const [quizTitle, setQuizTitle] = useState('');
   const [showError, setShowError] = useState(false);
+  const [courseError, setCourseError] = useState(false);
+  const [quizError, setQuizError] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   return (
@@ -36,6 +42,12 @@ function DialogAccessibilityFixture() {
       </button>
       <button type="button" id="open-sample-form" onClick={() => { setShowError(false); setFormOpen(true); }}>
         Open sample form
+      </button>
+      <button type="button" id="open-course-content" onClick={() => { setCourseError(false); setCourseOpen(true); }}>
+        Open course content
+      </button>
+      <button type="button" id="open-quiz-editor" onClick={() => { setQuizError(false); setQuizOpen(true); }}>
+        Open quiz editor
       </button>
       <button type="button" id="open-confirmation" onClick={() => setConfirmOpen(true)}>
         Open confirmation
@@ -83,6 +95,46 @@ function DialogAccessibilityFixture() {
               <button type="button" onClick={() => setFormOpen(false)}>Cancel</button>
               <button type="submit">Save record</button>
             </div>
+          </form>
+        </AccessibleDialogSurface>
+      )}
+
+      {courseOpen && (
+        <AccessibleDialogSurface
+          className="modal-card"
+          labelledBy="fixture-course-title"
+          initialFocusSelector="#fixture-course-input"
+          onClose={() => setCourseOpen(false)}
+          testId="fixture-course-dialog"
+        >
+          <div className="modal-head">
+            <h1 id="fixture-course-title" className="app-title">Edit course content</h1>
+            <button type="button" aria-label="Close course form" onClick={() => setCourseOpen(false)}>×</button>
+          </div>
+          <form className="modal-form" onSubmit={event => { event.preventDefault(); setCourseError(true); }}>
+            <label>Course title<input id="fixture-course-input" value={courseTitle} onChange={event => setCourseTitle(event.target.value)} /></label>
+            {courseError && <p role="alert">Course content could not be saved.</p>}
+            <div className="modal-actions"><button type="button" onClick={() => setCourseOpen(false)}>Cancel</button><button type="submit">Save course</button></div>
+          </form>
+        </AccessibleDialogSurface>
+      )}
+
+      {quizOpen && (
+        <AccessibleDialogSurface
+          className="modal-card"
+          labelledBy="fixture-quiz-title"
+          initialFocusSelector="#fixture-quiz-input"
+          onClose={() => setQuizOpen(false)}
+          testId="fixture-quiz-dialog"
+        >
+          <div className="modal-head">
+            <h1 id="fixture-quiz-title" className="app-title">Create a quiz</h1>
+            <button type="button" aria-label="Close quiz editor" onClick={() => setQuizOpen(false)}>×</button>
+          </div>
+          <form className="modal-form" onSubmit={event => { event.preventDefault(); setQuizError(true); }}>
+            <label>Quiz title<input id="fixture-quiz-input" value={quizTitle} onChange={event => setQuizTitle(event.target.value)} /></label>
+            {quizError && <p role="alert">Add a quiz title.</p>}
+            <div className="modal-actions"><button type="button" onClick={() => setQuizOpen(false)}>Cancel</button><button type="submit">Save quiz</button></div>
           </form>
         </AccessibleDialogSurface>
       )}
