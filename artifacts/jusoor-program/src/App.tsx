@@ -15,7 +15,7 @@ import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
-   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, useGetProgramBranding,
+   getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, useGetProgramBranding, useListAllProgramLifecycleEvents,
   getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useArchiveProgram, useRestoreProgram, useListProgramLifecycleEvents, useDeleteSession, useDeleteSupport, useGetBusiness,
@@ -27,7 +27,7 @@ import {
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
-  PitchRecord, PitchUpdate, Program, ProgramInput, ProgramLifecycleEvent, ProgramUpdate,
+  AllProgramLifecycleEvent, PitchRecord, PitchUpdate, Program, ProgramInput, ProgramLifecycleEvent, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
   StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
@@ -321,6 +321,7 @@ const valueOf = (value?: string | number | null) => value == null ? '' : String(
 function ProgramsPage({ coordinator }: { coordinator: boolean }) {
   const [showArchived, setShowArchived] = useState(false);
   const [historyProgram, setHistoryProgram] = useState<Program | null>(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const query = useListPrograms(coordinator && showArchived ? { includeArchived: true } : undefined);
   const programs = query.data || [];
   const client = useQueryClient();
@@ -347,9 +348,12 @@ function ProgramsPage({ coordinator }: { coordinator: boolean }) {
     <PageHeading kicker="PROGRAM MANAGEMENT / COHORTS" title="Programs" summary="Set the shape of each cohort, from first call to final milestone." action={headingAction} />
     {coordinator && <div className="section-strip">
       <span>{showArchived ? t('Archived program records') : t('Active programs')}</span>
-      <button className="button button-quiet" type="button" aria-pressed={showArchived} data-testid="button-toggle-archived-programs" onClick={() => setShowArchived(value => !value)}>
-        {showArchived ? t('Show active programs') : t('Show archived programs')}
-      </button>
+      <div className="program-history-toolbar">
+        <button className="button button-quiet" type="button" onClick={() => setShowAllHistory(true)} data-testid="button-all-program-history"><History size={14} /> {t('All archive and restore history')}</button>
+        <button className="button button-quiet" type="button" aria-pressed={showArchived} data-testid="button-toggle-archived-programs" onClick={() => setShowArchived(value => !value)}>
+          {showArchived ? t('Show active programs') : t('Show archived programs')}
+        </button>
+      </div>
     </div>}
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : programs.length === 0
       ? <EmptyState title={showArchived ? 'No archived programs.' : coordinator ? 'A good program starts with a clear plan.' : 'No active programs are assigned to you.'} body={coordinator ? 'Create a cohort or switch views to review archived program history.' : 'Ask a coordinator to assign you to an active program.'} action={coordinator && !showArchived ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button> : undefined} />
@@ -360,9 +364,29 @@ function ProgramsPage({ coordinator }: { coordinator: boolean }) {
       </div></div><div className="eyebrow">{display(program.format)} COHORT {program.archivedAt ? `· ${t('ARCHIVED')}` : ''}</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div>{!program.archivedAt && <Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link>}</article>)}</div></>}
     {(archive.error || restore.error) && <div className="form-error">{apiErrorMessage(archive.error || restore.error, 'The program archive change could not be completed.')}</div>}
     {historyProgram && <ProgramLifecycleHistoryDialog program={historyProgram} onClose={() => setHistoryProgram(null)} />}
+    {showAllHistory && <AllProgramLifecycleHistoryDialog onClose={() => setShowAllHistory(false)} />}
     {editing !== undefined && <FormDialog title={editing ? 'Edit program' : 'Create a program'} description="A cohort is the backbone of the founder journey." fields={programFields} initial={editing ? { name: editing.name, format: editing.format, status: editing.status, description: editing.description || '', startDate: valueOf(editing.startDate), endDate: valueOf(editing.endDate), applicationDeadline: valueOf(editing.applicationDeadline) } : { format: 'bootcamp', status: 'planning' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this program. Check required fields and try again.' : undefined} />}
     {archiving && <div className="modal-backdrop" role="presentation"><section className="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="archive-program-title"><div className="confirm-symbol"><Trash2 size={20} /></div><h2 id="archive-program-title" className="app-title">{t('Archive this program?')}</h2><p><strong>{archiving.name}</strong> {t('will be hidden from active operations. Its applications, businesses and reports will be retained, and you can restore it later.')}</p>{archive.error && <div className="form-error">{apiErrorMessage(archive.error, 'The program could not be archived.')}</div>}<div className="modal-actions"><button className="button button-quiet" onClick={() => setArchiving(null)}>{t('Cancel')}</button><button className="button button-danger" onClick={confirmArchive} disabled={archive.isPending}>{archive.isPending ? t('Archiving…') : t('Archive program')}</button></div></section></div>}
   </>;
+}
+
+function AllProgramLifecycleHistoryDialog({ onClose }: { onClose: () => void }) {
+  const query = useListAllProgramLifecycleEvents();
+  const events: AllProgramLifecycleEvent[] = query.data || [];
+  return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="modal-card lifecycle-history-modal all-program-lifecycle-history-modal" role="dialog" aria-modal="true" aria-labelledby="all-program-history-title" data-testid="dialog-all-program-history">
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM MANAGEMENT / AUDIT')}</div><h2 id="all-program-history-title" className="app-title">{t('Archive and restore history')}</h2><p>{t('Recent changes across all programs')}</p></div><button className="icon-button" aria-label={t('Close history')} onClick={onClose} data-testid="button-close-all-program-history"><X size={18} /></button></div>
+      <div className="lifecycle-history-content">
+        {query.isLoading ? <LoadingState /> : query.isError
+          ? <div className="lifecycle-history-error"><p>{t('Program history could not be loaded.')}</p><button className="button button-quiet" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
+          : events.length === 0 ? <p className="lifecycle-history-empty">{t('No archive or restore actions have been recorded.')}</p>
+            : <ol className="lifecycle-history-list">{events.map(event => <li className="lifecycle-history-event" key={`${event.programId}-${event.id}`} data-testid={`all-program-history-event-${event.programId}-${event.id}`}>
+              <span className={`lifecycle-history-mark ${event.action}`} aria-hidden="true"><History size={15} /></span>
+              <div className="lifecycle-history-details"><strong>{t(event.action === 'archived' ? 'Program archived' : 'Program restored')}</strong><b className="lifecycle-history-program">{event.programName}</b><time dateTime={new Date(event.createdAt).toISOString()}>{new Date(event.createdAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</time><small>{event.actorEmail || t('Actor account no longer exists')}</small></div>
+            </li>)}</ol>}
+      </div>
+    </section>
+  </div>;
 }
 
 function ProgramLifecycleHistoryDialog({ program, onClose }: { program: Program; onClose: () => void }) {

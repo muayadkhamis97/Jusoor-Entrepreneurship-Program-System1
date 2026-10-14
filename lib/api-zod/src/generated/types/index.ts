@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './allProgramLifecycleEvent';
+export * from './allProgramLifecycleEventAction';
 export * from './analyticsProgram';
 export * from './analyticsSession';
 export * from './analyticsSummary';

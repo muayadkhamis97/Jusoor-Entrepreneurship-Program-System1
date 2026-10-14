@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AllProgramLifecycleEvent,
   Announcement,
   AnnouncementDeleteResult,
   AnnouncementInput,
@@ -2183,6 +2184,83 @@ export const useDeleteProgram = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteProgramMutationOptions(options));
     }
+
+export const getListAllProgramLifecycleEventsUrl = () => {
+
+
+
+
+  return `/api/programs/lifecycle-events`
+}
+
+/**
+ * @summary Review archive and restore history across all programs
+ */
+export const listAllProgramLifecycleEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<AllProgramLifecycleEvent[]> => {
+
+  return customFetch<AllProgramLifecycleEvent[]>(getListAllProgramLifecycleEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAllProgramLifecycleEventsQueryKey = () => {
+    return [
+    `/api/programs/lifecycle-events`
+    ] as const;
+    }
+
+
+export const getListAllProgramLifecycleEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAllProgramLifecycleEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>> = ({ signal }) => listAllProgramLifecycleEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAllProgramLifecycleEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>>
+export type ListAllProgramLifecycleEventsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Review archive and restore history across all programs
+ */
+
+export function useListAllProgramLifecycleEvents<TData = Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAllProgramLifecycleEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAllProgramLifecycleEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListProgramLifecycleEventsUrl = (id: number,) => {
 

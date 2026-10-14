@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
   ArchiveProgramParams,
   ArchiveProgramResponse,
+  ListAllProgramLifecycleEventsResponse,
   CreateProgramBody,
   CreateProgramResponse,
   DeleteProgramParams,
@@ -20,6 +21,21 @@ import { db, programLifecycleEventsTable, programsTable, staffMembersTable } fro
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
+
+router.get("/programs/lifecycle-events", requireCoordinator, async (_req, res): Promise<void> => {
+  const events = await db.select({
+    id: programLifecycleEventsTable.id,
+    programId: programsTable.id,
+    programName: programsTable.name,
+    action: programLifecycleEventsTable.action,
+    createdAt: programLifecycleEventsTable.createdAt,
+    actorEmail: staffMembersTable.email,
+  }).from(programLifecycleEventsTable)
+    .innerJoin(programsTable, eq(programLifecycleEventsTable.programId, programsTable.id))
+    .leftJoin(staffMembersTable, eq(programLifecycleEventsTable.actorStaffId, staffMembersTable.id))
+    .orderBy(desc(programLifecycleEventsTable.createdAt), desc(programLifecycleEventsTable.id));
+  res.json(ListAllProgramLifecycleEventsResponse.parse(events));
+});
 
 router.get("/programs", async (req, res): Promise<void> => {
   const query = ListProgramsQueryParams.safeParse(req.query);

@@ -13,15 +13,30 @@ type Row = Record<string, unknown>;
 let lifecycleEvents: Row[] = [
   {
     id: 12,
+    programId: 7,
+    programName: "Spring cohort",
     action: "restored",
     createdAt: new Date("2026-05-02T11:30:00.000Z"),
     actorEmail: "coordinator@example.com",
   },
   {
     id: 8,
+    programId: 7,
+    programName: "Spring cohort",
     action: "archived",
     createdAt: new Date("2026-04-01T09:15:00.000Z"),
     actorEmail: null,
+  },
+];
+const allProgramLifecycleEvents: Row[] = [
+  ...lifecycleEvents,
+  {
+    id: 19,
+    programId: 9,
+    programName: "Autumn founders",
+    action: "archived",
+    createdAt: new Date("2026-03-15T08:00:00.000Z"),
+    actorEmail: "another-coordinator@example.com",
   },
 ];
 
@@ -40,11 +55,13 @@ before(async () => {
     value: () => {
       selectCount += 1;
       let table: unknown;
+      let includesProgram = false;
       const query: any = {
         from(nextTable: unknown) {
           table = nextTable;
           return query;
         },
+        innerJoin() { includesProgram = true; return query; },
         leftJoin() { return query; },
         where() { return query; },
         orderBy() { return query; },
@@ -52,7 +69,9 @@ before(async () => {
           return Promise.resolve(table === programsTable && programExists ? [{ id: 7 }] : []);
         },
         then(resolve: (rows: Row[]) => unknown, reject?: (error: unknown) => unknown) {
-          const rows = table === programLifecycleEventsTable ? lifecycleEvents : [];
+          const rows = table === programLifecycleEventsTable
+            ? includesProgram ? allProgramLifecycleEvents : lifecycleEvents
+            : [];
           return Promise.resolve(rows).then(resolve, reject);
         },
       };
@@ -96,6 +115,57 @@ test("only coordinators can read program lifecycle-event details", async () => {
 
   assert.equal(response.status, 403);
   assert.equal(selectCount, 0);
+});
+
+test("only coordinators can read cross-program lifecycle history", async () => {
+  role = "staff";
+  selectCount = 0;
+
+  const response = await request("/api/programs/lifecycle-events");
+
+  assert.equal(response.status, 403);
+  assert.equal(selectCount, 0);
+});
+
+test("coordinators receive cross-program events with program, action, timestamp, and nullable actor", async () => {
+  role = "coordinator";
+  const response = await request("/api/programs/lifecycle-events");
+  const body = await response.json() as Array<{
+    id: number;
+    programId: number;
+    programName: string;
+    action: string;
+    createdAt: string;
+    actorEmail: string | null;
+  }>;
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, [
+    {
+      id: 12,
+      programId: 7,
+      programName: "Spring cohort",
+      action: "restored",
+      createdAt: "2026-05-02T11:30:00.000Z",
+      actorEmail: "coordinator@example.com",
+    },
+    {
+      id: 8,
+      programId: 7,
+      programName: "Spring cohort",
+      action: "archived",
+      createdAt: "2026-04-01T09:15:00.000Z",
+      actorEmail: null,
+    },
+    {
+      id: 19,
+      programId: 9,
+      programName: "Autumn founders",
+      action: "archived",
+      createdAt: "2026-03-15T08:00:00.000Z",
+      actorEmail: "another-coordinator@example.com",
+    },
+  ]);
 });
 
 test("coordinators receive archive and restore events with timestamps and nullable actor email", async () => {
