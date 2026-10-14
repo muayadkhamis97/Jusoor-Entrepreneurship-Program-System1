@@ -3385,4 +3385,3 @@ export type ListPitchesParams = {
 businessId?: number;
 eventType?: PitchEventType;
 };
-
