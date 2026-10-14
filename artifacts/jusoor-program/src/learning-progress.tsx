@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CertificatePdfPage, createCertificatePdf, renderCertificatePdf } from './certificate-pdf';
+import { AssessmentComparison } from './assessment-comparison';
 import {
   getGetLearningProgressAnalyticsQueryKey,
   getGetParticipantLearningProgressQueryKey,
@@ -47,22 +48,6 @@ function formattedQuizGrade(quiz: CourseProgressQuiz, score: number | null): str
     .find(band => percentage >= band.minimumPercent)?.grade || '—';
 }
 const hasCourseAssessment = (quizzes: CourseProgressQuiz[]) => quizzes.some(quiz => quiz.assessmentType === 'pre_course' || quiz.assessmentType === 'post_course');
-function firstAssessmentAverage(quizzes: CourseProgressQuiz[], type: 'pre_course' | 'post_course'): number | null {
-  const percentages = quizzes.filter(quiz => quiz.assessmentType === type && quiz.firstScore != null && quiz.totalQuestions > 0)
-    .map(quiz => quiz.firstScore! / quiz.totalQuestions * 100);
-  return percentages.length ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length : null;
-}
-function AssessmentComparison({ quizzes, testId }: { quizzes: CourseProgressQuiz[]; testId: string }) {
-  const pre = firstAssessmentAverage(quizzes, 'pre_course');
-  const post = firstAssessmentAverage(quizzes, 'post_course');
-  const delta = pre == null || post == null ? null : post - pre;
-  const score = (value: number | null) => value == null ? '—' : `${value.toFixed(1)}%`;
-  return <div className="lp-assessment-comparison" data-testid={testId}>
-    <div><span>{t('Pre-course first score')}</span><b data-testid={`${testId}-pre`}>{score(pre)}</b></div>
-    <div><span>{t('Post-course first score')}</span><b data-testid={`${testId}-post`}>{score(post)}</b></div>
-    <div className={delta == null ? '' : delta > 0 ? 'is-gain' : delta < 0 ? 'is-loss' : ''}><span>{t('Percentage-point change')}</span><b data-testid={`${testId}-change`}>{delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} ${t('pp')}`}</b></div>
-  </div>;
-}
 
 function useVisibleActiveTime(programIds: number[]) {
   const mutation = useRecordParticipantCourseActivity();

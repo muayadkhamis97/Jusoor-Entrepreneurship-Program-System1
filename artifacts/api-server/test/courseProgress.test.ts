@@ -12,6 +12,8 @@ let applications: Array<Record<string, any>>;
 let modules: Array<Record<string, any>>;
 let progress: Array<Record<string, any>>;
 let certificates: Array<Record<string, any>>;
+let quizzes: Array<Record<string, any>>;
+let quizAttempts: Array<Record<string, any>>;
 let selectedApplicationIds = new Set<number>();
 let selectedRequiredModuleIds = new Set<number>();
 let transactionTail: Promise<void> = Promise.resolve();
@@ -84,6 +86,8 @@ function resetState(): void {
   ];
   progress = [];
   certificates = [];
+  quizzes = [];
+  quizAttempts = [];
   selectedApplicationIds = new Set();
   selectedRequiredModuleIds = new Set();
   transactionTail = Promise.resolve();
@@ -113,6 +117,8 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     courseCertificatesTable,
     courseModuleProgressTable,
     courseModulesTable,
+    courseQuizAttemptsTable,
+    courseQuizzesTable,
   } = requireDbTables;
   let rows: Array<Record<string, any>> = [];
   if (table === applicationsTable) {
@@ -144,6 +150,13 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     rows = progress.filter((item) =>
       applicationIds.has(item.applicationId) &&
       (!requestPath.endsWith("/certificate") || selectedRequiredModuleIds.has(item.moduleId)));
+  } else if (table === courseQuizzesTable) {
+    rows = quizzes.filter((item) => item.moduleId === 11 && item.isPublished);
+  } else if (table === courseQuizAttemptsTable) {
+    rows = quizAttempts
+      .filter((item) => item.participantClerkUserId === requestUserId &&
+        quizzes.some((quiz) => quiz.id === item.quizId))
+      .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
   } else if (table === courseCertificatesTable) {
     if (requestPath.endsWith("/verification")) {
       const requestedCode = requestPath.split("/").at(-2)?.toUpperCase();
@@ -170,6 +183,8 @@ let requireDbTables: {
   courseCertificatesTable: unknown;
   courseModuleProgressTable: unknown;
   courseModulesTable: unknown;
+  courseQuizAttemptsTable: unknown;
+  courseQuizzesTable: unknown;
 };
 
 function makeSelect() {
@@ -257,6 +272,8 @@ before(async () => {
     courseCertificatesTable: schema.courseCertificatesTable,
     courseModuleProgressTable: schema.courseModuleProgressTable,
     courseModulesTable: schema.courseModulesTable,
+    courseQuizAttemptsTable: schema.courseQuizAttemptsTable,
+    courseQuizzesTable: schema.courseQuizzesTable,
   };
   const { participantCourseProgressRouter, publicCertificateVerificationRouter, staffLearningProgressRouter } =
     await import("../src/routes/courseProgress");
@@ -427,6 +444,52 @@ test("participant progress is private to the accepted participant account", asyn
   assert.equal(aBody.programs[0].modules[0].completedAt, "2026-10-01T00:00:00.000Z");
   assert.equal(bBody.programs[0].completedRequiredModules, 0);
   assert.equal(bBody.programs[0].modules[0].completedAt, null);
+});
+
+test("participant progress preserves first attempts across retakes and returns every assessment for averaging", async () => {
+  resetState();
+  quizzes.push(
+    { id: 201, moduleId: 11, title: "Pre-course A", assessmentType: "pre_course", gradingFormat: "numerical", letterGradeScale: [{ grade: "A", minimumPercent: 90 }, { grade: "F", minimumPercent: 0 }], isPublished: true },
+    { id: 202, moduleId: 11, title: "Pre-course B", assessmentType: "pre_course", gradingFormat: "numerical", letterGradeScale: [{ grade: "A", minimumPercent: 90 }, { grade: "F", minimumPercent: 0 }], isPublished: true },
+    { id: 203, moduleId: 11, title: "Post-course A", assessmentType: "post_course", gradingFormat: "numerical", letterGradeScale: [{ grade: "A", minimumPercent: 90 }, { grade: "F", minimumPercent: 0 }], isPublished: true },
+    { id: 204, moduleId: 11, title: "Post-course B", assessmentType: "post_course", gradingFormat: "numerical", letterGradeScale: [{ grade: "A", minimumPercent: 90 }, { grade: "F", minimumPercent: 0 }], isPublished: true },
+  );
+  const submittedAt = (day: number) => new Date(`2026-10-${String(day).padStart(2, "0")}T12:00:00.000Z`);
+  quizAttempts.push(
+    { id: 1, quizId: 201, participantClerkUserId: "participant-a", score: 4, totalQuestions: 10, submittedAt: submittedAt(1) },
+    { id: 2, quizId: 201, participantClerkUserId: "participant-a", score: 10, totalQuestions: 10, submittedAt: submittedAt(5) },
+    { id: 3, quizId: 202, participantClerkUserId: "participant-a", score: 8, totalQuestions: 10, submittedAt: submittedAt(2) },
+    { id: 4, quizId: 202, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(6) },
+    { id: 5, quizId: 203, participantClerkUserId: "participant-a", score: 7, totalQuestions: 10, submittedAt: submittedAt(3) },
+    { id: 6, quizId: 203, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(7) },
+    { id: 7, quizId: 204, participantClerkUserId: "participant-a", score: 9, totalQuestions: 10, submittedAt: submittedAt(4) },
+    { id: 8, quizId: 204, participantClerkUserId: "participant-a", score: 0, totalQuestions: 10, submittedAt: submittedAt(8) },
+  );
+
+  const response = await request("/api/progress", { user: "participant-a" });
+  const body = await response.json() as {
+    programs: Array<{
+      quizzes: Array<{
+        quizId: number;
+        firstScore: number | null;
+        latestScore: number | null;
+        attempts: number;
+      }>;
+    }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.programs[0].quizzes.map(({ quizId, firstScore, latestScore, attempts }) => ({
+    quizId, firstScore, latestScore, attempts,
+  })), [
+    { quizId: 201, firstScore: 4, latestScore: 10, attempts: 2 },
+    { quizId: 202, firstScore: 8, latestScore: 0, attempts: 2 },
+    { quizId: 203, firstScore: 7, latestScore: 0, attempts: 2 },
+    { quizId: 204, firstScore: 9, latestScore: 0, attempts: 2 },
+  ]);
+  const firstPercentages = body.programs[0].quizzes.map((quiz) => quiz.firstScore! / 10 * 100);
+  assert.equal(firstPercentages.slice(0, 2).reduce((sum, value) => sum + value, 0) / 2, 60);
+  assert.equal(firstPercentages.slice(2).reduce((sum, value) => sum + value, 0) / 2, 80);
 });
 
 test("only coordinators can issue certificates", async () => {
