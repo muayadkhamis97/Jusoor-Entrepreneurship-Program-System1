@@ -116,7 +116,7 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     assert.equal(scrolling.overflowX, 'auto');
     assert.ok(scrolling.scrollWidth > scrolling.clientWidth, 'All labeled destinations should remain available in the scrollable navigation.');
 
-    const languageToggle = page.getByTestId('button-language-toggle');
+    const languageToggle = page.getByTestId('button-language-toggle').first();
     assert.equal(await page.getByTestId('localized-copy').textContent(), 'Choose your cohort');
     await languageToggle.click();
     await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');

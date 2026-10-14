@@ -48,6 +48,25 @@ In the inspected workspace, this check passed in Chromium. It verifies the share
 
 The production build reports the main JavaScript chunk at 814.54 kB minified (227.72 kB gzip), above Vite’s 500 kB advisory threshold. This is a warning, not a build failure. No authenticated role page, external browser engine, database, API provider, or production runtime was exercised for this UI change.
 
+## Dialog accessibility and Arabic coverage (2026-10-14)
+
+The application-review dialog and shared coordinator form dialogs use the existing Radix-based accessible dialog surface. A focused Chromium fixture covers application-review heading focus, dialog name/description, Escape dismissal and focus return; shared form focus entry, Tab/Shift+Tab containment, retained values after a save error, explicit cancel focus return; and alert-dialog cancel focus and Escape behavior. The existing Arabic fallback behavior remains for dynamic staff-entered descriptions and participant-provided content.
+
+The Arabic coverage test statically checks literal translation calls in applicant and coordinator flows, shared form labels/placeholders/help text, form-dialog titles/descriptions/errors, status options, and applicant validation messages. Example URL placeholders are intentionally kept in their original form. The language browser check confirms that switching languages updates rendered sample text and the document `lang`/`dir` attributes (`ar`/`rtl`, then `en`/`ltr`).
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Jusoor web typecheck | PASS | `pnpm --filter @workspace/jusoor-program run typecheck` exited 0. |
+| Jusoor web unit tests | PASS | 22 passed, 0 failed, including two Arabic coverage/fallback checks. |
+| Dialog and language browser test | PASS | 1 Chromium test passed in the synthetic local fixture at 390×844. |
+| Jusoor web production build | PASS | Vite completed with exit code 0. |
+| Development app startup | PASS | Restarted managed web workflow reported Vite ready; local app root returned HTTP 200. |
+| `git diff --check` | PASS | No whitespace errors. |
+
+Limitations: the browser fixture is not the signed-in application. Authenticated application-review and coordinator form pages were not directly rendered. Arabic text and RTL document state were asserted in the fixture, but a full Arabic screenshot or visual inspection of authenticated pages was not performed. No database, migration, external provider, email, production data, or deployment was used.
+
+The successful production build still emits Vite’s non-blocking large-chunk advisory: the main JavaScript chunk is 823.61 kB minified (230.60 kB gzip), above the 500 kB threshold.
+
 ## Recorded validation result
 
 `pnpm run verify` completed successfully in this workspace:
