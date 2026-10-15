@@ -31,15 +31,7 @@ import { filterAssignedTrainerPrograms } from "../lib/trainer-programs";
 const router: IRouter = Router();
 
 async function getAssignedProgramIds(staff: StaffAccess): Promise<number[]> {
-  const activeProgramIds = await activeProgramIdsFor(staff);
-  if (!activeProgramIds.length) return [];
-  const sessions = await db.selectDistinct({ programId: sessionsTable.programId })
-    .from(sessionsTable)
-    .where(and(
-      eq(sessionsTable.trainerStaffId, staff.id),
-      inArray(sessionsTable.programId, activeProgramIds),
-    ));
-  return sessions.flatMap(({ programId }) => programId === null ? [] : [programId]);
+  return activeProgramIdsFor(staff);
 }
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
@@ -57,7 +49,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     .where(inArray(programsTable.id, programIds))
     .orderBy(asc(programsTable.name));
   const sessions = await db.select().from(sessionsTable)
-    .where(eq(sessionsTable.trainerStaffId, staff.id))
+    .where(and(
+      eq(sessionsTable.trainerStaffId, staff.id),
+      inArray(sessionsTable.programId, programIds),
+    ))
     .orderBy(asc(sessionsTable.scheduledDate), asc(sessionsTable.startTime));
   const assignments = await db.select({
     id: trainingAssignmentsTable.id,

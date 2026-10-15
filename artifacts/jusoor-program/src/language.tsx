@@ -673,7 +673,7 @@ const arabic: Record<string, string> = {
   'Attendance reports appear after a Zoom session is assigned to you.': 'ستظهر تقارير الحضور بعد تخصيص جلسة Zoom لك.',
   'MAKE THE LEARNING PRACTICAL': 'اجعل التعلّم عملياً',
   'Create a cohort assignment': 'إنشاء مهمة للمجموعة',
-  'Assignments become available after a session is assigned to your trainer account.': 'تتوفر المهام بعد تخصيص جلسة لحسابك كمدرب.',
+  'Assignments become available after a program is assigned to your trainer account.': 'تتوفر المهام بعد تخصيص برنامج لحسابك كمدرب.',
   'Cohort': 'المجموعة',
   'Choose cohort': 'اختر مجموعة',
   'Linked session': 'الجلسة المرتبطة',

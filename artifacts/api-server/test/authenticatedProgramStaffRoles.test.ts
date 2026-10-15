@@ -96,16 +96,21 @@ function rowsFor(table: unknown): Row[] {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     }];
   }
-  if (table === staffProgramAssignmentsTable) return [{ programId: 11 }, { programId: 22 }];
+  if (table === staffProgramAssignmentsTable) return [{ programId: 11 }, { programId: 22 }, { programId: 33 }];
   if (table === staffProgramRolesTable) {
     return [
       { programId: 11, role: "trainer" },
       { programId: 11, role: "mentor" },
       { programId: 22, role: "judge" },
+      { programId: 33, role: "trainer" },
     ];
   }
   if (table === programsTable) {
-    return [{ id: 11, archivedAt: null }, { id: 22, archivedAt: null }];
+    return [
+      { id: 11, name: "Jusoor Growth Lab", archivedAt: null },
+      { id: 22, name: "Pitch Day Program", archivedAt: null },
+      { id: 33, name: "Women in Technology", archivedAt: null },
+    ];
   }
   if (table === sessionsTable && requestPath.startsWith("/api/trainer/") && requestRole === "trainer") {
     return [trainerSession];
@@ -228,6 +233,15 @@ async function request(method: string, path: string, role: string, body?: Row) {
 }
 
 test("secondary staff roles can use only their assigned program workflows through authenticated routes", async () => {
+  const trainerDashboard = await request("GET", "/api/trainer/dashboard", "trainer");
+  assert.equal(trainerDashboard.status, 200);
+  const dashboard = await trainerDashboard.json() as Row;
+  assert.deepEqual(dashboard.programs, [
+    { id: 11, name: "Jusoor Growth Lab" },
+    { id: 33, name: "Women in Technology" },
+  ]);
+  assert.deepEqual(dashboard.sessions.map(({ programId }: Row) => programId), [11]);
+
   const trainingAssignment = {
     title: "Customer discovery review",
     instructions: "Review the participant's customer interviews.",
@@ -238,6 +252,13 @@ test("secondary staff roles can use only their assigned program workflows throug
   });
   assert.equal(trainerInAssignedProgram.status, 201);
   assert.equal((await trainerInAssignedProgram.json() as Row).programId, 11);
+
+  const trainerInAssignedProgramWithoutSession = await request("POST", "/api/trainer/assignments", "trainer", {
+    programId: 33,
+    ...trainingAssignment,
+  });
+  assert.equal(trainerInAssignedProgramWithoutSession.status, 201);
+  assert.equal((await trainerInAssignedProgramWithoutSession.json() as Row).programId, 33);
 
   const trainerInUnassignedProgram = await request("POST", "/api/trainer/assignments", "trainer", {
     programId: 22,
