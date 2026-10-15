@@ -350,6 +350,7 @@ test("reuses a Zoom meeting after session persistence fails and the coordinator 
     status: "scheduled",
     zoomMeetingId: null as string | null,
     zoomUrl: null as string | null,
+    zoomMeetingCreationPendingAt: null as Date | null,
     recordingUrl: null as string | null,
   };
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -374,7 +375,9 @@ test("reuses a Zoom meeting after session persistence fails and the coordinator 
         return query;
       },
       async limit() {
-        return table === zoomConnectionsTable && connection ? [connection] : [];
+        if (table === zoomConnectionsTable && connection) return [connection];
+        if (table === sessionsTable) return [session];
+        return [];
       },
     };
     return query;
@@ -390,8 +393,8 @@ test("reuses a Zoom meeting after session persistence fails and the coordinator 
         return query;
       },
       async returning() {
-        persistenceAttempts += 1;
-        if (persistenceAttempts === 1) {
+        if ("zoomMeetingId" in values) persistenceAttempts += 1;
+        if ("zoomMeetingId" in values && persistenceAttempts === 1) {
           throw new Error("simulated local session persistence failure");
         }
         Object.assign(session, values);
@@ -420,15 +423,43 @@ test("reuses a Zoom meeting after session persistence fails and the coordinator 
       (error: unknown) => {
         assert.ok(error instanceof ZoomIntegrationError);
         assert.equal(error.statusCode, 503);
-        assert.match(error.message, /Retry the Zoom action; Jusoor will reuse the same meeting/);
+        assert.match(
+          error.message,
+          /Retry the Zoom action; Jusoor will reuse the same meeting/,
+        );
         return true;
       },
     );
     assert.equal(session.zoomMeetingId, null);
 
+    const restartedModuleUrl = new URL("../src/lib/zoom.ts", import.meta.url);
+    restartedModuleUrl.searchParams.set("server-instance", "after-restart");
+    const restartedServer = await import(restartedModuleUrl.href);
+    await assert.rejects(
+      restartedServer.createOrUpdateZoomMeeting({ ...session } as never),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.equal(
+          (error as Error & { statusCode?: number }).statusCode,
+          409,
+        );
+        assert.match(
+          error.message,
+          /administrator to check Zoom and reconcile/,
+        );
+        return true;
+      },
+    );
+    assert.equal(session.zoomMeetingCreationPendingAt instanceof Date, true);
+    assert.equal(
+      calls.filter((call) => call.url === "https://api.zoom.us/v2/users/me/meetings").length,
+      1,
+    );
+
     const retried = await createOrUpdateZoomMeeting(session as never);
     assert.equal(retried.zoomMeetingId, "created-once-9304");
     assert.equal(retried.zoomUrl, "https://zoom.us/j/9304");
+    assert.equal(retried.zoomMeetingCreationPendingAt, null);
     assert.equal(persistenceAttempts, 2);
     assert.equal(
       calls.filter((call) => call.url === "https://api.zoom.us/v2/users/me/meetings").length,
@@ -552,6 +583,7 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
     status: "scheduled",
     zoomMeetingId: null as string | null,
     zoomUrl: null as string | null,
+    zoomMeetingCreationPendingAt: null as Date | null,
     recordingUrl: null,
     createdAt: new Date(),
   };
@@ -619,7 +651,9 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
         return query;
       },
       async returning() {
-        if (failSessionSave) throw new Error("private database diagnostics");
+        if (failSessionSave && "zoomMeetingId" in values) {
+          throw new Error("private database diagnostics");
+        }
         Object.assign(session, values);
         return [session];
       },

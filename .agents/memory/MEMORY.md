@@ -17,3 +17,4 @@
 - [Headless touch-scroll checks](headless-touch-scroll-checks.md) — Chromium CDP touch gestures did not scroll this app’s overflow menu; verify touch capability and the scroll range instead.
 - [Footer branding](footer-branding.md) — Keep static page-end labels generic; configured brand names belong in the branding-driven surfaces.
 - [Google Calendar account replacement](google-calendar-account-replacement.md) — A different Google account needs a fresh public schedule link; same-account reauthorization can retain its link.
+- [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.

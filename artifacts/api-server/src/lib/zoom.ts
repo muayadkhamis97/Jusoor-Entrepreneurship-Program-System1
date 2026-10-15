@@ -6,7 +6,7 @@ import {
   randomBytes,
   timingSafeEqual,
 } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   db,
   sessionsTable,
@@ -403,10 +403,7 @@ export async function createOrUpdateZoomMeeting(
 
   try {
     let currentSession = session;
-    if (
-      !session.zoomMeetingId &&
-      !pendingZoomMeetings.has(session.id)
-    ) {
+    if (!session.zoomMeetingId) {
       try {
         const [storedSession] = await db
           .select()
@@ -420,6 +417,16 @@ export async function createOrUpdateZoomMeeting(
           503,
         );
       }
+    }
+    if (
+      !currentSession.zoomMeetingId &&
+      currentSession.zoomMeetingCreationPendingAt &&
+      !pendingZoomMeetings.has(session.id)
+    ) {
+      throw new ZoomIntegrationError(
+        "A Zoom meeting may already have been created for this session. Ask an administrator to check Zoom and reconcile the existing meeting before retrying; do not create another meeting.",
+        409,
+      );
     }
     return await createOrUpdateZoomMeetingLocked(currentSession);
   } finally {
@@ -472,10 +479,43 @@ async function createOrUpdateZoomMeetingLocked(
             `/meetings/${encodeURIComponent(meetingId)}`,
           );
     } else {
-      meeting = await zoomRequest<ZoomMeeting>("/users/me/meetings", {
-        method: "POST",
-        body: meetingBody,
-      });
+      const [claimedSession] = await db
+        .update(sessionsTable)
+        .set({ zoomMeetingCreationPendingAt: new Date() })
+        .where(
+          and(
+            eq(sessionsTable.id, session.id),
+            isNull(sessionsTable.zoomMeetingId),
+            isNull(sessionsTable.zoomMeetingCreationPendingAt),
+          ),
+        )
+        .returning();
+      if (!claimedSession) {
+        throw new ZoomIntegrationError(
+          "Another request may already be creating this Zoom meeting. Check the session and Zoom account before retrying.",
+          409,
+        );
+      }
+      try {
+        meeting = await zoomRequest<ZoomMeeting>("/users/me/meetings", {
+          method: "POST",
+          body: meetingBody,
+        });
+      } catch (error) {
+        if (error instanceof ZoomIntegrationError && error.statusCode === 409) {
+          await db
+            .update(sessionsTable)
+            .set({ zoomMeetingCreationPendingAt: null })
+            .where(
+              and(
+                eq(sessionsTable.id, session.id),
+                isNull(sessionsTable.zoomMeetingId),
+              ),
+            )
+            .returning();
+        }
+        throw error;
+      }
       if (meeting.id === undefined || meeting.id === null) {
         throw new ZoomIntegrationError(
           "Zoom may have created the meeting but did not return its ID. Ask an administrator to check Zoom before retrying, to avoid creating a duplicate.",
@@ -506,6 +546,7 @@ async function createOrUpdateZoomMeetingLocked(
       .set({
         zoomMeetingId: meetingId,
         zoomUrl: joinUrl,
+        zoomMeetingCreationPendingAt: null,
       })
       .where(eq(sessionsTable.id, session.id))
       .returning();

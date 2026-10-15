@@ -18,6 +18,9 @@ export const sessionsTable = pgTable("jusoor_sessions", {
   location: text("location"),
   zoomUrl: text("zoom_url"),
   zoomMeetingId: text("zoom_meeting_id"),
+  zoomMeetingCreationPendingAt: timestamp("zoom_meeting_creation_pending_at", {
+    withTimezone: true,
+  }),
   recordingUrl: text("recording_url"),
   recordingVersion: integer("recording_version").notNull().default(0),
   status: text("status").notNull().default("scheduled"),
