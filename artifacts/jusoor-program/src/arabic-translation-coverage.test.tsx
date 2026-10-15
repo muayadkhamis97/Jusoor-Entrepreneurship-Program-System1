@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import * as ts from 'typescript';
-import { hasArabicTranslation, translate } from './language';
+import { brandedAdminRoleLabel, hasArabicTranslation, translate } from './language';
+import { getStaffNavigationItems } from './mobile-staff-navigation';
 
 const sourceRoot = path.resolve(import.meta.dirname);
 const intentionallyEnglishExamples = new Set([
@@ -198,6 +199,14 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
   collectFlowTranslationKeys('intake-surfaces.tsx', keys);
   collectFlowTranslationKeys('App.tsx', keys);
   collectFlowTranslationKeys('profile-surfaces.tsx', keys);
+  collectFlowTranslationKeys('analytics-surfaces.tsx', keys);
+  collectFlowTranslationKeys('session-interactions.tsx', keys);
+  collectFlowTranslationKeys('role-access.tsx', keys);
+  collectFlowTranslationKeys('api-integrations.tsx', keys);
+  collectFlowTranslationKeys('grant-surfaces.tsx', keys);
+  for (const role of ['coordinator', 'staff'] as const) {
+    getStaffNavigationItems(role).forEach(item => keys.add(item.label));
+  }
   [
     'Invite participant',
     'Participant email',
@@ -228,6 +237,12 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
     'Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.',
     'Participant invitations require the additive participant invitation migration.',
     'Participant business-team assignments require the assignment migration.',
+    'All pages',
+    'Open all pages menu',
+    'Your question',
+    'Your answer',
+    'We could not load your business team.',
+    'An application for this email and program already exists. Sign in with that email to track it, or contact the program team.',
   ].forEach(key => keys.add(key));
   const missing = [...keys]
     .filter(key => !hasArabicTranslation(key) && !intentionallyEnglishExamples.has(key))
@@ -244,4 +259,10 @@ test('Arabic translation and English fallback preserve dynamic and example conte
   assert.equal(translate(staffProvidedCohortDescription, 'ar'), staffProvidedCohortDescription);
   assert.equal(hasArabicTranslation(staffProvidedCohortDescription), false);
   assert.equal(translate('https://drive.google.com/file/d/…/view', 'ar'), 'https://drive.google.com/file/d/…/view');
+});
+
+test('Admin sidebar role label follows the configured brand in English and Arabic', () => {
+  assert.equal(brandedAdminRoleLabel('Jusoor Growth', 'en'), 'Jusoor Growth admin');
+  assert.equal(brandedAdminRoleLabel('Jusoor Growth', 'ar'), 'مسؤول Jusoor Growth');
+  assert.equal(brandedAdminRoleLabel('  ', 'en'), 'Jusoor admin');
 });

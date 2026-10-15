@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin sidebar layout fixture</title>
+    <style>
+      :root {
+        --background: 42 36% 96%;
+        --foreground: 203 28% 19%;
+        --card: 40 38% 99%;
+        --border: 37 22% 86%;
+        --muted-foreground: 202 11% 47%;
+        --primary: 164 47% 30%;
+        --primary-foreground: 45 40% 97%;
+        --secondary: 36 33% 91%;
+        --muted: 39 30% 92%;
+        --accent: 18 63% 56%;
+        --destructive: 4 60% 48%;
+        --sidebar: 200 35% 18%;
+        --sidebar-foreground: 40 35% 93%;
+        --sidebar-primary: 164 48% 53%;
+        --sidebar-primary-foreground: 200 35% 15%;
+        --app-font-mono: monospace;
+        --shadow-card: none;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root { min-height: 100%; margin: 0; }
+      body { background: hsl(var(--background)); color: hsl(var(--foreground)); font: 14px Arial, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/test-fixtures/admin-sidebar-layout.fixture.tsx"></script>
+  </body>
+</html>

@@ -51,7 +51,7 @@
   --secondary: 36 33% 91%;
   --secondary-foreground: 203 28% 22%;
   --muted: 39 30% 92%;
-  --muted-foreground: 202 11% 47%;
+  --muted-foreground: 202 11% 38%;
   --accent: 18 63% 56%;
   --accent-foreground: 40 38% 99%;
   --destructive: 4 60% 48%;
@@ -62,7 +62,7 @@
   --sidebar-foreground: 40 35% 93%;
   --sidebar-primary: 164 48% 53%;
   --sidebar-primary-foreground: 200 35% 15%;
-  --app-font-sans: 'DM Sans', sans-serif;
+  --app-font-sans: 'DM Sans', 'Noto Sans Arabic', Tahoma, Arial, sans-serif;
   --app-font-mono: 'IBM Plex Mono', monospace;
   --radius: 0.8rem;
   --shadow-card: 0 8px 26px hsl(203 28% 19% / .045);
@@ -97,6 +97,165 @@
 @layer base {
   * { @apply border-border; }
   body { @apply bg-background text-foreground font-sans antialiased; margin: 0; }
+
+/* Keep dense operational copy readable without changing the visual hierarchy. */
+.workspace :is(button, input, select, textarea, label, small) {
+  font-size: max(12px, 1em);
+}
+.workspace :is(p, li, td, th) {
+  font-size: max(12px, 1em);
+}
+.intake-page :is(button, input, select, textarea, label, small) {
+  font-size: max(12px, 1em);
+}
+.intake-page :is(p, li, td, th) {
+  font-size: max(12px, 1em);
+}
+.workspace :is(input, textarea)::placeholder,
+.intake-page :is(input, textarea)::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .workspace input:not([type="checkbox"]):not([type="radio"]),
+  .workspace select,
+  .workspace textarea,
+  .intake-page input:not([type="checkbox"]):not([type="radio"]),
+  .intake-page select,
+  .intake-page textarea {
+    font-size: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+[dir="rtl"] .lucide-arrow-right,
+[dir="rtl"] .lucide-arrow-left,
+[dir="rtl"] .lucide-chevron-right,
+[dir="rtl"] .lucide-chevron-left {
+  transform: rotate(180deg);
+}
+
+.table-wrap,
+.ana-table-scroll,
+.access-table-wrap,
+.lp-history-table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.table-wrap:focus-visible,
+.ana-table-scroll:focus-visible,
+.access-table-wrap:focus-visible,
+.lp-history-table-wrap:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.table-wrap::-webkit-scrollbar,
+.ana-table-scroll::-webkit-scrollbar,
+.access-table-wrap::-webkit-scrollbar,
+.lp-history-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.table-wrap::-webkit-scrollbar-thumb,
+.ana-table-scroll::-webkit-scrollbar-thumb,
+.access-table-wrap::-webkit-scrollbar-thumb,
+.lp-history-table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid hsl(var(--muted));
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground));
+}
+
+[dir="rtl"] :is(.table-wrap, .ana-table-scroll, .access-table-wrap, .lp-history-table-wrap) table {
+  text-align: right;
+}
+[dir="rtl"] .align-right {
+  text-align: left;
+  justify-content: flex-start;
+}
+[dir="rtl"] .nav-link.active:before {
+  right: 0;
+  left: auto;
+  border-radius: 5px 0 0 5px;
+}
+[dir="rtl"] .profile-more,
+[dir="rtl"] .dashboard-note a,
+[dir="rtl"] .row-actions,
+[dir="rtl"] .toolbar-count,
+[dir="rtl"] .calendar-endnote {
+  margin-right: auto;
+  margin-left: 0;
+}
+[dir="rtl"] .dashboard-note {
+  border-right: 2px solid hsl(var(--accent));
+  border-left: 0;
+}
+[dir="rtl"] .section-strip b,
+[dir="rtl"] .toolbar-count b {
+  margin-right: 0;
+  margin-left: 4px;
+}
+[dir="rtl"] .filter-select select {
+  padding-right: 0;
+  padding-left: 11px;
+}
+[dir="rtl"] .filter-select > svg:last-child {
+  right: auto;
+  left: 8px;
+}
+[dir="rtl"] .role-select-index {
+  right: auto;
+  left: 9px;
+}
+[dir="rtl"] .preview-window-context {
+  margin-right: auto;
+  margin-left: 0;
+}
+[dir="rtl"] .preview-rail {
+  border-right: 0;
+  border-left: 1px solid hsl(var(--border));
+}
+[dir="rtl"] .ana-interval,
+[dir="rtl"] .ana-table { text-align: right; }
+[dir="rtl"] .ana-filter-title {
+  padding-right: 2px;
+  padding-left: 14px;
+  border-right: 0;
+  border-left: 1px solid hsl(var(--border));
+}
+[dir="rtl"] .ana-range-caption,
+[dir="rtl"] .ana-switch { margin-right: auto; margin-left: 0; }
+[dir="rtl"] .ana-eng-summary {
+  border-right: 1px solid hsl(var(--border));
+  border-left: 0;
+  text-align: left;
+}
+[dir="rtl"] .ana-interaction-kind { margin-right: 0; margin-left: 6px; }
+[dir="rtl"] .ana-follow-up-flag { margin-right: 8px; margin-left: 0; }
+[dir="rtl"] .role-select { text-align: right; }
+[dir="rtl"] .session-date { border-right: 0; border-left: 1px solid hsl(var(--border)); }
+[dir="rtl"] .participant-program .program-window {
+  padding-right: 17px;
+  padding-left: 0;
+  border-right: 1px solid hsl(0 0% 100% / .16);
+  border-left: 0;
+}
   button, input, select, textarea { font: inherit; }
 }
 

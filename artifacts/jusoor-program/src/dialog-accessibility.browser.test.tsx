@@ -4,27 +4,19 @@ import path from 'node:path';
 import test from 'node:test';
 import { chromium } from 'playwright-core';
 import { createServer as createViteServer } from 'vite';
+import { getStaffNavigationItems } from './staff-navigation-items';
+import { translate } from './language';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
 
-const menuLabels = {
-  coordinator: {
-    en: ['Overview', 'Businesses', 'Programs', 'Analytics', 'Branding', 'API integrations', 'Sessions', 'Communications', 'Support', 'Pitch & grants', 'Grant tracking', 'Learning', 'Applications', 'Mentor booking', 'Team access', 'Role access'],
-    ar: ['نظرة عامة', 'المشاريع', 'البرامج', 'التحليلات', 'الهوية البصرية', 'تكاملات API', 'الجلسات', 'التواصل', 'الدعم', 'العروض والمنح', 'متابعة المنح', 'التعلّم', 'طلبات الانضمام', 'حجز جلسات الإرشاد', 'صلاحيات الفريق', 'صلاحيات الأدوار'],
-  },
-  staff: {
-    en: ['Overview', 'Businesses', 'Programs', 'Sessions', 'Support', 'Pitch & grants', 'Course schedule'],
-    ar: ['نظرة عامة', 'المشاريع', 'البرامج', 'الجلسات', 'الدعم', 'العروض والمنح', 'جدول إتاحة الوحدات'],
-  },
-} as const;
-
 async function checkStaffMenu(page: import('playwright-core').Page, role: 'coordinator' | 'staff', language: 'en' | 'ar') {
-  const labels = menuLabels[role][language];
+  const items = getStaffNavigationItems(role);
+  const labels = items.map(item => translate(item.label, language));
   const roleButton = page.getByTestId(role === 'coordinator' ? 'role-coordinator' : 'role-staff');
   await roleButton.click();
   const navigation = page.getByTestId('mobile-staff-navigation');
-  const activeLabel = role === 'coordinator' ? labels[6] : labels[3];
+  const activeLabel = labels[items.findIndex(item => item.href === '/sessions')];
   const activeHref = '/sessions';
 
   const links = navigation.getByRole('link');
@@ -34,6 +26,21 @@ async function checkStaffMenu(page: import('playwright-core').Page, role: 'coord
     assert.equal((await link.locator('span').textContent())?.trim(), label, `${role} destination ${index + 1} should be labeled in ${language}.`);
     assert.ok(await link.isVisible(), `${role} destination "${label}" should remain visible in ${language}.`);
   }
+
+  const allPagesButton = page.getByTestId('button-mobile-all-pages');
+  await allPagesButton.focus();
+  await page.keyboard.press('Enter');
+  const allPagesMenu = page.getByRole('menu', { name: translate('All pages', language) });
+  await allPagesMenu.waitFor();
+  const menuItems = allPagesMenu.getByRole('menuitem');
+  assert.equal(await menuItems.count(), items.length, `${role} All pages menu should expose each permitted route in ${language}.`);
+  for (const [index, label] of labels.entries()) {
+    assert.equal((await menuItems.nth(index).textContent())?.trim(), label, `${role} menu destination ${index + 1} should be labeled in ${language}.`);
+    assert.equal(await menuItems.nth(index).getAttribute('href'), items[index].href, `${role} menu item should preserve its route in ${language}.`);
+  }
+  await page.keyboard.press('Escape');
+  await allPagesMenu.waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'button-mobile-all-pages');
 
   const activeLink = navigation.getByRole('link', { name: activeLabel, exact: true });
   assert.equal(await activeLink.getAttribute('href'), activeHref);

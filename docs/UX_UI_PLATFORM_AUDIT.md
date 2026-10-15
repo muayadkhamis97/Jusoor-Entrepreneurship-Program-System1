@@ -336,7 +336,15 @@ The current `dialog-accessibility.browser.test.tsx` includes mobile English/Arab
 
 Existing build documentation records non-blocking Vite chunk-size warnings; later lazy-loading work and current output are not established by those older sizes. No new build/performance result is claimed here.
 
-Earlier user-supplied screenshots showed a scrolled-sidebar blank area and partially English business UI in Arabic. They are historical product evidence, not current reproduction. Current `workspace.css:2,25` uses a fixed, independently scrolling sidebar and logical main-panel offset; the earlier blank-sidebar defect is **not asserted to remain**.
+### Admin sidebar follow-up (2026-10-15)
+
+- **Status:** The reported washed-out/blank sidebar state on `/support` was not reproduced in the available safe browser setup. No production CSS was changed because the current evidence does not establish a root cause.
+- **Source inspection:** Admin routes remain inside one `Shell`; changing Wouter's location updates the active link without replacing the shell. The sidebar has an opaque theme background, fixed viewport positioning, its own vertical scroll area, and z-index 30. The workspace texture is z-index 20; the route-entry transform is confined to main content. `/support` does not render a modal/overlay by default. No route-specific opacity, background, or stacking rule affecting the sidebar was found.
+- **User image:** The later screenshot attachment is a tight crop of the bottom profile/sign-out row. It shows the panel still dark, but does not include the route, viewport boundary, or washed-out region, so it does not establish the cause.
+- **Isolated browser evidence:** `src/admin-sidebar-layout.browser.test.tsx` uses the production `workspace.css` and Admin navigation-item helper in a synthetic shell, without Clerk, backend requests, or external services. Chromium passed navigation through every Admin destination, active-state changes, page and sidebar scrolling, viewport-height coverage, sidebar/background stacking, and the main-content offset. A screenshot of this fixture showed the dark panel covering the viewport. This does **not** reproduce the authenticated application shell or prove the reported state cannot occur there.
+- **Build/typecheck:** The focused browser test passed. The app typecheck did not pass: it reports an unavailable generated API export `useGetStaffAssignmentHistory` and an implicit-`any` callback in `src/team-assignments.tsx`; neither file was changed for this sidebar investigation.
+- **Not verified:** The current authenticated `/support` page and the reported browser/scroll state. The managed web workflow is now running, but the available browser has no authenticated Admin session; no identity-provider request or bypass was used. No production site, database, or external provider was accessed.
+- **Conclusion:** The current source and isolated test show the intended sidebar geometry is stable, but cannot identify the cause of the screenshot symptom. A current full-viewport screenshot or an authenticated local browser reproduction is needed before making a CSS/stacking change.
 
 ### Not verified
 

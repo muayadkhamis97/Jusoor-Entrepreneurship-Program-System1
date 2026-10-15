@@ -1,0 +1,47 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  Activity, BarChart3, BookOpen, BriefcaseBusiness, CalendarCheck, CalendarDays,
+  CircleDollarSign, FileText, Handshake, KeyRound, LayoutDashboard, Palette,
+  Shield, Trophy, UserRound, UsersRound,
+} from 'lucide-react';
+
+export type StaffNavigationItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
+export function getStaffNavigationItems(role: 'coordinator' | 'staff'): StaffNavigationItem[] {
+  return [
+    { href: '/', label: 'Overview', icon: LayoutDashboard },
+    { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },
+    { href: '/programs', label: 'Programs', icon: Activity },
+    ...(role === 'coordinator'
+      ? [
+          { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+          { href: '/branding', label: 'Branding', icon: Palette },
+          { href: '/api-integrations', label: 'API integrations', icon: KeyRound },
+        ]
+      : []),
+    { href: '/sessions', label: 'Sessions', icon: CalendarDays },
+    ...(role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
+    { href: '/support', label: 'Support', icon: Handshake },
+    { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
+    ...(role === 'coordinator' ? [{ href: '/grants', label: 'Grant tracking', icon: CircleDollarSign }] : []),
+    ...(role === 'coordinator'
+      ? [
+          { href: '/courses', label: 'Learning', icon: BookOpen },
+          { href: '/applications', label: 'Applications', icon: FileText },
+          { href: '/mentor-booking', label: 'Mentor booking', icon: CalendarCheck },
+          { href: '/team', label: 'Team access', icon: Shield },
+          { href: '/team-assignments', label: 'Team assignments', icon: Shield },
+          { href: '/profiles', label: 'Manage profiles', icon: UsersRound },
+          { href: '/access', label: 'Role access', icon: Shield },
+        ]
+      : [
+          { href: '/courses', label: 'Course schedule', icon: CalendarDays },
+          { href: '/team-assignments', label: 'Team assignments', icon: Shield },
+        ]),
+    { href: '/profile', label: 'Profile', icon: UserRound },
+  ];
+}

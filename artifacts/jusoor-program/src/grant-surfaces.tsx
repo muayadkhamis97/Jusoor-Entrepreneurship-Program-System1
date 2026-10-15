@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { currentLanguage, t, useAppLanguage } from "./language";
+import { AccessibleDialogSurface, UnsavedChangesDialog } from "./accessible-dialog";
 import {
   getListGrantAwardsQueryKey,
   useCreateGrantReceipt,
@@ -80,15 +81,21 @@ function ReceiptDialog({
   onSubmit: (data: GrantReceiptInput) => void;
 }) {
   const [amount, setAmount] = useState("");
-  const [receivedOn, setReceivedOn] = useState(localDate);
+  const [initialReceiptDate] = useState(() => localDate());
+  const [receivedOn, setReceivedOn] = useState(initialReceiptDate);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dirty = Boolean(amount || reference.trim() || notes.trim() || receivedOn !== initialReceiptDate);
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  };
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <section className="modal-card grant-receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="grant-dialog-title">
+    <>
+    <AccessibleDialogSurface className="modal-card grant-receipt-dialog" labelledBy="grant-dialog-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestClose} closeOnEscape={!dirty && !saving} closeOnOutsideInteraction={!dirty && !saving} onDismissAttempt={() => { if (dirty && !saving) setConfirmDiscard(true); }}>
         <div className="modal-head">
           <div>
             <div className="eyebrow">{t("GRANT LEDGER")} / {t(kind === "received" ? "RECEIPT" : "CORRECTION")}</div>
@@ -97,7 +104,7 @@ function ReceiptDialog({
             </h2>
             <p>{award.businessName} · Award {money(award.grantAmount)}</p>
           </div>
-          <button type="button" className="icon-button" aria-label={t("Close dialog")} onClick={onClose}><X size={18} /></button>
+          <button type="button" className="icon-button" aria-label={t("Close dialog")} onClick={requestClose} disabled={saving}><X size={18} /></button>
         </div>
         {kind === "reversal" && (
           <div className="grant-correction-note" role="note">
@@ -118,7 +125,7 @@ function ReceiptDialog({
           <div className="form-grid">
             <label className="field">
               <span>{t("Amount (USD)")} *</span>
-              <input className="form-control" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required autoFocus />
+              <input className="form-control" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required data-dialog-autofocus />
             </label>
             <label className="field">
               <span>{t(kind === "received" ? "Date received" : "Correction date")} *</span>
@@ -135,14 +142,15 @@ function ReceiptDialog({
           </div>
           {error && <div className="form-error" role="alert"><AlertCircle size={16} />{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="button button-quiet" onClick={onClose}>{t("Cancel")}</button>
+             <button type="button" className="button button-quiet" onClick={requestClose} disabled={saving}>{t("Cancel")}</button>
             <button className="button button-primary" type="submit" disabled={saving}>
               {saving ? t("Saving…") : <><Check size={16} /> {t(kind === "received" ? "Save receipt" : "Save correction")}</>}
             </button>
           </div>
         </form>
-      </section>
-    </div>
+    </AccessibleDialogSurface>
+    {confirmDiscard && <UnsavedChangesDialog onKeepEditing={() => setConfirmDiscard(false)} onDiscard={() => { setConfirmDiscard(false); onClose(); }} />}
+    </>
   );
 }
 

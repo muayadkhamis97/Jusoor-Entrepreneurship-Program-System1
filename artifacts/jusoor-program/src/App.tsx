@@ -40,10 +40,11 @@ import {
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { SessionCalendar } from './session-calendar';
 import { SessionRecordingPlayer } from './session-recording-player';
-import { AccessibleDialogSurface } from './accessible-dialog';
+import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
+import { participantSignInInstructions } from './participant-dashboard-helpers';
 import { trackEvent } from './lib/analytics';
-import { LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { brandedAdminRoleLabel, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
 import { downloadProgramLifecycleCsv } from './program-lifecycle-export';
 
@@ -128,14 +129,25 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
 }) {
   useAppLanguage();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? ''])));
-  return <AccessibleDialogSurface className="modal-card" labelledBy="dialog-title" describedBy={description ? 'dialog-description' : error ? 'dialog-error' : undefined} initialFocusSelector="[data-dialog-autofocus]" onClose={onClose}>
-      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p id="dialog-description">{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={onClose} data-testid="button-close-dialog"><X size={18} /></button></div>
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const initialValues = Object.fromEntries(fields.map(field => [field.name, initial?.[field.name] ?? '']));
+  const dirty = JSON.stringify(values) !== JSON.stringify(initialValues);
+  const requestClose = () => {
+    if (loading) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  };
+  return <>
+    <AccessibleDialogSurface className="modal-card" labelledBy="dialog-title" describedBy={description ? 'dialog-description' : error ? 'dialog-error' : undefined} initialFocusSelector="[data-dialog-autofocus]" onClose={requestClose} closeOnEscape={!dirty && !loading} closeOnOutsideInteraction={!dirty && !loading} onDismissAttempt={() => { if (dirty && !loading) setConfirmDiscard(true); }}>
+      <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p id="dialog-description">{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={requestClose} disabled={loading} data-testid="button-close-dialog"><X size={18} /></button></div>
       <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
         <div className="form-grid">{fields.map((field, index) => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{t(field.label)}{field.required && <i> *</i>}</span><FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} autoFocus={index === 0} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{t(field.hint)}</small>}</label>)}</div>
         {error && <div id="dialog-error" className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
-        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={onClose} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t('Save record')}</>}</button></div>
+        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={requestClose} disabled={loading} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t('Save record')}</>}</button></div>
       </form>
-  </AccessibleDialogSurface>;
+    </AccessibleDialogSurface>
+    {confirmDiscard && <UnsavedChangesDialog onKeepEditing={() => setConfirmDiscard(false)} onDiscard={() => { setConfirmDiscard(false); onClose(); }} />}
+  </>;
 }
 
 function ConfirmDialog({ item, onCancel, onConfirm, loading, error }: { item: string; onCancel: () => void; onConfirm: () => void; loading?: boolean; error?: string }) {
@@ -170,7 +182,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
       })}</nav>
       <div className="sidebar-bottom">
          <div className="sidebar-note"><Sparkles size={15} /><div><b>{t('One journey, in view.')}</b><span>{t('Move each founder forward.')}</span></div></div>
-         <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.primaryRole === 'coordinator' ? t('Jusoor admin') : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
+          <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.primaryRole === 'coordinator' ? brandedAdminRoleLabel(branding?.brandName) : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
       </div>
     </aside>
     <main className="main-panel">
@@ -853,6 +865,8 @@ function TeamPage() {
   const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<StaffMember | null>(null);
   const [invitingParticipant, setInvitingParticipant] = useState(false);
+  const [participantInviteSuccess, setParticipantInviteSuccess] = useState<string | null>(null);
+  const [inviteInstructionsStatus, setInviteInstructionsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const programAssignmentField: Field = {
     name: 'programIds',
     label: 'Assigned programs',
@@ -898,6 +912,8 @@ function TeamPage() {
   const saveParticipantInvitation = (values: Values) => {
     const email = values.email.trim().toLowerCase();
     const displayName = values.displayName.trim();
+    setParticipantInviteSuccess(null);
+    setInviteInstructionsStatus('idle');
     createParticipantInvitation.mutate({
       data: {
         email,
@@ -907,13 +923,24 @@ function TeamPage() {
     }, {
       onSuccess: () => {
         invalidate(client, [getListParticipantInvitationsQueryKey()]);
+        setParticipantInviteSuccess(email);
         setInvitingParticipant(false);
       },
     });
   };
+  const copyParticipantSignInInstructions = async () => {
+    if (!participantInviteSuccess) return;
+    const instructions = participantSignInInstructions(participantInviteSuccess);
+    try {
+      await navigator.clipboard.writeText(instructions);
+      setInviteInstructionsStatus('copied');
+    } catch {
+      setInviteInstructionsStatus('error');
+    }
+  };
 
   return <>
-    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<div className="team-invite-actions"><button className="button button-outline" onClick={() => setInvitingParticipant(true)} data-testid="button-invite-participant"><UserPlus size={16} /> {t('Invite participant')}</button><button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button></div>} />
+    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<div className="team-invite-actions"><button className="button button-outline" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant"><UserPlus size={16} /> {t('Invite participant')}</button><button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button></div>} />
     <div className="team-callout"><Shield size={18} /><div><b>{t('Every role is tied to a verified email.')}</b><span>{t('Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.')}</span></div></div>
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
       <section className="panel staff-panel">
@@ -931,6 +958,13 @@ function TeamPage() {
       </section>}
     <section className="panel staff-panel participant-invitation-panel">
       <div className="panel-heading"><div><div className="eyebrow">{t('PARTICIPANT ACCESS')}</div><h2 className="app-title">{t('Participant invitations')}</h2></div><span className="section-meta">{t('Program and existing business access')}</span></div>
+      {participantInviteSuccess && <div className="participant-invite-success" role="status" data-testid="participant-invite-success">
+        <div><b>{t('Participant access is ready.')}</b><p>{t('No email was sent. Ask this participant to create an account or sign in using')} <strong>{participantInviteSuccess}</strong> {t('to reach the assigned program and business.')}</p></div>
+        <div className="participant-invite-links"><Link href="/sign-up">{t('Create account')}</Link><Link href="/sign-in">{t('Sign in')}</Link></div>
+        <button type="button" className="button button-quiet" onClick={() => void copyParticipantSignInInstructions()} data-testid="button-copy-participant-instructions">{t('Copy sign-in instructions')}</button>
+        {inviteInstructionsStatus === 'copied' && <small>{t('Instructions copied.')}</small>}
+        {inviteInstructionsStatus === 'error' && <small role="alert">{t('Could not copy instructions. Share the steps above instead.')}</small>}
+      </div>}
       {participantInvitationsQuery.isLoading ? <LoadingState label="Loading participant invitations" /> :
         participantInvitationsQuery.isError ? <div className="form-error" role="alert"><CircleAlert size={16} /><span>{t('Could not load participant invitations.')}{participantListError?.data?.error ? ` ${t(participantListError.data.error)}` : ''}</span><button className="button button-quiet" onClick={() => void participantInvitationsQuery.refetch()}>{t('Retry')}</button></div> :
           participantInvitations.length === 0 ? <p className="empty-inline">{t('No participant invitations yet.')}</p> :

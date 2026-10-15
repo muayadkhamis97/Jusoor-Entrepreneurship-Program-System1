@@ -5,6 +5,7 @@ import {
   UserRound, Users, Video, X,
 } from 'lucide-react';
 import { t, useAppLanguage } from './language';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 type RoleKey = 'coordinator' | 'staff' | 'participant' | 'trainer' | 'mentor' | 'judge';
 type Access = 'full' | 'limited' | 'none';
@@ -125,7 +126,7 @@ export function RoleAccessPage() {
         <div><div className="eyebrow">ACCESS MATRIX</div><h2 id="matrix-title" className="app-title">Who can do what</h2><p>Scoped access is limited to the person’s own work or assigned activity.</p></div>
         <div className="matrix-legend"><span><i className="legend-full" />Allowed</span><span><i className="legend-limited" />Scoped</span><span><i className="legend-none" />No access</span></div>
       </div>
-      <div className="access-table-wrap">
+      <div className="access-table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable results table')}>
         <table className="access-table">
           <thead><tr><th scope="col">WORKSPACE AREA</th>{roles.map(item => <th scope="col" key={item.id}>{t(item.title)}</th>)}</tr></thead>
           <tbody>{matrix.map(row => {
@@ -145,12 +146,14 @@ export function RoleAccessPage() {
         <div><div className="eyebrow">WORKSPACE PREVIEW</div><h2 id="preview-title" className="app-title">A view for every role</h2><p>Select a role to see its workspace shape using fictional examples.</p></div>
         <span className="preview-count">06 ROLES</span>
       </div>
-      <div className="role-selector" role="tablist" aria-label="Select workspace role">
-        {roles.map((item, index) => <button key={item.id} type="button" role="tab" aria-selected={selected === item.id} aria-controls="role-preview-panel" className={`role-select ${selected === item.id ? 'selected' : ''}`} onClick={() => setSelected(item.id)} data-testid={`button-preview-${item.id}`}>
+      <Tabs value={selected} onValueChange={value => setSelected(value as RoleKey)}>
+      <TabsList className="role-selector h-auto bg-transparent p-0 text-foreground" aria-label="Select workspace role">
+        {roles.map((item, index) => <TabsTrigger key={item.id} type="button" value={item.id} className={`role-select ${selected === item.id ? 'selected' : ''}`} data-testid={`button-preview-${item.id}`}>
           <span className="role-select-index">0{index + 1}</span><span className="role-select-title">{item.title}</span><span className="role-select-kind">{item.kind}</span>
-        </button>)}
-      </div>
-      <article className="role-preview" id="role-preview-panel" role="tabpanel" aria-label={`${role.title} workspace preview`} data-testid="panel-role-preview">
+        </TabsTrigger>)}
+      </TabsList>
+      <TabsContent value={selected} className="role-preview-tab mt-0 outline-none" aria-label={`${role.title} workspace preview`} data-testid="panel-role-preview">
+      <article className="role-preview">
         <div className="preview-window-top"><div className="preview-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></div><div className="preview-window-context"><span className="preview-window-dot" /> {role.title.toUpperCase()} WORKSPACE</div><span className="preview-lock"><LockKeyhole size={13} /> VISUAL PREVIEW</span></div>
         <div className="preview-body">
           <aside className="preview-rail"><span className="preview-rail-label">WORKSPACE</span><div className="preview-nav-item active"><BriefcaseBusiness size={14} />{selected === 'participant' ? 'My journey' : selected === 'judge' ? 'Assigned pitches' : selected === 'mentor' ? 'My engagements' : selected === 'trainer' ? 'Cohort desk' : 'Overview'}</div><div className="preview-nav-item"><CalendarDays size={14} />{selected === 'participant' ? 'Sessions' : selected === 'judge' ? 'Scorecards' : selected === 'mentor' ? 'Schedule' : 'Program work'}</div><div className="preview-nav-item"><MessageCircle size={14} />{selected === 'trainer' || selected === 'participant' ? 'Questions' : 'Support'}</div><div className="preview-rail-rule" /><div className="preview-role-identity"><span>{role.title.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{role.title}</b><small>{role.kind}</small></div></div></aside>
@@ -162,6 +165,8 @@ export function RoleAccessPage() {
         </div>
         <div className="preview-bottom-note"><LockKeyhole size={13} /><span>Preview only — illustrative data; actions disabled; no role access is granted.</span></div>
       </article>
+      </TabsContent>
+      </Tabs>
       <div className="access-preview-caption"><span><b>{t(role.title)}</b> · {role.summary}</span><span><Shield size={14} /> Your actual workspace depends on your approved role.</span></div>
     </section>
   </div>;

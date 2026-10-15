@@ -14,6 +14,7 @@ import {
   KeyRound, LockKeyhole, Plus, RotateCw, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { t, useAppLanguage } from './language';
+import { AccessibleDialogSurface } from './accessible-dialog';
 import './api-integrations.css';
 
 type DocResource = { name: string; method: string; path: string; fields: string; note?: string };
@@ -208,18 +209,16 @@ export function ApiIntegrationsPage() {
       </div>}
     </section>
 
-    {newSecret && <div className="api-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && secretCanClose) setNewSecret(''); }}>
-      <section className="api-secret-modal" role="dialog" aria-modal="true" aria-labelledby="api-secret-title">
+    {newSecret && <AccessibleDialogSurface className="api-secret-modal" overlayClassName="api-modal-backdrop" labelledBy="api-secret-title" initialFocusSelector="[data-dialog-autofocus]" onClose={() => setNewSecret('')} closeOnOutsideInteraction={secretCanClose} closeOnEscape={secretCanClose} testId="dialog-api-secret">
         <div className="api-secret-mark"><KeyRound size={21} /></div><div className="api-eyebrow">{copy('CREDENTIAL CREATED', 'تم إنشاء بيانات الاعتماد')}</div><h2 id="api-secret-title">{copy('Copy your secret now.', 'انسخ السر الآن.')}</h2><p>{copy('This is the only time this secret will be shown. Store it securely before closing this window.', 'هذه هي المرة الوحيدة التي سيظهر فيها هذا السر. احفظه بأمان قبل إغلاق هذه النافذة.')}</p>
-        <div className="api-secret-value"><code data-testid="text-new-api-secret">{newSecret}</code><button type="button" onClick={() => void copySecret()} className={secretCopied ? 'copied' : ''} data-testid="button-copy-new-api-secret">{secretCopied ? <Check size={16} /> : <Clipboard size={16} />}{secretCopied ? copy('Copied', 'تم النسخ') : copy('Copy secret', 'نسخ السر')}</button></div>
+        <div className="api-secret-value"><code data-testid="text-new-api-secret">{newSecret}</code><button type="button" data-dialog-autofocus onClick={() => void copySecret()} className={secretCopied ? 'copied' : ''} data-testid="button-copy-new-api-secret">{secretCopied ? <Check size={16} /> : <Clipboard size={16} />}{secretCopied ? copy('Copied', 'تم النسخ') : copy('Copy secret', 'نسخ السر')}</button></div>
         <div className="api-secret-warning" role="alert"><AlertTriangle size={17} /><span><b>{copy('Keep this secret private.', 'حافظ على سرية هذا المفتاح.')}</b>{copy(' It cannot be viewed again. If lost, revoke the key and create a new one.', ' لن تتمكن من عرضه مجدداً. إذا فُقد، ألغِ المفتاح وأنشئ آخر.')}</span></div>
         <button type="button" disabled={!secretCanClose} className="api-button api-button-primary api-secret-done" onClick={() => setNewSecret('')} data-testid="button-dismiss-secret">{copy('I have saved the secret', 'حفظت السر')}</button>
-      </section>
-    </div>}
-    {pendingRevoke && <div className="api-modal-backdrop" role="presentation"><section className="api-revoke-modal" role="alertdialog" aria-modal="true" aria-labelledby="api-revoke-title">
+    </AccessibleDialogSurface>}
+    {pendingRevoke && <AccessibleDialogSurface className="api-revoke-modal" overlayClassName="api-modal-backdrop" role="alertdialog" labelledBy="api-revoke-title" initialFocusSelector="[data-dialog-autofocus]" onClose={() => setPendingRevoke(null)} closeOnOutsideInteraction={false} testId="dialog-api-revoke">
       <div className="api-revoke-symbol"><AlertTriangle size={21} /></div><div className="api-eyebrow">{copy('SECURITY ACTION', 'إجراء أمني')}</div><h2 id="api-revoke-title">{copy('Revoke this key?', 'إلغاء هذا المفتاح؟')}</h2><p>{copy('Any system using', 'أي نظام يستخدم')} <b>{pendingRevoke.label}</b> {copy('will immediately lose access to', 'سيفقد الوصول فوراً إلى')} <b>{pendingRevoke.programName}</b>. {copy('This cannot be undone.', 'لا يمكن التراجع عن هذا الإجراء.')}</p>
       {copyFeedback && <div className="api-inline-error" role="alert">{copyFeedback}</div>}
-      <div className="api-form-actions"><button type="button" className="api-button api-button-quiet" onClick={() => setPendingRevoke(null)} disabled={revokeKey.isPending} data-testid="button-cancel-revoke-key">{copy('Keep key', 'الإبقاء على المفتاح')}</button><button type="button" className="api-button api-button-danger" onClick={confirmRevoke} disabled={revokeKey.isPending} data-testid="button-confirm-revoke-key">{revokeKey.isPending ? copy('Revoking…', 'جارٍ الإلغاء…') : <><Trash2 size={15} />{copy('Revoke permanently', 'إلغاء نهائي')}</>}</button></div>
-    </section></div>}
+      <div className="api-form-actions"><button type="button" className="api-button api-button-quiet" onClick={() => setPendingRevoke(null)} disabled={revokeKey.isPending} data-dialog-autofocus data-testid="button-cancel-revoke-key">{copy('Keep key', 'الإبقاء على المفتاح')}</button><button type="button" className="api-button api-button-danger" onClick={confirmRevoke} disabled={revokeKey.isPending} data-testid="button-confirm-revoke-key">{revokeKey.isPending ? copy('Revoking…', 'جارٍ الإلغاء…') : <><Trash2 size={15} />{copy('Revoke permanently', 'إلغاء نهائي')}</>}</button></div>
+    </AccessibleDialogSurface>}
   </div>;
 }

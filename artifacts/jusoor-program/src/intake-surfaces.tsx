@@ -16,7 +16,7 @@ import { useClerk, useUser } from '@clerk/react';
 import { Link } from 'wouter';
 import { ParticipantAnnouncements } from './communications-surfaces';
 import { SessionCalendar } from './session-calendar';
-import { AccessibleDialogSurface } from './accessible-dialog';
+import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { SessionRecordingPlayer } from './session-recording-player';
 import {
   ArrowRight, CalendarDays, Check, CircleAlert, Clock3, ExternalLink,
@@ -34,6 +34,8 @@ import { ParticipantPeerDirectory } from './peer-directory';
 import { ParticipantAccountActions } from './participant-account-actions';
 import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { applicationSubmitErrorKey } from './application-errors';
+import { getParticipantNextAction } from './participant-dashboard-helpers';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, useFormField,
 } from '@/components/ui/form';
@@ -156,7 +158,7 @@ export function ApplyPage() {
             <TextAreaField form={form} name="supportNeeds" label="What support would move you forward?" placeholder="Think about mentorship, market access, product development, funding readiness, or something else." helper="10–1,500 characters" testId="input-supportNeeds" />
           </div>
         </section>
-        {submit.isError && <div className="form-error" role="alert"><CircleAlert size={16} />{t('We couldn’t submit your application. Check your connection and try again.')}</div>}
+        {submit.isError && <div className="form-error" role="alert"><CircleAlert size={16} />{t(applicationSubmitErrorKey(submit.error))}</div>}
         <div className="intake-submit-row"><p>{t('By submitting, you agree that Jusoor may contact you about this application. Your information is shared only with the program team.')}</p><button className="button button-primary" type="submit" disabled={submit.isPending} data-testid="button-submit-application">{submit.isPending ? t('Sending application…') : <>{t('Submit application')} <ArrowRight size={15} /></>}</button></div>
       </form></Form>
         <aside className="intake-aside"><div className="eyebrow">{t('A CLEAR PROCESS')}</div><h3>{t('What happens next')}</h3><ol><li>{t('We read your application and consider your fit for the cohort.')}</li><li>{t('Our team may contact you for a conversation or more detail.')}</li><li>{t('An admin records a decision. Sign in anytime to follow your status.')}</li></ol><div className="deadline"><CalendarDays size={13} /> {t('Selected cohort deadline')} <b>{selectedProgram ? dateText(selectedProgram.applicationDeadline) : t('Choose a cohort to see its deadline')}</b></div></aside>
@@ -189,8 +191,18 @@ export function ApplicationsReviewPage() {
   }), [records, search, filter]);
   const active = records.find(record => record.id === activeId) || null;
   useEffect(() => {
-    if (active) { setStatus(active.status === 'submitted' ? 'under_review' : active.status); setNotes(active.reviewNotes || ''); }
+    if (active) { setStatus(active.status === 'submitted' ? 'under_review' : active.status); setNotes(active.reviewNotes || ''); setConfirmReviewDiscard(false); }
   }, [active?.id]);
+  const [confirmReviewDiscard, setConfirmReviewDiscard] = useState(false);
+  const reviewIsDirty = Boolean(active && (
+    status !== (active.status === 'submitted' ? 'under_review' : active.status) ||
+    notes !== (active.reviewNotes || '')
+  ));
+  const requestReviewClose = () => {
+    if (review.isPending) return;
+    if (reviewIsDirty) setConfirmReviewDiscard(true);
+    else setActiveId(null);
+  };
   const saveReview = () => {
     if (!active) return;
     review.mutate({ id: active.id, data: { status, reviewNotes: notes.trim() || null } }, {
@@ -217,15 +229,16 @@ export function ApplicationsReviewPage() {
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
        : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Applications couldn’t load.')}</h3><p>{t('Review records are unchanged. Try reconnecting to the program workspace.')}</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-applications">{t('Retry connection')}</button></div>
        : filtered.length === 0 ? <div className="empty-panel"><span className="empty-icon"><FileText size={22} /></span><h3>{t(records.length ? 'No applications match this view.' : 'The next founder story is still ahead.')}</h3><p>{t(records.length ? 'Try another status or search term.' : 'New submissions will appear here for admin review.')}</p>{records.length > 0 && <button className="button button-quiet" onClick={() => { setFilter('all'); setSearch(''); }} data-testid="button-clear-application-filters">{t('Clear filters')}</button>}</div>
-       : <div className="table-wrap"><table><thead><tr><th>{t('FOUNDER / VENTURE')}</th><th>{t('PROGRAM')}</th><th>{t('SUBMITTED')}</th><th>{t('STATUS')}</th><th /></tr></thead><tbody>{filtered.map((record: EntrepreneurApplication) => <tr key={record.id} data-testid={`row-application-${record.id}`}><td><div className="company-cell"><span className="company-monogram">{record.founderName.slice(0, 1).toUpperCase()}</span><span><b>{record.founderName}</b><small>{record.businessName} · {record.email}</small></span></div></td><td>{record.programName}</td><td>{dateText(record.createdAt)}</td><td><span className={`badge ${statusClass(record.status)}`}><span />{t(statusWords[record.status] || word(record.status))}</span></td><td><button className="button button-quiet" onClick={() => setActiveId(record.id)} data-testid={`button-review-application-${record.id}`}>{t('Review')} <ArrowRight size={13} /></button></td></tr>)}</tbody></table></div>}
+        : <div className="table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable results table')}><table><thead><tr><th>{t('FOUNDER / VENTURE')}</th><th>{t('PROGRAM')}</th><th>{t('SUBMITTED')}</th><th>{t('STATUS')}</th><th /></tr></thead><tbody>{filtered.map((record: EntrepreneurApplication) => <tr key={record.id} data-testid={`row-application-${record.id}`}><td><div className="company-cell"><span className="company-monogram">{record.founderName.slice(0, 1).toUpperCase()}</span><span><b>{record.founderName}</b><small>{record.businessName} · {record.email}</small></span></div></td><td>{record.programName}</td><td>{dateText(record.createdAt)}</td><td><span className={`badge ${statusClass(record.status)}`}><span />{t(statusWords[record.status] || word(record.status))}</span></td><td><button className="button button-quiet" onClick={() => setActiveId(record.id)} data-testid={`button-review-application-${record.id}`}>{t('Review')} <ArrowRight size={13} /></button></td></tr>)}</tbody></table></div>}
     </section>
-     {active && <AccessibleDialogSurface className="modal-card" labelledBy="application-review-title" describedBy="application-review-description" initialFocusSelector="#application-review-title" onClose={() => setActiveId(null)} testId={`dialog-application-${active.id}`}>
-       <div className="modal-head"><div><div className="eyebrow">{t('APPLICATION')} / JSR-{String(active.id).padStart(5, '0')}</div><h2 id="application-review-title" className="app-title" tabIndex={-1}>{active.businessName}</h2><p id="application-review-description">{active.founderName} · {active.programName}</p></div><button className="icon-button" aria-label={t('Close review')} onClick={() => setActiveId(null)} data-testid="button-close-review">×</button></div>
+     {active && <AccessibleDialogSurface className="modal-card" labelledBy="application-review-title" describedBy="application-review-description" initialFocusSelector="#application-review-title" onClose={requestReviewClose} closeOnEscape={!reviewIsDirty && !review.isPending} closeOnOutsideInteraction={!reviewIsDirty && !review.isPending} onDismissAttempt={() => { if (reviewIsDirty && !review.isPending) setConfirmReviewDiscard(true); }} testId={`dialog-application-${active.id}`}>
+       <div className="modal-head"><div><div className="eyebrow">{t('APPLICATION')} / JSR-{String(active.id).padStart(5, '0')}</div><h2 id="application-review-title" className="app-title" tabIndex={-1}>{active.businessName}</h2><p id="application-review-description">{active.founderName} · {active.programName}</p></div><button className="icon-button" aria-label={t('Close review')} onClick={requestReviewClose} disabled={review.isPending} data-testid="button-close-review">×</button></div>
       <div className="modal-form"><div className="application-detail"><div className="application-detail-main">
          <div className="application-detail-card"><h3>{t('Founder and venture')}</h3><div className="application-meta"><div><span>{t('FOUNDER')}</span><b>{active.founderName}</b></div><div><span>{t('EMAIL')}</span><a href={`mailto:${active.email}`}>{active.email}</a></div><div><span>{t('PHONE')}</span><b>{active.phone || t('Not provided')}</b></div><div><span>{t('INDUSTRY')}</span><b>{active.industry || t('Not specified')}</b></div><div><span>{t('WEBSITE')}</span>{active.website ? <a href={active.website} target="_blank" rel="noreferrer">{active.website}</a> : <b>{t('Not provided')}</b>}</div><div><span>{t('SUBMITTED')}</span><b>{dateText(active.createdAt)}</b></div></div></div>
          <div className="application-detail-card"><h3>{t('About the venture')}</h3><p>{active.summary}</p></div><div className="application-detail-card"><h3>{t('Support requested')}</h3><p>{active.supportNeeds}</p></div>
         </div><aside className="review-aside"><h3>{t('Admin decision')}</h3><label className="field">{t('Application status')}<select className="form-control" value={status} onChange={event => setStatus(event.target.value as typeof status)} disabled={active.status === 'accepted' || active.status === 'declined'} data-testid="select-review-status"><option value="under_review">{t('In review')}</option><option value="accepted">{t('Accepted')}</option><option value="declined">{t('Declined')}</option></select></label>{['accepted', 'declined'].includes(active.status) && <small>{t('This is a final decision. You can update its internal notes here.')}</small>}<label className="field">{t('Internal review notes')}<textarea className="review-note" value={notes} onChange={event => setNotes(event.target.value)} maxLength={3000} placeholder={t('Notes for the program team only')} data-testid="input-review-notes" /><small>{t('These notes are visible to admins only.')}</small></label>{review.isError && <div className="form-error" role="alert"><CircleAlert size={15} />{t('Decision not saved. Try again.')}</div>}<button className="button button-primary" onClick={saveReview} disabled={review.isPending} data-testid="button-save-review">{review.isPending ? t('Saving decision…') : <><Check size={15} /> {t('Save decision')}</>}</button></aside></div></div>
-     </AccessibleDialogSurface>}
+      </AccessibleDialogSurface>}
+     {confirmReviewDiscard && <UnsavedChangesDialog onKeepEditing={() => setConfirmReviewDiscard(false)} onDiscard={() => { setConfirmReviewDiscard(false); setActiveId(null); }} />}
   </>;
 }
 
@@ -236,13 +249,37 @@ export function ParticipantDashboardPage() {
   const profileQuery = useGetParticipantProfile({ query: { queryKey: getGetParticipantProfileQueryKey(), retry: false } });
   const { user } = useUser();
   const enrollments = query.data?.applications || [];
+  const hasAcceptedEnrollment = enrollments.some(enrollment => enrollment.applicationStatus === 'accepted');
+  const nextAction = getParticipantNextAction(hasAcceptedEnrollment);
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
   return <div className="intake-page"><header className="intake-top"><IntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Jusoor hub')} <ArrowRight size={14} /></Link></div></header>
     <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR JUSOOR JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your application status, upcoming sessions and support in one place.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
         : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>
          : enrollments.length === 0 ? <><div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h1>{t('No program access linked yet.')}</h1><p>{t('This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div><ParticipantAnnouncements announcements={query.data?.announcements || []} /></>
-          : <>{enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}{enrollments.some(enrollment => enrollment.applicationStatus === 'accepted') && <ParticipantBusinessTeams />}<ParticipantAnnouncements announcements={query.data?.announcements || []} /><ParticipantIdeaValidation enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /><ParticipantBusinessPlan enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /><ParticipantLearningProgress /><ParticipantProgramLearning /></>}
+          : <>
+            <section className="participant-next-action" aria-labelledby="participant-next-action-title">
+              <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span><h2 id="participant-next-action-title">{t(nextAction.titleKey)}</h2><p>{t(nextAction.descriptionKey)}</p></div>
+              <a className="button button-primary" href={nextAction.href}>{t('Go to next action')} <ArrowRight size={15} /></a>
+            </section>
+            <nav className="participant-section-index" aria-label={t('Your dashboard sections')}>
+              <a href="#participant-program-progress">{t('Program progress')}</a>
+              {hasAcceptedEnrollment && <a href="#participant-business-team">{t('Business team')}</a>}
+              <a href="#participant-updates">{t('Program updates')}</a>
+              <a href="#participant-learning">{t('Learning')}</a>
+            </nav>
+            <section id="participant-program-progress" className="participant-dashboard-section" aria-label={t('Program progress')}>
+              {enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}
+            </section>
+            {hasAcceptedEnrollment && <div id="participant-business-team" className="participant-dashboard-section"><ParticipantBusinessTeams /></div>}
+            <div id="participant-updates" className="participant-dashboard-section"><ParticipantAnnouncements announcements={query.data?.announcements || []} /></div>
+            <div className="participant-dashboard-section"><ParticipantIdeaValidation enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /></div>
+            <div className="participant-dashboard-section"><ParticipantBusinessPlan enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /></div>
+            <section id="participant-learning" className="participant-dashboard-section" aria-label={t('Learning')}>
+              <ParticipantLearningProgress />
+              <ParticipantProgramLearning />
+            </section>
+          </>}
     </main><footer className="intake-footer"><span>JUSOOR ENTREPRENEURSHIP PROGRAM</span><span>YOUR PROGRESS IS PRIVATE TO YOU</span></footer>
   </div>;
 }
@@ -254,7 +291,7 @@ function ParticipantBusinessTeams() {
   return <section className="participant-business-teams" aria-labelledby="participant-business-teams-title" data-testid="participant-business-teams">
     <header><span className="participant-business-icon"><Users size={17} /></span><div><div className="eyebrow">{t('YOUR TEAM')}</div><h2 id="participant-business-teams-title">{t('Business team')}</h2></div></header>
     {query.isLoading && <div className="participant-team-loading" aria-label={t('Loading your business team')} />}
-    {query.isError && <p className="participant-team-status" role="status">{t('Your business team is being set up. Check again later.')}</p>}
+    {query.isError && <div className="participant-team-status participant-team-error" role="alert"><p>{t('We could not load your business team.')}</p><button type="button" className="text-link" onClick={() => void query.refetch()} data-testid="button-retry-business-team">{t('Retry connection')}</button></div>}
     {query.data?.length === 0 && <p className="participant-team-status">{t('Your program staff will add your business team here.')}</p>}
     {query.data?.map((team: ParticipantBusinessTeam) => <article className="participant-business-card" key={`${team.programId}-${team.businessId}`}>
       <div className="participant-business-title"><div><span>{team.programName}</span><h3>{team.businessName}</h3></div><span className="badge badge-cool"><span />{t(team.stage.replaceAll('_', ' ').replace(/\b\w/g, value => value.toUpperCase()))}</span></div>

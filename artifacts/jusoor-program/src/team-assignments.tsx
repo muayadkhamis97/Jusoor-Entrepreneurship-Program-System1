@@ -15,6 +15,7 @@ import {
 } from '@workspace/api-client-react';
 import { Building2, Check, CircleAlert, History, LoaderCircle, Shield, Users } from 'lucide-react';
 import { LanguageToggle, t, useAppLanguage } from './language';
+import { useProgramSelection } from './program-selection';
 import './team-assignments.css';
 
 const roleOptions: ProgramSpecialistRole[] = ['trainer', 'mentor', 'judge'];
@@ -33,10 +34,7 @@ export function ProgramTeamAssignmentsPage({ isAdmin }: { isAdmin: boolean }) {
   const currentUser = useGetAuthMe({ query: { queryKey: getGetAuthMeQueryKey() } });
   const programsQuery = useListPrograms();
   const programs = programsQuery.data || [];
-  const [selectedProgramId, setSelectedProgramId] = useState<number | null>(null);
-  useEffect(() => {
-    if (selectedProgramId === null && programs.length) setSelectedProgramId(programs[0].id);
-  }, [programs, selectedProgramId]);
+  const [selectedProgramId, setSelectedProgramId] = useProgramSelection(programs, true);
 
   const assignmentsQuery = useGetProgramTeamAssignments(selectedProgramId ?? 0, {
     query: {
@@ -141,7 +139,7 @@ function AssignmentsSections({
       <p className="assignment-section-copy">{t('Set roles separately for each program. A person can be a trainer and mentor in this program without receiving those roles in another program.')}</p>
       {!data.staff.length
         ? <div className="assignment-empty">{t('No team accounts are available for this program yet. Admins can add team members first.')}</div>
-        : <div className="table-wrap">
+        : <div className="table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable results table')}>
           <table className="assignment-table">
             <thead><tr><th>{t('TEAM MEMBER')}</th><th>{t('PROGRAM ROLES')}</th><th>{t('ACCOUNT')}</th></tr></thead>
             <tbody>{data.staff.map(member => <StaffRoleRow
@@ -164,7 +162,7 @@ function AssignmentsSections({
       <p className="assignment-section-copy">{t('Assign accepted participants to a business. Teammates can see the shared business profile and team roster, but personal learning progress, assessments, and feedback stay private.')}</p>
       {!data.participants.length
         ? <div className="assignment-empty">{t('Accepted participants will appear here.')}</div>
-        : <div className="table-wrap">
+        : <div className="table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable results table')}>
           <table className="assignment-table">
             <thead><tr><th>{t('PARTICIPANT')}</th><th>{t('BUSINESS TEAM')}</th><th>{t('SAVE')}</th></tr></thead>
             <tbody>{data.participants.map(participant => <ParticipantBusinessRow
@@ -209,7 +207,7 @@ function AssignmentAuditHistory() {
         </div>
         : events.length === 0
           ? <div className="assignment-empty">{t('No assignment changes have been recorded yet.')}</div>
-          : <div className="table-wrap">
+           : <div className="table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable results table')}>
             <table className="assignment-table">
               <thead><tr>
                 <th>{t('WHEN')}</th><th>{t('PROGRAM')}</th><th>{t('CHANGE')}</th><th>{t('AFFECTED ACCOUNT')}</th><th>{t('PREVIOUS')}</th><th>{t('NEW')}</th><th>{t('CHANGED BY')}</th>

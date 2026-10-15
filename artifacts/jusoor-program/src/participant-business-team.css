@@ -108,6 +108,59 @@
   background-size: 200% 100%;
   animation: team-loading 1.4s ease infinite;
 }
+.participant-team-error {
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--destructive) / .22);
+  border-radius: 7px;
+  background: hsl(var(--destructive) / .04);
+}
+.participant-team-error p { margin: 0; }
+.participant-team-error button { flex: 0 0 auto; }
+
+.participant-next-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 18px 0 12px;
+  padding: 16px 18px;
+  border: 1px solid hsl(var(--primary) / .2);
+  border-radius: 9px;
+  background: hsl(var(--primary) / .045);
+}
+.participant-next-action h2 { margin: 5px 0; color: hsl(var(--foreground)); font-size: 16px; }
+.participant-next-action p { margin: 0; color: hsl(var(--muted-foreground)); line-height: 1.5; }
+.participant-section-index {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 3px 0 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.participant-section-index a {
+  flex: 0 0 auto;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  text-decoration: none;
+}
+.participant-section-index a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.participant-dashboard-section { display: grid; gap: 12px; margin-bottom: 14px; scroll-margin-top: 16px; }
+.si-input-label { display: block; margin: 7px 0 4px; color: hsl(var(--foreground)); font-size: 12px; font-weight: 700; }
+@media (max-width: 700px) {
+  .participant-next-action { align-items: stretch; flex-direction: column; padding: 14px; }
+  .participant-next-action .button { align-self: flex-start; }
+}
 @keyframes team-loading { to { background-position: -200% 0; } }
 @media (max-width: 600px) {
   .participant-business-teams { padding: 15px; }

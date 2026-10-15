@@ -1,0 +1,242 @@
+# Task: Complete Platform-Wide UX/UI Improvement and Accessibility Remediation
+
+**Project:** Jusoor Entrepreneurship Program System  
+**Audit source:** `docs/UX_UI_PLATFORM_AUDIT.md`
+
+## 1. Objective
+
+Review the complete UX/UI audit report and implement the recommended improvements across the entire platform.
+
+The goal is to deliver a cohesive, professional, accessible, responsive, and production-quality user experience for applicants, participants, coordinators, administrators, project staff, trainers, mentors, and judges.
+
+**Do not stop after fixing the top five findings.** Address all actionable findings in the audit report, including all 20 prioritized findings, unless a finding is blocked, unsafe to change, or requires unavailable access. Report any exceptions explicitly.
+
+Use the existing application architecture, design system, components, translations, and testing conventions. Avoid unnecessary redesigns, dependencies, and unrelated refactoring.
+
+## 2. Start With the Audit
+
+Before changing anything:
+
+1. Read `docs/UX_UI_PLATFORM_AUDIT.md` in full.
+2. Review the application's routes, shared components, design tokens, localization system, and relevant tests.
+3. Create a remediation checklist covering every audit finding, including its ID, affected page or component, planned fix, and verification method.
+4. Identify shared components that could resolve the same issue across multiple pages.
+5. Check the current application state and available tests so that existing failures are not incorrectly attributed to your changes.
+
+Use the audit report as the source of truth for the findings. Do not silently omit lower-priority issues or invent new requirements unrelated to the audit.
+
+## 3. Fix Dialog Accessibility Across the Platform
+
+Review every custom dialog, modal, confirmation window, application-review dialog, and form dialog.
+
+Implement and verify:
+
+- Focus moves into the dialog when it opens.
+- Keyboard focus remains within a modal dialog while it is open.
+- Escape closes dismissible dialogs, while genuinely mandatory confirmation flows retain appropriate safeguards.
+- Focus returns to the element that opened the dialog when it closes.
+- Dialogs have accessible names and correct semantic attributes.
+- Visible focus indicators are available for keyboard users.
+- Background content cannot be interacted with while a modal is active.
+- Forms retain entered values and validation feedback when appropriate.
+- Nested dialogs, loading states, destructive confirmations, and failed submissions behave correctly.
+- Existing mouse, touch, and keyboard interactions continue working.
+
+Prefer a well-supported existing dialog primitive if the project already uses one. Standardize shared behavior rather than applying inconsistent fixes separately to every page.
+
+Add automated tests for the shared dialog implementation and critical dialog workflows.
+
+## 4. Improve Participant Account Actions
+
+Address the audit finding concerning participant sign-out and account switching.
+
+- Provide a clear, discoverable sign-out action in an appropriate location.
+- Integrate with the existing authentication provider correctly.
+- Support account switching where the existing authentication architecture permits it.
+- Ensure users receive appropriate feedback when signing out or encountering an authentication error.
+- Handle session expiry and protected routes safely.
+- Prevent access to participant data after the session ends.
+- Preserve existing authentication, enrollment, and authorization rules.
+
+Do not introduce a new authentication system or weaken security controls. If the existing identity provider does not support a requested account-switch behavior, explain the limitation and implement the safest supported alternative.
+
+Test authentication-related UI behavior with mocks or authorized test accounts. Do not change production identity settings.
+
+## 5. Fix Contrast, Typography, and Readability
+
+Review the global design tokens and their usage across the platform.
+
+### Contrast
+
+- Correct secondary-text colors that fail normal-text contrast requirements.
+- Check text on cards, tables, badges, inputs, buttons, disabled controls, and status indicators.
+- Aim to meet WCAG 2.2 AA contrast requirements: 4.5:1 for normal text and 3:1 for large text, where applicable.
+- Ensure focus indicators and meaningful graphical controls have sufficient contrast.
+- Do not rely on color alone to communicate status.
+
+### Typography
+
+- Improve excessively small labels, metadata, helper text, and functional text.
+- Establish a consistent hierarchy for page titles, headings, body text, labels, and secondary information.
+- Maintain readable line height, spacing, and line lengths.
+- Ensure long Arabic and English text does not clip or overlap.
+- Preserve information density in complex administrative tables without making text difficult to read.
+- Support browser zoom and text resizing.
+
+Make changes through shared tokens and components wherever practical. Avoid globally enlarging every element in ways that break tables, dashboards, or mobile layouts.
+
+Add automated contrast checks or focused tests where feasible, and document any colors or states that cannot be checked automatically.
+
+## 6. Complete Arabic and RTL Localization
+
+Review the localization findings in the audit and improve Arabic support across public, applicant, participant, and staff interfaces.
+
+- Add missing Arabic translations for important interface sections and user actions.
+- Review navigation, forms, validation messages, dialogs, tables, dashboards, empty states, notifications, and errors.
+- Ensure language and text direction are set correctly.
+- Check layout mirroring, spacing, alignment, icons, arrows, and directional controls.
+- Handle mixed Arabic and English text, dates, numbers, and currencies appropriately.
+- Preserve dynamic values, user-provided content, product names, and other intentional untranslated strings.
+- Keep English LTR behavior intact.
+- Avoid mechanically translating technical terms where the existing product terminology provides a better Arabic equivalent.
+
+Add an automated check for missing translations or untranslated interface strings in the key flows identified by the audit. Make the check practical for ongoing development and avoid false positives for intentional exceptions.
+
+Do not claim Arabic visual correctness unless Arabic-rendered pages have actually been inspected. If browser access is unavailable, use source-level and automated verification and record the remaining visual limitations.
+
+## 7. Improve Error Recovery and Feedback
+
+Address the audit findings related to error handling and recovery across important workflows.
+
+Review:
+
+- Form validation and submission failures.
+- Network and server errors.
+- Loading, saving, success, and retry states.
+- Empty search results and empty dashboards.
+- Expired sessions and permission errors.
+- Failed file uploads and unsupported file formats.
+- Failed actions involving applications, courses, attendance, evaluations, and program management.
+- Confirmation messages and destructive actions.
+
+Users should understand what happened, whether their changes were saved, and what they can do next.
+
+Requirements:
+
+- Use clear, actionable error messages.
+- Preserve entered data when safe.
+- Prevent duplicate submissions.
+- Provide retry or recovery options where appropriate.
+- Use consistent notification and status patterns.
+- Ensure feedback is accessible to assistive technologies.
+- Avoid exposing internal stack traces, sensitive information, or technical details to end users.
+
+Do not introduce fake success messages or claim that an operation succeeded before the application confirms it.
+
+## 8. Fix All Remaining Audit Findings
+
+Work through the complete findings register in `docs/UX_UI_PLATFORM_AUDIT.md`, not just the categories described above.
+
+Address all applicable findings concerning:
+
+- Visual design and consistency.
+- Navigation and information architecture.
+- Responsive layouts.
+- Forms, tables, dashboards, and interactive controls.
+- Accessibility.
+- Arabic localization and RTL.
+- Empty, loading, error, and confirmation states.
+- Role-specific user experiences.
+- Shared component consistency and design tokens.
+
+For each finding:
+
+1. Confirm the issue in the source or available test environment.
+2. Implement the smallest robust fix that addresses the root cause.
+3. Check related components and routes for the same issue.
+4. Add or update tests where feasible.
+5. Record the result in the remediation checklist.
+
+Do not change permissions, workflows, or business rules merely to simplify the interface. Preserve existing role-based access and program-scoping behavior.
+
+## 9. Responsive Design
+
+Improve the platform across representative viewport widths:
+
+- Mobile: 375–390 px.
+- Tablet: 768 px.
+- Desktop: 1366–1440 px.
+- Wide desktop: 1920 px.
+
+Review navigation, sidebars, forms, dialogs, dashboards, charts, cards, tables, and complex page layouts.
+
+Correct issues such as horizontal overflow, clipped text, overlapping controls, inaccessible actions, awkward whitespace, and layouts that fail at intermediate widths.
+
+Use mobile-appropriate layouts for complex tables and navigation while preserving essential information and functionality. Do not simply hide important controls to make pages fit.
+
+Test actual browser rendering when the authorized environment supports it. Otherwise, use source-level and automated checks and mark visual verification as not verified.
+
+## 10. Testing and Quality Assurance
+
+After implementation:
+
+- Run relevant unit and component tests.
+- Run the existing application test suites where feasible.
+- Run typechecks and production builds if supported by the current environment.
+- Add regression tests for the issues fixed.
+- Check that shared-component changes do not break other routes.
+- Verify English and Arabic localization behavior through tests.
+- Verify keyboard interactions for dialogs.
+- Verify sign-out and protected-route behavior with safe test identities or mocks.
+- Check responsive layouts using a safe browser environment where available.
+- Review the final diff for unrelated changes.
+
+Report actual results, including failures. Do not claim a test passed if it was not run, and do not claim browser verification if only source code was inspected.
+
+If a test fails, investigate whether it is caused by the changes. Fix regressions introduced by this task. Clearly separate pre-existing failures from new failures.
+
+## 11. Documentation and Remediation Tracking
+
+Update `docs/UX_UI_PLATFORM_AUDIT.md` or add a companion remediation report.
+
+For every original audit finding, record:
+
+- Finding ID and severity.
+- Status: Fixed, Partially Fixed, Blocked, or Not Fixed.
+- Summary of the change.
+- Tests or evidence supporting the status.
+- Routes or components affected.
+- Remaining limitations.
+
+Keep a record of browser and viewport coverage. Clearly identify authenticated pages, roles, Arabic views, and responsive states that could not be inspected.
+
+Do not mark a finding as fixed solely because code was changed; require reasonable supporting evidence.
+
+## 12. Safety and Scope Boundaries
+
+- Do not publish or deploy.
+- Do not modify production data.
+- Do not connect to or migrate existing databases.
+- Do not run schema pushes or force-pushes.
+- Do not send emails or trigger live external integrations.
+- Do not change production authentication settings.
+- Do not weaken authorization or role restrictions.
+- Do not install new dependencies unless essential and explicitly justified.
+- Do not delete existing functionality to simplify the interface.
+- Do not make unrelated changes to business logic.
+- Preserve the existing program-assignment, archival, and data-integrity safeguards.
+- If a fix requires a database change, external access, or a risky architectural change, document the blocker rather than proceeding unsafely.
+
+## 13. Final Deliverables
+
+When finished, provide:
+
+1. A summary of the improvements implemented.
+2. A status for every original audit finding.
+3. Tests, typechecks, and builds actually executed, with exact results.
+4. Browser, role, viewport, keyboard, and language verification actually completed.
+5. Any regressions, blocked findings, or unresolved issues.
+6. A prioritized list of remaining work, if any.
+7. A statement confirming that no publishing or deployment occurred.
+
+**Completion criterion:** All actionable audit findings have been addressed or explicitly documented as blocked or unresolved, relevant checks have been run, and the platform's existing functionality and access controls have been preserved. Do not stop after making superficial visual changes.

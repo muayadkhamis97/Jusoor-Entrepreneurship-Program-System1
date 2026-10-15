@@ -12,6 +12,7 @@ import { AccessibleDialogSurface } from './accessible-dialog';
 import { CourseDiscussion } from './course-discussion';
 import { CourseQuizManagement } from './course-quizzes';
 import { currentLanguage, t, useAppLanguage } from './language';
+import { useProgramSelection } from './program-selection';
 import {
   ArrowDownToLine, ArrowUpRight, BookOpen, CalendarClock, Check, CircleAlert,
   ClipboardList, FileAudio, FileText, Film, Link2, Pencil, Plus, Presentation,
@@ -66,7 +67,7 @@ export function CourseManagementPage({ schedulingOnly = false, readOnly = false 
   const deleteMaterial = useDeleteCourseMaterial();
   const uploadUrl = useRequestCourseUploadUrl();
   const programs = query.data?.programs || [];
-  const [programId, setProgramId] = useState<number | null>(null);
+  const [programId, setProgramId] = useProgramSelection(programs, true);
   const selectedProgram = programs.find(program => program.id === (programId ?? programs[0]?.id));
   const modules = useMemo(() => [...(selectedProgram?.modules || [])]
     .filter(module => !readOnly || (module.isPublished && (!module.releaseAt || new Date(module.releaseAt).getTime() <= Date.now())))

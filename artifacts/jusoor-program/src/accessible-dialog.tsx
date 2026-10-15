@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { ReactNode } from 'react';
 import { useLayoutEffect, useRef } from 'react';
+import { t } from './language';
 
 type AccessibleDialogSurfaceProps = {
   children: ReactNode;
@@ -12,6 +13,8 @@ type AccessibleDialogSurfaceProps = {
   role?: 'dialog' | 'alertdialog';
   closeOnOutsideInteraction?: boolean;
   closeOnEscape?: boolean;
+  onDismissAttempt?: () => void;
+  overlayClassName?: string;
   testId?: string;
 };
 
@@ -25,6 +28,8 @@ export function AccessibleDialogSurface({
   role = 'dialog',
   closeOnOutsideInteraction = true,
   closeOnEscape = true,
+  onDismissAttempt,
+  overlayClassName,
   testId,
 }: AccessibleDialogSurfaceProps) {
   const opener = useRef<HTMLElement | null>(null);
@@ -46,7 +51,7 @@ export function AccessibleDialogSurface({
   return (
     <DialogPrimitive.Root open onOpenChange={open => { if (!open) onClose(); }}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="modal-backdrop" />
+        <DialogPrimitive.Overlay className={overlayClassName || 'modal-backdrop'} />
         <DialogPrimitive.Content
           ref={content}
           className={`${className} dialog-content-positioned`}
@@ -68,10 +73,16 @@ export function AccessibleDialogSurface({
             opener.current.focus();
           }}
           onPointerDownOutside={event => {
-            if (!closeOnOutsideInteraction) event.preventDefault();
+            if (!closeOnOutsideInteraction) {
+              event.preventDefault();
+              onDismissAttempt?.();
+            }
           }}
           onEscapeKeyDown={event => {
-            if (!closeOnEscape) event.preventDefault();
+            if (!closeOnEscape) {
+              event.preventDefault();
+              onDismissAttempt?.();
+            }
           }}
         >
           {children}
@@ -79,4 +90,30 @@ export function AccessibleDialogSurface({
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );
+}
+
+export function UnsavedChangesDialog({
+  onKeepEditing,
+  onDiscard,
+}: {
+  onKeepEditing: () => void;
+  onDiscard: () => void;
+}) {
+  return <AccessibleDialogSurface
+    className="confirm-card unsaved-changes-card"
+    role="alertdialog"
+    labelledBy="unsaved-changes-title"
+    describedBy="unsaved-changes-description"
+    initialFocusSelector="[data-dialog-autofocus]"
+    onClose={onKeepEditing}
+    closeOnOutsideInteraction={false}
+    testId="dialog-discard-changes"
+  >
+    <h2 id="unsaved-changes-title" className="app-title">{t('Discard unsaved changes?')}</h2>
+    <p id="unsaved-changes-description">{t('Your changes have not been saved. Leave this editor and discard them?')}</p>
+    <div className="modal-actions">
+      <button type="button" className="button button-quiet" data-dialog-autofocus onClick={onKeepEditing}>{t('Keep editing')}</button>
+      <button type="button" className="button button-danger" onClick={onDiscard}>{t('Discard changes')}</button>
+    </div>
+  </AccessibleDialogSurface>;
 }

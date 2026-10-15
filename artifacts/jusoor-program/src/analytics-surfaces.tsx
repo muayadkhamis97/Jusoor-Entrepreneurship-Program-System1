@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { currentLanguage, t, useAppLanguage } from "./language";
+import { AccessibleDialogSurface, UnsavedChangesDialog } from "./accessible-dialog";
+import { useProgramSelection } from "./program-selection";
 import { CSVLink } from "react-csv";
 import {
   useGetProgramAnalytics,
@@ -11,6 +13,7 @@ import {
   useQueueZoomAttendanceSync,
   useResolveZoomAttendanceParticipant,
   useListProgramImpactKpis,
+  useListPrograms,
   useCreateProgramImpactKpi,
   useUpdateProgramImpactKpi,
   useDeleteProgramImpactKpi,
@@ -72,12 +75,15 @@ export function ProgramAnalyticsPage() {
   const now = new Date();
   const initialFrom = new Date(now.getTime() - 89 * 86400000).toISOString().slice(0, 10);
   const today = now.toISOString().slice(0, 10);
-  const [programChoice, setProgramChoice] = useState("");
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(today);
   const [interactionPeriod, setInteractionPeriod] = useState<"weekly" | "monthly">("weekly");
   const [interactionType, setInteractionType] = useState<"all" | "poll" | "survey">("all");
   const [interactionThreshold, setInteractionThreshold] = useState(30);
+  const programsQuery = useListPrograms();
+  const programOptions = programsQuery.data || [];
+  const [selectedProgramId, setSelectedProgramId] = useProgramSelection(programOptions);
+  const programChoice = selectedProgramId?.toString() ?? "";
   const queryParams = useMemo(() => ({
     ...(programChoice ? { programId: Number(programChoice) } : {}),
     ...(from ? { from } : {}),
@@ -105,7 +111,10 @@ export function ProgramAnalyticsPage() {
   const [attendance, setAttendance] = useState<AttendanceState>({});
   const [participantMatches, setParticipantMatches] = useState<Record<number, string>>({});
   const [kpiEditor, setKpiEditor] = useState<ImpactKpi | null | "new">(null);
+  const [kpiDirty, setKpiDirty] = useState(false);
   const [valueEditor, setValueEditor] = useState<ImpactKpi | null>(null);
+  const [valueDirty, setValueDirty] = useState(false);
+  const [discardTarget, setDiscardTarget] = useState<"attendance" | "kpi" | "value" | null>(null);
   const [deleteKpi, setDeleteKpi] = useState<ImpactKpi | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportTitle, setReportTitle] = useState("Program progress report");
@@ -124,6 +133,30 @@ export function ProgramAnalyticsPage() {
       refetchInterval: (query) => ["queued", "syncing"].includes(query.state.data?.zoomSync?.status ?? "") ? 5_000 : false,
     },
   });
+  const attendanceDirty = Boolean(registerQuery.data?.roster.some((person) => {
+    const draft = attendance[person.businessId];
+    return draft && (draft.status !== person.status || draft.notes !== (person.notes ?? ""));
+  }) || Object.values(participantMatches).some(Boolean));
+  const attendancePending = saveAttendance.isPending || resolveAttendanceParticipant.isPending || queueAttendanceSync.isPending;
+  const requestAttendanceClose = () => {
+    if (attendancePending) return;
+    if (attendanceDirty) setDiscardTarget("attendance");
+    else setActiveSession(null);
+  };
+  const closeKpiEditor = () => { setKpiDirty(false); setKpiEditor(null); };
+  const requestKpiClose = () => {
+    if (createKpi.isPending || updateKpi.isPending) return;
+    if (kpiDirty) setDiscardTarget("kpi");
+    else closeKpiEditor();
+  };
+  const closeValueEditor = () => { setValueDirty(false); setValueEditor(null); };
+  const requestValueClose = () => {
+    if (saveKpiValues.isPending) return;
+    if (valueDirty) setDiscardTarget("value");
+    else closeValueEditor();
+  };
+  useEffect(() => { setKpiDirty(false); }, [kpiEditor]);
+  useEffect(() => { setValueDirty(false); }, [valueEditor]);
   const loading = analyticsQuery.isLoading || analyticsQuery.isFetching;
   const error = analyticsQuery.isError;
 
@@ -227,9 +260,9 @@ export function ProgramAnalyticsPage() {
       direction: String(form.get("direction")) as KpiForm["direction"],
     };
     if (kpiEditor === "new") {
-      createKpi.mutate({ data: { ...payload, programId: selectedProgram } }, { onSuccess: () => { invalidateKpis(); setKpiEditor(null); } });
+      createKpi.mutate({ data: { ...payload, programId: selectedProgram } }, { onSuccess: () => { invalidateKpis(); closeKpiEditor(); } });
     } else if (kpiEditor) {
-      updateKpi.mutate({ id: kpiEditor.id, data: payload }, { onSuccess: () => { invalidateKpis(); setKpiEditor(null); } });
+      updateKpi.mutate({ id: kpiEditor.id, data: payload }, { onSuccess: () => { invalidateKpis(); closeKpiEditor(); } });
     }
   }
   function commitValues(event: FormEvent<HTMLFormElement>) {
@@ -239,7 +272,7 @@ export function ProgramAnalyticsPage() {
     saveKpiValues.mutate({ id: valueEditor.id, data: { values: [{
       businessId: Number(form.get("businessId")), value: Number(form.get("value")),
       periodEnd: String(form.get("periodEnd")), notes: String(form.get("notes") ?? "").trim() || null,
-    }] } }, { onSuccess: () => { invalidateKpis(); setValueEditor(null); } });
+    }] } }, { onSuccess: () => { invalidateKpis(); closeValueEditor(); } });
   }
 
   const summary = data?.summary;
@@ -352,7 +385,7 @@ export function ProgramAnalyticsPage() {
 
       <section className="ana-filters print-hide">
         <div className="ana-filter-title"><CalendarDays size={16} /><span>{t("FILTER SCOPE")}</span></div>
-        <label className="ana-field"><span>{t("Program / cohort")}</span><select value={programChoice} onChange={(e) => setProgramChoice(e.target.value)}><option value="">{t("All programs")}</option>{data?.programs.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
+        <label className="ana-field"><span>{t("Program / cohort")}</span><select value={programChoice} onChange={(e) => setSelectedProgramId(e.target.value ? Number(e.target.value) : null)}><option value="">{t("All programs")}</option>{programOptions.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
         <label className="ana-field"><span>{t("From")}</span><input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="ana-field"><span>{t("Through")}</span><input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} /></label>
         <div className="ana-range-caption"><span className="ana-range-pulse" />{data ? `${dateLabel(data.from)} — ${dateLabel(data.to)}` : t("Loading date range")}</div>
@@ -514,8 +547,8 @@ export function ProgramAnalyticsPage() {
       <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> ADMIN ANALYTICS</span><span>Only recorded program activity is shown</span></footer>
     </div>
 
-    {activeSession !== null && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setActiveSession(null); }}><section className="ana-modal ana-attendance-modal" role="dialog" aria-modal="true" aria-labelledby="attendance-title">
-      <div className="ana-modal-head"><div><span className="ana-eyebrow">SESSION REGISTER</span><h2 id="attendance-title">{registerQuery.data?.session.title ?? "Attendance register"}</h2><p>{registerQuery.data ? dateLabel(registerQuery.data.session.scheduledDate) : "Loading roster"}</p></div><button className="ana-icon-btn" onClick={() => setActiveSession(null)} aria-label="Close register"><X size={17} /></button></div>
+    {activeSession !== null && <AccessibleDialogSurface className="ana-modal ana-attendance-modal" overlayClassName="ana-modal-backdrop" labelledBy="attendance-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestAttendanceClose} closeOnEscape={!attendanceDirty && !attendancePending} closeOnOutsideInteraction={!attendanceDirty && !attendancePending} onDismissAttempt={() => { if (attendanceDirty && !attendancePending) setDiscardTarget("attendance"); }} testId="dialog-attendance-register">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">SESSION REGISTER</span><h2 id="attendance-title">{registerQuery.data?.session.title ?? "Attendance register"}</h2><p>{registerQuery.data ? dateLabel(registerQuery.data.session.scheduledDate) : "Loading roster"}</p></div><button className="ana-icon-btn" onClick={requestAttendanceClose} disabled={attendancePending} aria-label="Close register" data-dialog-autofocus><X size={17} /></button></div>
       {registerQuery.isLoading ? <div className="ana-modal-body"><div className="ana-sessions-loading"><i /><i /><i /></div></div> : registerQuery.isError ? <div className="ana-modal-body"><div className="ana-inline-empty"><CircleAlert size={18} /><span>Roster unavailable. Close and try opening this session again.</span></div></div> : <>
         <div className="ana-sync-panel">
           <div className="ana-sync-summary">
@@ -542,45 +575,48 @@ export function ProgramAnalyticsPage() {
         </section> : null}
         <div className="ana-register-tools"><span>{fmt(registerQuery.data?.roster.length ?? 0)} businesses on roster</span><div>{(["present", "absent", "excused", null] as const).map((status) => <button key={status ?? "unmarked"} onClick={() => setAttendance((current) => Object.fromEntries((registerQuery.data?.roster ?? []).map((person) => [person.businessId, { ...current[person.businessId], status, notes: current[person.businessId]?.notes ?? "" }])))}>{status ?? "Clear all"}</button>)}</div></div>
         <div className="ana-register-list">{registerQuery.data?.roster.map((person) => <div className="ana-register-person" key={person.businessId}><div className="ana-register-name"><i>{person.businessName.slice(0, 1).toUpperCase()}</i><b>{person.businessName}</b>{person.source === "zoom" && person.attendedSeconds !== null && <small>Zoom · {Math.round(person.attendedSeconds / 60)} min</small>}</div><div className="ana-status-set">{(["present", "absent", "excused", null] as const).map((status) => <button key={status ?? "clear"} className={attendance[person.businessId]?.status === status ? `selected ${status ?? "unmarked"}` : ""} onClick={() => patchAttendance(person.businessId, { status })}>{status ?? "—"}</button>)}</div><input aria-label={`Notes for ${person.businessName}`} placeholder="Optional note" value={attendance[person.businessId]?.notes ?? ""} onChange={(event) => patchAttendance(person.businessId, { notes: event.target.value })} /></div>)}</div>
-        <div className="ana-modal-actions"><button className="ana-button subtle" onClick={() => setActiveSession(null)}>Cancel</button><button className="ana-button primary" onClick={saveRegister} disabled={saveAttendance.isPending}><Check size={14} />{saveAttendance.isPending ? "Saving…" : "Save register"}</button></div>
+         <div className="ana-modal-actions"><button className="ana-button subtle" onClick={requestAttendanceClose} disabled={attendancePending}>Cancel</button><button className="ana-button primary" onClick={saveRegister} disabled={saveAttendance.isPending}><Check size={14} />{saveAttendance.isPending ? "Saving…" : "Save register"}</button></div>
         {saveAttendance.isError && <p className="ana-form-error">Attendance could not be saved. Your changes are still here; try again.</p>}
-      </>}
-    </section></div>}
+       </>}
+    </AccessibleDialogSurface>}
+    {discardTarget === "attendance" && <UnsavedChangesDialog onKeepEditing={() => setDiscardTarget(null)} onDiscard={() => { setDiscardTarget(null); setAttendance({}); setParticipantMatches({}); setActiveSession(null); }} />}
 
-    {(kpiEditor === "new" || kpiEditor) && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setKpiEditor(null); }}><section className="ana-modal" role="dialog" aria-modal="true" aria-labelledby="kpi-title">
-      <div className="ana-modal-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h2 id="kpi-title">{kpiEditor === "new" ? "New impact indicator" : "Edit impact indicator"}</h2><p>Define a useful measure for this program’s businesses.</p></div><button className="ana-icon-btn" onClick={() => setKpiEditor(null)} aria-label="Close"><X size={17} /></button></div>
-      <form className="ana-form" onSubmit={commitKpi}>
-        <label>Name<input name="name" required maxLength={120} defaultValue={kpiEditor === "new" ? "" : kpiEditor.name} placeholder="e.g. Monthly recurring revenue" /></label>
+    {(kpiEditor === "new" || kpiEditor) && <AccessibleDialogSurface className="ana-modal" overlayClassName="ana-modal-backdrop" labelledBy="kpi-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestKpiClose} closeOnEscape={!kpiDirty && !createKpi.isPending && !updateKpi.isPending} closeOnOutsideInteraction={!kpiDirty && !createKpi.isPending && !updateKpi.isPending} onDismissAttempt={() => { if (kpiDirty && !createKpi.isPending && !updateKpi.isPending) setDiscardTarget("kpi"); }} testId="dialog-kpi-editor">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h2 id="kpi-title">{kpiEditor === "new" ? "New impact indicator" : "Edit impact indicator"}</h2><p>Define a useful measure for this program’s businesses.</p></div><button className="ana-icon-btn" onClick={requestKpiClose} disabled={createKpi.isPending || updateKpi.isPending} aria-label="Close"><X size={17} /></button></div>
+      <form className="ana-form" onSubmit={commitKpi} onChange={() => setKpiDirty(true)}>
+        <label>Name<input data-dialog-autofocus name="name" required maxLength={120} defaultValue={kpiEditor === "new" ? "" : kpiEditor.name} placeholder="e.g. Monthly recurring revenue" /></label>
         <label>Description <span className="ana-optional">Optional</span><textarea name="description" maxLength={1000} defaultValue={kpiEditor === "new" ? "" : kpiEditor.description ?? ""} placeholder="What should this measure tell you?" /></label>
         <div className="ana-form-row"><label>Unit<input name="unit" required maxLength={40} defaultValue={kpiEditor === "new" ? "" : kpiEditor.unit} placeholder="USD, customers, jobs…" /></label><label>Target value <span className="ana-optional">Optional</span><input name="targetValue" type="number" step="any" defaultValue={kpiEditor === "new" || kpiEditor.targetValue == null ? "" : kpiEditor.targetValue} /></label></div>
         <label>Direction<select name="direction" defaultValue={kpiEditor === "new" ? "increase_is_good" : kpiEditor.direction}><option value="increase_is_good">Higher values are better</option><option value="decrease_is_good">Lower values are better</option></select></label>
         {(createKpi.isError || updateKpi.isError) && <p className="ana-form-error">Could not save this indicator. Check your connection and try again.</p>}
-        <div className="ana-modal-actions"><button type="button" className="ana-button subtle" onClick={() => setKpiEditor(null)}>Cancel</button><button className="ana-button primary" disabled={createKpi.isPending || updateKpi.isPending}>{createKpi.isPending || updateKpi.isPending ? "Saving…" : "Save indicator"}</button></div>
+        <div className="ana-modal-actions"><button type="button" className="ana-button subtle" onClick={requestKpiClose} disabled={createKpi.isPending || updateKpi.isPending}>Cancel</button><button className="ana-button primary" disabled={createKpi.isPending || updateKpi.isPending}>{createKpi.isPending || updateKpi.isPending ? "Saving…" : "Save indicator"}</button></div>
       </form>
-    </section></div>}
+    </AccessibleDialogSurface>}
+    {discardTarget === "kpi" && <UnsavedChangesDialog onKeepEditing={() => setDiscardTarget(null)} onDiscard={() => { setDiscardTarget(null); closeKpiEditor(); }} />}
 
-    {valueEditor && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setValueEditor(null); }}><section className="ana-modal" role="dialog" aria-modal="true" aria-labelledby="value-title">
-      <div className="ana-modal-head"><div><span className="ana-eyebrow">RECORD OUTCOME</span><h2 id="value-title">{valueEditor.name}</h2><p>Add one observed value for a business.</p></div><button className="ana-icon-btn" onClick={() => setValueEditor(null)} aria-label="Close"><X size={17} /></button></div>
-      <form className="ana-form" onSubmit={commitValues}>
-        <label>Business<select name="businessId" required defaultValue=""><option value="" disabled>Select a business</option>{engagementRows.map((person) => <option key={person.businessId} value={person.businessId}>{person.businessName}</option>)}</select></label>
+    {valueEditor && <AccessibleDialogSurface className="ana-modal" overlayClassName="ana-modal-backdrop" labelledBy="value-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestValueClose} closeOnEscape={!valueDirty && !saveKpiValues.isPending} closeOnOutsideInteraction={!valueDirty && !saveKpiValues.isPending} onDismissAttempt={() => { if (valueDirty && !saveKpiValues.isPending) setDiscardTarget("value"); }} testId="dialog-kpi-value">
+      <div className="ana-modal-head"><div><span className="ana-eyebrow">RECORD OUTCOME</span><h2 id="value-title">{valueEditor.name}</h2><p>Add one observed value for a business.</p></div><button className="ana-icon-btn" onClick={requestValueClose} disabled={saveKpiValues.isPending} aria-label="Close"><X size={17} /></button></div>
+      <form className="ana-form" onSubmit={commitValues} onChange={() => setValueDirty(true)}>
+        <label>Business<select data-dialog-autofocus name="businessId" required defaultValue=""><option value="" disabled>Select a business</option>{engagementRows.map((person) => <option key={person.businessId} value={person.businessId}>{person.businessName}</option>)}</select></label>
         <div className="ana-form-row"><label>Observed value ({valueEditor.unit})<input name="value" type="number" step="any" required /></label><label>Period ending<input name="periodEnd" type="date" required defaultValue={today} /></label></div>
         <label>Notes <span className="ana-optional">Optional</span><textarea name="notes" maxLength={1000} placeholder="Context for this measurement" /></label>
         {saveKpiValues.isError && <p className="ana-form-error">Value not saved. Please check the details and retry.</p>}
-        <div className="ana-modal-actions"><button type="button" className="ana-button subtle" onClick={() => setValueEditor(null)}>Cancel</button><button className="ana-button primary" disabled={saveKpiValues.isPending}>{saveKpiValues.isPending ? "Saving…" : "Save value"}</button></div>
+        <div className="ana-modal-actions"><button type="button" className="ana-button subtle" onClick={requestValueClose} disabled={saveKpiValues.isPending}>Cancel</button><button className="ana-button primary" disabled={saveKpiValues.isPending}>{saveKpiValues.isPending ? "Saving…" : "Save value"}</button></div>
         {!engagementRows.length && <p className="ana-form-hint">There are no businesses in this filtered program window to select.</p>}
       </form>
-    </section></div>}
+    </AccessibleDialogSurface>}
+    {discardTarget === "value" && <UnsavedChangesDialog onKeepEditing={() => setDiscardTarget(null)} onDiscard={() => { setDiscardTarget(null); closeValueEditor(); }} />}
 
-    {deleteKpi && <div className="ana-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteKpi(null); }}><section className="ana-modal ana-confirm" role="dialog" aria-modal="true" aria-labelledby="delete-title"><span className="ana-delete-mark"><Trash2 size={18} /></span><h2 id="delete-title">Remove this indicator?</h2><p><b>{deleteKpi.name}</b> and its recorded values will be deleted. This cannot be undone.</p>{removeKpi.isError && <p className="ana-form-error">Could not remove the indicator. Try again.</p>}<div className="ana-modal-actions"><button className="ana-button subtle" onClick={() => setDeleteKpi(null)}>Keep indicator</button><button className="ana-button danger" disabled={removeKpi.isPending} onClick={() => removeKpi.mutate({ id: deleteKpi.id }, { onSuccess: () => { invalidateKpis(); setDeleteKpi(null); } })}>{removeKpi.isPending ? "Removing…" : "Remove indicator"}</button></div></section></div>}
+    {deleteKpi && <AccessibleDialogSurface className="ana-modal ana-confirm" overlayClassName="ana-modal-backdrop" role="alertdialog" labelledBy="delete-title" initialFocusSelector="[data-dialog-autofocus]" onClose={() => setDeleteKpi(null)} closeOnOutsideInteraction={false} testId="dialog-delete-kpi"><span className="ana-delete-mark"><Trash2 size={18} /></span><h2 id="delete-title">Remove this indicator?</h2><p><b>{deleteKpi.name}</b> and its recorded values will be deleted. This cannot be undone.</p>{removeKpi.isError && <p className="ana-form-error">Could not remove the indicator. Try again.</p>}<div className="ana-modal-actions"><button className="ana-button subtle" data-dialog-autofocus onClick={() => setDeleteKpi(null)}>Keep indicator</button><button className="ana-button danger" disabled={removeKpi.isPending} onClick={() => removeKpi.mutate({ id: deleteKpi.id }, { onSuccess: () => { invalidateKpis(); setDeleteKpi(null); } })}>{removeKpi.isPending ? "Removing…" : "Remove indicator"}</button></div></AccessibleDialogSurface>}
 
-    {reportOpen && <div className="ana-modal-backdrop print-hide" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setReportOpen(false); }}><section className="ana-modal" role="dialog" aria-modal="true" aria-labelledby="report-title">
+    {reportOpen && <AccessibleDialogSurface className="ana-modal" overlayClassName="ana-modal-backdrop print-hide" labelledBy="report-title" initialFocusSelector="[data-dialog-autofocus]" onClose={() => setReportOpen(false)} testId="dialog-report-builder">
       <div className="ana-modal-head"><div><span className="ana-eyebrow">REPORT BUILDER</span><h2 id="report-title">Prepare a filtered report</h2><p>Choose sections from the current program and date scope.</p></div><button className="ana-icon-btn" onClick={() => setReportOpen(false)} aria-label="Close"><X size={17} /></button></div>
-      <div className="ana-form"><label>Report title<input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} maxLength={100} /></label>
+      <div className="ana-form"><label>Report title<input data-dialog-autofocus value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} maxLength={100} /></label>
          <div className="ana-report-parts">{Object.entries({ summary: "Program summary", stages: "Founder stage distribution", attendance: "Attendance trend and sessions", engagement: "Founder engagement table", impact: "Impact indicators and business outcomes" }).map(([key, label]) => <label key={key}><input type="checkbox" checked={reportParts[key as keyof typeof reportParts]} onChange={(event) => setReportParts((parts) => ({ ...parts, [key]: event.target.checked }))} /><span>{label}</span></label>)}</div>
         <div className="ana-report-scope"><b>Included scope</b><span>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"}</span><span>{from ? dateLabel(from) : "Start"} to {to ? dateLabel(to) : "Today"}</span></div>
          <div className="ana-modal-actions ana-report-actions"><button className="ana-button subtle" onClick={() => setReportOpen(false)}>{t("Cancel")}</button><button className="ana-button subtle" onClick={exportReportSpreadsheet} data-testid="button-export-program-report-csv"><Download size={14} /> {t("Export spreadsheet (CSV)")}</button><button className="ana-button primary" onClick={() => { setReportOpen(false); window.setTimeout(() => window.print(), 100); }} data-testid="button-print-program-report"><Printer size={14} /> {t("Print / Save branded PDF")}</button></div>
       </div>
-    </section></div>}
+    </AccessibleDialogSurface>}
 
   <div className="ana-report-print" aria-hidden="true" lang={currentLanguage()} dir={currentLanguage() === "ar" ? "rtl" : "ltr"}>
       <header className="ana-print-brand">

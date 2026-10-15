@@ -114,8 +114,15 @@ html[dir="rtl"] .intake-field textarea {
 
 html[dir="rtl"] .icon-directional,
 html[dir="rtl"] svg.lucide-arrow-right,
-html[dir="rtl"] svg.lucide-arrow-up-right {
+html[dir="rtl"] svg.lucide-arrow-left {
   transform: rotate(180deg);
+}
+html[dir="rtl"] svg.lucide-arrow-up-right { transform: scaleX(-1); }
+
+html[lang="ar"] :is(h1, h2, h3, .app-title) {
+  font-family: "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+  line-height: 1.55;
+  letter-spacing: 0;
 }
 
 html[dir="rtl"] .language-toggle > span {

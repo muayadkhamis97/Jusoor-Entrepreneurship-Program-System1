@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetParticipantSessionInteractiveActivitiesQueryKey,
@@ -23,6 +23,7 @@ import type {
   SessionInteractiveActivityUpdateInput,
   SessionInteractiveActivityResponseInput,
 } from '@workspace/api-client-react';
+import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { Activity, AlertCircle, Check, ChevronDown, CircleHelp, MessageCircle, Plus, Send, ShieldCheck, X } from 'lucide-react';
 import { t, useAppLanguage } from './language';
 import './session-interactions.css';
@@ -43,8 +44,16 @@ function ActivityEditor({ activity, sessionId, onClose }: { activity?: SessionIn
   const update = useUpdateSessionInteractiveActivity();
   const client = useQueryClient();
   const [draft, setDraft] = useState<ActivityDraft>(() => activity ? fromActivity(activity) : newDraft());
+  const initialDraft = useRef(draft);
   const [error, setError] = useState('');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const pending = create.isPending || update.isPending;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(initialDraft.current);
+  const requestClose = () => {
+    if (pending) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  };
   const patch = (key: string, updates: Partial<DraftQuestion>) => setDraft(value => ({ ...value, questions: value.questions.map(q => q.key === key ? { ...q, ...updates } : q) }));
   const save = () => {
     const questions = draft.questions.map(({ key: _key, ...question }) => question);
@@ -59,11 +68,11 @@ function ActivityEditor({ activity, sessionId, onClose }: { activity?: SessionIn
       update.mutate({ id: activity.id, data: updateData }, { onSuccess: done, onError: () => setError(t('Activity could not be saved. Try again.')) });
     } else create.mutate({ id: sessionId, data }, { onSuccess: done, onError: () => setError(t('Activity could not be created. Try again.')) });
   };
-  return <div className="si-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="si-editor" role="dialog" aria-modal="true" aria-labelledby="si-editor-title" data-testid="dialog-session-activity">
-      <header className="si-editor-head"><div><span className="si-kicker">{t('SESSION INTERACTION')}</span><h2 id="si-editor-title">{t(activity ? 'Edit activity' : 'Create activity')}</h2><p>{t('Invite the cohort to share a focused answer during this session.')}</p></div><button type="button" className="si-close" onClick={onClose} aria-label={t('Close editor')} data-testid="button-close-activity-editor"><X size={17} /></button></header>
+  return <>
+  <AccessibleDialogSurface className="si-editor" overlayClassName="si-backdrop" labelledBy="si-editor-title" describedBy="si-editor-description" initialFocusSelector="[data-dialog-autofocus]" onClose={requestClose} closeOnEscape={!dirty && !pending} closeOnOutsideInteraction={!dirty && !pending} onDismissAttempt={() => { if (dirty && !pending) setConfirmDiscard(true); }} testId="dialog-session-activity">
+      <header className="si-editor-head"><div><span className="si-kicker">{t('SESSION INTERACTION')}</span><h2 id="si-editor-title">{t(activity ? 'Edit activity' : 'Create activity')}</h2><p id="si-editor-description">{t('Invite the cohort to share a focused answer during this session.')}</p></div><button type="button" className="si-close" onClick={requestClose} disabled={pending} aria-label={t('Close editor')} data-testid="button-close-activity-editor"><X size={17} /></button></header>
       <div className="si-editor-body">
-        <div className="si-field-row"><label className="si-field">{t('Activity type')}<select value={draft.type} disabled={!!activity} onChange={event => { const type = event.target.value as ActivityDraft['type']; setDraft(value => ({ ...value, type, questions: type === 'poll' ? [blankQuestion()] : value.questions })); }} data-testid="select-activity-type"><option value="poll">{t('Poll')}</option><option value="survey">{t('Survey')}</option></select></label><label className="si-field">{t('Activity title')}<input value={draft.title} maxLength={180} onChange={event => setDraft(value => ({ ...value, title: event.target.value }))} data-testid="input-activity-title" /></label></div>
+        <div className="si-field-row"><label className="si-field">{t('Activity type')}<select data-dialog-autofocus value={draft.type} disabled={!!activity} onChange={event => { const type = event.target.value as ActivityDraft['type']; setDraft(value => ({ ...value, type, questions: type === 'poll' ? [blankQuestion()] : value.questions })); }} data-testid="select-activity-type"><option value="poll">{t('Poll')}</option><option value="survey">{t('Survey')}</option></select></label><label className="si-field">{t('Activity title')}<input value={draft.title} maxLength={180} onChange={event => setDraft(value => ({ ...value, title: event.target.value }))} data-testid="input-activity-title" /></label></div>
         <label className="si-field">{t('Description')}<textarea rows={2} maxLength={2000} value={draft.description} onChange={event => setDraft(value => ({ ...value, description: event.target.value }))} data-testid="input-activity-description" /></label>
         <div className="si-editor-section"><div><b>{t('Questions')}</b><small>{t(draft.type === 'poll' ? 'A poll contains one single-choice question.' : 'Surveys can contain up to 20 questions.')}</small></div>{draft.type === 'survey' && <button type="button" className="si-text-button" disabled={draft.questions.length >= 20} onClick={() => setDraft(value => ({ ...value, questions: [...value.questions, blankQuestion()] }))} data-testid="button-add-interaction-question"><Plus size={14} />{t('Add question')}</button>}</div>
         {draft.questions.map((question, index) => <article className="si-question-edit" key={question.key} data-testid={`activity-question-editor-${index}`}>
@@ -74,9 +83,10 @@ function ActivityEditor({ activity, sessionId, onClose }: { activity?: SessionIn
         </article>)}
         {error && <p className="si-error" role="alert"><AlertCircle size={15} />{error}</p>}
       </div>
-      <footer className="si-editor-foot"><button className="button button-quiet" onClick={onClose} type="button">{t('Cancel')}</button><button className="button button-primary" onClick={save} type="button" disabled={pending} data-testid="button-save-session-activity">{pending ? t('Saving…') : <><Check size={14} />{t('Save activity')}</>}</button></footer>
-    </section>
-  </div>;
+      <footer className="si-editor-foot"><button className="button button-quiet" onClick={requestClose} type="button" disabled={pending}>{t('Cancel')}</button><button className="button button-primary" onClick={save} type="button" disabled={pending} data-testid="button-save-session-activity">{pending ? t('Saving…') : <><Check size={14} />{t('Save activity')}</>}</button></footer>
+  </AccessibleDialogSurface>
+  {confirmDiscard && <UnsavedChangesDialog onKeepEditing={() => setConfirmDiscard(false)} onDiscard={() => { setConfirmDiscard(false); onClose(); }} />}
+  </>;
 }
 
 function StaffActivityCard({ activity, sessionId, canEdit, canControl }: { activity: SessionInteractiveActivity; sessionId: number; canEdit: boolean; canControl: boolean }) {
@@ -154,7 +164,15 @@ export function ParticipantSessionInteractions({ sessionId, programId, businessN
       const values = answers[activity.id] || {};
       const resultsVisible = activity.type === 'poll' && Boolean(activity.results) && (activity.hasResponded || activity.status === 'closed');
       return <article className="participant-si-activity" key={activity.id} data-testid={`participant-interaction-${activity.id}`}><div className="participant-si-title"><span className={`si-status si-status-${activity.status}`}><i />{t(activity.status)}</span><span className="si-status-kind">{t(activity.type)}</span></div><h4>{activity.title}</h4>{activity.description && <p>{activity.description}</p>}
-        {activity.hasResponded ? <div className="si-submitted"><Check size={14} />{t('Your response is in. Thank you.')}</div> : activity.status === 'open' ? <div className="si-participant-questions">{activity.questions.map((item,index) => <fieldset key={item.id} className="si-participant-question"><legend><span>{t('Question')} {index+1}</span>{item.prompt}</legend>{item.type === 'single_choice' ? <div className="si-participant-options">{(item.options || []).map(option => <label key={option.id} className={`si-pick ${values[item.id] === option.id ? 'selected' : ''}`}><input type="radio" name={`activity-${activity.id}-${item.id}`} checked={values[item.id] === option.id} onChange={() => setAnswers(current => ({ ...current, [activity.id]: { ...current[activity.id], [item.id]: option.id } }))} />{option.label}</label>)}</div> : item.type === 'rating' ? <div className="si-rating" role="radiogroup" aria-label={item.prompt}>{[1,2,3,4,5].map(rating => <button type="button" key={rating} className={values[item.id] === rating ? 'selected' : ''} aria-pressed={values[item.id] === rating} onClick={() => setAnswers(current => ({ ...current, [activity.id]: { ...current[activity.id], [item.id]: rating } }))} data-testid={`button-rate-${activity.id}-${item.id}-${rating}`}>{rating}</button>)}</div> : <textarea rows={2} maxLength={1500} value={String(values[item.id] || '')} onChange={event => setAnswers(current => ({ ...current, [activity.id]: { ...current[activity.id], [item.id]: event.target.value } }))} placeholder={t('Write your answer…')} data-testid={`input-short-answer-${activity.id}-${item.id}`} />}</fieldset>)}<button type="button" className="button button-primary si-submit" onClick={() => submitActivity(activity)} disabled={submit.isPending} data-testid={`button-submit-interaction-${activity.id}`}>{submit.isPending ? t('Submitting…') : <>{t('Submit response')} <Check size={14} /></>}</button></div> : <div className="si-closed-note">{t('This activity is closed.')}</div>}
+        {activity.hasResponded ? <div className="si-submitted"><Check size={14} />{t('Your response is in. Thank you.')}</div> : activity.status === 'open' ? <div className="si-participant-questions">{activity.questions.map((item, index) => {
+          const answerId = `session-answer-${activity.id}-${item.id}`;
+          return <fieldset key={item.id} className="si-participant-question">
+            <legend><span>{t('Question')} {index + 1}</span>{item.prompt}</legend>
+            {item.type === 'single_choice' ? <div className="si-participant-options">{(item.options || []).map(option => <label key={option.id} className={`si-pick ${values[item.id] === option.id ? 'selected' : ''}`}><input type="radio" name={`activity-${activity.id}-${item.id}`} checked={values[item.id] === option.id} onChange={() => setAnswers(current => ({ ...current, [activity.id]: { ...current[activity.id], [item.id]: option.id } }))} />{option.label}</label>)}</div>
+              : item.type === 'rating' ? <div className="si-rating" role="radiogroup" aria-label={item.prompt}>{[1, 2, 3, 4, 5].map(rating => <button type="button" key={rating} className={values[item.id] === rating ? 'selected' : ''} aria-pressed={values[item.id] === rating} onClick={() => setAnswers(current => ({ ...current, [activity.id]: { ...current[activity.id], [item.id]: rating } }))} data-testid={`button-rate-${activity.id}-${item.id}-${rating}`}>{rating}</button>)}</div>
+                : <><label className="si-input-label" htmlFor={answerId}>{t('Your answer')}</label><textarea id={answerId} rows={2} maxLength={1500} value={String(values[item.id] || '')} onChange={event => setAnswers(current => ({ ...current, [activity.id]: { ...current[activity.id], [item.id]: event.target.value } }))} placeholder={t('Write your answer…')} data-testid={`input-short-answer-${activity.id}-${item.id}`} /></>}
+          </fieldset>;
+        })}<button type="button" className="button button-primary si-submit" onClick={() => submitActivity(activity)} disabled={submit.isPending} data-testid={`button-submit-interaction-${activity.id}`}>{submit.isPending ? t('Submitting…') : <>{t('Submit response')} <Check size={14} /></>}</button></div> : <div className="si-closed-note">{t('This activity is closed.')}</div>}
         {resultsVisible && <div className="si-results"><b>{t('Poll results')} · {activity.responseCount} {t('responses')}</b>{activity.results?.map(result => <div className="si-result-row" key={result.choiceId}><span>{result.label}</span><strong>{result.count}</strong></div>)}</div>}
       </article>;
     })}</div>}
@@ -164,8 +182,8 @@ export function ParticipantSessionInteractions({ sessionId, programId, businessN
         <span className="participant-si-qna-title"><MessageCircle size={15} /><span><b>{t('Ask the cohort')}</b><small>{t('Your question and trainer replies are visible to this cohort.')}</small></span></span>
         <ChevronDown size={15} />
       </button>
-      {questionsExpanded && <>
-        <form className="si-ask-form" onSubmit={askQuestion}><textarea rows={2} maxLength={3000} value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('What would you like to ask about this session?')} data-testid={`input-ask-session-question-${sessionId}`} /><button type="submit" className="button button-primary" disabled={ask.isPending || question.trim().length < 5} data-testid={`button-ask-session-question-${sessionId}`}>{ask.isPending ? t('Sending…') : <>{t('Ask question')} <Send size={13} /></>}</button></form>
+        {questionsExpanded && <>
+        <form className="si-ask-form" onSubmit={askQuestion}><label className="si-input-label" htmlFor={`session-question-${sessionId}`}>{t('Your question')}</label><textarea id={`session-question-${sessionId}`} rows={2} maxLength={3000} value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('What would you like to ask about this session?')} data-testid={`input-ask-session-question-${sessionId}`} /><button type="submit" className="button button-primary" disabled={ask.isPending || question.trim().length < 5} data-testid={`button-ask-session-question-${sessionId}`}>{ask.isPending ? t('Sending…') : <>{t('Ask question')} <Send size={13} /></>}</button></form>
         {questionsQuery.isLoading ? <div className="si-inline-loading">{t('Loading cohort thread')}</div> : questionsQuery.isError ? <div className="si-inline-error">{t('Questions could not load.')} <button type="button" onClick={() => void questionsQuery.refetch()}>{t('Retry')}</button></div> : <div className="si-questions-list">{(questionsQuery.data?.questions || []).length === 0 ? <p className="si-empty">{t('Start the conversation with a question.')}</p> : questionsQuery.data?.questions.map(item => <article className="si-question-thread" key={item.id}><div className="si-q-avatar">{item.businessName.slice(0,1).toUpperCase()}</div><div className="si-q-content"><div className="si-q-heading"><b>{item.businessName === businessName ? t('Your business') : item.businessName}</b><time>{fmtDate(item.createdAt)}</time></div><p>{item.question}</p>{item.reply ? <div className="si-reply"><b>{t('Trainer reply')}</b><span>{item.reply}</span></div> : <span className="si-awaiting">{t('Awaiting trainer reply')}</span>}</div></article>)}</div>}
       </>}
     </div>

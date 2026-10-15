@@ -4,6 +4,7 @@ import type { CoursePackageLaunch, CourseScormProgressInput } from '@workspace/a
 import { Scorm12API, Scorm2004API } from 'scorm-again';
 import { AlertCircle, ArrowLeft, BookOpen, LoaderCircle } from 'lucide-react';
 import { t, useAppLanguage } from './language';
+import { AccessibleDialogSurface } from './accessible-dialog';
 import './course-package-player.css';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -111,24 +112,14 @@ export function CoursePackagePlayer({ materialId, title, onClose }: { materialId
     return undefined;
   }, [launch, materialId]);
 
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [onClose]);
-
-  return <div className="package-player-backdrop" role="presentation">
-    <section className="package-player" role="dialog" aria-modal="true" aria-labelledby="package-player-title">
+  return <AccessibleDialogSurface className="package-player" overlayClassName="package-player-backdrop" labelledBy="package-player-title" initialFocusSelector="[data-dialog-autofocus]" onClose={onClose} closeOnOutsideInteraction={false} testId="dialog-learning-package">
       <header className="package-player-head">
-        <button className="package-player-back" type="button" onClick={onClose}><ArrowLeft size={16} />{t('Close learning package')}</button>
+        <button className="package-player-back" type="button" onClick={onClose} data-dialog-autofocus><ArrowLeft size={16} />{t('Close learning package')}</button>
         <div className="package-player-title"><BookOpen size={17} /><div><h2 id="package-player-title">{playerTitle}</h2><span>{launch?.format === 'xapi' ? 'Tin Can / xAPI' : launch?.format === 'scorm2004' ? 'SCORM 2004' : 'SCORM 1.2'}</span></div></div>
         <button className="package-player-close" type="button" aria-label={t('Close learning package')} onClick={onClose}>×</button>
       </header>
       {launchQuery.isLoading ? <div className="package-player-state" role="status"><span className="package-player-skeleton" /><span className="package-player-skeleton short" /><span>{t('Preparing your learning package…')}</span></div>
         : launchQuery.isError ? <div className="package-player-state package-player-error" role="alert"><AlertCircle size={21} /><h3>{t('This package could not be opened.')}</h3><p>{t('Your learning access has not changed. Retry to request a fresh launch.')}</p><button className="button button-outline" onClick={() => void launchQuery.refetch()}><LoaderCircle size={14} />{t('Retry package launch')}</button></div>
           : resourceUrl ? <iframe className="package-player-frame" src={resourceUrl} title={playerTitle} allow="fullscreen" /> : null}
-    </section>
-  </div>;
+  </AccessibleDialogSurface>;
 }
