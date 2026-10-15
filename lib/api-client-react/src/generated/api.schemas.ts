@@ -3415,6 +3415,55 @@ export interface ImpactKpiValuesInput {
   values: ImpactKpiValueInput[];
 }
 
+export interface AnalyticsReportSections {
+  summary: boolean;
+  stages: boolean;
+  attendance: boolean;
+  engagement: boolean;
+  impact: boolean;
+}
+
+export interface AnalyticsReportLayout {
+  id: number;
+  programId: number;
+  name: string;
+  title: string;
+  sections: AnalyticsReportSections;
+  /** @nullable */
+  createdByStaffId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnalyticsReportLayoutInput {
+  programId: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+  sections: AnalyticsReportSections;
+}
+
+export interface AnalyticsReportLayoutUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+  sections: AnalyticsReportSections;
+}
+
 export type GetProgramAnalyticsParams = {
 programId?: number;
 /**
@@ -3469,6 +3518,10 @@ export const GetProgramSessionInteractionAnalyticsActivityType = {
   poll: 'poll',
   survey: 'survey',
 } as const;
+
+export type ListProgramAnalyticsReportLayoutsParams = {
+programId: number;
+};
 
 export type GetLearningProgressAnalyticsParams = {
 programId?: number;

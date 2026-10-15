@@ -269,6 +269,127 @@ export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
 
 
 /**
+ * @summary List saved analytics report layouts for a program
+ */
+export const ListProgramAnalyticsReportLayoutsQueryParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const ListProgramAnalyticsReportLayoutsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "sections": zod.object({
+  "summary": zod.boolean(),
+  "stages": zod.boolean(),
+  "attendance": zod.boolean(),
+  "engagement": zod.boolean(),
+  "impact": zod.boolean()
+}),
+  "createdByStaffId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProgramAnalyticsReportLayoutsResponse = zod.array(ListProgramAnalyticsReportLayoutsResponseItem)
+
+
+/**
+ * @summary Save a named analytics report layout for a program
+ */
+export const createProgramAnalyticsReportLayoutBodyNameMax = 80;
+
+export const createProgramAnalyticsReportLayoutBodyTitleMax = 100;
+
+
+
+export const CreateProgramAnalyticsReportLayoutBody = zod.object({
+  "programId": zod.number().int(),
+  "name": zod.string().min(1).max(createProgramAnalyticsReportLayoutBodyNameMax),
+  "title": zod.string().min(1).max(createProgramAnalyticsReportLayoutBodyTitleMax),
+  "sections": zod.object({
+  "summary": zod.boolean(),
+  "stages": zod.boolean(),
+  "attendance": zod.boolean(),
+  "engagement": zod.boolean(),
+  "impact": zod.boolean()
+})
+})
+
+export const CreateProgramAnalyticsReportLayoutResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "sections": zod.object({
+  "summary": zod.boolean(),
+  "stages": zod.boolean(),
+  "attendance": zod.boolean(),
+  "engagement": zod.boolean(),
+  "impact": zod.boolean()
+}),
+  "createdByStaffId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a saved analytics report layout
+ */
+export const UpdateProgramAnalyticsReportLayoutParams = zod.object({
+  "programId": zod.coerce.number().int(),
+  "id": zod.coerce.number().int()
+})
+
+export const updateProgramAnalyticsReportLayoutBodyNameMax = 80;
+
+export const updateProgramAnalyticsReportLayoutBodyTitleMax = 100;
+
+
+
+export const UpdateProgramAnalyticsReportLayoutBody = zod.object({
+  "name": zod.string().min(1).max(updateProgramAnalyticsReportLayoutBodyNameMax),
+  "title": zod.string().min(1).max(updateProgramAnalyticsReportLayoutBodyTitleMax),
+  "sections": zod.object({
+  "summary": zod.boolean(),
+  "stages": zod.boolean(),
+  "attendance": zod.boolean(),
+  "engagement": zod.boolean(),
+  "impact": zod.boolean()
+})
+})
+
+export const UpdateProgramAnalyticsReportLayoutResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "sections": zod.object({
+  "summary": zod.boolean(),
+  "stages": zod.boolean(),
+  "attendance": zod.boolean(),
+  "engagement": zod.boolean(),
+  "impact": zod.boolean()
+}),
+  "createdByStaffId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a saved analytics report layout
+ */
+export const DeleteProgramAnalyticsReportLayoutParams = zod.object({
+  "programId": zod.coerce.number().int(),
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteProgramAnalyticsReportLayoutResponse = zod.void()
+
+
+/**
  * @summary Get coordinator-only participant course progress and first-attempt cohort assessment averages
  */
 export const GetLearningProgressAnalyticsQueryParams = zod.object({

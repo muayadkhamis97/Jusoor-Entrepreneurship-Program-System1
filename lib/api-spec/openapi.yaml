@@ -158,6 +158,94 @@ paths:
                 $ref: "#/components/schemas/ProgramSessionInteractionAnalytics"
         "403":
           description: Coordinator access required
+  /analytics/report-layouts:
+    get:
+      operationId: listProgramAnalyticsReportLayouts
+      tags: [dashboard]
+      summary: List saved analytics report layouts for a program
+      parameters:
+        - name: programId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Saved report layouts for the program
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AnalyticsReportLayout" }
+        "404":
+          description: Program not found
+        "403":
+          description: Coordinator access required
+    post:
+      operationId: createProgramAnalyticsReportLayout
+      tags: [dashboard]
+      summary: Save a named analytics report layout for a program
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnalyticsReportLayoutInput" }
+      responses:
+        "201":
+          description: Saved report layout
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsReportLayout" }
+        "404":
+          description: Program not found
+        "409":
+          description: A layout with this name already exists for the program
+        "403":
+          description: Coordinator access required
+  /analytics/programs/{programId}/report-layouts/{id}:
+    patch:
+      operationId: updateProgramAnalyticsReportLayout
+      tags: [dashboard]
+      summary: Update a saved analytics report layout
+      parameters:
+        - name: programId
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnalyticsReportLayoutUpdate" }
+      responses:
+        "200":
+          description: Updated report layout
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsReportLayout" }
+        "404":
+          description: Layout not found for the program
+        "409":
+          description: A layout with this name already exists for the program
+        "403":
+          description: Coordinator access required
+    delete:
+      operationId: deleteProgramAnalyticsReportLayout
+      tags: [dashboard]
+      summary: Remove a saved analytics report layout
+      parameters:
+        - name: programId
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Report layout removed
+        "404":
+          description: Layout not found for the program
+        "403":
+          description: Coordinator access required
   /analytics/learning-progress:
     get:
       operationId: getLearningProgressAnalytics
@@ -6010,6 +6098,42 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ImpactKpiValueInput" }
       required: [values]
+    AnalyticsReportSections:
+      type: object
+      properties:
+        summary: { type: boolean }
+        stages: { type: boolean }
+        attendance: { type: boolean }
+        engagement: { type: boolean }
+        impact: { type: boolean }
+      required: [summary, stages, attendance, engagement, impact]
+    AnalyticsReportLayout:
+      type: object
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        name: { type: string }
+        title: { type: string }
+        sections: { $ref: "#/components/schemas/AnalyticsReportSections" }
+        createdByStaffId: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, programId, name, title, sections, createdByStaffId, createdAt, updatedAt]
+    AnalyticsReportLayoutInput:
+      type: object
+      properties:
+        programId: { type: integer }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 100 }
+        sections: { $ref: "#/components/schemas/AnalyticsReportSections" }
+      required: [programId, name, title, sections]
+    AnalyticsReportLayoutUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 100 }
+        sections: { $ref: "#/components/schemas/AnalyticsReportSections" }
+      required: [name, title, sections]
     StageCount:
       type: object
       properties:

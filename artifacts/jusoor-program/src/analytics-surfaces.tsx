@@ -18,11 +18,16 @@ import {
   useUpdateProgramImpactKpi,
   useDeleteProgramImpactKpi,
   useSaveProgramImpactKpiValues,
+  useListProgramAnalyticsReportLayouts,
+  useCreateProgramAnalyticsReportLayout,
+  useUpdateProgramAnalyticsReportLayout,
+  useDeleteProgramAnalyticsReportLayout,
   getGetProgramAnalyticsQueryKey,
   getGetSessionAttendanceRegisterQueryKey,
   getListProgramImpactKpisQueryKey,
+  getListProgramAnalyticsReportLayoutsQueryKey,
 } from "@workspace/api-client-react";
-import type { ImpactKpi } from "@workspace/api-client-react";
+import type { AnalyticsReportLayout, ImpactKpi } from "@workspace/api-client-react";
 import {
   Activity, BarChart3, CalendarDays, Check, ChevronDown,
   ClipboardCheck, Download, FileText, Moon, Printer, RefreshCw, Sun, Target,
@@ -68,6 +73,7 @@ function ExportButton({ rows, filename, label = t("Export chart data as CSV") }:
 
 type AttendanceState = Record<number, { status: "present" | "absent" | "excused" | null; notes: string }>;
 type KpiForm = { name: string; description: string; unit: string; targetValue: string; direction: "increase_is_good" | "decrease_is_good" };
+type ReportParts = { summary: boolean; stages: boolean; attendance: boolean; engagement: boolean; impact: boolean };
 
 export function ProgramAnalyticsPage() {
   useAppLanguage();
@@ -102,6 +108,13 @@ export function ProgramAnalyticsPage() {
   const kpiQuery = useListProgramImpactKpis({ programId: selectedProgram ?? 0 }, {
     query: { enabled: !!selectedProgram, queryKey: getListProgramImpactKpisQueryKey({ programId: selectedProgram ?? 0 }) },
   });
+  const reportLayoutsQuery = useListProgramAnalyticsReportLayouts({ programId: selectedProgram ?? 0 }, {
+    query: {
+      enabled: !!selectedProgram,
+      queryKey: getListProgramAnalyticsReportLayoutsQueryKey({ programId: selectedProgram ?? 0 }),
+      refetchOnWindowFocus: true,
+    },
+  });
   const [isDark, setIsDark] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [intervalMs, setIntervalMs] = useState(INTERVALS[0].ms);
@@ -118,7 +131,9 @@ export function ProgramAnalyticsPage() {
   const [deleteKpi, setDeleteKpi] = useState<ImpactKpi | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportTitle, setReportTitle] = useState("Program progress report");
-  const [reportParts, setReportParts] = useState({ summary: true, stages: true, attendance: true, engagement: true, impact: true });
+  const [reportParts, setReportParts] = useState<ReportParts>({ summary: true, stages: true, attendance: true, engagement: true, impact: true });
+  const [selectedReportLayoutId, setSelectedReportLayoutId] = useState<number | "">("");
+  const [reportLayoutName, setReportLayoutName] = useState("");
   const saveAttendance = useSaveSessionAttendance();
   const queueAttendanceSync = useQueueZoomAttendanceSync();
   const resolveAttendanceParticipant = useResolveZoomAttendanceParticipant();
@@ -126,6 +141,9 @@ export function ProgramAnalyticsPage() {
   const updateKpi = useUpdateProgramImpactKpi();
   const removeKpi = useDeleteProgramImpactKpi();
   const saveKpiValues = useSaveProgramImpactKpiValues();
+  const createReportLayout = useCreateProgramAnalyticsReportLayout();
+  const updateReportLayout = useUpdateProgramAnalyticsReportLayout();
+  const deleteReportLayout = useDeleteProgramAnalyticsReportLayout();
   const registerQuery = useGetSessionAttendanceRegister(activeSession ?? 0, {
     query: {
       enabled: activeSession !== null,
@@ -201,7 +219,78 @@ export function ProgramAnalyticsPage() {
   const invalidateKpis = () => {
     if (selectedProgram) void queryClient.invalidateQueries({ queryKey: getListProgramImpactKpisQueryKey({ programId: selectedProgram }) });
   };
+  const invalidateReportLayouts = () => {
+    if (selectedProgram) void queryClient.invalidateQueries({
+      queryKey: getListProgramAnalyticsReportLayoutsQueryKey({ programId: selectedProgram }),
+    });
+  };
   const invalidateAnalytics = () => void queryClient.invalidateQueries({ queryKey: getGetProgramAnalyticsQueryKey(queryParams) });
+  const reportLayouts = reportLayoutsQuery.data ?? [];
+  const selectedReportLayout = reportLayouts.find(({ id }) => id === selectedReportLayoutId);
+
+  useEffect(() => {
+    setSelectedReportLayoutId("");
+    setReportLayoutName("");
+  }, [selectedProgram]);
+
+  function selectReportLayout(id: number | "") {
+    setSelectedReportLayoutId(id);
+    if (id === "") {
+      setReportLayoutName("");
+      return;
+    }
+    const layout = reportLayouts.find((item) => item.id === id);
+    if (!layout) return;
+    setReportLayoutName(layout.name);
+    setReportTitle(layout.title);
+    setReportParts(layout.sections);
+  }
+
+  function saveNewReportLayout() {
+    if (!selectedProgram || !reportLayoutName.trim() || !reportTitle.trim()) return;
+    createReportLayout.mutate({
+      data: {
+        programId: selectedProgram,
+        name: reportLayoutName.trim(),
+        title: reportTitle.trim(),
+        sections: reportParts,
+      },
+    }, {
+      onSuccess: (layout) => {
+        invalidateReportLayouts();
+        setSelectedReportLayoutId(layout.id);
+        setReportLayoutName(layout.name);
+      },
+    });
+  }
+
+  function saveReportLayoutChanges() {
+    if (!selectedProgram || !selectedReportLayout || !reportLayoutName.trim() || !reportTitle.trim()) return;
+    updateReportLayout.mutate({
+      programId: selectedProgram,
+      id: selectedReportLayout.id,
+      data: {
+        name: reportLayoutName.trim(),
+        title: reportTitle.trim(),
+        sections: reportParts,
+      },
+    }, { onSuccess: invalidateReportLayouts });
+  }
+
+  function removeSelectedReportLayout() {
+    if (!selectedProgram || !selectedReportLayout) return;
+    if (!window.confirm(`${t("Remove this saved report layout?")}\n\n${selectedReportLayout.name}`)) return;
+    deleteReportLayout.mutate({
+      programId: selectedProgram,
+      id: selectedReportLayout.id,
+    }, {
+      onSuccess: () => {
+        invalidateReportLayouts();
+        setSelectedReportLayoutId("");
+        setReportLayoutName("");
+      },
+    });
+  }
   function patchAttendance(businessId: number, patch: Partial<AttendanceState[number]>) {
     setAttendance((current) => ({ ...current, [businessId]: { status: current[businessId]?.status ?? null, notes: current[businessId]?.notes ?? "", ...patch } }));
   }
@@ -611,7 +700,31 @@ export function ProgramAnalyticsPage() {
 
     {reportOpen && <AccessibleDialogSurface className="ana-modal" overlayClassName="ana-modal-backdrop print-hide" labelledBy="report-title" initialFocusSelector="[data-dialog-autofocus]" onClose={() => setReportOpen(false)} testId="dialog-report-builder">
       <div className="ana-modal-head"><div><span className="ana-eyebrow">REPORT BUILDER</span><h2 id="report-title">Prepare a filtered report</h2><p>Choose sections from the current program and date scope.</p></div><button className="ana-icon-btn" onClick={() => setReportOpen(false)} aria-label="Close"><X size={17} /></button></div>
-      <div className="ana-form"><label>Report title<input data-dialog-autofocus value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} maxLength={100} /></label>
+      <div className="ana-form">
+        <div className="ana-report-layouts">
+          <label>{t("Saved layout")}
+            <select value={selectedReportLayoutId} onChange={(event) => selectReportLayout(event.target.value ? Number(event.target.value) : "")} disabled={!selectedProgram || reportLayoutsQuery.isLoading}>
+              <option value="">{t("Start a new layout")}</option>
+              {reportLayouts.map((layout) => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
+            </select>
+          </label>
+          <label>{t("Layout name")}<input value={reportLayoutName} onChange={(event) => setReportLayoutName(event.target.value)} maxLength={80} placeholder={t("For example, monthly cohort update")} /></label>
+          {!selectedProgram && <p className="ana-form-hint">{t("Choose one program in the analytics filters to save and reuse its layouts.")}</p>}
+          {reportLayoutsQuery.isError && <p className="ana-form-error" role="alert">{t("Saved layouts could not be loaded. Close and reopen the report builder to retry.")}</p>}
+          {(createReportLayout.isError || updateReportLayout.isError || deleteReportLayout.isError) && <p className="ana-form-error" role="alert">{t("The layout could not be saved or removed. Check the name and try again.")}</p>}
+          <div className="ana-modal-actions ana-report-layout-actions">
+            <button className="ana-button subtle" onClick={saveNewReportLayout} disabled={!selectedProgram || !reportLayoutName.trim() || !reportTitle.trim() || createReportLayout.isPending}>
+              {createReportLayout.isPending ? t("Saving…") : t("Save as new")}
+            </button>
+            <button className="ana-button subtle" onClick={saveReportLayoutChanges} disabled={!selectedReportLayout || !reportLayoutName.trim() || !reportTitle.trim() || updateReportLayout.isPending}>
+              {updateReportLayout.isPending ? t("Updating…") : t("Update selected")}
+            </button>
+            <button className="ana-button danger" onClick={removeSelectedReportLayout} disabled={!selectedReportLayout || deleteReportLayout.isPending}>
+              {deleteReportLayout.isPending ? t("Removing…") : t("Remove selected")}
+            </button>
+          </div>
+        </div>
+        <label>{t("Report title")}<input data-dialog-autofocus value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} maxLength={100} /></label>
          <div className="ana-report-parts">{Object.entries({ summary: "Program summary", stages: "Founder stage distribution", attendance: "Attendance trend and sessions", engagement: "Founder engagement table", impact: "Impact indicators and business outcomes" }).map(([key, label]) => <label key={key}><input type="checkbox" checked={reportParts[key as keyof typeof reportParts]} onChange={(event) => setReportParts((parts) => ({ ...parts, [key]: event.target.checked }))} /><span>{label}</span></label>)}</div>
         <div className="ana-report-scope"><b>Included scope</b><span>{selectedProgram ? data?.programs.find((p) => p.id === selectedProgram)?.name : "All programs"}</span><span>{from ? dateLabel(from) : "Start"} to {to ? dateLabel(to) : "Today"}</span></div>
          <div className="ana-modal-actions ana-report-actions"><button className="ana-button subtle" onClick={() => setReportOpen(false)}>{t("Cancel")}</button><button className="ana-button subtle" onClick={exportReportSpreadsheet} data-testid="button-export-program-report-csv"><Download size={14} /> {t("Export spreadsheet (CSV)")}</button><button className="ana-button primary" onClick={() => { setReportOpen(false); window.setTimeout(() => window.print(), 100); }} data-testid="button-print-program-report"><Printer size={14} /> {t("Print / Save branded PDF")}</button></div>

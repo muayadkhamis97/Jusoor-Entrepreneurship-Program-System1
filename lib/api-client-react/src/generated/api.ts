@@ -21,6 +21,9 @@ import type {
 
 import type {
   AllProgramLifecycleEvent,
+  AnalyticsReportLayout,
+  AnalyticsReportLayoutInput,
+  AnalyticsReportLayoutUpdate,
   Announcement,
   AnnouncementDeleteResult,
   AnnouncementInput,
@@ -101,6 +104,7 @@ import type {
   LearningProgressAnalytics,
   ListBusinessesParams,
   ListPitchesParams,
+  ListProgramAnalyticsReportLayoutsParams,
   ListProgramImpactKpisParams,
   ListProgramsParams,
   ListSessionsParams,
@@ -715,6 +719,345 @@ export function useGetProgramSessionInteractionAnalytics<TData = Awaited<ReturnT
 
 
 
+
+export const getListProgramAnalyticsReportLayoutsUrl = (params: ListProgramAnalyticsReportLayoutsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/report-layouts?${stringifiedParams}` : `/api/analytics/report-layouts`
+}
+
+/**
+ * @summary List saved analytics report layouts for a program
+ */
+export const listProgramAnalyticsReportLayouts = async (params: ListProgramAnalyticsReportLayoutsParams, options?: Parameters<typeof customFetch>[1]): Promise<AnalyticsReportLayout[]> => {
+
+  return customFetch<AnalyticsReportLayout[]>(getListProgramAnalyticsReportLayoutsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProgramAnalyticsReportLayoutsQueryKey = (params?: ListProgramAnalyticsReportLayoutsParams,) => {
+    return [
+    `/api/analytics/report-layouts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProgramAnalyticsReportLayoutsQueryOptions = <TData = Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>, TError = ErrorType<void>>(params: ListProgramAnalyticsReportLayoutsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProgramAnalyticsReportLayoutsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>> = ({ signal }) => listProgramAnalyticsReportLayouts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProgramAnalyticsReportLayoutsQueryResult = NonNullable<Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>>
+export type ListProgramAnalyticsReportLayoutsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List saved analytics report layouts for a program
+ */
+
+export function useListProgramAnalyticsReportLayouts<TData = Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>, TError = ErrorType<void>>(
+ params: ListProgramAnalyticsReportLayoutsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramAnalyticsReportLayouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProgramAnalyticsReportLayoutsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProgramAnalyticsReportLayoutUrl = () => {
+
+
+
+
+  return `/api/analytics/report-layouts`
+}
+
+/**
+ * @summary Save a named analytics report layout for a program
+ */
+export const createProgramAnalyticsReportLayout = async (analyticsReportLayoutInput: AnalyticsReportLayoutInput, options?: Parameters<typeof customFetch>[1]): Promise<AnalyticsReportLayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AnalyticsReportLayout>(getCreateProgramAnalyticsReportLayoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(analyticsReportLayoutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateProgramAnalyticsReportLayoutMutationKey = () => ['createProgramAnalyticsReportLayout'] as const;
+
+export const getCreateProgramAnalyticsReportLayoutMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramAnalyticsReportLayout>>, TError,CreateProgramAnalyticsReportLayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProgramAnalyticsReportLayout>>, TError,CreateProgramAnalyticsReportLayoutMutationVariables, TContext> => {
+
+const mutationKey = getCreateProgramAnalyticsReportLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProgramAnalyticsReportLayout>>, CreateProgramAnalyticsReportLayoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createProgramAnalyticsReportLayout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProgramAnalyticsReportLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof createProgramAnalyticsReportLayout>>>
+    export type CreateProgramAnalyticsReportLayoutMutationBody = BodyType<AnalyticsReportLayoutInput>
+    export type CreateProgramAnalyticsReportLayoutMutationError = ErrorType<void>
+    export type CreateProgramAnalyticsReportLayoutMutationVariables = {data: BodyType<AnalyticsReportLayoutInput>}
+
+    /**
+ * @summary Save a named analytics report layout for a program
+ */
+export const useCreateProgramAnalyticsReportLayout = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramAnalyticsReportLayout>>, TError,CreateProgramAnalyticsReportLayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProgramAnalyticsReportLayout>>,
+        TError,
+        CreateProgramAnalyticsReportLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateProgramAnalyticsReportLayoutMutationOptions(options));
+    }
+
+export const getUpdateProgramAnalyticsReportLayoutUrl = (programId: number,
+    id: number,) => {
+
+
+
+
+  return `/api/analytics/programs/${programId}/report-layouts/${id}`
+}
+
+/**
+ * @summary Update a saved analytics report layout
+ */
+export const updateProgramAnalyticsReportLayout = async (programId: number,
+    id: number,
+    analyticsReportLayoutUpdate: AnalyticsReportLayoutUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AnalyticsReportLayout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AnalyticsReportLayout>(getUpdateProgramAnalyticsReportLayoutUrl(programId,id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(analyticsReportLayoutUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateProgramAnalyticsReportLayoutMutationKey = () => ['updateProgramAnalyticsReportLayout'] as const;
+
+export const getUpdateProgramAnalyticsReportLayoutMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramAnalyticsReportLayout>>, TError,UpdateProgramAnalyticsReportLayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProgramAnalyticsReportLayout>>, TError,UpdateProgramAnalyticsReportLayoutMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProgramAnalyticsReportLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProgramAnalyticsReportLayout>>, UpdateProgramAnalyticsReportLayoutMutationVariables> = (props) => {
+          const {programId,id,data} = props ?? {};
+
+          return  updateProgramAnalyticsReportLayout(programId,id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProgramAnalyticsReportLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof updateProgramAnalyticsReportLayout>>>
+    export type UpdateProgramAnalyticsReportLayoutMutationBody = BodyType<AnalyticsReportLayoutUpdate>
+    export type UpdateProgramAnalyticsReportLayoutMutationError = ErrorType<void>
+    export type UpdateProgramAnalyticsReportLayoutMutationVariables = {programId: number;id: number;data: BodyType<AnalyticsReportLayoutUpdate>}
+
+    /**
+ * @summary Update a saved analytics report layout
+ */
+export const useUpdateProgramAnalyticsReportLayout = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramAnalyticsReportLayout>>, TError,UpdateProgramAnalyticsReportLayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProgramAnalyticsReportLayout>>,
+        TError,
+        UpdateProgramAnalyticsReportLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProgramAnalyticsReportLayoutMutationOptions(options));
+    }
+
+export const getDeleteProgramAnalyticsReportLayoutUrl = (programId: number,
+    id: number,) => {
+
+
+
+
+  return `/api/analytics/programs/${programId}/report-layouts/${id}`
+}
+
+/**
+ * @summary Remove a saved analytics report layout
+ */
+export const deleteProgramAnalyticsReportLayout = async (programId: number,
+    id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteProgramAnalyticsReportLayoutUrl(programId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteProgramAnalyticsReportLayoutMutationKey = () => ['deleteProgramAnalyticsReportLayout'] as const;
+
+export const getDeleteProgramAnalyticsReportLayoutMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProgramAnalyticsReportLayout>>, TError,DeleteProgramAnalyticsReportLayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProgramAnalyticsReportLayout>>, TError,DeleteProgramAnalyticsReportLayoutMutationVariables, TContext> => {
+
+const mutationKey = getDeleteProgramAnalyticsReportLayoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProgramAnalyticsReportLayout>>, DeleteProgramAnalyticsReportLayoutMutationVariables> = (props) => {
+          const {programId,id} = props ?? {};
+
+          return  deleteProgramAnalyticsReportLayout(programId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProgramAnalyticsReportLayoutMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProgramAnalyticsReportLayout>>>
+
+    export type DeleteProgramAnalyticsReportLayoutMutationError = ErrorType<void>
+    export type DeleteProgramAnalyticsReportLayoutMutationVariables = {programId: number;id: number}
+
+    /**
+ * @summary Remove a saved analytics report layout
+ */
+export const useDeleteProgramAnalyticsReportLayout = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProgramAnalyticsReportLayout>>, TError,DeleteProgramAnalyticsReportLayoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProgramAnalyticsReportLayout>>,
+        TError,
+        DeleteProgramAnalyticsReportLayoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteProgramAnalyticsReportLayoutMutationOptions(options));
+    }
 
 export const getGetLearningProgressAnalyticsUrl = (params?: GetLearningProgressAnalyticsParams,) => {
   const normalizedParams = new URLSearchParams();

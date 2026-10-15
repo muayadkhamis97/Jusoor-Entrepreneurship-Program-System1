@@ -28,6 +28,7 @@ export * from "./session-attendance";
 export * from "./support";
 export * from "./impact-kpis";
 export * from "./impact-kpi-values";
+export * from "./analytics-report-layouts";
 export * from "./pitches";
 export * from "./staff";
 export * from "./applications";

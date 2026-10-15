@@ -11,6 +11,14 @@ import {
 import {
   CreateProgramImpactKpiBody,
   CreateProgramImpactKpiResponse,
+  CreateProgramAnalyticsReportLayoutBody,
+  CreateProgramAnalyticsReportLayoutResponse,
+  DeleteProgramAnalyticsReportLayoutParams,
+  ListProgramAnalyticsReportLayoutsQueryParams,
+  ListProgramAnalyticsReportLayoutsResponse,
+  UpdateProgramAnalyticsReportLayoutBody,
+  UpdateProgramAnalyticsReportLayoutParams,
+  UpdateProgramAnalyticsReportLayoutResponse,
   DeleteProgramImpactKpiParams,
   DeleteProgramImpactKpiResponse,
   GetProgramAnalyticsQueryParams,
@@ -39,6 +47,7 @@ import {
 } from "@workspace/api-zod";
 import {
   applicationsTable,
+  analyticsReportLayoutsTable,
   businessesTable,
   db,
   impactKpiValuesTable,
@@ -813,6 +822,136 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
   });
   const updated = await getAttendanceRegister(params.data.sessionId);
   res.json(SaveSessionAttendanceResponse.parse(updated));
+});
+
+router.get("/analytics/report-layouts", async (req, res): Promise<void> => {
+  const query = ListProgramAnalyticsReportLayoutsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+  const [program] = await db.select({ id: programsTable.id }).from(programsTable)
+    .where(eq(programsTable.id, query.data.programId)).limit(1);
+  if (!program) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  const layouts = await db.select().from(analyticsReportLayoutsTable)
+    .where(eq(analyticsReportLayoutsTable.programId, query.data.programId))
+    .orderBy(asc(analyticsReportLayoutsTable.name));
+  res.json(ListProgramAnalyticsReportLayoutsResponse.parse(layouts));
+});
+
+router.post("/analytics/report-layouts", async (req, res): Promise<void> => {
+  const body = CreateProgramAnalyticsReportLayoutBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [program] = await db.select({ id: programsTable.id }).from(programsTable)
+    .where(eq(programsTable.id, body.data.programId)).limit(1);
+  if (!program) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  const name = body.data.name.trim();
+  const title = body.data.title.trim();
+  if (!name || !title) {
+    res.status(400).json({ error: "A report layout name and title are required." });
+    return;
+  }
+  const [duplicate] = await db.select({ id: analyticsReportLayoutsTable.id })
+    .from(analyticsReportLayoutsTable).where(and(
+      eq(analyticsReportLayoutsTable.programId, body.data.programId),
+      eq(analyticsReportLayoutsTable.name, name),
+    )).limit(1);
+  if (duplicate) {
+    res.status(409).json({ error: "A report layout with this name already exists for the program." });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  try {
+    const [layout] = await db.insert(analyticsReportLayoutsTable).values({
+      ...body.data,
+      name,
+      title,
+      createdByStaffId: staff.id,
+    }).returning();
+    res.status(201).json(CreateProgramAnalyticsReportLayoutResponse.parse(layout));
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "A report layout with this name already exists for the program." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.patch("/analytics/programs/:programId/report-layouts/:id", async (req, res): Promise<void> => {
+  const params = UpdateProgramAnalyticsReportLayoutParams.safeParse(req.params);
+  const body = UpdateProgramAnalyticsReportLayoutBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const [current] = await db.select().from(analyticsReportLayoutsTable)
+    .where(and(
+      eq(analyticsReportLayoutsTable.id, params.data.id),
+      eq(analyticsReportLayoutsTable.programId, params.data.programId),
+    )).limit(1);
+  if (!current) {
+    res.status(404).json({ error: "Report layout not found for this program." });
+    return;
+  }
+  const name = body.data.name.trim();
+  const title = body.data.title.trim();
+  if (!name || !title) {
+    res.status(400).json({ error: "A report layout name and title are required." });
+    return;
+  }
+  const [duplicate] = await db.select({ id: analyticsReportLayoutsTable.id })
+    .from(analyticsReportLayoutsTable).where(and(
+      eq(analyticsReportLayoutsTable.programId, params.data.programId),
+      eq(analyticsReportLayoutsTable.name, name),
+    )).limit(1);
+  if (duplicate && duplicate.id !== current.id) {
+    res.status(409).json({ error: "A report layout with this name already exists for the program." });
+    return;
+  }
+  try {
+    const [layout] = await db.update(analyticsReportLayoutsTable).set({
+      name,
+      title,
+      sections: body.data.sections,
+    }).where(and(
+      eq(analyticsReportLayoutsTable.id, params.data.id),
+      eq(analyticsReportLayoutsTable.programId, params.data.programId),
+    )).returning();
+    res.json(UpdateProgramAnalyticsReportLayoutResponse.parse(layout));
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "A report layout with this name already exists for the program." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.delete("/analytics/programs/:programId/report-layouts/:id", async (req, res): Promise<void> => {
+  const params = DeleteProgramAnalyticsReportLayoutParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const deleted = await db.delete(analyticsReportLayoutsTable).where(and(
+    eq(analyticsReportLayoutsTable.id, params.data.id),
+    eq(analyticsReportLayoutsTable.programId, params.data.programId),
+  )).returning({ id: analyticsReportLayoutsTable.id });
+  if (!deleted.length) {
+    res.status(404).json({ error: "Report layout not found for this program." });
+    return;
+  }
+  res.status(204).end();
 });
 
 router.get("/analytics/kpis", async (req, res): Promise<void> => {
