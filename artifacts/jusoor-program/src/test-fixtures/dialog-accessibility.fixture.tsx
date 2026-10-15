@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Router as WouterRouter, useLocation } from 'wouter';
-import { AccessibleDialogSurface } from '../accessible-dialog';
+import { AccessibleDialogSurface, UnsavedChangesDialog } from '../accessible-dialog';
 import { LanguageProvider, LanguageToggle, t, useAppLanguage } from '../language';
 import { getStaffNavigationItems, MobileStaffNavigation } from '../mobile-staff-navigation';
 import '../index.css';
@@ -21,16 +21,35 @@ function DialogAccessibilityFixture() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [courseOpen, setCourseOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [dirtyOpen, setDirtyOpen] = useState(false);
+  const [discardDirty, setDiscardDirty] = useState(false);
+  const [secretOpen, setSecretOpen] = useState(false);
+  const [secretCanClose, setSecretCanClose] = useState(false);
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [revokePending, setRevokePending] = useState(false);
+  const [removableDialogOpen, setRemovableDialogOpen] = useState(false);
+  const [removableTriggerVisible, setRemovableTriggerVisible] = useState(true);
+  const [noOpenerDialogOpen, setNoOpenerDialogOpen] = useState(false);
+  const [courseDiscardPrompt, setCourseDiscardPrompt] = useState(false);
   const [value, setValue] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
   const [quizTitle, setQuizTitle] = useState('');
+  const [dirtyValue, setDirtyValue] = useState('');
   const [showError, setShowError] = useState(false);
   const [courseError, setCourseError] = useState(false);
   const [quizError, setQuizError] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const requestDirtyClose = () => {
+    if (dirtyValue) setDiscardDirty(true);
+    else setDirtyOpen(false);
+  };
+  const requestCourseClose = () => {
+    if (courseTitle) setCourseDiscardPrompt(true);
+    else setCourseOpen(false);
+  };
 
   return (
-    <main>
+    <main data-testid="dialog-focus-fallback">
       <LanguageToggle />
       <span data-testid="language-state">{language}</span>
       <p data-testid="localized-copy">{t('Choose your cohort')}</p>
@@ -53,7 +72,12 @@ function DialogAccessibilityFixture() {
       <button type="button" id="open-confirmation" onClick={() => setConfirmOpen(true)}>
         Open confirmation
       </button>
-      {confirmed && <p role="status">Confirmation dismissed</p>}
+      {confirmed && <p role="status">Synthetic record removed</p>}
+      <button type="button" id="open-dirty-editor" onClick={() => { setDirtyValue(''); setDirtyOpen(true); }}>Open dirty editor</button>
+      <button type="button" id="open-synthetic-secret" onClick={() => { setSecretCanClose(false); setSecretOpen(true); }}>Open one-time key</button>
+      <button type="button" id="open-synthetic-revoke" onClick={() => { setRevokePending(false); setRevokeOpen(true); }}>Open key revocation</button>
+      {removableTriggerVisible && <button type="button" id="open-removable-trigger" onClick={() => setRemovableDialogOpen(true)}>Open removable-trigger dialog</button>}
+      <button type="button" id="open-no-opener" onClick={event => { event.currentTarget.blur(); setNoOpenerDialogOpen(true); }}>Open dialog without a focused opener</button>
 
       {reviewOpen && (
         <AccessibleDialogSurface
@@ -105,20 +129,24 @@ function DialogAccessibilityFixture() {
           className="modal-card"
           labelledBy="fixture-course-title"
           initialFocusSelector="#fixture-course-input"
-          onClose={() => setCourseOpen(false)}
+          onClose={requestCourseClose}
+          closeOnEscape={!courseTitle}
+          closeOnOutsideInteraction={!courseTitle}
+          onDismissAttempt={() => { if (courseTitle) setCourseDiscardPrompt(true); }}
           testId="fixture-course-dialog"
         >
           <div className="modal-head">
             <h1 id="fixture-course-title" className="app-title">Edit course content</h1>
-            <button type="button" aria-label="Close course form" onClick={() => setCourseOpen(false)}>×</button>
+            <button type="button" aria-label="Close course form" onClick={requestCourseClose}>×</button>
           </div>
           <form className="modal-form" onSubmit={event => { event.preventDefault(); setCourseError(true); }}>
             <label>Course title<input id="fixture-course-input" value={courseTitle} onChange={event => setCourseTitle(event.target.value)} /></label>
             {courseError && <p role="alert">Course content could not be saved.</p>}
-            <div className="modal-actions"><button type="button" onClick={() => setCourseOpen(false)}>Cancel</button><button type="submit">Save course</button></div>
+            <div className="modal-actions"><button type="button" onClick={requestCourseClose}>Cancel</button><button type="submit">Save course</button></div>
           </form>
         </AccessibleDialogSurface>
       )}
+      {courseDiscardPrompt && <UnsavedChangesDialog onKeepEditing={() => setCourseDiscardPrompt(false)} onDiscard={() => { setCourseDiscardPrompt(false); setCourseOpen(false); }} />}
 
       {quizOpen && (
         <AccessibleDialogSurface
@@ -147,7 +175,7 @@ function DialogAccessibilityFixture() {
           labelledBy="fixture-confirm-title"
           describedBy="fixture-confirm-description"
           initialFocusSelector="#fixture-confirm-cancel"
-          onClose={() => { setConfirmOpen(false); setConfirmed(true); }}
+          onClose={() => setConfirmOpen(false)}
           closeOnOutsideInteraction={false}
           testId="fixture-confirm-dialog"
         >
@@ -155,10 +183,83 @@ function DialogAccessibilityFixture() {
           <p id="fixture-confirm-description">This is a synthetic confirmation only.</p>
           <div className="modal-actions">
             <button id="fixture-confirm-cancel" data-dialog-autofocus onClick={() => setConfirmOpen(false)}>Cancel</button>
-            <button onClick={() => setConfirmOpen(false)}>Remove</button>
+            <button onClick={() => { setConfirmOpen(false); setConfirmed(true); }}>Remove</button>
           </div>
         </AccessibleDialogSurface>
       )}
+
+      {dirtyOpen && <AccessibleDialogSurface
+        className="modal-card"
+        labelledBy="fixture-dirty-title"
+        initialFocusSelector="#fixture-dirty-input"
+        onClose={requestDirtyClose}
+        closeOnEscape={!dirtyValue}
+        closeOnOutsideInteraction={!dirtyValue}
+        onDismissAttempt={() => { if (dirtyValue) setDiscardDirty(true); }}
+        testId="fixture-dirty-dialog"
+      >
+        <h2 id="fixture-dirty-title">Edit a synthetic draft</h2>
+        <label>Draft value<input id="fixture-dirty-input" value={dirtyValue} onChange={event => setDirtyValue(event.target.value)} /></label>
+        <button type="button" onClick={requestDirtyClose}>Cancel</button>
+      </AccessibleDialogSurface>}
+      {discardDirty && <UnsavedChangesDialog onKeepEditing={() => setDiscardDirty(false)} onDiscard={() => { setDiscardDirty(false); setDirtyOpen(false); }} />}
+
+      {secretOpen && <AccessibleDialogSurface
+        className="modal-card"
+        labelledBy="fixture-secret-title"
+        describedBy="fixture-secret-description"
+        initialFocusSelector="#button-copy-synthetic-secret"
+        onClose={() => setSecretOpen(false)}
+        closeOnEscape={secretCanClose}
+        closeOnOutsideInteraction={secretCanClose}
+        testId="fixture-secret-dialog"
+      >
+        <h2 id="fixture-secret-title">One-time program key</h2>
+        <p id="fixture-secret-description">Synthetic secret used only to test acknowledgement behavior.</p>
+        <code>SYNTHETIC-NOT-A-REAL-KEY</code>
+        <button id="button-copy-synthetic-secret" onClick={() => setSecretCanClose(true)}>Copy synthetic key</button>
+        <button disabled={!secretCanClose} onClick={() => setSecretOpen(false)}>I saved the key</button>
+      </AccessibleDialogSurface>}
+
+      {revokeOpen && <AccessibleDialogSurface
+        className="confirm-card"
+        role="alertdialog"
+        labelledBy="fixture-revoke-title"
+        describedBy="fixture-revoke-description"
+        initialFocusSelector="#button-cancel-synthetic-revoke"
+        onClose={() => { if (!revokePending) setRevokeOpen(false); }}
+        closeOnOutsideInteraction={false}
+        closeOnEscape={!revokePending}
+        testId="fixture-revoke-dialog"
+      >
+        <h2 id="fixture-revoke-title">Revoke synthetic key?</h2>
+        <p id="fixture-revoke-description">This is a local confirmation fixture.</p>
+        <button id="button-cancel-synthetic-revoke" disabled={revokePending} onClick={() => setRevokeOpen(false)}>Keep key</button>
+        <button disabled={revokePending} onClick={() => setRevokePending(true)}>Start synthetic revoke</button>
+        {revokePending && <button onClick={() => { setRevokePending(false); setRevokeOpen(false); }}>Finish synthetic revoke</button>}
+      </AccessibleDialogSurface>}
+
+      {removableDialogOpen && <AccessibleDialogSurface
+        className="modal-card"
+        labelledBy="fixture-removable-title"
+        initialFocusSelector="#button-remove-trigger"
+        onClose={() => setRemovableDialogOpen(false)}
+        testId="fixture-removable-dialog"
+      >
+        <h2 id="fixture-removable-title">Trigger removal test</h2>
+        <button id="button-remove-trigger" onClick={() => setRemovableTriggerVisible(false)}>Remove opener from page</button>
+        <button onClick={() => setRemovableDialogOpen(false)}>Close test dialog</button>
+      </AccessibleDialogSurface>}
+      {noOpenerDialogOpen && <AccessibleDialogSurface
+        className="modal-card"
+        labelledBy="fixture-no-opener-title"
+        initialFocusSelector="#button-close-no-opener"
+        onClose={() => setNoOpenerDialogOpen(false)}
+        testId="fixture-no-opener-dialog"
+      >
+        <h2 id="fixture-no-opener-title">No opener test</h2>
+        <button id="button-close-no-opener" onClick={() => setNoOpenerDialogOpen(false)}>Close no-opener dialog</button>
+      </AccessibleDialogSurface>}
 
       <MobileStaffNavigation items={getStaffNavigationItems(staffRole)} currentPath={currentPath} onSignOut={() => undefined} />
     </main>

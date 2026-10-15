@@ -97,3 +97,27 @@ The participant dashboard and participant profile now render “Sign out” and 
 | `git diff --check` | PASS | No whitespace errors. |
 
 **Not verified:** actual Clerk session invalidation, Clerk redirect behavior, signing in with a different email, or the signed-in participant dashboard/profile in a real browser. No production or development database was accessed; no provider, email, deployment, or publishing action was performed. Only the new account-action labels/status/error were added in Arabic (reusing the existing “Sign out” translation); this does not resolve the broader Arabic coverage finding.
+
+## Platform-wide dialog accessibility follow-up (2026-10-15)
+
+### Source inventory and root cause
+
+The custom application, form, confirmation, archival/history, application-review, analytics (attendance/KPI/value/delete/report), grant receipt/correction, API-key secret/revocation, interactive-session activity, course module/material/delete, quiz-editor, and learning-package surfaces use `AccessibleDialogSurface`, which is backed by Radix Dialog. Certificate issuance preview uses the shared Radix `DialogContent` primitive with a visible `DialogTitle` and `DialogDescription`; its controlled state prevents closing while issuance is pending. The generic `CommandDialog` wrapper is present but had no application call site in the inspected source. No raw application modal overlay bypassing these patterns was found in the inspected feature files.
+
+The shared focus cleanup previously returned without a restoration target if its opener had been removed. A nested dirty-form confirmation also exposed a timing case: the parent and child portals can unmount together while Radix is still clearing background `aria-hidden`/inert state, leaving focus on the document body or letting a late fallback override the parent opener.
+
+The shared surface now captures the opener once when opening, restores to it when still usable, otherwise prefers the topmost remaining dialog and then a focusable main landmark. It retries briefly after unmount so portal cleanup can complete, and it preserves a successful focus restoration from a concurrently closing nested dialog. Course module/material forms now prompt before discarding changed fields. Program archival, record/course/KPI deletion, and API-key revocation cannot be dismissed with Escape while their mutation is pending, and their cancel controls are disabled until completion. Quiz-editor close/discard controls are disabled while saving.
+
+### Verification recorded
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Dialog/mobile-navigation Chromium test | PASS | `pnpm --filter @workspace/jusoor-program run test:ui-browser`: 2 passed, 0 failed. Includes a source-contract check and synthetic browser fixture at 1280×800, 390×844 and 320×800; checks focus entry/containment/restoration, opener removal/unavailability, dirty-form keep/discard, form error retention, destructive confirmation, pending revoke, one-time synthetic-key acknowledgement, and Arabic RTL dialog text. |
+| Jusoor web unit tests | PASS | `pnpm --filter @workspace/jusoor-program run test:unit`: 40 passed, 0 failed. |
+| Jusoor web production build | PASS | `PORT=5000 BASE_PATH=/jusoor-program pnpm --filter @workspace/jusoor-program run build`: Vite completed. Existing dropdown-menu source-map warning and >500 kB chunk advisory remain; main bundle is 890.93 kB minified (248.41 kB gzip). |
+| Jusoor web typecheck | FAIL — existing errors | `pnpm --filter @workspace/jusoor-program run typecheck` reports missing generated export `useGetStaffAssignmentHistory` and implicit `any` on its callback in `src/team-assignments.tsx`; no dialog-related errors were reported. |
+| `git diff --check` | PASS | No whitespace errors. |
+
+The browser check uses only a local synthetic fixture and Chromium; the copy/revoke examples contain synthetic values and do not call the API. It covers English and the existing Arabic discard prompt at a mobile viewport, plus desktop bounds. Authenticated dialogs were not rendered, and no screen reader was used. Actual signed-in Admin/participant behavior, other browser engines, external services, email, databases, production data, publishing, and deployment were not tested.
+
+The managed `artifacts/jusoor-program: web` workflow restarted successfully and Vite reported ready. A preview request for `/courses` rendered the public signed-out landing page because the browser has no authenticated staff session; therefore no authenticated dialog page was visually verified. The screenshot browser console showed the React DevTools information message and Clerk development-key warning, with no dialog/runtime error.

@@ -377,3 +377,15 @@ This is the highest-value manageable first batch because a proven local implemen
 **Excluded:** Provider connections, production/database changes, schema work, email, deployment, full visual redesign and unrelated refactoring.
 
 No implementation was begun by this audit.
+
+## H. Dialog accessibility remediation follow-up (2026-10-15)
+
+**Root cause:** Shared dialog cleanup skipped focus restoration when the invoking element had been removed. Closing a dirty form and its nested discard confirmation at the same time also allowed focus restoration to race Radix’s portal/background cleanup, leaving focus on the body or causing a nested fallback to compete with the original page opener.
+
+**Changes:** The shared Radix surface captures the opener once at dialog entry. On close it restores focus to the opener when usable; otherwise it targets the topmost remaining modal, then a main landmark. Restoration waits briefly for portal cleanup and does not override focus already restored by a concurrently closing parent. Course module and material editors now ask before discarding changed fields. Pending destructive mutations cannot be dismissed with Escape, and their cancel controls remain disabled until completion; quiz-editor close/discard controls also stay disabled while saving.
+
+**Dialog inventory:** Application and record forms/confirmations, program archive/history, application review, analytics attendance/KPI/value/delete/report, grant receipt/correction, API one-time secret/revocation, interactive-session activity, course module/material/delete, quiz editor and learning-package player use the shared accessible surface. The certificate preview uses the Radix `DialogContent` primitive with an accessible title and description, and its open state is retained while issuance is pending. The generic command-dialog wrapper exists but has no application call site in the inspected source; no raw application modal overlay bypass was found in the inspected feature files.
+
+**Evidence:** `pnpm --filter @workspace/jusoor-program run test:ui-browser` passed 2 tests (source contracts plus Chromium fixture). The fixture tests desktop bounds at 1280×800, mobile behavior at 390×844 and 320×800, focus entry/Tab/Shift+Tab/Escape/restoration, removed and missing openers, nested dirty-form keep/discard, error-state input retention, a destructive confirmation, pending revocation, a synthetic one-time-secret acknowledgement, and Arabic RTL discard text. `pnpm --filter @workspace/jusoor-program run test:unit` passed 40 tests. The production build completed; typecheck still reports only the two existing assignment-history errors in `src/team-assignments.tsx` (missing generated `useGetStaffAssignmentHistory` export and implicit callback `any`). Full details are in `docs/BUILD_VALIDATION.md`.
+
+**Not verified:** Authenticated Admin or participant routes, route-specific browser rendering, assistive-technology behavior, and other browser engines. The browser fixture is synthetic and does not call the API. No authentication bypass, database, production data, external provider, email, publish, or deployment action was used.

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createServer as createNetServer } from 'node:net';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,6 +10,46 @@ import { translate } from './language';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
+
+test('production dialog call sites preserve dirty and pending-action safeguards', async () => {
+  const paths = [
+    'App.tsx',
+    'analytics-surfaces.tsx',
+    'api-integrations.tsx',
+    'course-package-player.tsx',
+    'course-quizzes.tsx',
+    'course-surfaces.tsx',
+    'grant-surfaces.tsx',
+    'intake-surfaces.tsx',
+    'learning-progress.tsx',
+    'session-interactions.tsx',
+  ];
+  const sources = await Promise.all(paths.map(file => readFile(path.join(packageRoot, 'src', file), 'utf8')));
+  const [app, analytics, api, packagePlayer, quizzes, courses, grants, intake, progress, sessions] = sources;
+
+  assert.match(intake, /AccessibleDialogSurface/);
+  assert.match(intake, /labelledBy=/);
+  assert.match(app, /closeOnEscape=\{!loading\}/, 'record-delete confirmation must remain open while deleting');
+  assert.ok(app.includes('disabled={loading} data-dialog-autofocus data-testid="button-keep-record"'), 'record-delete cancellation must be unavailable while deleting');
+  assert.match(app, /closeOnEscape=\{!archive\.isPending\}/, 'program archival must remain open while pending');
+  assert.match(analytics, /closeOnEscape=\{!removeKpi\.isPending\}/, 'KPI deletion must remain open while pending');
+  assert.match(api, /closeOnEscape=\{secretCanClose\}/, 'one-time key dialog must require acknowledgement before dismissal');
+  assert.match(api, /closeOnEscape=\{!revokeKey\.isPending\}/, 'key revocation must remain open while pending');
+  assert.match(courses, /closeOnEscape=\{!busy && !dirty\}/, 'course forms must protect pending and dirty state');
+  assert.match(courses, /confirmCourseFormDiscard && <UnsavedChangesDialog/);
+  assert.match(courses, /onChange=\{\(\) => setCourseFormDirty\(true\)\}/);
+  assert.ok(courses.includes('disabled={pendingDelete} data-testid="button-cancel-delete-course"'), 'course deletion cancellation must be unavailable while deleting');
+  assert.match(quizzes, /closeOnEscape=\{!pending\}/, 'quiz save must remain open while pending');
+  assert.ok(quizzes.includes("disabled={pending} aria-label={t('Close quiz editor')}"));
+  assert.ok(quizzes.includes("onClick={onClose} disabled={pending}>{t('Close')}"));
+  assert.match(quizzes, /clearCourseQuizDraft\(draftStorageKey\)/, 'saved drafts are only cleared through the save/discard flow');
+  assert.match(grants, /closeOnEscape=\{!dirty && !saving\}/);
+  assert.match(sessions, /closeOnEscape=\{!dirty && !pending\}/);
+  assert.match(packagePlayer, /labelledBy="package-player-title"/);
+  assert.match(packagePlayer, /closeOnOutsideInteraction=\{false\}/);
+  assert.match(progress, /<DialogTitle>/);
+  assert.match(progress, /<DialogDescription>/);
+});
 
 async function checkStaffMenu(page: import('playwright-core').Page, role: 'coordinator' | 'staff', language: 'en' | 'ar') {
   const items = getStaffNavigationItems(role);
@@ -139,6 +180,7 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
     await page.goto(`http://127.0.0.1:${port}/src/test-fixtures/dialog-accessibility.html`, { waitUntil: 'domcontentloaded' });
 
+    await page.setViewportSize({ width: 1280, height: 800 });
     const reviewOpener = page.getByRole('button', { name: 'Open application review' });
     await reviewOpener.click();
     const applicationReview = page.getByRole('dialog', { name: 'Application review' });
@@ -146,9 +188,12 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     assert.equal(await applicationReview.getAttribute('aria-modal'), 'true');
     assert.equal(await applicationReview.getAttribute('aria-describedby'), 'fixture-review-description');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-review-title', 'Application review should focus its heading.');
+    const desktopBounds = await applicationReview.boundingBox();
+    assert.ok(desktopBounds && desktopBounds.x >= 0 && desktopBounds.y >= 0 && desktopBounds.x + desktopBounds.width <= 1280 && desktopBounds.y + desktopBounds.height <= 800, 'Dialog should fit the desktop viewport.');
     await page.keyboard.press('Escape');
     await applicationReview.waitFor({ state: 'detached' });
     await page.waitForFunction(() => document.activeElement?.id === 'open-application-review');
+    await page.setViewportSize({ width: 390, height: 844 });
 
     const openForm = page.getByRole('button', { name: 'Open sample form' });
     await openForm.click();
@@ -198,8 +243,17 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await page.getByRole('alert').getByText('Course content could not be saved.').waitFor();
     assert.equal(await courseTitle.inputValue(), 'Course title with retained edits', 'Course form values must remain after a validation error.');
     await page.getByRole('button', { name: 'Close course form' }).click();
+    const courseDiscardPrompt = page.getByRole('alertdialog', { name: 'Discard unsaved changes?' });
+    await courseDiscardPrompt.waitFor();
+    await page.getByRole('button', { name: 'Keep editing' }).click();
+    await courseDiscardPrompt.waitFor({ state: 'detached' });
+    assert.equal(await courseTitle.inputValue(), 'Course title with retained edits', 'Keeping the form open must preserve course changes.');
+    await page.keyboard.press('Escape');
+    await courseDiscardPrompt.waitFor();
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await courseDiscardPrompt.waitFor({ state: 'detached' });
     await courseDialog.waitFor({ state: 'detached' });
-    await page.waitForFunction(() => document.activeElement?.id === 'open-course-content');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'open-course-content', 'Discarding a nested course form must restore focus to its original opener.');
 
     const openQuiz = page.getByRole('button', { name: 'Open quiz editor' });
     await openQuiz.click();
@@ -227,9 +281,89 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await confirmDialog.waitFor({ state: 'detached' });
     await page.waitForFunction(() => document.activeElement?.id === 'open-confirmation');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'open-confirmation', 'Closing a confirmation should restore focus to its opener.');
+    await openConfirm.click();
+    await page.getByRole('alertdialog', { name: 'Confirm removal' }).getByRole('button', { name: 'Remove' }).click();
+    await page.getByRole('status').getByText('Synthetic record removed').waitFor();
+
+    const dirtyOpener = page.getByRole('button', { name: 'Open dirty editor' });
+    await dirtyOpener.click();
+    const dirtyDialog = page.getByRole('dialog', { name: 'Edit a synthetic draft' });
+    await dirtyDialog.waitFor();
+    await page.getByLabel('Draft value').fill('Keep this synthetic draft');
+    await page.keyboard.press('Escape');
+    const discardPrompt = page.getByRole('alertdialog', { name: 'Discard unsaved changes?' });
+    await discardPrompt.waitFor();
+    await page.getByRole('button', { name: 'Keep editing' }).click();
+    await discardPrompt.waitFor({ state: 'detached' });
+    assert.equal(await page.getByLabel('Draft value').inputValue(), 'Keep this synthetic draft');
+    await page.keyboard.press('Escape');
+    await discardPrompt.waitFor();
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await discardPrompt.waitFor({ state: 'detached' });
+    await dirtyDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-dirty-editor');
+
+    const secretOpener = page.getByRole('button', { name: 'Open one-time key' });
+    await secretOpener.click();
+    const secretDialog = page.getByRole('dialog', { name: 'One-time program key' });
+    await secretDialog.waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'button-copy-synthetic-secret');
+    await page.keyboard.press('Escape');
+    assert.equal(await secretDialog.count(), 1, 'A one-time key cannot be dismissed before acknowledgement.');
+    await page.mouse.click(4, 4);
+    assert.equal(await secretDialog.count(), 1, 'Outside interaction cannot dismiss a one-time key before acknowledgement.');
+    await page.getByRole('button', { name: 'Copy synthetic key' }).click();
+    await page.keyboard.press('Escape');
+    await secretDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-synthetic-secret');
+
+    const revokeOpener = page.getByRole('button', { name: 'Open key revocation' });
+    await revokeOpener.click();
+    const revokeDialog = page.getByRole('alertdialog', { name: 'Revoke synthetic key?' });
+    await revokeDialog.waitFor();
+    await page.getByRole('button', { name: 'Start synthetic revoke' }).click();
+    await page.keyboard.press('Escape');
+    assert.equal(await revokeDialog.count(), 1, 'A pending revocation cannot be dismissed with Escape.');
+    assert.equal(await page.getByRole('button', { name: 'Keep key' }).isDisabled(), true);
+    await page.getByRole('button', { name: 'Finish synthetic revoke' }).click();
+    await revokeDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-synthetic-revoke');
+
+    await page.getByRole('button', { name: 'Open removable-trigger dialog' }).click();
+    const removableDialog = page.getByRole('dialog', { name: 'Trigger removal test' });
+    await removableDialog.waitFor();
+    await page.getByRole('button', { name: 'Remove opener from page' }).click();
+    assert.equal(await page.locator('#open-removable-trigger').count(), 0);
+    await page.getByRole('button', { name: 'Close test dialog' }).click();
+    await removableDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'dialog-focus-fallback');
+
+    await page.getByRole('button', { name: 'Open dialog without a focused opener' }).click();
+    const noOpenerDialog = page.getByRole('dialog', { name: 'No opener test' });
+    await noOpenerDialog.waitFor();
+    await page.getByRole('button', { name: 'Close no-opener dialog' }).click();
+    await noOpenerDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'dialog-focus-fallback');
+
+    const languageToggle = page.getByTestId('button-language-toggle').first();
+    await languageToggle.click();
+    await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
+    await dirtyOpener.click();
+    await page.getByLabel('Draft value').fill('Arabic synthetic draft');
+    await page.keyboard.press('Escape');
+    const arabicDiscardPrompt = page.getByRole('alertdialog', { name: 'هل تريد تجاهل التغييرات غير المحفوظة؟' });
+    await arabicDiscardPrompt.waitFor();
+    await page.getByRole('button', { name: 'متابعة التحرير' }).click();
+    await arabicDiscardPrompt.waitFor({ state: 'detached' });
+    await page.keyboard.press('Escape');
+    await arabicDiscardPrompt.waitFor();
+    await page.getByRole('button', { name: 'تجاهل التغييرات' }).click();
+    await dirtyDialog.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.activeElement?.id === 'open-dirty-editor');
+    await languageToggle.click();
+    await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
 
     await page.setViewportSize({ width: 320, height: 800 });
-    const languageToggle = page.getByTestId('button-language-toggle').first();
     assert.equal(await page.getByTestId('localized-copy').textContent(), 'Choose your cohort');
     for (const role of ['coordinator', 'staff'] as const) {
       await checkStaffMenu(page, role, 'en');

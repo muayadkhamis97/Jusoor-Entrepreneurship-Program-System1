@@ -33,19 +33,82 @@ export function AccessibleDialogSurface({
   testId,
 }: AccessibleDialogSurfaceProps) {
   const opener = useRef<HTMLElement | null>(null);
+  const capturedOpener = useRef(false);
+  const restoreFrame = useRef<number | null>(null);
   const content = useRef<HTMLDivElement | null>(null);
-  if (opener.current === null && typeof document !== 'undefined') {
-    const activeElement = document.activeElement;
-    if (activeElement instanceof HTMLElement && activeElement !== document.body) {
-      opener.current = activeElement;
+
+  const focusTarget = (target: HTMLElement | null): boolean => {
+    if (
+      !target?.isConnected ||
+      target.matches(':disabled') ||
+      target.closest('[inert], [aria-hidden="true"]')
+    ) return false;
+    const style = window.getComputedStyle(target);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (!target.hasAttribute('tabindex') && !target.matches('button, input, select, textarea, a[href]')) {
+      target.setAttribute('tabindex', '-1');
     }
-  }
-  useLayoutEffect(() => () => {
-    const returnTarget = opener.current;
-    if (!returnTarget?.isConnected) return;
-    window.requestAnimationFrame(() => {
-      if (returnTarget.isConnected) returnTarget.focus();
-    });
+    target.focus({ preventScroll: true });
+    return document.activeElement === target;
+  };
+
+  const restoreFocus = (closingContent: HTMLDivElement | null) => {
+    if (restoreFrame.current !== null) return;
+    let attempts = 0;
+    const restoreAfterPortalCleanup = () => {
+      restoreFrame.current = null;
+      if (focusTarget(opener.current)) return;
+
+      const remainingDialogs = Array.from(document.querySelectorAll<HTMLElement>(
+        '[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]',
+      )).filter(dialog => {
+        if (dialog === closingContent || !dialog.isConnected || dialog.closest('[inert], [aria-hidden="true"]')) return false;
+        const style = window.getComputedStyle(dialog);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      });
+      let restored = false;
+      for (const dialog of remainingDialogs.reverse()) {
+        const preferred = dialog.querySelector<HTMLElement>(
+          '[data-dialog-autofocus], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusTarget(preferred) || focusTarget(dialog)) {
+          restored = true;
+          break;
+        }
+      }
+
+      const activeElement = document.activeElement;
+      if (
+        !restored &&
+        activeElement instanceof HTMLElement &&
+        activeElement !== document.body &&
+        activeElement.isConnected &&
+        !closingContent?.contains(activeElement) &&
+        !activeElement.closest('[inert], [aria-hidden="true"]')
+      ) return;
+
+      if (!restored) {
+        const fallbackTargets = document.querySelectorAll<HTMLElement>(
+          '[data-dialog-focus-fallback], main, [role="main"]',
+        );
+        for (const target of fallbackTargets) {
+          if (focusTarget(target)) {
+            restored = true;
+            break;
+          }
+        }
+      }
+      if (!restored && attempts < 4) {
+        attempts += 1;
+        restoreFrame.current = window.requestAnimationFrame(restoreAfterPortalCleanup);
+      }
+    };
+    restoreFrame.current = window.requestAnimationFrame(restoreAfterPortalCleanup);
+  };
+
+  useLayoutEffect(() => {
+    const mountedContent = content.current;
+    return () => restoreFocus(mountedContent);
   }, []);
 
   return (
@@ -61,6 +124,13 @@ export function AccessibleDialogSurface({
           aria-describedby={describedBy}
           data-testid={testId}
           onOpenAutoFocus={event => {
+            if (!capturedOpener.current) {
+              capturedOpener.current = true;
+              const activeElement = document.activeElement;
+              if (activeElement instanceof HTMLElement && activeElement !== document.body && !content.current?.contains(activeElement)) {
+                opener.current = activeElement;
+              }
+            }
             if (!initialFocusSelector) return;
             const initialTarget = content.current?.querySelector<HTMLElement>(initialFocusSelector);
             if (!initialTarget) return;
@@ -68,9 +138,8 @@ export function AccessibleDialogSurface({
             initialTarget.focus();
           }}
           onCloseAutoFocus={event => {
-            if (!opener.current?.isConnected) return;
             event.preventDefault();
-            opener.current.focus();
+            restoreFocus(event.currentTarget as HTMLDivElement);
           }}
           onPointerDownOutside={event => {
             if (!closeOnOutsideInteraction) {

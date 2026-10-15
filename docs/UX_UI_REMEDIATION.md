@@ -5,7 +5,7 @@
 
 | Finding | Area | Planned remediation | Verification | Status |
 |---|---|---|---|---|
-| UX-01 High | Custom dialogs | Reuse the shared Radix dialog surface for application review, analytics, grant, API-key, activity, and package dialogs; preserve pending/secret/destructive safeguards. | Generic Chromium dialog fixture passes focus entry, containment, Escape, restoration and form-retention assertions. Per-route signed-in flows not browser-tested. | Implemented in source; per-route browser coverage remains |
+| UX-01 High | Custom dialogs | Reuse the shared Radix dialog surface for application review, analytics, grant, API-key, activity, and package dialogs; preserve pending/secret/destructive safeguards. | Chromium fixture covers focus entry/containment/restoration, missing opener, dirty discard, pending revoke, secret acknowledgement, destructive confirmation and form retention; source contract checks actual call-site policies. Per-route signed-in flows not browser-tested. | Implemented; synthetic browser coverage passes; per-route review remains |
 | UX-02 High | Arabic coverage | Add audited functional translations and extend static key coverage while preserving dynamic values and English fallback. | Arabic key coverage and fallback tests pass. Full signed-in Arabic rendering not verified. | Implemented; visual review remains |
 | UX-03 High | Contrast | Darken shared secondary text and verify default normal-text combinations. | Automated sRGB calculation passes 4.5:1 for muted text on default background and card; custom brand palettes not scanned. | Implemented for default theme |
 | UX-04 High | Participant account actions | Keep Clerk-backed participant sign-out/account-switch controls. | `participant-account-actions.browser.test.tsx`: 1 passed; live Clerk session and signed-in UI remain unverified. | Implemented; live auth not verified |
@@ -34,6 +34,15 @@
 - Existing dialog/mobile-navigation Chromium fixture: failed before remediation because it expected 16 coordinator destinations but the current navigation contains 19.
 - Jusoor typecheck: failed before remediation with two errors in `src/team-assignments.tsx`: missing generated API export `useGetStaffAssignmentHistory` and implicit `any` for the assignment-history callback. Do not attribute these baseline errors to UX changes unless later evidence changes.
 - No production application, database, identity provider, external service, email, or deployment was accessed.
+
+### Dialog-accessibility follow-up (2026-10-15)
+
+- `pnpm --filter @workspace/jusoor-program run test:ui-browser`: **2 passed, 0 failed**. One static production-source contract test and one Chromium synthetic fixture test, covering 1280×800, 390×844 and 320×800 viewport checks; English and Arabic RTL discard flow.
+- `pnpm --filter @workspace/jusoor-program run test:unit`: **40 passed, 0 failed**.
+- `PORT=5000 BASE_PATH=/jusoor-program pnpm --filter @workspace/jusoor-program run build`: **passed**; the existing dropdown-menu source-map warning and large-chunk warning remain.
+- `pnpm --filter @workspace/jusoor-program run typecheck`: **failed with two pre-existing errors** in `src/team-assignments.tsx` only (missing generated `useGetStaffAssignmentHistory` export; implicit `any` on history callback).
+- `git diff --check`: **passed**.
+- The authenticated application dialog routes and assistive-technology behavior remain **not verified**; the browser fixture uses only synthetic data and the shared dialog primitive.
 
 ## Verification after remediation
 

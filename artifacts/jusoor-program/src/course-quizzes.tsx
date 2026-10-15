@@ -162,7 +162,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
     closeOnOutsideInteraction={!pending}
     testId="dialog-quiz-editor"
   >
-      <header className="quiz-editor-head"><div><span className="eyebrow">{t('COHORT LEARNING / ASSESSMENT')}</span><h2 id="quiz-editor-title">{t(quiz ? 'Edit quiz' : 'Create a quiz')}</h2><p id="quiz-editor-description">{t('Build clear checks for understanding. Answers stay private until a founder submits.')}</p></div><button className="quiz-close" type="button" onClick={onClose} aria-label={t('Close quiz editor')}>×</button></header>
+       <header className="quiz-editor-head"><div><span className="eyebrow">{t('COHORT LEARNING / ASSESSMENT')}</span><h2 id="quiz-editor-title">{t(quiz ? 'Edit quiz' : 'Create a quiz')}</h2><p id="quiz-editor-description">{t('Build clear checks for understanding. Answers stay private until a founder submits.')}</p></div><button className="quiz-close" type="button" onClick={onClose} disabled={pending} aria-label={t('Close quiz editor')}>×</button></header>
       <div className="quiz-editor-scroll">
         <label className="quiz-field">{t('Quiz title')}<input value={draft.title} maxLength={180} onChange={event => setDraft(current => ({ ...current, title: event.target.value }))} placeholder={t('e.g. Customer discovery check-in')} data-testid="input-quiz-title" /></label>
         <label className="quiz-field">{t('Description')}<textarea rows={2} maxLength={2000} value={draft.description} onChange={event => setDraft(current => ({ ...current, description: event.target.value }))} placeholder={t('What should founders take away?')} data-testid="input-quiz-description" /></label>
@@ -193,7 +193,7 @@ function QuizEditor({ moduleId, quiz, onClose, onSaved }: { moduleId: number; qu
         <label className="quiz-publish-check"><input type="checkbox" checked={draft.isPublished} onChange={event => setDraft(current => ({ ...current, isPublished: event.target.checked }))} /> <span><b>{t('Publish this quiz')}</b><small>{t('Participants can see it only after this module is published and released.')}</small></span></label>
       </div>
       {error && <p className="quiz-form-error" role="alert"><AlertCircle size={15} />{error}</p>}
-      <footer className="quiz-editor-actions"><button className="button button-quiet" type="button" onClick={onClose}>{t('Close')}</button><button className="button button-quiet" type="button" onClick={discardDraft} disabled={pending} data-testid="button-discard-quiz-draft">{t('Discard draft')}</button><button className="button button-primary" type="button" onClick={save} disabled={pending} data-testid="button-save-quiz">{pending ? t('Saving quiz…') : <><Save size={14} />{t('Save quiz')}</>}</button></footer>
+       <footer className="quiz-editor-actions"><button className="button button-quiet" type="button" onClick={onClose} disabled={pending}>{t('Close')}</button><button className="button button-quiet" type="button" onClick={discardDraft} disabled={pending} data-testid="button-discard-quiz-draft">{t('Discard draft')}</button><button className="button button-primary" type="button" onClick={save} disabled={pending} data-testid="button-save-quiz">{pending ? t('Saving quiz…') : <><Save size={14} />{t('Save quiz')}</>}</button></footer>
   </AccessibleDialogSurface>;
 }
 
