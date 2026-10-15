@@ -687,6 +687,7 @@ test("returns only the booking link for the participant's own assigned mentor", 
       topic: "Planning",
       scheduledDate: null,
       status: "open",
+      mentorStatus: "active",
       bookingProvider: "calendly",
       calendlyBookingUrl: "https://calendly.com/mentor-a",
       googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-a",
@@ -699,6 +700,7 @@ test("returns only the booking link for the participant's own assigned mentor", 
       topic: "Growth",
       scheduledDate: null,
       status: "open",
+      mentorStatus: "active",
       bookingProvider: "calendly",
       calendlyBookingUrl: "https://calendly.com/mentor-b",
       googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-b",
@@ -711,6 +713,7 @@ test("returns only the booking link for the participant's own assigned mentor", 
       topic: "Workshop",
       scheduledDate: null,
       status: "open",
+      mentorStatus: "active",
       bookingProvider: "google_calendar",
       calendlyBookingUrl: "https://calendly.com/not-a-mentor",
       googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/not-a-mentor",
@@ -728,6 +731,54 @@ test("returns only the booking link for the participant's own assigned mentor", 
   assert.equal("calendlyBookingUrl" in founderB[0]!, false);
 });
 
+test("keeps inactive mentor support details but hides that mentor's booking link", () => {
+  const support = [
+    {
+      id: 1,
+      businessId: 101,
+      type: "mentor",
+      provider: "Mentor A",
+      topic: "Planning",
+      scheduledDate: "2026-10-20",
+      status: "open",
+      mentorStatus: "inactive",
+      bookingProvider: "calendly",
+      calendlyBookingUrl: "https://calendly.com/mentor-a",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-a",
+    },
+    {
+      id: 2,
+      businessId: 202,
+      type: "mentor",
+      provider: "Mentor B",
+      topic: "Growth",
+      scheduledDate: null,
+      status: "open",
+      mentorStatus: "active",
+      bookingProvider: "calendly",
+      calendlyBookingUrl: "https://calendly.com/mentor-b",
+      googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-b",
+    },
+  ];
+
+  const inactiveFounder = getParticipantSupportForBusiness(support, 101);
+  const otherFounder = getParticipantSupportForBusiness(support, 202);
+
+  assert.deepEqual(inactiveFounder, [{
+    id: 1,
+    type: "mentor",
+    provider: "Mentor A",
+    topic: "Planning",
+    scheduledDate: "2026-10-20",
+    status: "open",
+    mentorBookingUrl: null,
+  }]);
+  assert.deepEqual(otherFounder.map((entry) => entry.mentorBookingUrl), [
+    "https://calendly.com/mentor-b",
+  ]);
+  assert.ok(!JSON.stringify(inactiveFounder).includes("mentor-b"));
+});
+
 test("uses the selected provider's public link only for its assigned mentoring support", () => {
   const support = [
     {
@@ -738,6 +789,7 @@ test("uses the selected provider's public link only for its assigned mentoring s
       topic: "Planning",
       scheduledDate: null,
       status: "open",
+      mentorStatus: "active",
       bookingProvider: "google_calendar",
       calendlyBookingUrl: "https://calendly.com/mentor-a",
       googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/mentor-a",
@@ -750,6 +802,7 @@ test("uses the selected provider's public link only for its assigned mentoring s
       topic: "Finance",
       scheduledDate: null,
       status: "open",
+      mentorStatus: "active",
       bookingProvider: "google_calendar",
       calendlyBookingUrl: "https://calendly.com/not-a-mentor",
       googleCalendarBookingUrl: "https://calendar.google.com/calendar/appointments/schedules/not-a-mentor",

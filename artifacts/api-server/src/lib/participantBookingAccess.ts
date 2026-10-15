@@ -6,6 +6,7 @@ export type ParticipantSupportBooking = {
   topic: string | null;
   scheduledDate: string | null;
   status: string;
+  mentorStatus: string | null;
   bookingProvider: string | null;
   calendlyBookingUrl: string | null;
   googleCalendarBookingUrl: string | null;
@@ -17,9 +18,9 @@ export function getParticipantSupportForBusiness(
 ) {
   return support
     .filter((item) => item.businessId === businessId)
-    .map(({ businessId: _businessId, calendlyBookingUrl, googleCalendarBookingUrl, bookingProvider, ...item }) => ({
+    .map(({ businessId: _businessId, calendlyBookingUrl, googleCalendarBookingUrl, bookingProvider, mentorStatus, ...item }) => ({
       ...item,
-      mentorBookingUrl: item.type !== "mentor"
+      mentorBookingUrl: item.type !== "mentor" || mentorStatus !== "active"
         ? null
         : bookingProvider === "google_calendar"
           ? googleCalendarBookingUrl

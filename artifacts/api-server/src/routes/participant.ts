@@ -887,6 +887,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       topic: supportTable.topic,
       scheduledDate: supportTable.scheduledDate,
       status: supportTable.status,
+      mentorStatus: staffMembersTable.status,
       bookingProvider: staffMembersTable.bookingProvider,
       calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
       googleCalendarBookingUrl: staffMembersTable.googleCalendarBookingUrl,
