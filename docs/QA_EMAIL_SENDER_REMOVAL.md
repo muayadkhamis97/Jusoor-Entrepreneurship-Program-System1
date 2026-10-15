@@ -18,6 +18,7 @@ The migration `20261015_remove_gmail_sender.sql` drops `email_sender_connections
 - No Gmail/OAuth implementation references remain in app source or API contracts; the historical create-table migration and new cleanup migration are retained.
 - Web and API workflows restarted successfully; Vite became ready, and the API production bundle built and listened on its configured port.
 - The Gmail sender cleanup SQL completed successfully against the development environment (`heliumdb`). Catalog checks before and after found no `email_sender_connections` table in any schema. No credential values were queried.
+- The exact cleanup migration was also run against a disposable PostgreSQL 16.10 instance seeded with one synthetic `email_sender_connections` row. Afterward, a catalog assertion confirmed the table was absent (and therefore the row was removed). Running the same migration again with the table absent also succeeded.
 - A local unauthenticated request to the removed sender-status path returned `401` at the shared auth layer, so it did not provide a route-level `404` check. Source and OpenAPI scans show the sender route is no longer mounted or declared.
 
 ## Limitations
