@@ -163,6 +163,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const { signOut } = useClerk();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
+  const brandName = branding?.brandName || 'Jusoor';
   const specialistRoles = [...new Set(staff.programRoles.map(({ role }) => role))];
   const specialistItems = specialistRoles.map(role => ({
     href: `/${role}`,
@@ -174,7 +175,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
     <aside className="sidebar">
-       <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>PROGRAM HUB</small></span></Link>
+       <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{brandName.slice(0, 1) || 'J'}</span>}<span><b>{brandName}</b><small>PROGRAM HUB</small></span></Link>
        <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
       <nav className="side-nav" aria-label="Main navigation">{nav.map(item => {
         const Icon = item.icon; const active = path === item.href;
@@ -186,7 +187,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
       </div>
     </aside>
     <main className="main-panel">
-       <header className="topbar"><div className="crumb"><span>JUSOOR</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
+       <header className="topbar"><div className="crumb"><span data-testid="breadcrumb-brand-name">{brandName}</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
        <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: basePath || '/' })} />
       <div className="page-content page-enter">{children}</div>
        <footer className="footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>

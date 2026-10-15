@@ -267,3 +267,10 @@ test('Admin sidebar role label follows the configured brand in English and Arabi
   assert.equal(brandedAdminRoleLabel('Jusoor Growth', 'ar'), 'مسؤول Jusoor Growth');
   assert.equal(brandedAdminRoleLabel('  ', 'en'), 'Jusoor admin');
 });
+
+test('Admin page breadcrumb uses the configured brand name instead of a static label', () => {
+  const appSource = readFileSync(path.join(sourceRoot, 'App.tsx'), 'utf8');
+  assert.match(appSource, /const brandName = branding\?\.brandName \|\| 'Jusoor'/);
+  assert.match(appSource, /data-testid="breadcrumb-brand-name">\{brandName\}/);
+  assert.doesNotMatch(appSource, /<span>JUSOOR<\/span>/);
+});
