@@ -1,4 +1,4 @@
-.api-page { --api-ink: hsl(203 28% 19%); --api-muted: hsl(202 11% 47%); --api-line: hsl(37 22% 84%); --api-card: hsl(40 38% 99%); --api-paper: hsl(42 36% 96%); --api-teal: hsl(164 47% 30%); --api-coral: hsl(18 63% 56%); color:var(--api-ink); padding-bottom:30px; }
+.api-page { --api-ink: hsl(var(--foreground)); --api-muted: hsl(var(--muted-foreground)); --api-line: hsl(var(--border)); --api-card: hsl(var(--card)); --api-paper: hsl(var(--background)); --api-teal: hsl(var(--primary)); --api-coral: hsl(var(--accent)); color:var(--api-ink); padding-bottom:30px; }
 .api-page button { cursor:pointer; }
 .api-hero { display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:30px; align-items:stretch; padding:12px 0 23px; border-bottom:1px solid var(--api-line); }
 .api-hero-copy { min-width:0; padding:5px 0 0; }
@@ -22,25 +22,14 @@
 .api-section-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:15px; margin-bottom:13px; }
 .api-section-heading h2 { margin:5px 0 3px; font:700 23px 'Manrope',sans-serif; letter-spacing:-.045em; }
 .api-section-heading p { margin:0; color:var(--api-muted); font-size:10px; }
-.api-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:36px; padding:0 13px; border:1px solid transparent; border-radius:6px; font-size:10px; font-weight:700; white-space:nowrap; transition:background .16s,border-color .16s,transform .16s; }
 .api-button:active { transform:translateY(1px); }
-.api-button:disabled { opacity:.52; cursor:not-allowed; }
-.api-button-primary { background:var(--api-teal); color:hsl(40 35% 97%); }
-.api-button-primary:hover:not(:disabled) { background:hsl(164 47% 25%); }
-.api-button-quiet { color:var(--api-ink); background:transparent; border-color:var(--api-line); }
-.api-button-quiet:hover:not(:disabled) { background:hsl(39 30% 92%); }
-.api-button-danger { background:hsl(4 60% 48%); color:white; }
-.api-button-danger:hover:not(:disabled) { background:hsl(4 60% 41%); }
 .api-create-form { display:grid; grid-template-columns:1fr 1fr; gap:14px 15px; padding:15px; margin-bottom:12px; border:1px solid hsl(164 47% 30% / .25); border-radius:8px; background:hsl(164 47% 30% / .04); }
 .api-form-title { display:flex; align-items:center; gap:11px; grid-column:1/-1; padding-bottom:11px; border-bottom:1px solid var(--api-line); color:var(--api-teal); }
 .api-form-title div { display:grid; gap:3px; flex:1; }
 .api-form-title strong { color:var(--api-ink); font-size:12px; }
 .api-form-title span { color:var(--api-muted); font-size:9px; }
-.api-icon-button { width:30px; height:30px; display:grid; place-items:center; color:var(--api-muted); border:0; border-radius:5px; background:transparent; }
-.api-icon-button:hover { background:hsl(39 30% 90%); }
 .api-field { display:grid; gap:6px; font-size:10px; font-weight:700; }
-.api-field input,.api-field select { width:100%; height:37px; min-width:0; padding:0 10px; border:1px solid var(--api-line); border-radius:5px; outline:0; background:var(--api-card); color:var(--api-ink); font-size:10px; }
-.api-field input:focus,.api-field select:focus { border-color:hsl(164 47% 30% / .6); box-shadow:0 0 0 3px hsl(164 47% 30% / .09); }
+.api-field input,.api-field select { width:100%; min-width:0; padding:0 10px; outline:0; }
 .api-field small { color:var(--api-muted); font-size:9px; font-weight:400; }
 .api-permission-fieldset { display:grid; gap:9px; grid-column:1/-1; min-width:0; margin:0; padding:12px; border:1px solid var(--api-line); border-radius:6px; background:var(--api-card); }
 .api-permission-fieldset legend { padding:0 5px; font-size:10px; font-weight:700; }
@@ -74,8 +63,6 @@
 .api-key-dates div { min-width:0; }
 .api-key-dates small { display:block; margin-bottom:4px; color:var(--api-muted); font:7px var(--app-font-mono); letter-spacing:.08em; }
 .api-key-dates span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:9px; }
-.api-button-revoke { min-height:30px; padding:0 9px; border-color:hsl(4 60% 48% / .25); background:transparent; color:hsl(4 54% 46%); font-size:9px; }
-.api-button-revoke:hover { background:hsl(4 60% 48% / .07); }
 .api-key-row.is-revoked { opacity:.66; }
 .api-revoked-date { color:var(--api-muted); font-size:9px; white-space:nowrap; }
 .api-empty { display:flex; gap:13px; align-items:center; padding:20px 16px; border:1px dashed var(--api-line); border-radius:7px; background:var(--api-card); }

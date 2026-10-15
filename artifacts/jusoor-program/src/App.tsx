@@ -3,6 +3,7 @@ import './role-workspace.css';
 import './role-access.css';
 import './session-recording.css';
 import './language.css';
+import './program-controls.css';
 import { lazy, Suspense, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';

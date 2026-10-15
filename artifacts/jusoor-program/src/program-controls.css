@@ -1,0 +1,259 @@
+:root {
+  --program-control-radius: 0.375rem;
+  --program-control-button-height: 2.375rem;
+  --program-control-button-padding: 0.875rem;
+  --program-control-button-font: 0.75rem;
+  --program-control-field-height: 2.375rem;
+  --program-control-field-font: 0.875rem;
+  --program-control-focus-shadow: 0 0 0 3px hsl(var(--ring) / 0.16);
+  --program-control-transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.button,
+.ana-button,
+.api-button,
+.ana-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--program-control-button-height);
+  padding-inline: var(--program-control-button-padding);
+  border: 1px solid transparent;
+  border-radius: var(--program-control-radius);
+  font-family: var(--app-font-sans);
+  font-size: var(--program-control-button-font);
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--program-control-transition);
+}
+
+.button:hover,
+.ana-button:hover,
+.ana-tool:hover {
+  transform: translateY(-1px);
+}
+
+.button:disabled,
+.ana-button:disabled,
+.api-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button-primary,
+.ana-button.primary,
+.api-button-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.button-primary:hover,
+.ana-button.primary:hover,
+.api-button-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, hsl(var(--primary)) 88%, black);
+}
+
+.button-outline,
+.button-quiet,
+.ana-button.subtle,
+.api-button-quiet {
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.ana-tool {
+  --program-control-button-height: 2.125rem;
+  --program-control-button-font: 0.75rem;
+  --program-control-button-padding: 0.5625rem;
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.ana-tool:hover {
+  border-color: hsl(var(--primary) / 0.35);
+  background: hsl(var(--primary) / 0.04);
+  color: hsl(var(--primary));
+}
+
+.button-quiet {
+  background: transparent;
+}
+
+.button-outline:hover,
+.button-quiet:hover,
+.ana-button.subtle:hover,
+.api-button-quiet:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.38);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.button-danger,
+.ana-button.danger,
+.api-button-danger {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.button-danger:hover,
+.ana-button.danger:hover,
+.api-button-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
+}
+
+.api-button-revoke {
+  min-height: 2rem;
+  padding-inline: 0.625rem;
+  border-color: hsl(var(--destructive) / 0.3);
+  background: transparent;
+  color: hsl(var(--destructive));
+}
+
+.api-button-revoke:hover:not(:disabled) {
+  background: hsl(var(--destructive) / 0.08);
+}
+
+.form-control,
+.ana-field input,
+.ana-field select,
+.ana-interaction-tools select,
+.ana-form input,
+.ana-form select,
+.ana-form textarea,
+.ana-register-person > input,
+.api-field input,
+.api-field select,
+.grant-status-filter select {
+  min-height: var(--program-control-field-height);
+  border-color: hsl(var(--input));
+  border-radius: var(--program-control-radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+  font-size: var(--program-control-field-font);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.analytics-page .ana-interaction-tools select {
+  --program-control-field-height: 1.9375rem;
+  --program-control-field-font: 0.75rem;
+}
+
+.ana-register-person > input {
+  --program-control-field-height: 1.8125rem;
+  --program-control-field-font: 0.75rem;
+}
+
+.workspace .grant-status-filter select {
+  min-height: var(--program-control-field-height);
+  border-color: hsl(var(--input));
+  border-radius: var(--program-control-radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+  font-size: var(--program-control-field-font);
+}
+
+.workspace button.grant-action-button {
+  --program-control-button-height: 2rem;
+  --program-control-button-padding: 0.625rem;
+  --program-control-button-font: 0.75rem;
+  min-height: var(--program-control-button-height);
+  padding-inline: var(--program-control-button-padding);
+  font-size: var(--program-control-button-font);
+}
+
+.form-control:focus,
+.ana-field input:focus,
+.ana-field select:focus,
+.ana-interaction-tools select:focus,
+.ana-form input:focus,
+.ana-form select:focus,
+.ana-form textarea:focus,
+.api-field input:focus,
+.api-field select:focus,
+.ana-register-person > input:focus,
+.grant-status-filter select:focus {
+  border-color: hsl(var(--ring));
+  box-shadow: var(--program-control-focus-shadow);
+}
+
+.button:focus-visible,
+.ana-button:focus-visible,
+.api-button:focus-visible,
+.icon-button:focus-visible,
+.ana-tool:focus-visible,
+.ana-icon-btn:focus-visible,
+.api-icon-button:focus-visible,
+.form-control:focus-visible,
+.ana-field input:focus-visible,
+.ana-field select:focus-visible,
+.ana-interaction-tools select:focus-visible,
+.ana-form input:focus-visible,
+.ana-form select:focus-visible,
+.ana-form textarea:focus-visible,
+.api-field input:focus-visible,
+.api-field select:focus-visible,
+.ana-register-person > input:focus-visible,
+.grant-status-filter select:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.form-control::placeholder,
+.ana-field input::placeholder,
+.ana-form input::placeholder,
+.ana-form textarea::placeholder,
+.api-field input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+.icon-button,
+.api-icon-button,
+.ana-icon-btn {
+  width: 1.8125rem;
+  height: 1.8125rem;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--program-control-radius);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: var(--program-control-transition);
+}
+
+.icon-button:disabled,
+.api-icon-button:disabled,
+.ana-icon-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.icon-button:hover,
+.api-icon-button:hover,
+.ana-icon-btn:hover {
+  border-color: hsl(var(--primary) / 0.15);
+  background: hsl(var(--primary) / 0.07);
+  color: hsl(var(--primary));
+}
+
+.icon-button.icon-danger:hover {
+  border-color: hsl(var(--destructive) / 0.15);
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+}
+
+.nav-link:focus-visible,
+.mobile-nav a:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.45);
+  outline-offset: 2px;
+}

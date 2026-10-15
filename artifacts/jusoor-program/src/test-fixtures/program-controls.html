@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Program controls style fixture</title>
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/src/workspace.css" />
+    <link rel="stylesheet" href="/src/analytics.css" />
+    <link rel="stylesheet" href="/src/api-integrations.css" />
+    <link rel="stylesheet" href="/src/grant-surfaces.css" />
+    <link rel="stylesheet" href="/src/program-controls.css" />
+    <style>
+      body { padding: 24px; }
+      .controls-fixture { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; max-width: 900px; margin: 0 auto; }
+      .controls-fixture > section { min-width: 0; display: grid; align-content: start; gap: 12px; padding: 16px; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); }
+      .controls-fixture label { display: grid; gap: 6px; }
+      @media (max-width: 600px) { body { padding: 12px; } .controls-fixture { grid-template-columns: minmax(0, 1fr); } }
+    </style>
+  </head>
+  <body>
+    <main class="controls-fixture">
+      <section class="workspace">
+        <button class="button button-primary">Workspace action</button>
+        <input class="form-control" aria-label="Workspace field" />
+      </section>
+      <section class="analytics-page">
+        <button class="ana-button primary">Analytics action</button>
+        <label class="ana-field">Analytics field<input aria-label="Analytics field" /></label>
+      </section>
+      <section class="api-page">
+        <button class="api-button api-button-primary">API action</button>
+        <label class="api-field">API field<input aria-label="API field" /></label>
+      </section>
+      <section class="workspace">
+        <button class="button button-primary grant-action-button">Grant action</button>
+        <label class="grant-status-filter">Grant filter<select aria-label="Grant filter"><option>All</option></select></label>
+      </section>
+    </main>
+  </body>
+</html>
