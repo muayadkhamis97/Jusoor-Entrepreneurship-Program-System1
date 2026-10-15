@@ -18,7 +18,7 @@ import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
    getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, getListParticipantInvitationsQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
-  getListSupportQueryKey, useCreateBusiness, useCreatePitch, useCreateProgram,
+  getListSupportQueryKey, getListSupportCalendlyMeetingsQueryKey, useListSupportCalendlyMeetings, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useArchiveProgram, useRestoreProgram, useListProgramLifecycleEvents, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
@@ -31,7 +31,7 @@ import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
   AllProgramLifecycleEvent, PitchRecord, PitchUpdate, Program, ProgramInput, ProgramLifecycleEvent, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
-  StaffInput, StaffMember, StaffUpdate, SupportUpdate,
+  StaffInput, StaffMember, StaffUpdate, SupportUpdate, SupportCalendlyMeeting,
 } from '@workspace/api-client-react';
 import {
    Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
@@ -94,6 +94,18 @@ const stageNames: Record<string, string> = {
 };
 const businessStages: BusinessStage[] = ['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'];
 const dateLabel = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const calendlyMeetingDateTime = (value: string, timezone: string | null) => {
+  const locale = currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB';
+  const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+  if (timezone) {
+    try {
+      return new Intl.DateTimeFormat(locale, { ...options, timeZone: timezone }).format(new Date(value));
+    } catch {
+      // Use the browser's local timezone if Calendly provided an unsupported timezone label.
+    }
+  }
+  return new Intl.DateTimeFormat(locale, options).format(new Date(value));
+};
 const industryLabel = (value?: string | null) => value ? t(value) : '—';
 type MentorFollowUpStatus = 'overdue' | 'upcoming' | 'undated';
 const localCalendarDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -693,6 +705,15 @@ function SupportPage({ coordinator = false }: { coordinator?: boolean }) {
   const [type, setType] = useState(''); const [editing, setEditing] = useState<SupportEngagement | null | undefined>(undefined); const [deleting, setDeleting] = useState<SupportEngagement | null>(null);
   const params = useMemo(() => type ? { type: type as SupportEngagement['type'] } : undefined, [type]);
   const query = useListSupport(params); const businessQuery = useListBusinesses(); const businesses = businessQuery.data || []; const engagements = query.data || []; const client = useQueryClient();
+  const calendlyQuery = useListSupportCalendlyMeetings({
+    query: {
+      queryKey: getListSupportCalendlyMeetingsQueryKey(),
+      enabled: coordinator,
+      refetchInterval: coordinator ? 15_000 : false,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const calendlyMeetings = calendlyQuery.data || [];
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const mentors = coordinator ? (staffQuery.data || []).filter(person => person.role === 'mentor' && person.status === 'active') : [];
   const create = useCreateSupport(); const update = useUpdateSupport(); const remove = useDeleteSupport();
@@ -707,6 +728,24 @@ function SupportPage({ coordinator = false }: { coordinator?: boolean }) {
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>{t('Mentor assignments are temporarily unavailable.')}</b><span>{t('Retry team access records before assigning an engagement.')}</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-mentors">{t('Retry')}</button></div>}
     <div className="support-callout"><div className="support-callout-icon"><Handshake size={20} /></div><div><div className="eyebrow">{t('SUPPORT THAT MOVES THE NEEDLE')}</div><b>{t("Match practical expertise to a founder's next milestone.")}</b><span>{t('Mentoring · subject expertise · branding · technical agency')}</span></div><div className="support-total"><b>{engagements.filter(e => e.status !== 'completed').length}</b><span>{t('IN MOTION')}</span></div></div>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label={t('Filter support by type')} onChange={e => setType(e.target.value)} data-testid="select-support-type"><option value="">{t('All support types')}</option>{['mentor', 'subject_expert', 'branding', 'technical'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{engagements.length}</b> {t('engagements')}</div></div>
+    {coordinator && <section className="panel engagement-panel" data-testid="support-calendly-bookings">
+      <div className="support-bookings-heading"><div className="eyebrow">{t('SYNCED MEETINGS')}</div><h2 className="app-title">{t('Calendly bookings')}</h2><p>{t('Bookings appear only for the assigned mentor and business.')}</p></div>
+      {calendlyQuery.isError ? <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>{t('Calendly bookings could not be loaded.')}</b><span>{t('Your support records are still available.')}</span></div><button className="button button-quiet" onClick={() => void calendlyQuery.refetch()}>{t('Retry')}</button></div> :
+        calendlyQuery.isLoading ? <LoadingState label="Loading Calendly bookings" /> :
+          calendlyMeetings.length === 0 ? <p className="session-info">{t('No synced Calendly bookings match an assigned mentor and business yet.')}</p> :
+            <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS')}</th><th>{t('ASSIGNED MENTOR')}</th><th>{t('APPOINTMENT')}</th><th>{t('EVENT TIME')}</th><th>{t('STATUS')}</th></tr></thead><tbody>
+              {calendlyMeetings.map((meeting: SupportCalendlyMeeting) => {
+                const business = businesses.find(item => item.id === meeting.businessId);
+                return <tr key={meeting.id} data-testid={`row-calendly-booking-${meeting.id}`}>
+                  <td><b>{business?.businessName || `Business ${meeting.businessId}`}</b></td>
+                  <td>{meeting.mentorEmail}</td>
+                  <td>{meeting.eventName}</td>
+                  <td><div className="provider-cell"><span>{calendlyMeetingDateTime(meeting.startsAt, meeting.timezone)}</span><small>{t('to')} {calendlyMeetingDateTime(meeting.endsAt, meeting.timezone)}{meeting.timezone ? ` · ${meeting.timezone}` : ''}</small></div></td>
+                  <td><Badge value={meeting.status} /></td>
+                </tr>;
+              })}
+            </tbody></table></div>}
+    </section>}
     {query.isLoading || businessQuery.isLoading ? <LoadingState /> : query.isError || businessQuery.isError ? <ErrorState retry={() => { void query.refetch(); void businessQuery.refetch(); }} /> : engagements.length === 0 ? <EmptyState title="Support begins with a conversation." body="Log a mentoring match, a specialist session or agency support against a business." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> {t('Add an engagement')}</button>} /> :
     <section className="panel engagement-panel"><div className="table-wrap"><table><thead><tr><th>{t('BUSINESS')}</th><th>{t('SUPPORT')}</th><th>{t('PROVIDER / TOPIC')}</th><th>{t('DATE')}</th><th>{t('STATUS')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>{engagements.map(item => { const business = businesses.find(b => b.id === item.businessId); return <tr key={item.id} data-testid={`row-support-${item.id}`}><td><div className="company-cell"><span className="company-monogram monogram-teal">{business?.businessName?.slice(0, 1).toUpperCase() || 'B'}</span><span><b>{business?.businessName || `Business ${item.businessId}`}</b><small>{business?.founderName || t('Founder record')}</small></span></div></td><td><span className="type-mark">{display(item.type)}</span></td><td><div className="provider-cell"><b>{item.provider}</b><small>{item.topic}</small></div></td><td>{dateLabel(item.scheduledDate)}</td><td><Badge value={item.status} /></td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(item)} aria-label={`${t('Edit')} ${item.topic}`} data-testid={`button-edit-support-${item.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(item)} aria-label={`${t('Delete')} ${item.topic}`} data-testid={`button-delete-support-${item.id}`}><Trash2 size={15} /></button></div></td></tr>; })}</tbody></table></div></section>}
     {editing !== undefined && <FormDialog title={editing ? 'Edit engagement' : 'Log an engagement'} description="Tie every support moment to a business and a clear outcome." fields={supportFields(businesses, mentors, coordinator)} initial={editing ? { businessId: String(editing.businessId), type: editing.type, provider: editing.provider, mentorStaffId: editing.mentorStaffId ? String(editing.mentorStaffId) : '', topic: editing.topic, scheduledDate: valueOf(editing.scheduledDate), status: editing.status, notes: editing.notes || '' } : { type: 'mentor', status: 'requested', ...(businesses[0] ? { businessId: String(businesses[0].id) } : {}) }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={(create.error || update.error) ? 'Could not save this engagement. Check the required fields.' : undefined} />}

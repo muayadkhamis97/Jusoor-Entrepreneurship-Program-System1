@@ -7,6 +7,17 @@ export const currentLanguage = () => activeLanguage;
 
 const arabic: Record<string, string> = {
   'Across selected programs': 'ضمن البرامج المحددة',
+  'APPOINTMENT': 'الموعد',
+  'ASSIGNED MENTOR': 'المرشد المعيّن',
+  'Bookings appear only for the assigned mentor and business.': 'تظهر الحجوزات للمرشد والمشروع المعيّنين فقط.',
+  'Calendly bookings': 'حجوزات كاليندلي',
+  'Calendly bookings could not be loaded.': 'تعذّر تحميل حجوزات كاليندلي.',
+  'EVENT TIME': 'وقت الموعد',
+  'Loading Calendly bookings': 'جارٍ تحميل حجوزات كاليندلي',
+  'No synced Calendly bookings match an assigned mentor and business yet.': 'لا توجد حجوزات متزامنة تطابق المرشد والمشروع المعيّنين حتى الآن.',
+  'SYNCED MEETINGS': 'المواعيد المتزامنة',
+  'Your support records are still available.': 'لا يزال بإمكانك الوصول إلى سجلات الدعم.',
+  'to': 'إلى',
   'active learning': 'التعلّم النشط',
   'ACTIVE LEARNING': 'التعلّم النشط',
   'ACTIVE TIME': 'الوقت النشط',

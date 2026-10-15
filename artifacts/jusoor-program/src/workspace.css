@@ -186,6 +186,9 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 .support-total b,.grant-stat b { display: block; color: hsl(var(--foreground)); font: 700 23px 'Manrope', sans-serif; line-height: 1.1; }.support-total span,.grant-stat span { display: block; color: hsl(var(--muted-foreground)); font: 8px var(--app-font-mono); margin-top: 4px; white-space: nowrap; }
 .engagement-panel,.pitch-panel { padding: 6px 10px; }
 .engagement-panel table,.pitch-panel table { min-width: 900px; }
+.support-bookings-heading { padding: 10px 12px 12px; }
+.support-bookings-heading h2 { margin: 3px 0 4px; font-size: 17px; font-weight: 700; }
+.support-bookings-heading p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 10px; }
 .type-mark { padding: 5px 7px; background: hsl(var(--primary) / .07); color: hsl(var(--primary)); font: 9px var(--app-font-mono); border-radius: 5px; white-space: nowrap; }
 .grant-summary { background: hsl(18 63% 56% / .07); border-color: hsl(18 63% 56% / .15); }
 .grant-emblem { background: hsl(var(--accent) / .12); color: hsl(var(--accent)); }

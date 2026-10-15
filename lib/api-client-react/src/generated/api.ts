@@ -172,6 +172,7 @@ import type {
   StaffInput,
   StaffMember,
   StaffUpdate,
+  SupportCalendlyMeeting,
   SupportEngagement,
   SupportInput,
   SupportUpdate,
@@ -9961,6 +9962,83 @@ export function useGetParticipantSessionQuestions<TData = Awaited<ReturnType<typ
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetParticipantSessionQuestionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSupportCalendlyMeetingsUrl = () => {
+
+
+
+
+  return `/api/support/calendly-meetings`
+}
+
+/**
+ * @summary List Calendly bookings matching mentor support assignments for coordinators
+ */
+export const listSupportCalendlyMeetings = async ( options?: Parameters<typeof customFetch>[1]): Promise<SupportCalendlyMeeting[]> => {
+
+  return customFetch<SupportCalendlyMeeting[]>(getListSupportCalendlyMeetingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupportCalendlyMeetingsQueryKey = () => {
+    return [
+    `/api/support/calendly-meetings`
+    ] as const;
+    }
+
+
+export const getListSupportCalendlyMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listSupportCalendlyMeetings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupportCalendlyMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupportCalendlyMeetingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupportCalendlyMeetings>>> = ({ signal }) => listSupportCalendlyMeetings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupportCalendlyMeetings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSupportCalendlyMeetingsQueryResult = NonNullable<Awaited<ReturnType<typeof listSupportCalendlyMeetings>>>
+export type ListSupportCalendlyMeetingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List Calendly bookings matching mentor support assignments for coordinators
+ */
+
+export function useListSupportCalendlyMeetings<TData = Awaited<ReturnType<typeof listSupportCalendlyMeetings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupportCalendlyMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSupportCalendlyMeetingsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

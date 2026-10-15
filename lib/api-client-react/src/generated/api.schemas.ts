@@ -1322,6 +1322,28 @@ export interface ParticipantCalendlyMeeting {
   status: ParticipantCalendlyMeetingStatus;
 }
 
+export type SupportCalendlyMeetingStatus = typeof SupportCalendlyMeetingStatus[keyof typeof SupportCalendlyMeetingStatus];
+
+
+export const SupportCalendlyMeetingStatus = {
+  confirmed: 'confirmed',
+  rescheduled: 'rescheduled',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SupportCalendlyMeeting {
+  id: number;
+  businessId: number;
+  mentorStaffId: number;
+  mentorEmail: string;
+  eventName: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  timezone: string | null;
+  status: SupportCalendlyMeetingStatus;
+}
+
 export type ParticipantEnrollmentEnrollmentSource = typeof ParticipantEnrollmentEnrollmentSource[keyof typeof ParticipantEnrollmentEnrollmentSource];
 
 

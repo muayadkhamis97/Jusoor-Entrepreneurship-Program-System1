@@ -4,18 +4,51 @@ import {
   CreateSupportBody,
   CreateSupportResponse,
   DeleteSupportParams,
+  ListSupportCalendlyMeetingsResponse,
   ListSupportQueryParams,
   ListSupportResponse,
   UpdateSupportBody,
   UpdateSupportParams,
   UpdateSupportResponse,
 } from "@workspace/api-zod";
-import { businessesTable, db, supportTable } from "@workspace/db";
+import { businessesTable, calendlyMeetingsTable, db, staffMembersTable, supportTable } from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import { hasProgramStaffRole } from "../lib/programStaffRoles";
 import type { StaffAccess } from "../middlewares/staffAccess";
+import { requireCoordinator } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
+
+router.get("/support/calendly-meetings", requireCoordinator, async (_req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  if (activeProgramIds.length === 0) {
+    res.json([]);
+    return;
+  }
+  const meetings = await db.selectDistinct({
+    id: calendlyMeetingsTable.id,
+    businessId: calendlyMeetingsTable.businessId,
+    mentorStaffId: calendlyMeetingsTable.mentorStaffId,
+    mentorEmail: staffMembersTable.email,
+    eventName: calendlyMeetingsTable.eventName,
+    startsAt: calendlyMeetingsTable.startsAt,
+    endsAt: calendlyMeetingsTable.endsAt,
+    timezone: calendlyMeetingsTable.timezone,
+    status: calendlyMeetingsTable.status,
+  })
+    .from(calendlyMeetingsTable)
+    .innerJoin(businessesTable, eq(calendlyMeetingsTable.businessId, businessesTable.id))
+    .innerJoin(supportTable, and(
+      eq(supportTable.businessId, calendlyMeetingsTable.businessId),
+      eq(supportTable.mentorStaffId, calendlyMeetingsTable.mentorStaffId),
+      eq(supportTable.type, "mentor"),
+    ))
+    .innerJoin(staffMembersTable, eq(staffMembersTable.id, calendlyMeetingsTable.mentorStaffId))
+    .where(inArray(businessesTable.programId, activeProgramIds))
+    .orderBy(desc(calendlyMeetingsTable.startsAt));
+  res.json(ListSupportCalendlyMeetingsResponse.parse(meetings));
+});
 
 router.get("/support", async (req, res): Promise<void> => {
   const query = ListSupportQueryParams.safeParse(req.query);

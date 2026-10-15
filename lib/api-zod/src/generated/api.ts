@@ -3931,6 +3931,23 @@ export const GetParticipantSessionQuestionsResponse = zod.object({
 
 
 /**
+ * @summary List Calendly bookings matching mentor support assignments for coordinators
+ */
+export const ListSupportCalendlyMeetingsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "businessId": zod.number().int(),
+  "mentorStaffId": zod.number().int(),
+  "mentorEmail": zod.string().email(),
+  "eventName": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "timezone": zod.string().nullable(),
+  "status": zod.enum(['confirmed', 'rescheduled', 'cancelled'])
+})
+export const ListSupportCalendlyMeetingsResponse = zod.array(ListSupportCalendlyMeetingsResponseItem)
+
+
+/**
  * @summary List mentoring, expert, and agency support
  */
 export const ListSupportQueryParams = zod.object({

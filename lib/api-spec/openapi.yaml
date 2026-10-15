@@ -2399,6 +2399,22 @@ paths:
           description: Session is outside the participant's accepted cohort
         "404":
           description: Session not found
+  /support/calendly-meetings:
+    get:
+      operationId: listSupportCalendlyMeetings
+      tags: [support]
+      summary: List Calendly bookings matching mentor support assignments for coordinators
+      responses:
+        "200":
+          description: Calendly bookings for active businesses with matching mentor assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportCalendlyMeeting"
+        "403":
+          description: Coordinator role required
   /support:
     get:
       operationId: listSupport
@@ -4396,6 +4412,19 @@ components:
         timezone: { type: ["string", "null"] }
         status: { type: string, enum: [confirmed, rescheduled, cancelled] }
       required: [id, eventName, startsAt, endsAt, timezone, status]
+    SupportCalendlyMeeting:
+      type: object
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        mentorStaffId: { type: integer }
+        mentorEmail: { type: string, format: email }
+        eventName: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        timezone: { type: ["string", "null"] }
+        status: { type: string, enum: [confirmed, rescheduled, cancelled] }
+      required: [id, businessId, mentorStaffId, mentorEmail, eventName, startsAt, endsAt, timezone, status]
     ParticipantEnrollment:
       type: object
       properties:
