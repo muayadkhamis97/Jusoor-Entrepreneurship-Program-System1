@@ -47,6 +47,22 @@ The highest remaining UX risk is incomplete Arabic coverage and the absence of a
 - The synthetic browser fixtures block non-local requests. No provider API, email delivery, or authenticated connection was exercised.
 - No Arabic-rendered page, production behavior, database schema/migration, external-provider integration, or real email delivery was verified.
 
+### Signed-in staff-page shared-control review
+
+Task 152 attempted to reach the protected staff routes in the normal preview browser, without changing or bypassing authentication. Opening `/api-integrations` at 1280×800 rendered the public landing page instead of the Admin route because this browser has no signed-in staff session. No actual staff-page controls were visible. The same authentication limitation applies to Admin analytics, grants, communications, and staff role access; their desktop and mobile layouts and control states remain unverified.
+
+The isolated shared-control browser fixture was re-run and passed. It covers default computed styling, keyboard focus, and horizontal overflow/stacking at 1280×800 and 390×844. It does **not** cover hover, disabled, or error states, and it does not mount protected routes. No route-level differences were confirmed or ruled out.
+
+| Protected page | Route | Signed-in desktop/mobile review |
+| --- | --- | --- |
+| Admin analytics | `/analytics` | Blocked: no authenticated staff session; no controls or states inspected. |
+| API integrations | `/api-integrations` | Blocked: the normal preview rendered the public landing page at 1280×800. |
+| Grants | `/grants` | Blocked: no authenticated staff session; no controls or states inspected. |
+| Communications | `/communications` | Blocked: no authenticated staff session; no controls or states inspected. |
+| Staff roles | `/access` | Blocked: no authenticated staff session; no controls or states inspected. |
+
+**Next action:** repeat the review in a browser signed in through the normal Clerk flow as an authorized coordinator, at desktop and mobile sizes. Check default, hover, keyboard-focus, disabled, and error states on each page and record only differences observed there. No test-only auth state or permission bypass should be used.
+
 ## Finding-by-finding status
 
 | ID / original severity | Finding | Current status | Evidence from this re-audit | Remaining issue / next action |
