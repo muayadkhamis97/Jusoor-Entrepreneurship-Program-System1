@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Program controls style fixture</title>
     <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/src/language.css" />
     <link rel="stylesheet" href="/src/workspace.css" />
     <link rel="stylesheet" href="/src/analytics.css" />
     <link rel="stylesheet" href="/src/api-integrations.css" />
@@ -22,29 +23,32 @@
   <body>
     <main class="controls-fixture">
       <section class="workspace">
-        <button class="button button-primary" data-primary-family="workspace">Workspace action</button>
-        <input class="form-control" aria-label="Workspace field" />
-        <label class="mentor-follow-up-editor">Follow-up date<input class="form-control" aria-label="Mentor follow-up field" /></label>
-        <div class="announcement-form"><input class="form-control" aria-label="Announcement field" /></div>
-        <div class="session-admin-actions"><button class="button button-primary">Session action</button></div>
+        <button class="button button-primary" data-primary-family="workspace">حفظ التغييرات</button>
+        <button class="icon-button" type="button" aria-label="المزيد من الخيارات">
+          <svg class="lucide-arrow-right icon-directional" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" /></svg>
+        </button>
+        <input class="form-control" aria-label="البحث في المشاركين" placeholder="ابحث عن مشارك" />
+        <label class="mentor-follow-up-editor">تاريخ المتابعة<input class="form-control" aria-label="حقل متابعة المرشد" /></label>
+        <div class="announcement-form"><input class="form-control" aria-label="حقل الإعلان" /></div>
+        <div class="session-admin-actions"><button class="button button-primary">إدارة الجلسة</button></div>
         <div class="recording-ready-email"><button class="button button-primary">Recording action</button></div>
         <div class="mentor-follow-up-actions"><button class="button button-primary">Mentor action</button></div>
         <div class="participant-account-actions"><button class="button button-primary">Participant action</button></div>
         <div class="announcement-confirm"><button class="button button-quiet">Confirm action</button></div>
       </section>
       <section class="analytics-page">
-        <button class="ana-button primary">Analytics action</button>
-        <button class="ana-tool"><span>Analytics utility</span></button>
-        <label class="ana-field">Analytics field<input aria-label="Analytics field" /></label>
+        <button class="ana-button primary">عرض التحليلات</button>
+        <button class="ana-tool"><span>تصدير التقرير</span></button>
+        <label class="ana-field">تصفية النتائج<input aria-label="تصفية النتائج" /></label>
       </section>
       <section class="api-page">
-        <button class="api-button api-button-primary">API action</button>
+        <button class="api-button api-button-primary">حفظ إعدادات الربط</button>
         <button class="api-button api-button-revoke">Revoke key</button>
-        <label class="api-field">API field<input aria-label="API field" /></label>
+        <label class="api-field">اسم التكامل<input aria-label="اسم التكامل" /></label>
       </section>
       <section class="workspace">
-        <button class="button button-primary grant-action-button">Grant action</button>
-        <label class="grant-status-filter">Grant filter<select aria-label="Grant filter"><option>All</option></select></label>
+        <button class="button button-primary grant-action-button">تحديث المنحة</button>
+        <label class="grant-status-filter">حالة المنحة<select aria-label="حالة المنحة"><option>الكل</option></select></label>
       </section>
     </main>
   </body>
