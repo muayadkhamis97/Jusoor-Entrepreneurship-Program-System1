@@ -10,6 +10,8 @@ const sourceRoot = path.resolve(import.meta.dirname);
 const intentionallyEnglishExamples = new Set([
   'https://…',
   'https://drive.google.com/file/d/…/view',
+  'Cedar & Clay Foods',
+  'Venture Launch · Spring',
   'Jusoor',
   'J',
   'ZOOM_CLIENT_ID',
@@ -20,7 +22,7 @@ const intentionallyEnglishExamples = new Set([
 
 function addStaticTranslationArgument(node: ts.Node, keys: Set<string>) {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-    keys.add(node.text);
+    if (node.text.trim()) keys.add(node.text);
     return;
   }
 
@@ -62,6 +64,53 @@ function addNamedObjectValues(source: ts.SourceFile, name: string, keys: Set<str
     ts.forEachChild(node, visit);
   }
   visit(source);
+}
+
+function addRenderedStaticText(node: ts.Node, keys: Set<string>) {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    if (node.text.trim()) keys.add(node.text.trim());
+    return;
+  }
+  if (ts.isConditionalExpression(node)) {
+    addRenderedStaticText(node.whenTrue, keys);
+    addRenderedStaticText(node.whenFalse, keys);
+  }
+}
+
+function collectRawRenderedCopy(fileName: string): string[] {
+  const text = readFileSync(path.join(sourceRoot, fileName), 'utf8');
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const keys = new Set<string>();
+  function visit(node: ts.Node) {
+    if (
+      ts.isJsxExpression(node) &&
+      node.expression &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+    ) {
+      addRenderedStaticText(node.expression, keys);
+    }
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.attributes.properties
+    ) {
+      for (const attribute of node.attributes.properties) {
+        if (
+          ts.isJsxAttribute(attribute) &&
+          ['aria-label', 'title', 'placeholder', 'alt'].includes(attribute.name.getText(source)) &&
+          attribute.initializer
+        ) {
+          if (ts.isStringLiteral(attribute.initializer)) {
+            keys.add(attribute.initializer.text);
+          } else if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+            addRenderedStaticText(attribute.initializer.expression, keys);
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return [...keys].filter(key => /[A-Za-z]{2}/.test(key));
 }
 
 function addObjectFieldTextValues(
@@ -141,6 +190,14 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
       node.expression.text === 't' &&
+      node.arguments.length === 1
+    ) {
+      addStaticTranslationArgument(node.arguments[0], keys);
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'setNotice' &&
       node.arguments.length === 1
     ) {
       addStaticTranslationArgument(node.arguments[0], keys);
@@ -390,6 +447,11 @@ test('fixed copy in role-access and communication screens is translated; dynamic
     ...collectRawJsxTextInFunctions('intake-surfaces.tsx', ['EnrollmentCard', 'ParticipantLearning']),
     ...collectRawJsxTextInFunctions('role-surfaces.tsx', ['TrainerDashboardPage', 'RoleNotFound']),
     ...collectRawJsxTextInFunctions('App.tsx', ['SessionsPage', 'SupportPage', 'PitchesPage']),
+  );
+  untranslated.push(
+    ...['role-access.tsx', 'communications-surfaces.tsx']
+      .flatMap(file => collectRawRenderedCopy(file).map(text => `${file}: ${text}`))
+      .filter(entry => !intentionallyEnglishExamples.has(entry.slice(entry.indexOf(': ') + 2))),
   );
   assert.deepEqual(untranslated, [], `Wrap fixed UI copy in t(): ${untranslated.join(' | ')}`);
 

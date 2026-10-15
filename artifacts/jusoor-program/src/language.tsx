@@ -1956,6 +1956,16 @@ const arabic: Record<string, string> = {
   'Zoom could not be connected. Check the Zoom app settings and try again.': 'تعذّر الاتصال بـ Zoom. تحقق من إعدادات تطبيق Zoom ثم أعد المحاولة.',
   'Zoom meeting saved for': 'تم حفظ اجتماع Zoom للجلسة',
   'Zoom was disconnected. Existing session links and recordings remain available.': 'تم قطع الاتصال بـ Zoom. ستظل روابط الجلسات والتسجيلات الحالية متاحة.',
+  'All': 'الكل',
+  'Announcement published to all cohorts.': 'تم نشر الإعلان لجميع المجموعات.',
+  'Announcement published to the cohort.': 'تم نشر الإعلان للمجموعة.',
+  'Confirm removing announcement': 'تأكيد حذف الإعلان',
+  'Filter announcements': 'تصفية الإعلانات',
+  'Nothing in this view.': 'لا توجد عناصر في هذا العرض.',
+  'Publish an update or schedule a reminder to keep founders in the loop.': 'انشر تحديثاً أو جدولة تذكير لإبقاء رواد الأعمال على اطلاع.',
+  'Switch the filter to see other messages.': 'غيّر عامل التصفية لعرض رسائل أخرى.',
+  'The noticeboard is clear.': 'لا توجد إعلانات حالياً.',
+  'trainers, mentors, judges': 'المدربون والمرشدون والمحكّمون',
 };
 
 export function translate(text: string, language: AppLanguage): string {
