@@ -5,11 +5,11 @@
 
 ## Executive summary
 
-The original findings register contains 20 items. This re-audit classifies **8 Fixed—Verified, 10 Partially Fixed, and 2 Not Fixed**. The October 15 follow-up expanded Arabic coverage in applicant, participant, trainer, and key Admin flows; corrected trainer program labels; and raised minimum sizing for selected small UI copy. Actual authenticated page rendering, live Clerk behavior, and complete Arabic visual presentation remain unverified.
+The original findings register contains 20 items. This re-audit classifies **9 Fixed—Verified, 11 Partially Fixed, and 0 Not Fixed**. The October 15 follow-up expanded Arabic coverage in applicant, participant, trainer, and key Admin flows; corrected trainer program labels; raised minimum sizing for selected small UI copy; and verified the shared button and form-control styling across feature families. Actual authenticated page rendering, live Clerk behavior, and complete Arabic visual presentation remain unverified.
 
 The original coverage table contains **33 page/surface groups** (including embedded learning features and shared status pages), rather than 30. All 33 groups are carried forward below; none was dropped to force the count to 30.
 
-The highest remaining UX risk is incomplete Arabic coverage and the absence of a full Arabic/RTL visual check. Focused automated checks now cover role access, participant learning, trainer screens, and key Admin sessions, support, pitch, and analytics flows. Remaining issues include text sizing outside the covered selectors, other untranslated app surfaces, and separate page-specific styling families.
+The highest remaining UX risk is incomplete Arabic coverage and the absence of a full Arabic/RTL visual check. Focused automated checks now cover role access, participant learning, trainer screens, and key Admin sessions, support, pitch, analytics, and shared-control styling. Remaining issues include text sizing outside the covered selectors and other untranslated app surfaces.
 
 ## Method, boundaries, and confidence
 
@@ -34,6 +34,7 @@ The highest remaining UX risk is incomplete Arabic coverage and the absence of a
 | Trainer program authorization test | **1 passed, 0 failed** | Direct test of the pure assigned-program filter; excludes unassigned program IDs without importing a database module. |
 | Dialog browser fixtures | **2 passed, 0 failed** | Direct `tsx --test` of `src/dialog-accessibility.browser.test.tsx`. Synthetic dialog/focus, mobile navigation, and Arabic direction fixture; network requests outside the local test server are aborted. Not authenticated app routes. |
 | Sidebar and participant account browser fixtures | **2 passed, 0 failed** | Explicit `tsx --test` invocation for `admin-sidebar-layout.browser.test.tsx` and `participant-account-actions.browser.test.tsx`. Tests local fixture behavior at desktop/mobile sizes only. |
+| Shared program-control browser fixture | **1 passed, 0 failed** | `pnpm --filter @workspace/jusoor-program exec tsx --test src/program-controls.browser.test.tsx`. Synthetic CSS fixture confirms matching primary-button size/colors, common field geometry/colors, compact-size variants, keyboard focus ring, and no horizontal overflow at 1280×800 and 390×844. It does not render authenticated routes. |
 | TypeScript | **Passed** | Jusoor web and API server `typecheck` scripts passed on October 15. The top-level workspace typecheck also passed in the earlier re-audit. |
 | Jusoor web build | **Passed** | `PORT=5000 BASE_PATH=/jusoor-program pnpm --filter @workspace/jusoor-program run build`. Vite completed on October 15; see build warnings below. |
 | API build | **Passed** | `pnpm --filter @workspace/api-server run build`. |
@@ -66,7 +67,7 @@ The highest remaining UX risk is incomplete Arabic coverage and the absence of a
 | UX-14 / Medium | Dense tables needed better mobile and large-cohort ergonomics | **Partially Fixed** | Assignment and role-access tables are keyboard-focusable labelled scroll regions; a unit contract test enforces that structure. | This covers selected tables, not all business/analytics tables. Pagination, very large cohorts, and touch behavior on real pages remain unverified. |
 | UX-15 / Medium | Reduced-motion support was limited to one loading family | **Fixed—Verified** | A global `prefers-reduced-motion: reduce` rule is present, and the accessibility contract test checks its presence alongside mobile control sizing. | The browser fixture did not emulate reduced-motion preference or inspect the resulting motion on actual routes. |
 | UX-16 / Medium | Role-preview tabs had incomplete keyboard tab behavior | **Fixed—Verified** | The role preview now uses the existing Radix `Tabs`, `TabsList`, `TabsTrigger`, and `TabsContent` primitives rather than a custom selector. | The actual `/access` page and its keyboard sequence were not rendered in the browser fixture. |
-| UX-17 / Medium | Parallel styling/component families increased inconsistent behavior | **Not Fixed** | Current source still uses shared shell styles plus multiple independent feature CSS files and component-specific button/form families (for example analytics, grants, API integrations, and role workspaces). | Consolidate only through a separately scoped design-system/component task; avoid broad refactoring during this audit. |
+| UX-17 / Medium | Parallel styling/component families increased inconsistent behavior | **Fixed—Verified** | Shared control tokens and base styles define button, icon-button, form-field, focus, and theme treatments. Workspace, analytics, API integration, communications, and grant controls now use the common contract; inconsistent field overrides were removed, and intentional compact button sizes use shared token variables. The isolated browser fixture passed computed-style, keyboard-focus, and mobile-overflow checks. | Actual signed-in feature pages and custom branding were not visually inspected. Confirm the common control treatment on authenticated pages before making further page-specific adjustments. |
 | UX-18 / Medium | Trainer assignment cohorts were numeric and session-derived | **Fixed—Verified** | Trainer dashboard now supplies program `{id, name}` values filtered by the trainer’s already-authorized assigned program IDs. The role surface shows the program name, and focused web/API tests verify named options, safe fallback behavior, and exclusion of unassigned programs. | The source and tests verify the contract, but no signed-in trainer route was rendered. |
 | UX-19 / Low | Invitation wording could imply email delivery that does not happen | **Fixed—Verified** | The unit test `participant invitation instructions truthfully explain account access without claiming an email was sent` passes. No invitation email was sent during this audit. | Keep the no-email limitation visible in the actual invite success state; email delivery remains a separate integration and was not tested. |
 | UX-20 / Low | Arabic typography did not consistently inherit the Arabic font choice | **Partially Fixed** | `--app-font-sans` includes `Noto Sans Arabic` as a fallback, and Arabic direction/locale rules are covered by source-contract tests. | The external font import still does not load Noto Sans Arabic and some components specify Manrope directly. Arabic font availability, shaping, and visual hierarchy are not verified. |
@@ -113,7 +114,7 @@ The table below reproduces every page/surface group listed in the original audit
 
 ### Viewport and language coverage
 
-- **Synthetic browser fixtures:** dialog fixture at 1280×800, 390×844, and 320×800; participant account-action fixture at 390×844 and 1440×844; Admin sidebar fixture at 1280×640 with scroll/resize and 1440×900.
+- **Synthetic browser fixtures:** dialog fixture at 1280×800, 390×844, and 320×800; participant account-action fixture at 390×844 and 1440×844; Admin sidebar fixture at 1280×640 with scroll/resize and 1440×900; shared-control fixture at 1280×800 and 390×844.
 - These dimensions exercise isolated fixtures only. No authenticated page was inspected at desktop, tablet, or mobile widths.
 - The dialog fixture includes an Arabic/RTL state and confirms document language/direction and localized dialog labels; no complete Arabic applicant, participant, Admin, trainer, mentor, or judge page was rendered.
 - Actual Clerk sign-in/sign-out, real assistive technology, screen-reader announcements, touch interaction on live routes, and custom-brand colors remain not verified.
@@ -126,7 +127,7 @@ The table below reproduces every page/surface group listed in the original audit
 
 ## Remaining limitations
 
-1. The app's protected pages were not opened in a real signed-in browser session. Sidebar and account-action browser results apply only to synthetic fixtures.
+1. The app's protected pages were not opened in a real signed-in browser session. Sidebar, account-action, and shared-control browser results apply only to synthetic fixtures.
 2. Arabic translation and RTL tests cover selected strings/contracts; they do not prove full translation coverage or rendered Arabic typography.
 3. Source-based findings about role-scoped flows are not a substitute for an authenticated end-to-end test using isolated synthetic accounts.
 4. Custom branding, dense-table behavior, visual contrast of opacity-based text, and actual reduced-motion behavior need rendered-page checks.

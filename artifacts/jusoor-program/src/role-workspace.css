@@ -44,8 +44,8 @@
   .role-reply-form textarea,.participant-answer-form textarea,.participant-question-form textarea,.participant-question-form select,.role-form-grid .form-control{font-size:16px}
   .pitch-judge-controls{margin:13px 0;padding:12px}
   .judge-assignment-actions{flex-direction:column;align-items:stretch}
-  .judge-assignment-actions .button{min-height:40px}
+  .judge-assignment-actions .button{--program-control-button-height:2.5rem}
   .assignment-heading{flex-wrap:wrap}
-  .role-button-row .button,.role-form-grid .button{min-height:42px}
+  .role-button-row .button,.role-form-grid .button{--program-control-button-height:2.625rem}
   .role-footer{width:100%;padding:13px 15px 18px}
 }

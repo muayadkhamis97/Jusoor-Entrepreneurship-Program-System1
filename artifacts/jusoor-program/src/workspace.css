@@ -173,7 +173,7 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 .session-links { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 15px; margin-top: 9px; }
 .session-links .text-link { font-size: 9px; }.disabled-link { display: inline-flex; align-items: center; gap: 5px; color: hsl(var(--muted-foreground) / .55); font-size: 9px; }
 .session-admin-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
-.session-admin-actions .button { min-height: 29px; padding: 0 10px; font-size: 9px; }
+.session-admin-actions .button { --program-control-button-height: 2rem; --program-control-button-padding: 0.625rem; --program-control-button-font: 0.75rem; }
 .location-detail { display: inline-flex; align-items: center; gap: 4px; color: hsl(var(--muted-foreground)); font-size: 9px; }
 .location-detail svg { color: hsl(var(--accent)); flex: 0 0 auto; }
 .session-card-actions { display: flex; flex-direction: column; }
@@ -413,7 +413,7 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 .recording-ready-session b { font-size: 10px; }
 .recording-ready-session span,.recording-ready-email span { overflow-wrap: anywhere; }
 .recording-ready-email { display: flex; align-items: flex-end; flex-direction: column; gap: 4px; text-align: right; }
-.recording-ready-email .button { min-height: 26px; padding: 0 9px; font-size: 9px; }
+.recording-ready-email .button { --program-control-button-height: 2rem; --program-control-button-padding: 0.5625rem; --program-control-button-font: 0.75rem; }
 .team-error { margin-bottom: 14px; }
 .staff-panel { padding: 19px 21px 5px; }
 .staff-panel .panel-heading { margin-bottom: 12px; }
@@ -499,9 +499,9 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 .mentor-follow-up-state.is-overdue small { color: hsl(var(--destructive)); }
 .mentor-follow-up-state small { display: block; margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 9px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
 .mentor-follow-up-saved-note { max-width: 230px; }
-.mentor-follow-up-editor .form-control { height: 32px; min-width: 160px; font-size: 10px; }
+.mentor-follow-up-editor .form-control { min-width: 160px; }
 .mentor-follow-up-actions { display: flex; flex-wrap: wrap; gap: 5px; }
-.mentor-follow-up-actions .button { min-height: 30px; padding: 0 9px; font-size: 9px; }
+.mentor-follow-up-actions .button { --program-control-button-height: 2rem; --program-control-button-padding: 0.5625rem; --program-control-button-font: 0.75rem; }
 .mentor-follow-up-connected { color: hsl(var(--muted-foreground)); font-size: 9px; }
 .mentor-follow-up-empty { padding: 18px 2px; color: hsl(var(--muted-foreground)); font-size: 11px; }
 @media (max-width: 760px) {

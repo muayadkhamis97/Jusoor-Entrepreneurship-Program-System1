@@ -54,7 +54,7 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     await page.locator('.api-page .api-button-primary').waitFor();
 
     const primaryButtons = await page.locator(
-      '.workspace .button-primary:not(.grant-action-button), .analytics-page .ana-button.primary, .api-page .api-button-primary',
+      '.workspace [data-primary-family="workspace"], .analytics-page .ana-button.primary, .api-page .api-button-primary',
     ).evaluateAll(elements => elements.map(element => {
       const style = getComputedStyle(element);
       return {
@@ -68,8 +68,25 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     assert.equal(primaryButtons.length, 3);
     assert.ok(primaryButtons.every(style => JSON.stringify(style) === JSON.stringify(primaryButtons[0])), 'Primary actions should resolve to identical size and theme styles.');
 
+    const compactVariants = await page.locator(
+      '.api-button-revoke, .ana-tool, .grant-action-button, .session-admin-actions .button, .recording-ready-email .button, .mentor-follow-up-actions .button, .participant-account-actions .button, .announcement-confirm .button',
+    ).evaluateAll(elements => elements.map(element => {
+      const style = getComputedStyle(element);
+      return { height: style.height, fontSize: style.fontSize, radius: style.borderRadius };
+    }));
+    assert.deepEqual(compactVariants, [
+      { height: '32px', fontSize: '12px', radius: '6px' },
+      { height: '32px', fontSize: '12px', radius: '6px' },
+      { height: '32px', fontSize: '12px', radius: '6px' },
+      { height: '36px', fontSize: '12px', radius: '6px' },
+      { height: '32px', fontSize: '12px', radius: '6px' },
+      { height: '34px', fontSize: '12px', radius: '6px' },
+      { height: '32px', fontSize: '12px', radius: '6px' },
+      { height: '32px', fontSize: '12px', radius: '6px' },
+    ], 'Feature-specific compact actions should use the shared sizing scale.');
+
     const fields = await page.locator(
-      '.workspace .form-control, .analytics-page .ana-field input, .api-page .api-field input, .workspace .grant-status-filter select',
+      '.workspace .form-control, .mentor-follow-up-editor .form-control, .announcement-form .form-control, .analytics-page .ana-field input, .api-page .api-field input, .workspace .grant-status-filter select',
     ).evaluateAll(elements => elements.map(element => {
       const style = getComputedStyle(element);
       return {
@@ -80,8 +97,14 @@ test('workspace, analytics, API and grant controls share the same design tokens'
         color: style.color,
       };
     }));
-    assert.equal(fields.length, 4);
-    assert.ok(fields.every(style => JSON.stringify(style) === JSON.stringify(fields[0])), `Common form fields and grant filters should resolve to identical size and theme styles. Actual: ${JSON.stringify(fields)}`);
+    assert.equal(fields.length, 6);
+    assert.ok(fields.every(style =>
+      style.height === fields[0].height &&
+      style.radius === fields[0].radius &&
+      style.background === fields[0].background &&
+      style.color === fields[0].color
+    ), `Common form fields and grant filters should resolve to identical size and theme styles. Actual: ${JSON.stringify(fields)}`);
+    assert.ok(fields.every(style => Number.parseFloat(style.fontSize) >= 14), 'Shared form controls should retain readable minimum text sizing.');
 
     await page.keyboard.press('Tab');
     const focusStyle = await page.evaluate(() => {

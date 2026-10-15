@@ -33,6 +33,7 @@
 
 .button:hover,
 .ana-button:hover,
+.api-button:hover:not(:disabled),
 .ana-tool:hover {
   transform: translateY(-1px);
 }
@@ -143,6 +144,13 @@
 .analytics-page .ana-interaction-tools select {
   --program-control-field-height: 1.9375rem;
   --program-control-field-font: 0.75rem;
+  height: var(--program-control-field-height);
+  border-color: hsl(var(--input));
+  border-radius: var(--program-control-radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+  font-size: var(--program-control-field-font);
 }
 
 .ana-register-person > input {
