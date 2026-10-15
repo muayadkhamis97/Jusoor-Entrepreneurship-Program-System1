@@ -34,6 +34,248 @@ const cookieName = "jusoor_calendly_oauth";
 const callbackPath = "/api/mentor/calendly/callback";
 const stateLifetimeMs = 10 * 60 * 1000;
 const webhookTimestampToleranceMs = 3 * 60 * 1000;
+const calendlyPageSize = 100;
+const maxEventPagesPerStatus = 10;
+const maxEventsPerStatus = 250;
+const maxInviteePagesPerEvent = 5;
+const maxImportRequests = 600;
+const calendlyRequestTimeoutMs = 10_000;
+
+type CalendlyBusinessMatch = { id: number; email: string };
+
+type CalendlyMeetingImport = {
+  businessId: number;
+  mentorStaffId: number;
+  inviteeUri: string;
+  scheduledEventUri: string;
+  eventName: string;
+  startsAt: Date;
+  endsAt: Date;
+  timezone: string | null;
+  status: "confirmed" | "cancelled" | "rescheduled";
+  lastEventAt: Date;
+};
+
+function normalizeCalendlyInviteeUri(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = new URL(value);
+    if (
+      !["https://api.calendly.com", "https://calendly.com"].includes(parsed.origin) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      !/^\/scheduled_events\/[^/]+\/invitees\/[^/]+$/.test(parsed.pathname)
+    ) return null;
+    return `https://api.calendly.com${parsed.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
+function validCalendlyEventUri(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.origin === "https://api.calendly.com" &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.search &&
+      !parsed.hash &&
+      /^\/scheduled_events\/[^/]+$/.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function parseCalendlyDate(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function calendlyApiPageUrl(
+  value: string | null | undefined,
+  expectedPath: "/scheduled_events" | string,
+): URL | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.origin !== "https://api.calendly.com" ||
+      url.username ||
+      url.password ||
+      url.pathname !== expectedPath
+    ) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCalendlyPage(
+  accessToken: string,
+  url: URL,
+): Promise<{ collection: unknown[]; nextPage: string | null }> {
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    signal: AbortSignal.timeout(calendlyRequestTimeoutMs),
+  });
+  if (!response.ok) throw new Error(`Calendly import request failed with status ${response.status}.`);
+  const body = await response.json() as {
+    collection?: unknown;
+    pagination?: { next_page?: unknown };
+  };
+  if (!Array.isArray(body.collection)) {
+    throw new Error("Calendly returned an invalid collection during import.");
+  }
+  const nextPage = body.pagination?.next_page;
+  if (nextPage !== undefined && nextPage !== null && typeof nextPage !== "string") {
+    throw new Error("Calendly returned an invalid pagination link during import.");
+  }
+  return { collection: body.collection, nextPage: nextPage ?? null };
+}
+
+async function importCalendlyMeetings(
+  accessToken: string,
+  calendlyUserUri: string,
+  mentorStaffId: number,
+  assignedBusinesses: CalendlyBusinessMatch[],
+  upsertMeeting: (meeting: CalendlyMeetingImport) => Promise<void>,
+): Promise<{ imported: number; unmatched: number; truncated: boolean }> {
+  let requests = 0;
+  let imported = 0;
+  let unmatched = 0;
+  let truncated = false;
+  const matchesByEmail = new Map<string, CalendlyBusinessMatch | null>();
+  const seenBusinessIds = new Set<number>();
+  for (const business of assignedBusinesses) {
+    if (seenBusinessIds.has(business.id)) continue;
+    seenBusinessIds.add(business.id);
+    const email = business.email.trim().toLowerCase();
+    if (!email) continue;
+    matchesByEmail.set(email, matchesByEmail.has(email) ? null : business);
+  }
+
+  const scheduledEvents: Array<{ resource: Record<string, unknown>; sourceStatus: "active" | "canceled" }> = [];
+  for (const status of ["active", "canceled"] as const) {
+    let url: URL | null = new URL("https://api.calendly.com/scheduled_events");
+    url.searchParams.set("user", calendlyUserUri);
+    url.searchParams.set("status", status);
+    url.searchParams.set("count", String(calendlyPageSize));
+    let pages = 0;
+    while (url && pages < maxEventPagesPerStatus && scheduledEvents.filter((event) => event.sourceStatus === status).length < maxEventsPerStatus) {
+      if (requests >= maxImportRequests) {
+        truncated = true;
+        break;
+      }
+      requests += 1;
+      pages += 1;
+      const page = await fetchCalendlyPage(accessToken, url);
+      for (const item of page.collection) {
+        if (isRecord(item)) scheduledEvents.push({ resource: item, sourceStatus: status });
+      }
+      if (!page.nextPage) {
+        url = null;
+        break;
+      }
+      const nextUrl = calendlyApiPageUrl(page.nextPage, "/scheduled_events");
+      if (!nextUrl) throw new Error("Calendly returned an unsafe event pagination link.");
+      if (nextUrl.searchParams.get("user") !== calendlyUserUri ||
+          nextUrl.searchParams.get("status") !== status) {
+        throw new Error("Calendly returned an unexpected event pagination link.");
+      }
+      nextUrl.searchParams.set("count", String(calendlyPageSize));
+      url = nextUrl;
+    }
+    if (url && pages >= maxEventPagesPerStatus) truncated = true;
+    if (scheduledEvents.filter((event) => event.sourceStatus === status).length >= maxEventsPerStatus) truncated = true;
+  }
+
+  for (const { resource: event, sourceStatus } of scheduledEvents) {
+    if (requests >= maxImportRequests) {
+      truncated = true;
+      break;
+    }
+    const scheduledEventUri = event.uri;
+    const startsAt = parseCalendlyDate(event.start_time);
+    const endsAt = parseCalendlyDate(event.end_time);
+    if (
+      !validCalendlyEventUri(scheduledEventUri) ||
+      !startsAt ||
+      !endsAt ||
+      endsAt <= startsAt
+    ) continue;
+
+    let url: URL | null = new URL(`${scheduledEventUri}/invitees`);
+    url.searchParams.set("count", String(calendlyPageSize));
+    let pages = 0;
+    while (url && pages < maxInviteePagesPerEvent) {
+      if (requests >= maxImportRequests) {
+        truncated = true;
+        break;
+      }
+      requests += 1;
+      pages += 1;
+      const page = await fetchCalendlyPage(accessToken, url);
+      for (const item of page.collection) {
+        if (!isRecord(item)) continue;
+        const inviteeUri = normalizeCalendlyInviteeUri(item.uri);
+        const email = typeof item.email === "string" ? item.email.trim().toLowerCase() : "";
+        const business = matchesByEmail.get(email);
+        if (!inviteeUri || !email || !business) {
+          unmatched += 1;
+          continue;
+        }
+        const createdAt = parseCalendlyDate(item.created_at);
+        const updatedAt = parseCalendlyDate(item.updated_at);
+        const eventCreatedAt = parseCalendlyDate(event.created_at);
+        const eventUpdatedAt = parseCalendlyDate(event.updated_at);
+        const lastEventAt = updatedAt ?? (sourceStatus === "canceled" ? eventUpdatedAt : null) ??
+          createdAt ?? eventCreatedAt;
+        if (!lastEventAt) {
+          unmatched += 1;
+          continue;
+        }
+        const canceled = sourceStatus === "canceled" || item.status === "canceled";
+        const rescheduled = canceled && (
+          item.rescheduled === true ||
+          (typeof item.new_invitee === "string" && item.new_invitee.length > 0)
+        );
+        await upsertMeeting({
+          businessId: business.id,
+          mentorStaffId,
+          inviteeUri,
+          scheduledEventUri,
+          eventName: typeof event.name === "string" && event.name.trim()
+            ? event.name.trim().slice(0, 300)
+            : "Mentoring session",
+          startsAt,
+          endsAt,
+          timezone: typeof item.timezone === "string" && item.timezone.length <= 100
+            ? item.timezone
+            : null,
+          status: canceled ? (rescheduled ? "rescheduled" : "cancelled") : "confirmed",
+          lastEventAt,
+        });
+        imported += 1;
+      }
+      if (!page.nextPage) {
+        url = null;
+        break;
+      }
+      const nextUrl = calendlyApiPageUrl(page.nextPage, new URL(`${scheduledEventUri}/invitees`).pathname);
+      if (!nextUrl) throw new Error("Calendly returned an unsafe invitee pagination link.");
+      nextUrl.searchParams.set("count", String(calendlyPageSize));
+      url = nextUrl;
+    }
+    if (url && pages >= maxInviteePagesPerEvent) truncated = true;
+    if (requests >= maxImportRequests) truncated = true;
+  }
+
+  return { imported, unmatched, truncated };
+}
 
 function encryptionKey(): Buffer | null {
   const secret = process.env.SESSION_SECRET;
@@ -378,7 +620,54 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    // The OAuth access token is used only to register the webhook and is never persisted.
+    try {
+      const assignedBusinesses = await db.select({
+        id: businessesTable.id,
+        email: businessesTable.email,
+      }).from(businessesTable)
+        .innerJoin(supportTable, and(
+          eq(supportTable.businessId, businessesTable.id),
+        ))
+        .where(and(
+          eq(supportTable.mentorStaffId, payload.staffId),
+          eq(supportTable.type, "mentor"),
+        ));
+      const importResult = await importCalendlyMeetings(
+        tokenData.access_token,
+        calendlyUserUri,
+        payload.staffId,
+        assignedBusinesses,
+        async (meeting) => {
+          await db.insert(calendlyMeetingsTable).values(meeting).onConflictDoUpdate({
+            target: calendlyMeetingsTable.inviteeUri,
+            set: {
+              businessId: meeting.businessId,
+              mentorStaffId: meeting.mentorStaffId,
+              scheduledEventUri: meeting.scheduledEventUri,
+              eventName: meeting.eventName,
+              startsAt: meeting.startsAt,
+              endsAt: meeting.endsAt,
+              timezone: meeting.timezone,
+              status: meeting.status,
+              lastEventAt: meeting.lastEventAt,
+              updatedAt: new Date(),
+            },
+            setWhere: lt(calendlyMeetingsTable.lastEventAt, meeting.lastEventAt),
+          });
+        },
+      );
+      req.log.info(
+        { mentorStaffId: payload.staffId, ...importResult },
+        "Calendly meeting history import completed",
+      );
+    } catch (error) {
+      req.log.warn(
+        { mentorStaffId: payload.staffId, errorName: error instanceof Error ? error.name : "UnknownError" },
+        "Calendly meeting history import failed; reconnecting can safely retry it",
+      );
+    }
+
+    // The OAuth access token is used only for the webhook and history import; it is never persisted.
     finish("connected");
   } catch (error) {
     req.log.error(
@@ -464,7 +753,7 @@ router.post("/webhook/:token", async (req, res): Promise<void> => {
     ? new Date(scheduledEvent.end_time)
     : null;
   const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
-  const inviteeUri = typeof data.uri === "string" ? data.uri : "";
+  const inviteeUri = normalizeCalendlyInviteeUri(data.uri);
   const scheduledEventUri = isRecord(scheduledEvent) && typeof scheduledEvent.uri === "string"
     ? scheduledEvent.uri
     : "";
@@ -478,7 +767,7 @@ router.post("/webhook/:token", async (req, res): Promise<void> => {
     endsAt <= startsAt ||
     !email ||
     email.length > 320 ||
-    !inviteeUri.startsWith("https://calendly.com/scheduled_events/") ||
+    !inviteeUri ||
     !scheduledEventUri.startsWith("https://api.calendly.com/scheduled_events/")
   ) {
     res.status(400).json({ error: "Invalid Calendly meeting details." });
@@ -540,7 +829,7 @@ router.post("/webhook/:token", async (req, res): Promise<void> => {
     setWhere: lt(calendlyMeetingsTable.lastEventAt, createdAt),
   }).returning({ id: calendlyMeetingsTable.id });
 
-  const oldInvitee = typeof data.old_invitee === "string" ? data.old_invitee : null;
+  const oldInvitee = normalizeCalendlyInviteeUri(data.old_invitee);
   if (oldInvitee && status === "confirmed") {
     await db.update(calendlyMeetingsTable)
       .set({ status: "rescheduled", lastEventAt: createdAt, updatedAt: new Date() })

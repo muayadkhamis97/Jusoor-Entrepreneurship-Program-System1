@@ -37,7 +37,7 @@ function responseJson(value: unknown, status = 200): Response {
   });
 }
 
-function replaceDbMethod(name: "select" | "update", replacement: (...args: never[]) => unknown) {
+function replaceDbMethod(name: "select" | "update" | "insert", replacement: (...args: never[]) => unknown) {
   const original = Object.getOwnPropertyDescriptor(db, name);
   Object.defineProperty(db, name, {
     configurable: true,
@@ -167,10 +167,14 @@ test("exchanges a code, saves only mentor connection data, and keeps credentials
     webhookSecretEncrypted: null,
     webhookSubscriptionUri: null,
   };
+  let selectCall = 0;
   const restoreSelect = replaceDbMethod("select", (() => {
+    selectCall += 1;
+    const currentCall = selectCall;
     const query = {
       from() { return this; },
-      where() { return this; },
+      innerJoin() { return this; },
+      where() { return currentCall === 1 ? this : Promise.resolve([]); },
       limit: async () => [mentor],
     };
     return query;
@@ -206,6 +210,9 @@ test("exchanges a code, saves only mentor connection data, and keeps credentials
         resource: { uri: "https://api.calendly.com/webhook_subscriptions/one" },
       });
     }
+    if (url.startsWith("https://api.calendly.com/scheduled_events?")) {
+      return responseJson({ collection: [] });
+    }
     throw new Error(`Unexpected provider request: ${url}`);
   }) as typeof fetch;
   logEntries.length = 0;
@@ -219,7 +226,7 @@ test("exchanges a code, saves only mentor connection data, and keeps credentials
 
     assert.equal(response.status, 302);
     assert.equal(redirect, "http://localhost/mentor?calendly=connected");
-    assert.equal(fetchCalls.length, 3);
+    assert.equal(fetchCalls.length, 5);
     assert.match(String(fetchCalls[0]?.init?.body), new RegExp(clientCode));
     assert.deepEqual(Object.keys(persistedValues[0] ?? {}).sort(), [
       "bookingProvider",
@@ -235,6 +242,161 @@ test("exchanges a code, saves only mentor connection data, and keeps credentials
     assert.doesNotMatch(redirect, new RegExp(`${clientCode}|${accessToken}`));
     assert.doesNotMatch(JSON.stringify(logEntries), new RegExp(`${clientCode}|${accessToken}`));
   } finally {
+    restoreUpdate();
+    restoreSelect();
+    globalThis.fetch = nativeFetch;
+  }
+});
+
+test("imports paginated active and canceled invitees only for assigned businesses", async () => {
+  const fetchCalls: string[] = [];
+  const imported: Array<Record<string, unknown>> = [];
+  const conflictUpdates: Array<Record<string, unknown>> = [];
+  const mentor = {
+    id: 71,
+    webhookTokenEncrypted: null,
+    webhookSecretEncrypted: null,
+    webhookSubscriptionUri: null,
+  };
+  let selectCall = 0;
+  const restoreSelect = replaceDbMethod("select", (() => {
+    selectCall += 1;
+    const currentCall = selectCall;
+    const query = {
+      from() { return this; },
+      innerJoin() { return this; },
+      where() {
+        return currentCall === 1
+          ? this
+          : Promise.resolve([{ id: 19, email: "founder@example.com" }]);
+      },
+      limit: async () => [mentor],
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  const restoreUpdate = replaceDbMethod("update", (() => ({
+    set() { return this; },
+    where() { return this; },
+    returning: async () => [{ id: mentor.id }],
+  })) as (...args: never[]) => unknown);
+  const restoreInsert = replaceDbMethod("insert", (() => ({
+    values(value: Record<string, unknown>) {
+      imported.push(value);
+      return this;
+    },
+    onConflictDoUpdate(options: Record<string, unknown>) {
+      conflictUpdates.push(options);
+      return { returning: async () => [{ id: imported.length }] };
+    },
+  })) as (...args: never[]) => unknown);
+  const eventActive = "https://api.calendly.com/scheduled_events/active-one";
+  const eventCanceled = "https://api.calendly.com/scheduled_events/canceled-one";
+  const invitee = (event: string, id: string, status: string, email: string) => ({
+    uri: `${event}/invitees/${id}`,
+    email,
+    status,
+    timezone: "Asia/Beirut",
+    created_at: "2024-02-03T10:00:00.000000Z",
+    updated_at: "2024-02-03T11:00:00.000000Z",
+    rescheduled: status === "canceled",
+  });
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    const url = String(input);
+    fetchCalls.push(url);
+    if (url === "https://auth.calendly.com/oauth/token") {
+      return responseJson({ access_token: accessToken });
+    }
+    if (url === "https://api.calendly.com/users/me") {
+      return responseJson({
+        resource: {
+          scheduling_url: "https://calendly.com/mentor-one",
+          uri: "https://api.calendly.com/users/mentor-one",
+          current_organization: "https://api.calendly.com/organizations/one",
+        },
+      });
+    }
+    if (url === "https://api.calendly.com/webhook_subscriptions") {
+      return responseJson({ resource: { uri: "https://api.calendly.com/webhook_subscriptions/one" } });
+    }
+    if (url.startsWith("https://api.calendly.com/scheduled_events?")) {
+      const parsed = new URL(url);
+      const status = parsed.searchParams.get("status");
+      if (status === "active" && !parsed.searchParams.has("page_token")) {
+        return responseJson({
+          collection: [{
+            uri: eventActive,
+            name: "Mentor check-in",
+            start_time: "2024-02-03T11:00:00.000000Z",
+            end_time: "2024-02-03T11:30:00.000000Z",
+            created_at: "2024-02-03T10:00:00.000000Z",
+          }],
+          pagination: {
+            next_page: "https://api.calendly.com/scheduled_events?user=https%3A%2F%2Fapi.calendly.com%2Fusers%2Fmentor-one&status=active&page_token=next",
+          },
+        });
+      }
+      if (status === "active") return responseJson({ collection: [] });
+      if (status === "canceled") {
+        return responseJson({
+          collection: [{
+            uri: eventCanceled,
+            name: "Canceled session",
+            start_time: "2024-02-04T11:00:00.000000Z",
+            end_time: "2024-02-04T11:30:00.000000Z",
+            updated_at: "2024-02-04T09:00:00.000000Z",
+          }],
+        });
+      }
+    }
+    if (url === `${eventActive}/invitees?count=100`) {
+      return responseJson({
+        collection: [invitee(eventActive, "active-invitee", "active", "FOUNDER@example.com")],
+        pagination: {
+          next_page: `${eventActive}/invitees?page_token=next`,
+        },
+      });
+    }
+    if (url === `${eventActive}/invitees?page_token=next&count=100`) {
+      return responseJson({
+        collection: [invitee(eventActive, "active-invitee-two", "active", "founder@example.com")],
+      });
+    }
+    if (url === `${eventCanceled}/invitees?count=100`) {
+      return responseJson({
+        collection: [
+          invitee(eventCanceled, "canceled-invitee", "canceled", "founder@example.com"),
+          invitee(eventCanceled, "unassigned", "active", "other@example.com"),
+        ],
+      });
+    }
+    throw new Error(`Unexpected provider request: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    const response = await callbackRequest(
+      validState(),
+      `state=expected-state-value&code=${clientCode}`,
+    );
+
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "http://localhost/mentor?calendly=connected");
+    assert.equal(imported.length, 3);
+    assert.deepEqual(imported.map((meeting) => meeting.status), ["confirmed", "confirmed", "rescheduled"]);
+    assert.deepEqual(imported.map((meeting) => meeting.businessId), [19, 19, 19]);
+    assert.deepEqual(imported.map((meeting) => meeting.mentorStaffId), [71, 71, 71]);
+    assert.deepEqual(imported.map((meeting) => meeting.inviteeUri), [
+      `${eventActive}/invitees/active-invitee`,
+      `${eventActive}/invitees/active-invitee-two`,
+      `${eventCanceled}/invitees/canceled-invitee`,
+    ]);
+    assert.equal(fetchCalls.filter((url) => url.includes("page_token=next")).length, 2);
+    assert.equal(fetchCalls.filter((url) => url.includes("/invitees")).length, 3);
+    assert.equal(conflictUpdates.length, 3);
+    assert.ok(conflictUpdates.every((options) => "target" in options && "setWhere" in options));
+    assert.ok(fetchCalls.filter((url) => url.includes("scheduled_events?") || url.includes("/invitees"))
+      .every((url) => new URL(url).searchParams.get("count") === "100"));
+  } finally {
+    restoreInsert();
     restoreUpdate();
     restoreSelect();
     globalThis.fetch = nativeFetch;
