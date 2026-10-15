@@ -585,6 +585,8 @@ const arabic: Record<string, string> = {
   'Calendly connected': 'حساب Calendly متصل',
   'Calendly account connected': 'حساب Calendly متصل',
   'Needs follow-up': 'تحتاج متابعة',
+  'Last updated by': 'آخر تحديث بواسطة',
+  'former coordinator': 'منسق سابق',
   'No date or note recorded': 'لم يُسجل موعد أو ملاحظة',
   'No mentors have been added yet.': 'لم تتم إضافة مرشدين بعد.',
   'Mentor accounts will appear here after an admin adds them under Team access.': 'ستظهر حسابات المرشدين هنا بعد أن يضيفها المسؤول من صفحة صلاحيات الفريق.',

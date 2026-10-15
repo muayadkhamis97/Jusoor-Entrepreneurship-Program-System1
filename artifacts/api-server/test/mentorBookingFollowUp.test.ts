@@ -18,6 +18,8 @@ type MentorRecord = {
   calendlyBookingUrl: string | null;
   calendlyFollowUpDate: string | null;
   calendlyFollowUpNote: string | null;
+  calendlyFollowUpUpdatedByStaffId: number | null;
+  calendlyFollowUpUpdatedAt: Date | null;
   googleCalendarAccountEmail: string | null;
 };
 
@@ -35,6 +37,8 @@ function resetMentor(overrides: Partial<MentorRecord> = {}): void {
     calendlyBookingUrl: null,
     calendlyFollowUpDate: null,
     calendlyFollowUpNote: null,
+    calendlyFollowUpUpdatedByStaffId: null,
+    calendlyFollowUpUpdatedAt: null,
     googleCalendarAccountEmail: null,
     ...overrides,
   };
@@ -42,9 +46,14 @@ function resetMentor(overrides: Partial<MentorRecord> = {}): void {
   selectCalls = 0;
 }
 
-function projectedMentor(): Omit<MentorRecord, "role"> {
+function projectedMentor(): Omit<MentorRecord, "role"> & { calendlyFollowUpUpdatedByEmail: string | null } {
   const { role: _role, ...projected } = mentor;
-  return { ...projected };
+  return {
+    ...projected,
+    calendlyFollowUpUpdatedByEmail: mentor.calendlyFollowUpUpdatedByStaffId === null
+      ? null
+      : `coordinator-${mentor.calendlyFollowUpUpdatedByStaffId}@example.com`,
+  };
 }
 
 function replaceDbMethod(
@@ -77,6 +86,9 @@ before(async () => {
         return this;
       },
       innerJoin() {
+        return this;
+      },
+      leftJoin() {
         return this;
       },
       where() {
@@ -116,8 +128,10 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
+    const id = Number(req.header("x-staff-id") ?? 1);
     res.locals.staff = {
-      id: Number(req.header("x-staff-id") ?? 1),
+      id,
+      email: `coordinator-${id}@example.com`,
       role: req.header("x-staff-role") ?? "coordinator",
     };
     next();
@@ -165,7 +179,8 @@ test("persists follow-up details and returns them from a fresh mentor status req
 
   const update = await updateFollowUp(mentor.staffId, "2026-11-04", "Discuss onboarding");
   assert.equal(update.status, 200);
-  assert.deepEqual(await update.json(), {
+  const updateResult = await update.json() as Record<string, unknown>;
+  assert.deepEqual({ ...updateResult, calendlyFollowUpUpdatedAt: "timestamp" }, {
     staffId: 41,
     email: "mentor@example.com",
     status: "active",
@@ -174,7 +189,10 @@ test("persists follow-up details and returns them from a fresh mentor status req
     googleCalendarConnected: false,
     calendlyFollowUpDate: "2026-11-04",
     calendlyFollowUpNote: "Discuss onboarding",
+    calendlyFollowUpUpdatedByEmail: "coordinator-1@example.com",
+    calendlyFollowUpUpdatedAt: "timestamp",
   });
+  assert.ok(Number.isFinite(Date.parse(String(updateResult.calendlyFollowUpUpdatedAt))));
 
   const freshStatus = await request("/api/staff/mentor-booking-status", {
     headers: { "x-staff-role": "coordinator", "x-staff-id": "2" },
@@ -189,7 +207,18 @@ test("persists follow-up details and returns them from a fresh mentor status req
     googleCalendarConnected: false,
     calendlyFollowUpDate: "2026-11-04",
     calendlyFollowUpNote: "Discuss onboarding",
+    calendlyFollowUpUpdatedByEmail: "coordinator-1@example.com",
+    calendlyFollowUpUpdatedAt: updateResult.calendlyFollowUpUpdatedAt,
   }]);
+
+  const secondUpdate = await updateFollowUp(mentor.staffId, "2026-11-05", "Revised follow-up", "coordinator", 2);
+  assert.equal(secondUpdate.status, 200);
+  const secondUpdateResult = await secondUpdate.json() as {
+    calendlyFollowUpUpdatedByEmail: string;
+    calendlyFollowUpUpdatedAt: string;
+  };
+  assert.equal(secondUpdateResult.calendlyFollowUpUpdatedByEmail, "coordinator-2@example.com");
+  assert.ok(Date.parse(secondUpdateResult.calendlyFollowUpUpdatedAt) >= Date.parse(String(updateResult.calendlyFollowUpUpdatedAt)));
 });
 
 test("clears both follow-up fields", async () => {
@@ -208,6 +237,8 @@ test("clears both follow-up fields", async () => {
   }>;
   assert.equal(result?.calendlyFollowUpDate, null);
   assert.equal(result?.calendlyFollowUpNote, null);
+  assert.equal(result?.calendlyFollowUpUpdatedByEmail, "coordinator-1@example.com");
+  assert.ok(result?.calendlyFollowUpUpdatedAt);
 });
 
 test("rejects impossible calendar dates without changing saved follow-up details", async () => {
@@ -241,4 +272,18 @@ test("denies follow-up updates from non-coordinator accounts before accessing re
   assert.equal(response.status, 403);
   assert.equal(selectCalls, 0);
   assert.equal(updateCalls, 0);
+});
+
+test("does not expose booking-status attribution to non-coordinator accounts", async () => {
+  resetMentor({
+    calendlyFollowUpDate: "2026-11-04",
+    calendlyFollowUpNote: "Private coordinator follow-up",
+    calendlyFollowUpUpdatedByStaffId: 1,
+    calendlyFollowUpUpdatedAt: new Date("2026-10-15T12:00:00.000Z"),
+  });
+  const response = await request("/api/staff/mentor-booking-status", {
+    headers: { "x-staff-role": "staff", "x-staff-id": "3" },
+  });
+  assert.equal(response.status, 403);
+  assert.equal(selectCalls, 0);
 });

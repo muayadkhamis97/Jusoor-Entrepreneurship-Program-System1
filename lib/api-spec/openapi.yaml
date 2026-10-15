@@ -5206,7 +5206,9 @@ components:
         googleCalendarConnected: { type: boolean }
         calendlyFollowUpDate: { type: ["string", "null"], pattern: '^\d{4}-\d{2}-\d{2}$' }
         calendlyFollowUpNote: { type: ["string", "null"], maxLength: 1000 }
-      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected, calendlyFollowUpDate, calendlyFollowUpNote]
+        calendlyFollowUpUpdatedByEmail: { type: ["string", "null"], format: email }
+        calendlyFollowUpUpdatedAt: { type: ["string", "null"], format: date-time }
+      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected, calendlyFollowUpDate, calendlyFollowUpNote, calendlyFollowUpUpdatedByEmail, calendlyFollowUpUpdatedAt]
     MentorBookingFollowUpUpdate:
       type: object
       properties:

@@ -25,4 +25,8 @@ export interface MentorBookingStatus {
      * @nullable
      */
   calendlyFollowUpNote: string | null;
+  /** @nullable */
+  calendlyFollowUpUpdatedByEmail: string | null;
+  /** @nullable */
+  calendlyFollowUpUpdatedAt: Date | null;
 }

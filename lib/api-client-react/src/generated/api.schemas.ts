@@ -2389,6 +2389,10 @@ export interface MentorBookingStatus {
      * @nullable
      */
   calendlyFollowUpNote: string | null;
+  /** @nullable */
+  calendlyFollowUpUpdatedByEmail: string | null;
+  /** @nullable */
+  calendlyFollowUpUpdatedAt: string | null;
 }
 
 export interface MentorBookingFollowUpUpdate {

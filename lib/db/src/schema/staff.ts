@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { date, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, serial, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 export const staffMembersTable = pgTable("jusoor_staff_members", {
@@ -12,6 +12,9 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
   calendlyBookingUrl: text("calendly_booking_url"),
   calendlyFollowUpDate: date("calendly_follow_up_date", { mode: "string" }),
   calendlyFollowUpNote: text("calendly_follow_up_note"),
+  calendlyFollowUpUpdatedByStaffId: integer("calendly_follow_up_updated_by_staff_id")
+    .references((): AnyPgColumn => staffMembersTable.id, { onDelete: "set null" }),
+  calendlyFollowUpUpdatedAt: timestamp("calendly_follow_up_updated_at", { withTimezone: true }),
   googleCalendarAccountEmail: text("google_calendar_account_email"),
   googleCalendarBookingUrl: text("google_calendar_booking_url"),
   googleCalendarRefreshTokenEncrypted: text("google_calendar_refresh_token_encrypted"),
@@ -28,6 +31,8 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
 export const insertStaffMemberSchema = createInsertSchema(staffMembersTable).omit({
   id: true,
   createdAt: true,
+  calendlyFollowUpUpdatedByStaffId: true,
+  calendlyFollowUpUpdatedAt: true,
 });
 
 export type InsertStaffMember = z.infer<typeof insertStaffMemberSchema>;

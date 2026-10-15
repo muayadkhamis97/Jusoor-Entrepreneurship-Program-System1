@@ -4618,7 +4618,9 @@ export const GetMentorBookingStatusResponseItem = zod.object({
   "calendlyConnected": zod.boolean(),
   "googleCalendarConnected": zod.boolean(),
   "calendlyFollowUpDate": zod.string().regex(getMentorBookingStatusResponseCalendlyFollowUpDateRegExp).nullable(),
-  "calendlyFollowUpNote": zod.string().max(getMentorBookingStatusResponseCalendlyFollowUpNoteMax).nullable()
+  "calendlyFollowUpNote": zod.string().max(getMentorBookingStatusResponseCalendlyFollowUpNoteMax).nullable(),
+  "calendlyFollowUpUpdatedByEmail": zod.string().email().nullable(),
+  "calendlyFollowUpUpdatedAt": zod.coerce.date().nullable()
 })
 export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusResponseItem)
 
@@ -4653,7 +4655,9 @@ export const UpdateMentorBookingFollowUpResponse = zod.object({
   "calendlyConnected": zod.boolean(),
   "googleCalendarConnected": zod.boolean(),
   "calendlyFollowUpDate": zod.string().regex(updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp).nullable(),
-  "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax).nullable()
+  "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax).nullable(),
+  "calendlyFollowUpUpdatedByEmail": zod.string().email().nullable(),
+  "calendlyFollowUpUpdatedAt": zod.coerce.date().nullable()
 })
 
 

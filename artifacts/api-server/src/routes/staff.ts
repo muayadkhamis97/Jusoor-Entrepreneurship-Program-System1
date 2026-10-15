@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { Router, type IRouter, type Response } from "express";
+import { alias } from "drizzle-orm/pg-core";
 import {
   AssignParticipantBusinessBody,
   AssignParticipantBusinessParams,
@@ -40,6 +41,7 @@ import { canManageProgramAssignments } from "../lib/programAssignmentAuthorizati
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
 
 const router: IRouter = Router();
+const mentorFollowUpEditor = alias(staffMembersTable, "mentor_follow_up_editor");
 const isUndefinedRelation = (error: unknown): boolean =>
   Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
 function isProgramSpecialistRole(role: string): role is ProgramSpecialistRole {
@@ -516,8 +518,11 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
     calendlyFollowUpDate: staffMembersTable.calendlyFollowUpDate,
     calendlyFollowUpNote: staffMembersTable.calendlyFollowUpNote,
+    calendlyFollowUpUpdatedByEmail: mentorFollowUpEditor.email,
+    calendlyFollowUpUpdatedAt: staffMembersTable.calendlyFollowUpUpdatedAt,
     googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
   }).from(staffMembersTable)
+    .leftJoin(mentorFollowUpEditor, eq(mentorFollowUpEditor.id, staffMembersTable.calendlyFollowUpUpdatedByStaffId))
     .where(inArray(staffMembersTable.id, mentorIds))
     .orderBy(asc(staffMembersTable.email)) : [];
 
@@ -529,6 +534,7 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
 });
 
 router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (req, res): Promise<void> => {
+  const editor = res.locals.staff as StaffAccess;
   const params = UpdateMentorBookingFollowUpParams.safeParse(req.params);
   const body = UpdateMentorBookingFollowUpBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -560,6 +566,8 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
     .set({
       calendlyFollowUpDate: body.data.calendlyFollowUpDate,
       calendlyFollowUpNote: body.data.calendlyFollowUpNote?.trim() || null,
+      calendlyFollowUpUpdatedByStaffId: editor.id,
+      calendlyFollowUpUpdatedAt: new Date(),
     })
     .where(and(
       eq(staffMembersTable.id, params.data.id),
@@ -573,6 +581,7 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
       calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
       calendlyFollowUpDate: staffMembersTable.calendlyFollowUpDate,
       calendlyFollowUpNote: staffMembersTable.calendlyFollowUpNote,
+      calendlyFollowUpUpdatedAt: staffMembersTable.calendlyFollowUpUpdatedAt,
       googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
     });
   if (!updated) {
@@ -583,6 +592,7 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
   const { calendlyBookingUrl, googleCalendarAccountEmail, ...status } = updated;
   res.json(GetMentorBookingStatusResponseItem.parse({
     ...status,
+    calendlyFollowUpUpdatedByEmail: editor.email,
     calendlyConnected: Boolean(calendlyBookingUrl),
     googleCalendarConnected: Boolean(googleCalendarAccountEmail),
   }));

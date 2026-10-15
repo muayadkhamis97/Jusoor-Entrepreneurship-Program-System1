@@ -911,6 +911,9 @@ function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookin
       {followUpStatus === 'overdue' ? 'Overdue' : followUpStatus === 'upcoming' ? (mentor.calendlyFollowUpDate === today ? 'Due today' : 'Upcoming') : hasFollowUp ? 'Recorded · no date' : 'Not recorded'}
       {mentor.calendlyFollowUpDate && <small>{followUpStatus === 'overdue' ? 'Was due' : 'Due'} {mentor.calendlyFollowUpDate}</small>}
       {mentor.calendlyFollowUpNote && <small className="mentor-follow-up-saved-note">{mentor.calendlyFollowUpNote}</small>}
+      {mentor.calendlyFollowUpUpdatedAt && <small className="mentor-follow-up-updated" data-testid={`mentor-follow-up-updated-${mentor.staffId}`}>
+        {t('Last updated by')} {mentor.calendlyFollowUpUpdatedByEmail || t('former coordinator')} · <time dateTime={mentor.calendlyFollowUpUpdatedAt}>{new Date(mentor.calendlyFollowUpUpdatedAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</time>
+      </small>}
     </span>
     <label className="sr-only" htmlFor={`mentor-follow-up-date-${mentor.staffId}`}>Follow-up date for {mentor.email}</label>
     <input id={`mentor-follow-up-date-${mentor.staffId}`} className="form-control" type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} data-testid={`input-mentor-follow-up-date-${mentor.staffId}`} />
