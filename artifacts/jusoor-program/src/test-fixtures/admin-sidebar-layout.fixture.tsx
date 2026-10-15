@@ -53,7 +53,7 @@ function AdminSidebarFixture() {
           <h1>Admin page: {path}</h1>
           <div style={{ minHeight: 1600 }}>Synthetic long page content for scroll verification.</div>
         </div>
-        <footer className="footer">JUSOOR ENTREPRENEURSHIP PROGRAM</footer>
+        <footer className="footer footer-brandless"><span>PROGRAM OPERATIONS</span></footer>
       </main>
     </div>
   );

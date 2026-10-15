@@ -544,7 +544,7 @@ export function ProgramAnalyticsPage() {
           </article>
         </section>
       </>}
-      <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> {t("ADMIN ANALYTICS")}</span><span>{t("Only recorded program activity is shown")}</span></footer>
+      <footer className="ana-footer"><span>{t("ADMIN ANALYTICS")}</span><span>{t("Only recorded program activity is shown")}</span></footer>
     </div>
 
     {activeSession !== null && <AccessibleDialogSurface className="ana-modal ana-attendance-modal" overlayClassName="ana-modal-backdrop" labelledBy="attendance-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestAttendanceClose} closeOnEscape={!attendanceDirty && !attendancePending} closeOnOutsideInteraction={!attendanceDirty && !attendancePending} onDismissAttempt={() => { if (attendanceDirty && !attendancePending) setDiscardTarget("attendance"); }} testId="dialog-attendance-register">
@@ -654,7 +654,7 @@ export function ProgramAnalyticsPage() {
           {kpi.values.length ? kpi.values.map((value) => <p key={`${value.businessId}-${value.periodEnd}`}>{value.businessName} · {value.value} {kpi.unit} · {t("period ending")} {dateLabel(value.periodEnd)}{value.notes ? ` · ${value.notes}` : ""}</p>) : <p>{t("No business outcomes recorded for this indicator.")}</p>}
         </div>) : <p>{t("No impact indicators have been defined for this program.")}</p>}
       </section>}
-      <footer className="ana-print-footer"><span>{t("Jusoor Entrepreneurship Program · Admin report")}</span><span>{t("Generated from recorded data. Missing records are reported as unavailable, not estimated.")}</span></footer>
+      <footer className="ana-print-footer"><span>{t("ENTREPRENEURSHIP PROGRAM · ADMIN REPORT")}</span><span>{t("Generated from recorded data. Missing records are reported as unavailable, not estimated.")}</span></footer>
     </div>
   </section>;
 }

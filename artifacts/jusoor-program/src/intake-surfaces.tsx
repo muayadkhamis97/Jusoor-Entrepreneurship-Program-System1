@@ -88,7 +88,7 @@ function IntakeBrand() {
 
 function IntakeFrame({ children }: { children: React.ReactNode }) {
   useAppLanguage();
-  return <div className="intake-page"><header className="intake-top"><IntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/participant" className="text-link" data-testid="link-applicant-sign-in">{t('Applicant sign in')} <ArrowRight size={14} /></Link></div></header>{children}<footer className="intake-footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('BUILDING THE NEXT GENERATION OF BUSINESSES')}</span></footer></div>;
+  return <div className="intake-page"><header className="intake-top"><IntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/participant" className="text-link" data-testid="link-applicant-sign-in">{t('Applicant sign in')} <ArrowRight size={14} /></Link></div></header>{children}<footer className="intake-footer footer-brandless"><span>{t('BUILDING THE NEXT GENERATION OF BUSINESSES')}</span></footer></div>;
 }
 
 function ProgramLoading() {
@@ -280,7 +280,7 @@ export function ParticipantDashboardPage() {
               <ParticipantProgramLearning />
             </section>
           </>}
-    </main><footer className="intake-footer"><span>JUSOOR ENTREPRENEURSHIP PROGRAM</span><span>YOUR PROGRESS IS PRIVATE TO YOU</span></footer>
+    </main><footer className="intake-footer footer-brandless"><span>YOUR PROGRESS IS PRIVATE TO YOU</span></footer>
   </div>;
 }
 

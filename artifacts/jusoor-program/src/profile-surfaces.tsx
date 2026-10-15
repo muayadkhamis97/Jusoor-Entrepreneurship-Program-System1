@@ -310,7 +310,7 @@ function ParticipantProfileLayout({ children }: { children: ReactNode }) {
       <div className="participant-profile-account"><ParticipantAccountActions signOut={signOut} /></div>
       {children}
     </main>
-    <footer className="intake-footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
+    <footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
   </div>;
 }
 

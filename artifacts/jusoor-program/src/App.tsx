@@ -192,7 +192,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
        <header className="topbar"><div className="crumb"><span data-testid="breadcrumb-brand-name">{brandName}</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
        <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: basePath || '/' })} />
       <div className="page-content page-enter">{children}</div>
-       <footer className="footer"><span>{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</span><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
+        <footer className="footer footer-brandless"><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
     </main>
   </div>;
 }

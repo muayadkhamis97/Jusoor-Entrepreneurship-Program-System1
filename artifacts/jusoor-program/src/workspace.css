@@ -101,6 +101,7 @@ tbody tr:hover { background: hsl(var(--primary) / .025); }
 .dashboard-note b { color: hsl(var(--foreground)); }
 .dashboard-note a { color: hsl(var(--primary)); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; margin-left: auto; white-space: nowrap; font-size: 9px; font-weight: 700; }
 .footer { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid hsl(var(--border) / .55); padding: 12px 4.1% 14px; color: hsl(var(--muted-foreground) / .8); font: 8px var(--app-font-mono); letter-spacing: .07em; }
+.footer-brandless > span { margin-left: auto; }
 .footer i { display: inline-block; width: 4px; height: 4px; background: hsl(var(--accent)); border-radius: 50%; margin: 0 5px 1px; }
 .mobile-nav { display: none; }
 .loading-panel { padding: 12px 0; }

@@ -56,6 +56,12 @@ test('Admin sidebar remains opaque, viewport-pinned and navigable across its rou
     });
     await page.goto(`${origin}/src/test-fixtures/admin-sidebar-layout.html`, { waitUntil: 'domcontentloaded' });
 
+    const footer = page.locator('.footer');
+    assert.doesNotMatch((await footer.textContent()) ?? '', /jusoor/i, 'Page footers should not repeat the organization name.');
+    const footerBounds = await footer.boundingBox();
+    const footerLabelBounds = await footer.locator('span').boundingBox();
+    assert.ok(footerBounds && footerLabelBounds && footerLabelBounds.x > footerBounds.x + footerBounds.width / 2, 'The remaining footer label should stay aligned to the right.');
+
     const sidebar = page.getByTestId('admin-sidebar');
     const navItems = getStaffNavigationItems('coordinator');
     assert.equal(await page.locator('.side-nav a').count(), navItems.length);
