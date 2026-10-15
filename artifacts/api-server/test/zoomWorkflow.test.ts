@@ -335,6 +335,150 @@ test("rotates encrypted refresh tokens and creates then updates Zoom meetings", 
   }
 });
 
+test("does not create duplicate Zoom meetings when requests overlap for one session", async () => {
+  const { saveZoomConnection, createOrUpdateZoomMeeting, ZoomIntegrationError } =
+    await import("../src/lib/zoom");
+  let connection: Record<string, unknown> | null = null;
+  const session = {
+    id: 9305,
+    title: "Concurrent mentor training",
+    scheduledDate: "2026-10-12",
+    startTime: "10:00",
+    durationMinutes: 60,
+    deliveryMode: "online",
+    status: "scheduled",
+    zoomMeetingId: null as string | null,
+    zoomUrl: null as string | null,
+    zoomMeetingCreationPendingAt: null as Date | null,
+    recordingUrl: null as string | null,
+  };
+  const calls: Array<{ url: string; method?: string }> = [];
+  let resolveCreateStarted!: () => void;
+  const createStarted = new Promise<void>((resolve) => {
+    resolveCreateStarted = resolve;
+  });
+  let releaseCreate!: () => void;
+  const createGate = new Promise<void>((resolve) => {
+    releaseCreate = resolve;
+  });
+  const restoreInsert = replaceDbMethod("insert", (() => ({
+    values(values: Record<string, unknown>) {
+      connection = {
+        ...values,
+        id: 105,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      };
+      return { onConflictDoUpdate: async () => undefined };
+    },
+  })) as (...args: never[]) => unknown);
+  const restoreSelect = replaceDbMethod("select", (() => {
+    let table: unknown;
+    const query = {
+      from(value: unknown) {
+        table = value;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async limit() {
+        if (table === zoomConnectionsTable && connection) return [connection];
+        if (table === sessionsTable) return [{ ...session }];
+        return [];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  const restoreUpdate = replaceDbMethod("update", (() => {
+    let values: Record<string, unknown> = {};
+    const query = {
+      set(next: Record<string, unknown>) {
+        values = next;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async returning() {
+        if (
+          values.zoomMeetingCreationPendingAt instanceof Date &&
+          session.zoomMeetingCreationPendingAt !== null
+        ) {
+          return [];
+        }
+        Object.assign(session, values);
+        return [{ ...session }];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    calls.push({ url, method });
+    if (url === "https://api.zoom.us/v2/users/me/meetings" && method === "POST") {
+      resolveCreateStarted();
+      await createGate;
+      return responseJson({
+        id: "concurrent-created-once-9305",
+        join_url: "https://zoom.us/j/9305",
+      });
+    }
+    if (url === "https://api.zoom.us/v2/meetings/concurrent-created-once-9305") {
+      if (method === "PATCH") return new Response(null, { status: 204 });
+      return responseJson({
+        id: "concurrent-created-once-9305",
+        join_url: "https://zoom.us/j/9305",
+      });
+    }
+    throw new Error(`Unexpected Zoom request: ${url}`);
+  }) as typeof fetch;
+
+  try {
+    await saveZoomConnection({ accessToken, refreshToken, expiresIn: 3600 }, 71);
+
+    const firstRequest = createOrUpdateZoomMeeting({ ...session } as never);
+    await createStarted;
+    const secondRequest = createOrUpdateZoomMeeting({ ...session } as never);
+    releaseCreate();
+
+    const results = await Promise.allSettled([firstRequest, secondRequest]);
+    const createCalls = calls.filter((call) =>
+      call.url === "https://api.zoom.us/v2/users/me/meetings" &&
+      call.method === "POST"
+    );
+    assert.equal(createCalls.length, 1);
+
+    const successfulResults = results.filter(
+      (result): result is PromiseFulfilledResult<typeof session> =>
+        result.status === "fulfilled",
+    );
+    if (successfulResults.length === 2) {
+      assert.equal(successfulResults[0].value.zoomMeetingId, "concurrent-created-once-9305");
+      assert.equal(
+        successfulResults[1].value.zoomMeetingId,
+        successfulResults[0].value.zoomMeetingId,
+      );
+    } else {
+      assert.ok(successfulResults.length < 2);
+      for (const result of results) {
+        if (result.status === "rejected") {
+          assert.ok(result.reason instanceof ZoomIntegrationError);
+          assert.equal(result.reason.statusCode, 409);
+          assert.match(result.reason.message, /Another request may already be creating/);
+        }
+      }
+    }
+    assert.equal(session.zoomMeetingId, "concurrent-created-once-9305");
+  } finally {
+    releaseCreate();
+    restoreUpdate();
+    restoreSelect();
+    restoreInsert();
+    globalThis.fetch = nativeFetch;
+  }
+});
+
 test("reuses a Zoom meeting after session persistence fails and the coordinator retries", async () => {
   const { saveZoomConnection, createOrUpdateZoomMeeting, ZoomIntegrationError } =
     await import("../src/lib/zoom");
