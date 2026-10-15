@@ -40,6 +40,7 @@ import type {
   CertificateRevocationInput,
   CertificateVerification,
   CompleteCalendlyConnectionParams,
+  CompleteGmailSenderConnectionParams,
   CompleteGoogleCalendarConnectionParams,
   CompleteZoomConnectionParams,
   CourseActivityInput,
@@ -70,6 +71,9 @@ import type {
   CourseUploadUrl,
   Dashboard,
   DeleteXapiActivityStateParams,
+  EmailSenderAuthorization,
+  EmailSenderConnectionInput,
+  EmailSenderStatus,
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
   GetLearningProgressAnalyticsParams,
@@ -8102,6 +8106,329 @@ export const useDisconnectZoom = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDisconnectZoomMutationOptions(options));
+    }
+
+export const getGetEmailSenderStatusUrl = () => {
+
+
+
+
+  return `/api/email-sender/status`
+}
+
+/**
+ * @summary Get the shared Gmail sender connection status
+ */
+export const getEmailSenderStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailSenderStatus> => {
+
+  return customFetch<EmailSenderStatus>(getGetEmailSenderStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailSenderStatusQueryKey = () => {
+    return [
+    `/api/email-sender/status`
+    ] as const;
+    }
+
+
+export const getGetEmailSenderStatusQueryOptions = <TData = Awaited<ReturnType<typeof getEmailSenderStatus>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmailSenderStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailSenderStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailSenderStatus>>> = ({ signal }) => getEmailSenderStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailSenderStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmailSenderStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailSenderStatus>>>
+export type GetEmailSenderStatusQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the shared Gmail sender connection status
+ */
+
+export function useGetEmailSenderStatus<TData = Awaited<ReturnType<typeof getEmailSenderStatus>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmailSenderStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmailSenderStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartGmailSenderConnectionUrl = () => {
+
+
+
+
+  return `/api/email-sender/google/connect`
+}
+
+/**
+ * @summary Begin Gmail sender authorization in the live app
+ */
+export const startGmailSenderConnection = async (emailSenderConnectionInput: EmailSenderConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailSenderAuthorization> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<EmailSenderAuthorization>(getStartGmailSenderConnectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailSenderConnectionInput)
+  }
+);}
+
+
+
+
+
+export const getStartGmailSenderConnectionMutationKey = () => ['startGmailSenderConnection'] as const;
+
+export const getStartGmailSenderConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startGmailSenderConnection>>, TError,StartGmailSenderConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startGmailSenderConnection>>, TError,StartGmailSenderConnectionMutationVariables, TContext> => {
+
+const mutationKey = getStartGmailSenderConnectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startGmailSenderConnection>>, StartGmailSenderConnectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startGmailSenderConnection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartGmailSenderConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof startGmailSenderConnection>>>
+    export type StartGmailSenderConnectionMutationBody = BodyType<EmailSenderConnectionInput>
+    export type StartGmailSenderConnectionMutationError = ErrorType<void>
+    export type StartGmailSenderConnectionMutationVariables = {data: BodyType<EmailSenderConnectionInput>}
+
+    /**
+ * @summary Begin Gmail sender authorization in the live app
+ */
+export const useStartGmailSenderConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startGmailSenderConnection>>, TError,StartGmailSenderConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startGmailSenderConnection>>,
+        TError,
+        StartGmailSenderConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartGmailSenderConnectionMutationOptions(options));
+    }
+
+export const getCompleteGmailSenderConnectionUrl = (params?: CompleteGmailSenderConnectionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/email-sender/google/callback?${stringifiedParams}` : `/api/email-sender/google/callback`
+}
+
+/**
+ * @summary Complete Gmail sender authorization
+ */
+export const completeGmailSenderConnection = async (params?: CompleteGmailSenderConnectionParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getCompleteGmailSenderConnectionUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteGmailSenderConnectionQueryKey = (params?: CompleteGmailSenderConnectionParams,) => {
+    return [
+    `/api/email-sender/google/callback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCompleteGmailSenderConnectionQueryOptions = <TData = Awaited<ReturnType<typeof completeGmailSenderConnection>>, TError = ErrorType<void>>(params?: CompleteGmailSenderConnectionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeGmailSenderConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCompleteGmailSenderConnectionQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof completeGmailSenderConnection>>> = ({ signal }) => completeGmailSenderConnection(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof completeGmailSenderConnection>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CompleteGmailSenderConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof completeGmailSenderConnection>>>
+export type CompleteGmailSenderConnectionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Complete Gmail sender authorization
+ */
+
+export function useCompleteGmailSenderConnection<TData = Awaited<ReturnType<typeof completeGmailSenderConnection>>, TError = ErrorType<void>>(
+ params?: CompleteGmailSenderConnectionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof completeGmailSenderConnection>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCompleteGmailSenderConnectionQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDisconnectGmailSenderUrl = () => {
+
+
+
+
+  return `/api/email-sender/google`
+}
+
+/**
+ * @summary Revoke and remove the connected Gmail sender
+ */
+export const disconnectGmailSender = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisconnectGmailSenderUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectGmailSenderMutationKey = () => ['disconnectGmailSender'] as const;
+
+export const getDisconnectGmailSenderMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGmailSender>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectGmailSender>>, TError,void, TContext> => {
+
+const mutationKey = getDisconnectGmailSenderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectGmailSender>>, void> = () => {
+
+
+          return  disconnectGmailSender(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectGmailSenderMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectGmailSender>>>
+
+    export type DisconnectGmailSenderMutationError = ErrorType<void>
+
+
+    /**
+ * @summary Revoke and remove the connected Gmail sender
+ */
+export const useDisconnectGmailSender = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGmailSender>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectGmailSender>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDisconnectGmailSenderMutationOptions(options));
     }
 
 export const getCreateOrUpdateZoomMeetingUrl = (id: number,) => {

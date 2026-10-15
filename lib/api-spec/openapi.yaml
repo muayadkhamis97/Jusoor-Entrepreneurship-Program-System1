@@ -1962,6 +1962,77 @@ paths:
           description: Zoom authorization removed
         "403":
           description: Coordinator access required
+  /email-sender/status:
+    get:
+      operationId: getEmailSenderStatus
+      tags: [support]
+      summary: Get the shared Gmail sender connection status
+      responses:
+        "200":
+          description: OAuth setup and sender connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailSenderStatus"
+        "403":
+          description: Coordinator access required
+  /email-sender/google/connect:
+    post:
+      operationId: startGmailSenderConnection
+      tags: [support]
+      summary: Begin Gmail sender authorization in the live app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailSenderConnectionInput"
+      responses:
+        "200":
+          description: Google authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailSenderAuthorization"
+        "403":
+          description: Coordinator access required
+        "503":
+          description: OAuth credentials or storage migration are unavailable
+  /email-sender/google/callback:
+    get:
+      operationId: completeGmailSenderConnection
+      tags: [support]
+      summary: Complete Gmail sender authorization
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the integration page with the connection result
+        "400":
+          description: Authorization state is missing or invalid
+  /email-sender/google:
+    delete:
+      operationId: disconnectGmailSender
+      tags: [support]
+      summary: Revoke and remove the connected Gmail sender
+      responses:
+        "204":
+          description: Gmail sender disconnected
+        "403":
+          description: Coordinator access required
+        "502":
+          description: Google could not revoke the sender token
   /zoom/sessions/{id}/meeting:
     post:
       operationId: createOrUpdateZoomMeeting
@@ -4848,6 +4919,28 @@ components:
         callbackUrl: { type: ["string", "null"], format: uri }
         webhookUrl: { type: ["string", "null"], format: uri }
       required: [clientConfigured, connected, connectedAt, connectedBy, callbackUrl, webhookUrl]
+    EmailSenderConnectionInput:
+      type: object
+      properties:
+        returnPath:
+          type: string
+          description: Current integration page path used for a same-origin callback redirect.
+      required: [returnPath]
+    EmailSenderAuthorization:
+      type: object
+      properties:
+        authorizationUrl: { type: string, format: uri }
+      required: [authorizationUrl]
+    EmailSenderStatus:
+      type: object
+      properties:
+        clientConfigured: { type: boolean }
+        storageReady: { type: boolean }
+        connected: { type: boolean }
+        accountEmail: { type: ["string", "null"], format: email }
+        connectedAt: { type: ["string", "null"], format: date-time }
+        callbackUrl: { type: ["string", "null"], format: uri }
+      required: [clientConfigured, storageReady, connected, accountEmail, connectedAt, callbackUrl]
     ZoomRecordingEmailStatus:
       type: string
       enum: [pending, sending, sent, failed]

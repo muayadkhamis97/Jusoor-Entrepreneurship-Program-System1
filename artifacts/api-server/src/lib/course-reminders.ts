@@ -1,4 +1,4 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { sendPlatformEmail } from "./platform-email";
 import { and, asc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import {
   applicationsTable,
@@ -142,10 +142,7 @@ async function sendCourseReminder(input: {
   dueAt: Date | null;
   subject: string;
 }): Promise<void> {
-  const from = process.env.JUSOOR_EMAIL_FROM?.trim();
-  if (!from || /[\r\n]/.test(from) || !from.includes("@")) {
-    throw new Error("JUSOOR_EMAIL_FROM is not configured with a verified sending address.");
-  }
+  const fallbackFrom = process.env.JUSOOR_EMAIL_FROM?.trim();
   const deadline = input.dueAt?.toLocaleString("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -162,22 +159,14 @@ async function sendCourseReminder(input: {
     ? `<p><strong>Deadline:</strong> ${escapeHtml(deadline)} UTC</p>`
     : "<p>This required module is still incomplete.</p>";
   const html = `<p>Hello ${escapeHtml(input.founderName)},</p><p>This is a reminder about the <strong>${escapeHtml(input.moduleTitle)}</strong> learning module in ${escapeHtml(input.programName)}.</p>${deadlineHtml}<p>Sign in to Jusoor to review your learning progress and complete the module.</p>`;
-  const response = await new ReplitConnectors().proxy("resend", "/emails/batch", {
-    method: "POST",
-    headers: {
-      "Idempotency-Key": `jusoor-course-reminder-${input.id}`,
-    },
-    body: [{
-      from,
-      to: input.email,
-      subject: `${input.subject}: ${input.moduleTitle}`,
-      text,
-      html,
-    }],
+  await sendPlatformEmail({
+    recipients: [input.email],
+    fallbackFrom,
+    subject: `${input.subject}: ${input.moduleTitle}`,
+    text,
+    html,
+    idempotencyKey: `jusoor-course-reminder-${input.id}`,
   });
-  if (!response.ok) {
-    throw new Error(`Resend returned HTTP ${response.status}.`);
-  }
 }
 
 async function queueDueReminders(now: Date): Promise<void> {

@@ -1,4 +1,4 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { sendPlatformEmail } from "./platform-email";
 import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import {
   db,
@@ -91,23 +91,14 @@ function publicEmailError(error: unknown): string {
   if (error instanceof RecordingEmailConfigurationError) {
     return error.message;
   }
-  if (error instanceof RecordingEmailProviderError) {
-    return error.message;
-  }
-  return "The email service could not send the alert. Check the Resend connection and retry.";
+  return "The email service could not send the alert. Check the sender connection and retry.";
 }
 
 class RecordingEmailConfigurationError extends Error {}
-class RecordingEmailProviderError extends Error {}
 
-function senderAddress(): string {
+function senderAddress(): string | undefined {
   const from = process.env.JUSOOR_EMAIL_FROM?.trim();
-  if (!from || /[\r\n]/.test(from) || !from.includes("@")) {
-    throw new RecordingEmailConfigurationError(
-      "Set JUSOOR_EMAIL_FROM to an address on a verified sending domain, then retry.",
-    );
-  }
-  return from;
+  return from && !/[\r\n]/.test(from) && from.includes("@") ? from : undefined;
 }
 
 function escapeHtml(value: string): string {
@@ -142,28 +133,17 @@ async function sendReadyEmail(input: {
     `A Zoom recording is ready to upload to Google Drive.`,
     `Session: ${title}`,
     `Date: ${input.scheduledDate}`,
-    "After staff upload the video to Drive, add the share link to the session in Jusoor.",
+    "After staff upload the video to Drive, add the share link to the session in the platform.",
   ].join("\n");
-  const html = `<p>A Zoom recording is ready to upload to Google Drive.</p><p><strong>Session:</strong> ${escapeHtml(title)}<br><strong>Date:</strong> ${escapeHtml(input.scheduledDate)}</p><p>After staff upload the video to Drive, add the share link to the session in Jusoor.</p>`;
-  const connectors = new ReplitConnectors();
-  const response = await connectors.proxy("resend", "/emails/batch", {
-    method: "POST",
-    headers: {
-      "Idempotency-Key": `jusoor-zoom-recording-${input.alertId}-${input.eventKey}`,
-    },
-    body: input.recipients.map((to) => ({
-      from,
-      to,
-      subject: `Zoom recording ready: ${title}`,
-      text,
-      html,
-    })),
+  const html = `<p>A Zoom recording is ready to upload to Google Drive.</p><p><strong>Session:</strong> ${escapeHtml(title)}<br><strong>Date:</strong> ${escapeHtml(input.scheduledDate)}</p><p>After staff upload the video to Drive, add the share link to the session in the platform.</p>`;
+  await sendPlatformEmail({
+    recipients: input.recipients,
+    fallbackFrom: from,
+    subject: `Zoom recording ready: ${title}`,
+    text,
+    html,
+    idempotencyKey: `jusoor-zoom-recording-${input.alertId}-${input.eventKey}`,
   });
-  if (!response.ok) {
-    throw new RecordingEmailProviderError(
-      `Resend returned HTTP ${response.status}. Check the Resend connection and sender domain, then retry.`,
-    );
-  }
 }
 
 function isRetryableStatus(

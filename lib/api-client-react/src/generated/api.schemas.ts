@@ -2006,6 +2006,27 @@ export interface ZoomStatus {
   webhookUrl: string | null;
 }
 
+export interface EmailSenderConnectionInput {
+  /** Current integration page path used for a same-origin callback redirect. */
+  returnPath: string;
+}
+
+export interface EmailSenderAuthorization {
+  authorizationUrl: string;
+}
+
+export interface EmailSenderStatus {
+  clientConfigured: boolean;
+  storageReady: boolean;
+  connected: boolean;
+  /** @nullable */
+  accountEmail: string | null;
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  callbackUrl: string | null;
+}
+
 export type ZoomRecordingEmailStatus = typeof ZoomRecordingEmailStatus[keyof typeof ZoomRecordingEmailStatus];
 
 
@@ -3463,6 +3484,12 @@ error?: string;
 };
 
 export type CompleteZoomConnectionParams = {
+code?: string;
+state?: string;
+error?: string;
+};
+
+export type CompleteGmailSenderConnectionParams = {
 code?: string;
 state?: string;
 error?: string;
