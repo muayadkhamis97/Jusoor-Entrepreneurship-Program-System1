@@ -44,6 +44,7 @@ export * from "./session-interactions";
 export * from "./zoom-connections";
 export * from "./announcements";
 export * from "./calendly-meetings";
+export * from "./google-calendar-meetings";
 export * from "./zoom-recording-alerts";
 export * from "./zoom-attendance";
 export * from "./grant-receipts";

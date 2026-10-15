@@ -5,13 +5,21 @@ import {
   CreateSupportResponse,
   DeleteSupportParams,
   ListSupportCalendlyMeetingsResponse,
+  ListSupportGoogleCalendarMeetingsResponse,
   ListSupportQueryParams,
   ListSupportResponse,
   UpdateSupportBody,
   UpdateSupportParams,
   UpdateSupportResponse,
 } from "@workspace/api-zod";
-import { businessesTable, calendlyMeetingsTable, db, staffMembersTable, supportTable } from "@workspace/db";
+import {
+  businessesTable,
+  calendlyMeetingsTable,
+  db,
+  googleCalendarMeetingsTable,
+  staffMembersTable,
+  supportTable,
+} from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import { hasProgramStaffRole } from "../lib/programStaffRoles";
 import type { StaffAccess } from "../middlewares/staffAccess";
@@ -48,6 +56,39 @@ router.get("/support/calendly-meetings", requireCoordinator, async (_req, res): 
     .where(inArray(businessesTable.programId, activeProgramIds))
     .orderBy(desc(calendlyMeetingsTable.startsAt));
   res.json(ListSupportCalendlyMeetingsResponse.parse(meetings));
+});
+
+router.get("/support/google-calendar-meetings", requireCoordinator, async (_req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const activeProgramIds = await activeProgramIdsFor(staff);
+  if (activeProgramIds.length === 0) {
+    res.json([]);
+    return;
+  }
+  const meetings = await db.selectDistinct({
+    id: googleCalendarMeetingsTable.id,
+    businessId: googleCalendarMeetingsTable.businessId,
+    mentorStaffId: googleCalendarMeetingsTable.mentorStaffId,
+    mentorEmail: staffMembersTable.email,
+    startsAt: googleCalendarMeetingsTable.startsAt,
+    endsAt: googleCalendarMeetingsTable.endsAt,
+    timezone: googleCalendarMeetingsTable.timezone,
+    status: googleCalendarMeetingsTable.status,
+  })
+    .from(googleCalendarMeetingsTable)
+    .innerJoin(businessesTable, eq(googleCalendarMeetingsTable.businessId, businessesTable.id))
+    .innerJoin(supportTable, and(
+      eq(supportTable.businessId, googleCalendarMeetingsTable.businessId),
+      eq(supportTable.mentorStaffId, googleCalendarMeetingsTable.mentorStaffId),
+      eq(supportTable.type, "mentor"),
+    ))
+    .innerJoin(staffMembersTable, eq(staffMembersTable.id, googleCalendarMeetingsTable.mentorStaffId))
+    .where(inArray(businessesTable.programId, activeProgramIds))
+    .orderBy(desc(googleCalendarMeetingsTable.startsAt));
+  res.json(ListSupportGoogleCalendarMeetingsResponse.parse(meetings.map((meeting) => ({
+    ...meeting,
+    eventName: "Mentoring session",
+  }))));
 });
 
 router.get("/support", async (req, res): Promise<void> => {

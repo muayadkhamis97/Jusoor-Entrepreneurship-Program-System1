@@ -2414,6 +2414,14 @@ export const GetParticipantDashboardResponse = zod.object({
   "timezone": zod.string().nullable(),
   "status": zod.enum(['confirmed', 'rescheduled', 'cancelled'])
 })),
+  "googleCalendarMeetings": zod.array(zod.object({
+  "id": zod.number().int(),
+  "eventName": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "timezone": zod.string().nullable(),
+  "status": zod.enum(['confirmed', 'cancelled'])
+})),
   "assignments": zod.array(zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
@@ -3945,6 +3953,23 @@ export const ListSupportCalendlyMeetingsResponseItem = zod.object({
   "status": zod.enum(['confirmed', 'rescheduled', 'cancelled'])
 })
 export const ListSupportCalendlyMeetingsResponse = zod.array(ListSupportCalendlyMeetingsResponseItem)
+
+
+/**
+ * @summary List Google Calendar bookings matching mentor support assignments for coordinators
+ */
+export const ListSupportGoogleCalendarMeetingsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "businessId": zod.number().int(),
+  "mentorStaffId": zod.number().int(),
+  "mentorEmail": zod.string().email(),
+  "eventName": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "timezone": zod.string().nullable(),
+  "status": zod.enum(['confirmed', 'cancelled'])
+})
+export const ListSupportGoogleCalendarMeetingsResponse = zod.array(ListSupportGoogleCalendarMeetingsResponseItem)
 
 
 /**

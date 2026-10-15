@@ -174,6 +174,7 @@ import type {
   StaffUpdate,
   SupportCalendlyMeeting,
   SupportEngagement,
+  SupportGoogleCalendarMeeting,
   SupportInput,
   SupportUpdate,
   TrainerAttendanceReports,
@@ -10039,6 +10040,83 @@ export function useListSupportCalendlyMeetings<TData = Awaited<ReturnType<typeof
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListSupportCalendlyMeetingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSupportGoogleCalendarMeetingsUrl = () => {
+
+
+
+
+  return `/api/support/google-calendar-meetings`
+}
+
+/**
+ * @summary List Google Calendar bookings matching mentor support assignments for coordinators
+ */
+export const listSupportGoogleCalendarMeetings = async ( options?: Parameters<typeof customFetch>[1]): Promise<SupportGoogleCalendarMeeting[]> => {
+
+  return customFetch<SupportGoogleCalendarMeeting[]>(getListSupportGoogleCalendarMeetingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSupportGoogleCalendarMeetingsQueryKey = () => {
+    return [
+    `/api/support/google-calendar-meetings`
+    ] as const;
+    }
+
+
+export const getListSupportGoogleCalendarMeetingsQueryOptions = <TData = Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSupportGoogleCalendarMeetingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>> = ({ signal }) => listSupportGoogleCalendarMeetings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSupportGoogleCalendarMeetingsQueryResult = NonNullable<Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>>
+export type ListSupportGoogleCalendarMeetingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List Google Calendar bookings matching mentor support assignments for coordinators
+ */
+
+export function useListSupportGoogleCalendarMeetings<TData = Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSupportGoogleCalendarMeetings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSupportGoogleCalendarMeetingsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

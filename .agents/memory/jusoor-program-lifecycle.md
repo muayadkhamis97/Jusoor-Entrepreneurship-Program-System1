@@ -23,11 +23,11 @@ Each program is one cohort. A startup is assigned to the program selected in its
 
 **How to apply:** Preserve individual mentor ownership; do not use a shared account or persist Calendly OAuth tokens. Store only per-mentor webhook routing and signing material encrypted with `SESSION_SECRET`, and reconnect Calendly if that secret rotates.
 
-Google Calendar booking: each mentor authorizes their own Google account with identity-only OAuth scopes, then supplies a public appointment-schedule link. Discard the OAuth token after verifying the account; coordinators see only provider and connection status.
+Google Calendar booking: each mentor connects their own Google account and supplies a public appointment-schedule link. Read-only event sync is limited to calendars they own and only metadata needed to match assigned founder appointments is retained.
 
-**Why:** Founder booking needs a public schedule link, not access to private calendar events.
+**Why:** The user explicitly requested founder appointment history from Google Calendar. Google does not expose appointment schedule bookings separately from ordinary events, so the integration needs a narrow event-read scope; event titles, descriptions, locations, meeting links, and guest names are not needed to match appointments.
 
-**How to apply:** Keep Google OAuth scopes limited to account verification and do not persist or expose Google access tokens or account email. Add event sync only with an explicit product requirement and a separate privacy review.
+**How to apply:** Request only `calendar.events.owned.readonly` in addition to identity scopes. Encrypt refresh and short-lived access tokens with a key derived from `SESSION_SECRET`; keep access-token expiry and the incremental-sync cursor. Request only organizer/guest email, event ID, status, start/end, timezone, and update time; never persist guest email or calendar text content. Match an event only when its organizer is the connected mentor and exactly one currently assigned business is represented by its guests. Show the data-use notice before OAuth.
 
 Session recordings are uploaded by program staff to Google Drive. Staff then add the Drive share link to the session, and the platform notifies accepted participants in that session's cohort that the recording is available. Participants and trainers watch it in an embedded player. Drive permissions control playback access. Zoom recording sync is disabled; Zoom is for live meeting management.
 

@@ -10,6 +10,7 @@ import type { ParticipantAssignment } from './participantAssignment';
 import type { ParticipantBusiness } from './participantBusiness';
 import type { ParticipantCalendlyMeeting } from './participantCalendlyMeeting';
 import type { ParticipantEnrollmentEnrollmentSource } from './participantEnrollmentEnrollmentSource';
+import type { ParticipantGoogleCalendarMeeting } from './participantGoogleCalendarMeeting';
 import type { ParticipantProgram } from './participantProgram';
 import type { ParticipantQuestion } from './participantQuestion';
 import type { ParticipantSession } from './participantSession';
@@ -25,6 +26,7 @@ export interface ParticipantEnrollment {
   sessions: ParticipantSession[];
   support: ParticipantSupport[];
   calendlyMeetings: ParticipantCalendlyMeeting[];
+  googleCalendarMeetings: ParticipantGoogleCalendarMeeting[];
   assignments: ParticipantAssignment[];
   questions: ParticipantQuestion[];
 }

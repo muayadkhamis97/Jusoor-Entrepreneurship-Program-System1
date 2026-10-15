@@ -15,6 +15,11 @@ import {
   sealGoogleCalendarOAuthState,
   type GoogleCalendarOAuthState,
 } from "../lib/googleCalendarOAuthState";
+import {
+  encryptGoogleCalendarToken,
+  googleCalendarPrivacy,
+  syncGoogleCalendarMentor,
+} from "../lib/googleCalendarSync";
 
 const router: IRouter = Router();
 const cookieName = "jusoor_google_calendar_oauth";
@@ -110,11 +115,12 @@ router.post("/connect", requireStaff, requireRole("mentor"), (req, res): void =>
   authorizationUrl.searchParams.set("client_id", clientId);
   authorizationUrl.searchParams.set("response_type", "code");
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
-  authorizationUrl.searchParams.set("scope", "openid email");
+  authorizationUrl.searchParams.set("scope", `openid email ${googleCalendarPrivacy.scope}`);
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("code_challenge", codeChallenge);
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
-  authorizationUrl.searchParams.set("prompt", "select_account");
+  authorizationUrl.searchParams.set("prompt", "select_account consent");
+  authorizationUrl.searchParams.set("access_type", "offline");
 
   res.cookie(cookieName, sealGoogleCalendarOAuthState(payload), {
     httpOnly: true,
@@ -184,8 +190,20 @@ router.get("/callback", async (req, res): Promise<void> => {
         code_verifier: payload.codeVerifier,
       }),
     });
-    const tokenData = await tokenResponse.json().catch(() => ({})) as { access_token?: unknown };
-    if (!tokenResponse.ok || typeof tokenData.access_token !== "string" || !tokenData.access_token) {
+    const tokenData = await tokenResponse.json().catch(() => ({})) as {
+      access_token?: unknown;
+      refresh_token?: unknown;
+      expires_in?: unknown;
+    };
+    if (
+      !tokenResponse.ok ||
+      typeof tokenData.access_token !== "string" ||
+      !tokenData.access_token ||
+      typeof tokenData.refresh_token !== "string" ||
+      !tokenData.refresh_token ||
+      typeof tokenData.expires_in !== "number" ||
+      !Number.isFinite(tokenData.expires_in)
+    ) {
       req.log.warn({ statusCode: tokenResponse.status }, "Google Calendar token exchange failed");
       finish("error");
       return;
@@ -216,6 +234,10 @@ router.get("/callback", async (req, res): Promise<void> => {
       .set({
         bookingProvider: "google_calendar",
         googleCalendarAccountEmail: profile.email.trim().toLowerCase(),
+        googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken(tokenData.refresh_token),
+        googleCalendarAccessTokenEncrypted: encryptGoogleCalendarToken(tokenData.access_token),
+        googleCalendarAccessTokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+        googleCalendarSyncToken: null,
       })
       .where(and(
         eq(staffMembersTable.id, payload.staffId),
@@ -228,7 +250,14 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    // The OAuth token is used only to verify the account and is never persisted.
+    try {
+      await syncGoogleCalendarMentor(payload.staffId);
+    } catch (error) {
+      req.log.warn(
+        { mentorStaffId: payload.staffId, errorName: error instanceof Error ? error.name : "UnknownError" },
+        "Google Calendar booking sync did not complete during connection",
+      );
+    }
     finish("connected");
   } catch (error) {
     req.log.error(

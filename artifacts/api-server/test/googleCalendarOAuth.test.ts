@@ -7,6 +7,7 @@ import {
   sealGoogleCalendarOAuthState,
   type GoogleCalendarOAuthState,
 } from "../src/lib/googleCalendarOAuthState";
+import { googleCalendarPrivacy } from "../src/lib/googleCalendarSync";
 
 const nativeFetch = globalThis.fetch;
 const authCode = "sensitive-google-authorization-code";
@@ -113,7 +114,7 @@ test("rejects expired and mismatched Google OAuth state before making provider r
   assert.equal(isGoogleCalendarOAuthStateValid(validState(), "wrong-state"), false);
 });
 
-test("verifies the mentor's Google account, selects Google Calendar, and never persists OAuth tokens", async () => {
+test("verifies the mentor's Google account and stores only encrypted Google tokens", async () => {
   const persistedValues: Record<string, unknown>[] = [];
   const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
   const restoreSelect = replaceDbMethod("select", (() => {
@@ -139,7 +140,11 @@ test("verifies the mentor's Google account, selects Google Calendar, and never p
     const url = String(input);
     fetchCalls.push({ url, init });
     if (url === "https://oauth2.googleapis.com/token") {
-      return responseJson({ access_token: accessToken });
+      return responseJson({
+        access_token: accessToken,
+        refresh_token: "sensitive-google-refresh-token",
+        expires_in: 3600,
+      });
     }
     if (url === "https://openidconnect.googleapis.com/v1/userinfo") {
       return responseJson({
@@ -160,18 +165,29 @@ test("verifies the mentor's Google account, selects Google Calendar, and never p
     const redirect = response.headers.get("location") ?? "";
     assert.equal(response.status, 302);
     assert.equal(redirect, "http://localhost/mentor?googleCalendar=connected");
-    assert.deepEqual(persistedValues, [{
-      bookingProvider: "google_calendar",
-      googleCalendarAccountEmail: "mentor@example.com",
-    }]);
+    assert.equal(persistedValues.length, 1);
+    assert.equal(persistedValues[0]?.bookingProvider, "google_calendar");
+    assert.equal(persistedValues[0]?.googleCalendarAccountEmail, "mentor@example.com");
+    assert.equal(persistedValues[0]?.googleCalendarSyncToken, null);
+    assert.equal(typeof persistedValues[0]?.googleCalendarRefreshTokenEncrypted, "string");
+    assert.equal(typeof persistedValues[0]?.googleCalendarAccessTokenEncrypted, "string");
+    assert.notEqual(persistedValues[0]?.googleCalendarRefreshTokenEncrypted, "sensitive-google-refresh-token");
+    assert.notEqual(persistedValues[0]?.googleCalendarAccessTokenEncrypted, accessToken);
     assert.equal(fetchCalls.length, 2);
     assert.match(String(fetchCalls[0]?.init?.body), new RegExp(authCode));
-    assert.doesNotMatch(JSON.stringify(persistedValues), new RegExp(accessToken));
-    assert.doesNotMatch(redirect, new RegExp(`${authCode}|${accessToken}`));
-    assert.doesNotMatch(JSON.stringify(logEntries), new RegExp(`${authCode}|${accessToken}`));
+    assert.doesNotMatch(JSON.stringify(persistedValues), new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
+    assert.doesNotMatch(redirect, new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
+    assert.doesNotMatch(JSON.stringify(logEntries), new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
   } finally {
     restoreUpdate();
     restoreSelect();
     globalThis.fetch = nativeFetch;
   }
+});
+
+test("requests the narrow read-only scope for events on the mentor's own Google calendars", () => {
+  assert.equal(
+    googleCalendarPrivacy.scope,
+    "https://www.googleapis.com/auth/calendar.events.owned.readonly",
+  );
 });

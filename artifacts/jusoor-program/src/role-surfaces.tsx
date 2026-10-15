@@ -218,6 +218,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
       <div className="role-form-grid compact">
         <div className="field field-wide">
           <b>{t('Connect an account')}</b>
+          <p data-testid="google-calendar-privacy-disclosure">{t('Jusoor syncs bookings every five minutes using read-only access to calendars you own. It checks event times and guest/organizer email to match assigned founders. Event titles, descriptions, locations, meeting links and guest names are not collected. OAuth tokens are encrypted and retained only to keep this sync active.')}</p>
           <div className="role-button-row">
             <button
               type="button"
@@ -255,7 +256,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
           {bookingProvider === 'google_calendar' && <label className="field field-wide">
             {t('Google Calendar appointment-schedule link')}
             <input className="form-control" type="url" value={googleCalendarBookingUrl} onChange={event => setGoogleCalendarBookingUrl(event.target.value)} placeholder="https://calendar.google.com/calendar/appointments/schedules/…" required data-testid="input-google-calendar-booking-url" />
-            <small>{t('Create an appointment schedule in Google Calendar, then paste its public link here. Jusoor does not read your calendar events.')}</small>
+            <small>{t('Create an appointment schedule in Google Calendar, then paste its public link here.')}</small>
           </label>}
           {saveBookingSettings.isError && <p className="form-error field-wide" role="alert">{t('Booking settings could not be saved. Confirm the selected account is connected and the schedule link is valid.')}</p>}
           {saveBookingSettings.isSuccess && <p className="form-success field-wide" role="status">{t('Booking platform saved.')}</p>}

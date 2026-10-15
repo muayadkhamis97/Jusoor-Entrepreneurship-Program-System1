@@ -34,6 +34,7 @@ import {
   courseMaterialsTable,
   courseModulesTable,
   db,
+  googleCalendarMeetingsTable,
   ideaValidationWorkbooksTable,
   participantBusinessPlansTable,
   participantBusinessMembershipsTable,
@@ -917,6 +918,24 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       .where(inArray(calendlyMeetingsTable.businessId, businessIds))
       .orderBy(asc(calendlyMeetingsTable.startsAt))
     : [];
+  const googleCalendarMeetings = businessIds.length
+    ? await db.selectDistinct({
+      id: googleCalendarMeetingsTable.id,
+      businessId: googleCalendarMeetingsTable.businessId,
+      startsAt: googleCalendarMeetingsTable.startsAt,
+      endsAt: googleCalendarMeetingsTable.endsAt,
+      timezone: googleCalendarMeetingsTable.timezone,
+      status: googleCalendarMeetingsTable.status,
+    })
+      .from(googleCalendarMeetingsTable)
+      .innerJoin(supportTable, and(
+        eq(supportTable.businessId, googleCalendarMeetingsTable.businessId),
+        eq(supportTable.mentorStaffId, googleCalendarMeetingsTable.mentorStaffId),
+        eq(supportTable.type, "mentor"),
+      ))
+      .where(inArray(googleCalendarMeetingsTable.businessId, businessIds))
+      .orderBy(asc(googleCalendarMeetingsTable.startsAt))
+    : [];
   const assignments = programIds.length
     ? await db.select({
       id: trainingAssignmentsTable.id,
@@ -980,6 +999,13 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     calendlyMeetings: application.status === "accepted" && business
       ? calendlyMeetings.filter((meeting) => meeting.businessId === business.id)
         .map(({ businessId: _businessId, ...meeting }) => meeting)
+      : [],
+    googleCalendarMeetings: application.status === "accepted" && business
+      ? googleCalendarMeetings.filter((meeting) => meeting.businessId === business.id)
+        .map(({ businessId: _businessId, ...meeting }) => ({
+          ...meeting,
+          eventName: "Mentoring session",
+        }))
       : [],
     assignments: application.status === "accepted" && business
       ? assignments.filter((assignment) => assignment.programId === application.programId).map((assignment) => {

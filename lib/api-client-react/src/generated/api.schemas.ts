@@ -1322,6 +1322,24 @@ export interface ParticipantCalendlyMeeting {
   status: ParticipantCalendlyMeetingStatus;
 }
 
+export type ParticipantGoogleCalendarMeetingStatus = typeof ParticipantGoogleCalendarMeetingStatus[keyof typeof ParticipantGoogleCalendarMeetingStatus];
+
+
+export const ParticipantGoogleCalendarMeetingStatus = {
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ParticipantGoogleCalendarMeeting {
+  id: number;
+  eventName: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  timezone: string | null;
+  status: ParticipantGoogleCalendarMeetingStatus;
+}
+
 export type SupportCalendlyMeetingStatus = typeof SupportCalendlyMeetingStatus[keyof typeof SupportCalendlyMeetingStatus];
 
 
@@ -1342,6 +1360,27 @@ export interface SupportCalendlyMeeting {
   /** @nullable */
   timezone: string | null;
   status: SupportCalendlyMeetingStatus;
+}
+
+export type SupportGoogleCalendarMeetingStatus = typeof SupportGoogleCalendarMeetingStatus[keyof typeof SupportGoogleCalendarMeetingStatus];
+
+
+export const SupportGoogleCalendarMeetingStatus = {
+  confirmed: 'confirmed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface SupportGoogleCalendarMeeting {
+  id: number;
+  businessId: number;
+  mentorStaffId: number;
+  mentorEmail: string;
+  eventName: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  timezone: string | null;
+  status: SupportGoogleCalendarMeetingStatus;
 }
 
 export type ParticipantEnrollmentEnrollmentSource = typeof ParticipantEnrollmentEnrollmentSource[keyof typeof ParticipantEnrollmentEnrollmentSource];
@@ -1411,6 +1450,7 @@ export interface ParticipantEnrollment {
   sessions: ParticipantSession[];
   support: ParticipantSupport[];
   calendlyMeetings: ParticipantCalendlyMeeting[];
+  googleCalendarMeetings: ParticipantGoogleCalendarMeeting[];
   assignments: ParticipantAssignment[];
   questions: ParticipantQuestion[];
 }

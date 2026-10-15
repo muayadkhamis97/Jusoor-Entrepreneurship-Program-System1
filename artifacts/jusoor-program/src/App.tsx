@@ -18,7 +18,8 @@ import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
    getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, getListParticipantInvitationsQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
-  getListSupportQueryKey, getListSupportCalendlyMeetingsQueryKey, useListSupportCalendlyMeetings, useCreateBusiness, useCreatePitch, useCreateProgram,
+  getListSupportQueryKey, getListSupportCalendlyMeetingsQueryKey, getListSupportGoogleCalendarMeetingsQueryKey,
+  useListSupportCalendlyMeetings, useListSupportGoogleCalendarMeetings, useCreateBusiness, useCreatePitch, useCreateProgram,
   useCreateOrUpdateZoomMeeting, useCreateSession, useCreateStaff, useCreateSupport, useDeleteBusiness, useDeletePitch,
   useArchiveProgram, useRestoreProgram, useListProgramLifecycleEvents, useDeleteSession, useDeleteSupport, useGetBusiness,
   useDeleteStaff, useDisconnectZoom, useGetAuthMe, useGetDashboard, useGetZoomStatus, useListBusinesses, useListPitches, useListPrograms,
@@ -31,7 +32,7 @@ import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
   AllProgramLifecycleEvent, PitchRecord, PitchUpdate, Program, ProgramInput, ProgramLifecycleEvent, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
-  StaffInput, StaffMember, StaffUpdate, SupportUpdate, SupportCalendlyMeeting,
+  StaffInput, StaffMember, StaffUpdate, SupportUpdate,
 } from '@workspace/api-client-react';
 import {
    Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
@@ -713,7 +714,18 @@ function SupportPage({ coordinator = false }: { coordinator?: boolean }) {
       refetchOnWindowFocus: true,
     },
   });
-  const calendlyMeetings = calendlyQuery.data || [];
+  const googleCalendarQuery = useListSupportGoogleCalendarMeetings({
+    query: {
+      queryKey: getListSupportGoogleCalendarMeetingsQueryKey(),
+      enabled: coordinator,
+      refetchInterval: coordinator ? 15_000 : false,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const bookings = [
+    ...(calendlyQuery.data || []).map(meeting => ({ ...meeting, provider: 'Calendly' })),
+    ...(googleCalendarQuery.data || []).map(meeting => ({ ...meeting, provider: 'Google Calendar' })),
+  ].sort((left, right) => new Date(right.startsAt).getTime() - new Date(left.startsAt).getTime());
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const mentors = coordinator ? (staffQuery.data || []).filter(person => person.role === 'mentor' && person.status === 'active') : [];
   const create = useCreateSupport(); const update = useUpdateSupport(); const remove = useDeleteSupport();
@@ -729,17 +741,18 @@ function SupportPage({ coordinator = false }: { coordinator?: boolean }) {
     <div className="support-callout"><div className="support-callout-icon"><Handshake size={20} /></div><div><div className="eyebrow">{t('SUPPORT THAT MOVES THE NEEDLE')}</div><b>{t("Match practical expertise to a founder's next milestone.")}</b><span>{t('Mentoring · subject expertise · branding · technical agency')}</span></div><div className="support-total"><b>{engagements.filter(e => e.status !== 'completed').length}</b><span>{t('IN MOTION')}</span></div></div>
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label={t('Filter support by type')} onChange={e => setType(e.target.value)} data-testid="select-support-type"><option value="">{t('All support types')}</option>{['mentor', 'subject_expert', 'branding', 'technical'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{engagements.length}</b> {t('engagements')}</div></div>
     {coordinator && <section className="panel engagement-panel" data-testid="support-calendly-bookings">
-      <div className="support-bookings-heading"><div className="eyebrow">{t('SYNCED MEETINGS')}</div><h2 className="app-title">{t('Calendly bookings')}</h2><p>{t('Bookings appear only for the assigned mentor and business.')}</p></div>
-      {calendlyQuery.isError ? <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>{t('Calendly bookings could not be loaded.')}</b><span>{t('Your support records are still available.')}</span></div><button className="button button-quiet" onClick={() => void calendlyQuery.refetch()}>{t('Retry')}</button></div> :
-        calendlyQuery.isLoading ? <LoadingState label="Loading Calendly bookings" /> :
-          calendlyMeetings.length === 0 ? <p className="session-info">{t('No synced Calendly bookings match an assigned mentor and business yet.')}</p> :
-            <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS')}</th><th>{t('ASSIGNED MENTOR')}</th><th>{t('APPOINTMENT')}</th><th>{t('EVENT TIME')}</th><th>{t('STATUS')}</th></tr></thead><tbody>
-              {calendlyMeetings.map((meeting: SupportCalendlyMeeting) => {
+      <div className="support-bookings-heading"><div className="eyebrow">{t('SYNCED MEETINGS')}</div><h2 className="app-title">{t('Mentor bookings')}</h2><p>{t('Bookings appear only for the assigned mentor and business.')}</p></div>
+      {calendlyQuery.isError || googleCalendarQuery.isError ? <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>{t('Mentor bookings could not be loaded.')}</b><span>{t('Your support records are still available.')}</span></div><button className="button button-quiet" onClick={() => { void calendlyQuery.refetch(); void googleCalendarQuery.refetch(); }}>{t('Retry')}</button></div> :
+        calendlyQuery.isLoading || googleCalendarQuery.isLoading ? <LoadingState label="Loading mentor bookings" /> :
+          bookings.length === 0 ? <p className="session-info">{t('No synced bookings match an assigned mentor and business yet.')}</p> :
+            <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS')}</th><th>{t('ASSIGNED MENTOR')}</th><th>{t('BOOKING PLATFORM')}</th><th>{t('APPOINTMENT')}</th><th>{t('EVENT TIME')}</th><th>{t('STATUS')}</th></tr></thead><tbody>
+              {bookings.map(meeting => {
                 const business = businesses.find(item => item.id === meeting.businessId);
-                return <tr key={meeting.id} data-testid={`row-calendly-booking-${meeting.id}`}>
+                return <tr key={`${meeting.provider}-${meeting.id}`} data-testid={`row-mentor-booking-${meeting.provider === 'Google Calendar' ? 'google' : 'calendly'}-${meeting.id}`}>
                   <td><b>{business?.businessName || `Business ${meeting.businessId}`}</b></td>
                   <td>{meeting.mentorEmail}</td>
-                  <td>{meeting.eventName}</td>
+                  <td>{meeting.provider}</td>
+                  <td>{t(meeting.eventName)}</td>
                   <td><div className="provider-cell"><span>{calendlyMeetingDateTime(meeting.startsAt, meeting.timezone)}</span><small>{t('to')} {calendlyMeetingDateTime(meeting.endsAt, meeting.timezone)}{meeting.timezone ? ` · ${meeting.timezone}` : ''}</small></div></td>
                   <td><Badge value={meeting.status} /></td>
                 </tr>;
