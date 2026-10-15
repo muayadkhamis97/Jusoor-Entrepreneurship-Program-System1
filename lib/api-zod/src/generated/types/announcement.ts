@@ -14,6 +14,10 @@ export interface Announcement {
   programId: number | null;
   /** @nullable */
   programName: string | null;
+  /** @nullable */
+  businessId: number | null;
+  /** @nullable */
+  businessName: string | null;
   kind: AnnouncementKind;
   title: string;
   body: string;

@@ -204,6 +204,7 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
   collectFlowTranslationKeys('role-access.tsx', keys);
   collectFlowTranslationKeys('api-integrations.tsx', keys);
   collectFlowTranslationKeys('grant-surfaces.tsx', keys);
+  collectFlowTranslationKeys('communications-surfaces.tsx', keys);
   for (const role of ['coordinator', 'staff'] as const) {
     getStaffNavigationItems(role).forEach(item => keys.add(item.label));
   }

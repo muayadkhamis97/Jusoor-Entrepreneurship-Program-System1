@@ -1442,6 +1442,10 @@ export interface ParticipantAnnouncement {
   /** @nullable */
   programName: string | null;
   /** @nullable */
+  businessId: number | null;
+  /** @nullable */
+  businessName: string | null;
+  /** @nullable */
   sessionId: number | null;
   /** @nullable */
   sessionTitle: string | null;
@@ -1572,6 +1576,10 @@ export interface Announcement {
   programId: number | null;
   /** @nullable */
   programName: string | null;
+  /** @nullable */
+  businessId: number | null;
+  /** @nullable */
+  businessName: string | null;
   kind: AnnouncementKind;
   title: string;
   body: string;
@@ -1583,6 +1591,11 @@ export interface Announcement {
 export interface AnnouncementInput {
   /** @nullable */
   programId?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessId?: number | null;
   kind: AnnouncementKind;
   /**
      * @minLength 3

@@ -1,30 +1,80 @@
 import { Router, type IRouter } from "express";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   CreateAnnouncementBody,
   CreateAnnouncementResponse,
   DeleteAnnouncementResponse,
   ListAnnouncementsResponse,
 } from "@workspace/api-zod";
-import { db, programAnnouncementsTable, programsTable } from "@workspace/db";
+import { businessesTable, db, programAnnouncementsTable, programsTable } from "@workspace/db";
 import { requireCoordinator } from "../middlewares/staffAccess";
+import {
+  businessBelongsToSelectedProgram,
+  isMissingAnnouncementBusinessColumn,
+} from "../lib/announcement-targeting";
 
 const router: IRouter = Router();
 router.use(requireCoordinator);
 
-router.get("/communications", async (_req, res): Promise<void> => {
-  const rows = await db.select({
-    announcement: programAnnouncementsTable,
-    programName: programsTable.name,
-  }).from(programAnnouncementsTable)
-    .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
-    .orderBy(desc(programAnnouncementsTable.scheduledFor), desc(programAnnouncementsTable.createdAt));
+type AnnouncementListRow = {
+  id: number;
+  programId: number | null;
+  businessId: number | null;
+  programName: string | null;
+  businessName: string | null;
+  kind: string;
+  title: string;
+  body: string;
+  scheduledFor: Date;
+  createdAt: Date;
+};
 
+async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
+  try {
+    return await db.select({
+      id: programAnnouncementsTable.id,
+      programId: programAnnouncementsTable.programId,
+      businessId: programAnnouncementsTable.businessId,
+      programName: programsTable.name,
+      businessName: businessesTable.businessName,
+      kind: programAnnouncementsTable.kind,
+      title: programAnnouncementsTable.title,
+      body: programAnnouncementsTable.body,
+      scheduledFor: programAnnouncementsTable.scheduledFor,
+      createdAt: programAnnouncementsTable.createdAt,
+    }).from(programAnnouncementsTable)
+      .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(businessesTable, and(
+        eq(programAnnouncementsTable.businessId, businessesTable.id),
+        eq(programAnnouncementsTable.programId, businessesTable.programId),
+      ))
+      .orderBy(desc(programAnnouncementsTable.scheduledFor), desc(programAnnouncementsTable.createdAt));
+  } catch (error) {
+    if (!isMissingAnnouncementBusinessColumn(error)) throw error;
+    const rows = await db.select({
+      id: programAnnouncementsTable.id,
+      programId: programAnnouncementsTable.programId,
+      programName: programsTable.name,
+      kind: programAnnouncementsTable.kind,
+      title: programAnnouncementsTable.title,
+      body: programAnnouncementsTable.body,
+      scheduledFor: programAnnouncementsTable.scheduledFor,
+      createdAt: programAnnouncementsTable.createdAt,
+    }).from(programAnnouncementsTable)
+      .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .orderBy(desc(programAnnouncementsTable.scheduledFor), desc(programAnnouncementsTable.createdAt));
+    return rows.map(row => ({ ...row, businessId: null, businessName: null }));
+  }
+}
+
+router.get("/communications", async (_req, res): Promise<void> => {
   const now = new Date();
-  const announcements = rows.map(({ announcement, programName }) => ({
+  const announcements = (await listAnnouncementRows()).map(announcement => ({
     id: announcement.id,
     programId: announcement.programId,
-    programName,
+    businessId: announcement.businessId,
+    programName: announcement.programName,
+    businessName: announcement.businessName,
     kind: announcement.kind,
     title: announcement.title,
     body: announcement.body,
@@ -49,6 +99,11 @@ router.post("/communications", async (req, res): Promise<void> => {
     return;
   }
   const programId = input.programId ?? null;
+  const businessId = input.businessId ?? null;
+  if (businessId !== null && programId === null) {
+    res.status(400).json({ error: "Select a program before targeting one of its businesses." });
+    return;
+  }
   if (programId !== null) {
     const [program] = await db.select({ id: programsTable.id })
       .from(programsTable)
@@ -59,20 +114,55 @@ router.post("/communications", async (req, res): Promise<void> => {
       return;
     }
   }
+  let businessName: string | null = null;
+  if (businessId !== null) {
+    const [business] = await db.select({
+      id: businessesTable.id,
+      businessName: businessesTable.businessName,
+      programId: businessesTable.programId,
+    }).from(businessesTable)
+      .where(eq(businessesTable.id, businessId))
+      .limit(1);
+    if (!business || !businessBelongsToSelectedProgram(business.programId, programId)) {
+      res.status(400).json({ error: "Choose a business within the selected program." });
+      return;
+    }
+    businessName = business.businessName;
+  }
   const scheduledFor = input.scheduledFor ? new Date(input.scheduledFor) : new Date();
   if (!Number.isFinite(scheduledFor.getTime())) {
     res.status(400).json({ error: "Publication time must be a valid date and time." });
     return;
   }
   const staff = res.locals.staff as { id: number };
-  const [announcement] = await db.insert(programAnnouncementsTable).values({
+  let announcement;
+  try {
+    [announcement] = await db.insert(programAnnouncementsTable).values({
     programId,
+    ...(businessId === null ? {} : { businessId }),
     kind: input.kind,
     title,
     body,
     scheduledFor,
     createdByStaffId: staff.id,
-  }).returning();
+    }).returning({
+      id: programAnnouncementsTable.id,
+      programId: programAnnouncementsTable.programId,
+      kind: programAnnouncementsTable.kind,
+      title: programAnnouncementsTable.title,
+      body: programAnnouncementsTable.body,
+      scheduledFor: programAnnouncementsTable.scheduledFor,
+      createdAt: programAnnouncementsTable.createdAt,
+    });
+  } catch (error) {
+    if (businessId !== null && isMissingAnnouncementBusinessColumn(error)) {
+      res.status(503).json({
+        error: "Business-targeted messages require the business announcement database update.",
+      });
+      return;
+    }
+    throw error;
+  }
   const [program] = programId === null
     ? []
     : await db.select({ name: programsTable.name }).from(programsTable)
@@ -81,7 +171,9 @@ router.post("/communications", async (req, res): Promise<void> => {
   res.status(201).json(CreateAnnouncementResponse.parse({
     id: announcement.id,
     programId: announcement.programId,
+    businessId,
     programName: program?.name ?? null,
+    businessName,
     kind: announcement.kind,
     title: announcement.title,
     body: announcement.body,

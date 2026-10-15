@@ -10,6 +10,11 @@ import type { AnnouncementKind } from './announcementKind';
 export interface AnnouncementInput {
   /** @nullable */
   programId?: number | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  businessId?: number | null;
   kind: AnnouncementKind;
   /**
      * @minLength 3

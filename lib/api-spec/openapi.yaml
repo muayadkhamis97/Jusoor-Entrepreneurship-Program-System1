@@ -4454,6 +4454,8 @@ components:
         id: { type: integer }
         programId: { type: ["integer", "null"] }
         programName: { type: ["string", "null"] }
+        businessId: { type: ["integer", "null"] }
+        businessName: { type: ["string", "null"] }
         sessionId: { type: ["integer", "null"] }
         sessionTitle: { type: ["string", "null"] }
         sessionDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
@@ -4464,7 +4466,7 @@ components:
         scheduledFor: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         readAt: { type: ["string", "null"], format: date-time }
-      required: [id, programId, programName, sessionId, sessionTitle, sessionDate, recordingUrl, kind, title, body, scheduledFor, createdAt, readAt]
+      required: [id, programId, programName, businessId, businessName, sessionId, sessionTitle, sessionDate, recordingUrl, kind, title, body, scheduledFor, createdAt, readAt]
     ParticipantDashboard:
       type: object
       properties:
@@ -4604,17 +4606,20 @@ components:
         id: { type: integer }
         programId: { type: ["integer", "null"] }
         programName: { type: ["string", "null"] }
+        businessId: { type: ["integer", "null"] }
+        businessName: { type: ["string", "null"] }
         kind: { $ref: "#/components/schemas/AnnouncementKind" }
         title: { type: string }
         body: { type: string }
         scheduledFor: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         status: { type: string, enum: [scheduled, published] }
-      required: [id, programId, programName, kind, title, body, scheduledFor, createdAt, status]
+      required: [id, programId, programName, businessId, businessName, kind, title, body, scheduledFor, createdAt, status]
     AnnouncementInput:
       type: object
       properties:
         programId: { type: ["integer", "null"] }
+        businessId: { type: ["integer", "null"], minimum: 1 }
         kind: { $ref: "#/components/schemas/AnnouncementKind" }
         title: { type: string, minLength: 3, maxLength: 180 }
         body: { type: string, minLength: 5, maxLength: 5000 }

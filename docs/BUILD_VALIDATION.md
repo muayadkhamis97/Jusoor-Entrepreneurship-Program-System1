@@ -121,3 +121,21 @@ The shared surface now captures the opener once when opening, restores to it whe
 The browser check uses only a local synthetic fixture and Chromium; the copy/revoke examples contain synthetic values and do not call the API. It covers English and the existing Arabic discard prompt at a mobile viewport, plus desktop bounds. Authenticated dialogs were not rendered, and no screen reader was used. Actual signed-in Admin/participant behavior, other browser engines, external services, email, databases, production data, publishing, and deployment were not tested.
 
 The managed `artifacts/jusoor-program: web` workflow restarted successfully and Vite reported ready. A preview request for `/courses` rendered the public signed-out landing page because the browser has no authenticated staff session; therefore no authenticated dialog page was visually verified. The screenshot browser console showed the React DevTools information message and Clerk development-key warning, with no dialog/runtime error.
+
+## Business-targeted in-app communications (2026-10-15)
+
+The Admin Communications page can now publish or schedule an in-app message for all cohorts, one cohort, or one business team. Business choices are limited to the selected program. Every accepted participant linked to that same program/business can see the message; participants from another business or program are denied both listing and read-receipt access. Read state remains per participant. No email or external messaging provider is used.
+
+The schema change is additive: a nullable business target, a restrictive business foreign key, a check requiring a program for business-targeted messages, and an index for business/schedule lookups. The migration is intentionally **not applied**. Existing all-cohort/cohort messages continue to use the legacy schema; if the column is absent, existing reads fall back to the old projection and a business-specific send returns a clear unavailable response rather than broadening its audience. Apply the migration through the project's approved database migration process before enabling business-targeted sends against a live database.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| API tests | PASS | `pnpm run test:api`: 142 passed, 0 failed. Uses a synthetic database URL at `127.0.0.1:1`; it does not connect to an application database. |
+| API typecheck and production build | PASS | `pnpm --filter @workspace/api-server run typecheck` and `pnpm --filter @workspace/api-server run build` completed with exit code 0. |
+| Web typecheck | PASS | `pnpm --filter @workspace/jusoor-program run typecheck` completed with exit code 0. |
+| Web unit tests | PASS | `pnpm --filter @workspace/jusoor-program run test:unit`: 44 passed, 0 failed, including message target selection and Arabic translation coverage. |
+| Web production build | PASS | `PORT=5000 BASE_PATH=/jusoor-program pnpm --filter @workspace/jusoor-program run build` completed. Existing dropdown source-map warning and >500 kB chunk advisory remain; the main bundle is 893.89 kB minified (249.13 kB gzip). |
+| Migration review test | PASS | API test asserts additive column/FK/check/index and transaction markers and rejects destructive SQL tokens. This is a static check, not execution against PostgreSQL. |
+| `git diff --check` | PASS | No whitespace errors. |
+
+**Not verified:** the migration was not run; no development or production database was accessed. Authenticated Admin/participant browser behavior, visual rendering of the message form, email delivery, external providers, production data, publishing, and deployment were not tested. The preview browser has no signed-in Admin session, so it cannot render the protected Communications page.

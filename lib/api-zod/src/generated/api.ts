@@ -2441,6 +2441,8 @@ export const GetParticipantDashboardResponse = zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullable(),
   "programName": zod.string().nullable(),
+  "businessId": zod.number().int().nullable(),
+  "businessName": zod.string().nullable(),
   "sessionId": zod.number().int().nullable(),
   "sessionTitle": zod.string().nullable(),
   "sessionDate": zod.string().regex(getParticipantDashboardResponseAnnouncementsItemSessionDateRegExp).nullable(),
@@ -3327,6 +3329,8 @@ export const ListAnnouncementsResponseItem = zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullable(),
   "programName": zod.string().nullable(),
+  "businessId": zod.number().int().nullable(),
+  "businessName": zod.string().nullable(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string(),
   "body": zod.string(),
@@ -3340,6 +3344,7 @@ export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem
 /**
  * @summary Create a cohort update or reminder
  */
+
 export const createAnnouncementBodyTitleMin = 3;
 export const createAnnouncementBodyTitleMax = 180;
 
@@ -3350,6 +3355,7 @@ export const createAnnouncementBodyBodyMax = 5000;
 
 export const CreateAnnouncementBody = zod.object({
   "programId": zod.number().int().nullish(),
+  "businessId": zod.number().int().min(1).nullish(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string().min(createAnnouncementBodyTitleMin).max(createAnnouncementBodyTitleMax),
   "body": zod.string().min(createAnnouncementBodyBodyMin).max(createAnnouncementBodyBodyMax),
@@ -3360,6 +3366,8 @@ export const CreateAnnouncementResponse = zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullable(),
   "programName": zod.string().nullable(),
+  "businessId": zod.number().int().nullable(),
+  "businessName": zod.string().nullable(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string(),
   "body": zod.string(),

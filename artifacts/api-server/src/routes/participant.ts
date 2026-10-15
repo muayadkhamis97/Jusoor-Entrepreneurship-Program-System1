@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   AskTrainingQuestionBody,
   AskTrainingQuestionResponse,
@@ -55,11 +56,178 @@ import {
 } from "../lib/participant-recording-notices";
 import { participantBusinessTeamMembers } from "../lib/participantBusinessTeamAccess";
 import { getAdminInvitedApplicationIds } from "../lib/participantInvitations";
+import {
+  canParticipantAccessAnnouncement,
+  isMissingAnnouncementBusinessColumn,
+  isMissingBusinessMembershipTable,
+} from "../lib/announcement-targeting";
 
 const router: IRouter = Router();
 
 const isUndefinedRelation = (error: unknown): boolean =>
   Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
+
+const participantTargetBusinessTable = alias(businessesTable, "participant_target_business");
+
+async function getAcceptedParticipantBusinessPrograms(userId: string): Promise<Map<number, number>> {
+  try {
+    const rows = await db.select({
+      businessId: participantTargetBusinessTable.id,
+      programId: participantTargetBusinessTable.programId,
+    })
+      .from(applicationsTable)
+      .leftJoin(participantBusinessMembershipsTable, eq(
+        participantBusinessMembershipsTable.applicationId,
+        applicationsTable.id,
+      ))
+      .innerJoin(participantTargetBusinessTable, and(
+        eq(participantTargetBusinessTable.programId, applicationsTable.programId),
+        or(
+          and(
+            isNotNull(applicationsTable.businessId),
+            eq(participantTargetBusinessTable.id, applicationsTable.businessId),
+          ),
+          and(
+            isNull(applicationsTable.businessId),
+            eq(participantTargetBusinessTable.id, participantBusinessMembershipsTable.businessId),
+          ),
+        ),
+      ))
+      .where(and(
+        eq(applicationsTable.clerkUserId, userId),
+        eq(applicationsTable.status, "accepted"),
+      ));
+    return new Map(rows.map(({ businessId, programId }) => [businessId, programId]));
+  } catch (error) {
+    if (!isMissingBusinessMembershipTable(error)) throw error;
+    const rows = await db.select({
+      businessId: businessesTable.id,
+      programId: businessesTable.programId,
+    })
+      .from(applicationsTable)
+      .innerJoin(businessesTable, and(
+        eq(applicationsTable.businessId, businessesTable.id),
+        eq(applicationsTable.programId, businessesTable.programId),
+      ))
+      .where(and(
+        eq(applicationsTable.clerkUserId, userId),
+        eq(applicationsTable.status, "accepted"),
+      ));
+    return new Map(rows.map(({ businessId, programId }) => [businessId, programId]));
+  }
+}
+
+type ParticipantAnnouncementDbRow = {
+  announcement: {
+    id: number;
+    programId: number | null;
+    businessId: number | null;
+    sessionId: number | null;
+    recordingVersion: number | null;
+    kind: string;
+    title: string;
+    body: string;
+    scheduledFor: Date;
+    createdAt: Date;
+  };
+  programName: string | null;
+  businessName: string | null;
+  readAt: Date | null;
+  sessionId: number | null;
+  recordingVersion: number | null;
+  sessionProgramId: number | null;
+  currentRecordingVersion: number | null;
+  sessionTitle: string | null;
+  sessionDate: string | null;
+  recordingUrl: string | null;
+};
+
+async function listParticipantAnnouncementRows(
+  userId: string,
+  acceptedProgramIds: number[],
+): Promise<ParticipantAnnouncementDbRow[]> {
+  try {
+    return await db.select({
+      announcement: {
+        id: programAnnouncementsTable.id,
+        programId: programAnnouncementsTable.programId,
+        businessId: programAnnouncementsTable.businessId,
+        sessionId: programAnnouncementsTable.sessionId,
+        recordingVersion: programAnnouncementsTable.recordingVersion,
+        kind: programAnnouncementsTable.kind,
+        title: programAnnouncementsTable.title,
+        body: programAnnouncementsTable.body,
+        scheduledFor: programAnnouncementsTable.scheduledFor,
+        createdAt: programAnnouncementsTable.createdAt,
+      },
+      programName: programsTable.name,
+      businessName: businessesTable.businessName,
+      readAt: announcementReceiptsTable.readAt,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      sessionProgramId: sessionsTable.programId,
+      currentRecordingVersion: sessionsTable.recordingVersion,
+      sessionTitle: sessionsTable.title,
+      sessionDate: sessionsTable.scheduledDate,
+      recordingUrl: sessionsTable.recordingUrl,
+    }).from(programAnnouncementsTable)
+      .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(businessesTable, and(
+        eq(programAnnouncementsTable.businessId, businessesTable.id),
+        eq(programAnnouncementsTable.programId, businessesTable.programId),
+      ))
+      .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
+      .leftJoin(announcementReceiptsTable, and(
+        eq(announcementReceiptsTable.announcementId, programAnnouncementsTable.id),
+        eq(announcementReceiptsTable.clerkUserId, userId),
+      ))
+      .where(and(
+        lte(programAnnouncementsTable.scheduledFor, new Date()),
+        or(isNull(programAnnouncementsTable.programId), inArray(programAnnouncementsTable.programId, acceptedProgramIds)),
+      ))
+      .orderBy(desc(programAnnouncementsTable.scheduledFor));
+  } catch (error) {
+    if (!isMissingAnnouncementBusinessColumn(error)) throw error;
+    const rows = await db.select({
+      announcement: {
+        id: programAnnouncementsTable.id,
+        programId: programAnnouncementsTable.programId,
+        sessionId: programAnnouncementsTable.sessionId,
+        recordingVersion: programAnnouncementsTable.recordingVersion,
+        kind: programAnnouncementsTable.kind,
+        title: programAnnouncementsTable.title,
+        body: programAnnouncementsTable.body,
+        scheduledFor: programAnnouncementsTable.scheduledFor,
+        createdAt: programAnnouncementsTable.createdAt,
+      },
+      programName: programsTable.name,
+      readAt: announcementReceiptsTable.readAt,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      sessionProgramId: sessionsTable.programId,
+      currentRecordingVersion: sessionsTable.recordingVersion,
+      sessionTitle: sessionsTable.title,
+      sessionDate: sessionsTable.scheduledDate,
+      recordingUrl: sessionsTable.recordingUrl,
+    }).from(programAnnouncementsTable)
+      .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
+      .leftJoin(announcementReceiptsTable, and(
+        eq(announcementReceiptsTable.announcementId, programAnnouncementsTable.id),
+        eq(announcementReceiptsTable.clerkUserId, userId),
+      ))
+      .where(and(
+        lte(programAnnouncementsTable.scheduledFor, new Date()),
+        or(isNull(programAnnouncementsTable.programId), inArray(programAnnouncementsTable.programId, acceptedProgramIds)),
+      ))
+      .orderBy(desc(programAnnouncementsTable.scheduledFor));
+    return rows.map(row => ({
+      ...row,
+      announcement: { ...row.announcement, businessId: null },
+      businessName: null,
+    }));
+  }
+}
 
 router.get("/business-teams", async (_req, res): Promise<void> => {
   const participant = res.locals.participant as ParticipantAccess | undefined;
@@ -663,32 +831,13 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     .filter(({ application }) => application.status === "accepted")
     .map(({ application }) => application.programId))];
   const businessIds = eligible.flatMap(({ business }) => business ? [business.id] : []);
+  const acceptedProgramIdSet = new Set(acceptedProgramIds);
+  const acceptedBusinessPrograms = await getAcceptedParticipantBusinessPrograms(participant.userId);
   const announcementRows = acceptedProgramIds.length
-    ? await db.select({
-      announcement: programAnnouncementsTable,
-      programName: programsTable.name,
-      readAt: announcementReceiptsTable.readAt,
-      sessionId: programAnnouncementsTable.sessionId,
-      recordingVersion: programAnnouncementsTable.recordingVersion,
-      sessionProgramId: sessionsTable.programId,
-      currentRecordingVersion: sessionsTable.recordingVersion,
-      sessionTitle: sessionsTable.title,
-      sessionDate: sessionsTable.scheduledDate,
-      recordingUrl: sessionsTable.recordingUrl,
-    }).from(programAnnouncementsTable)
-      .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
-      .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
-      .leftJoin(announcementReceiptsTable, and(
-        eq(announcementReceiptsTable.announcementId, programAnnouncementsTable.id),
-        eq(announcementReceiptsTable.clerkUserId, participant.userId),
-      ))
-      .where(and(
-        lte(programAnnouncementsTable.scheduledFor, new Date()),
-        or(isNull(programAnnouncementsTable.programId), inArray(programAnnouncementsTable.programId, acceptedProgramIds)),
-      ))
-      .orderBy(desc(programAnnouncementsTable.scheduledFor))
+    ? await listParticipantAnnouncementRows(participant.userId, acceptedProgramIds)
     : [];
   const activeAnnouncementRows = announcementRows.filter((row) => {
+    if (!canParticipantAccessAnnouncement(row.announcement, acceptedProgramIdSet, acceptedBusinessPrograms)) return false;
     if (row.sessionId === null) return true;
     return isCurrentRecordingNotice(
       {
@@ -859,6 +1008,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   const announcements = activeAnnouncementRows.map(({
     announcement,
     programName,
+    businessName,
     readAt,
     sessionId,
     sessionTitle,
@@ -868,6 +1018,8 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     id: announcement.id,
     programId: announcement.programId,
     programName,
+    businessId: announcement.businessId,
+    businessName,
     kind: announcement.kind,
     title: announcement.title,
     body: announcement.body,
@@ -890,8 +1042,39 @@ router.post("/announcements/:id/read", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Announcement ID must be a positive integer." });
     return;
   }
-  const [announcement] = await db.select().from(programAnnouncementsTable)
-    .where(eq(programAnnouncementsTable.id, announcementId)).limit(1);
+  type ReadableAnnouncement = {
+    id: number;
+    programId: number | null;
+    businessId: number | null;
+    sessionId: number | null;
+    recordingVersion: number | null;
+    scheduledFor: Date;
+  };
+  let announcement: ReadableAnnouncement | undefined;
+  try {
+    [announcement] = await db.select({
+      id: programAnnouncementsTable.id,
+      programId: programAnnouncementsTable.programId,
+      businessId: programAnnouncementsTable.businessId,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      scheduledFor: programAnnouncementsTable.scheduledFor,
+    }).from(programAnnouncementsTable)
+      .where(eq(programAnnouncementsTable.id, announcementId)).limit(1);
+  } catch (error) {
+    if (!isMissingAnnouncementBusinessColumn(error)) throw error;
+    const [legacyAnnouncement] = await db.select({
+      id: programAnnouncementsTable.id,
+      programId: programAnnouncementsTable.programId,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      scheduledFor: programAnnouncementsTable.scheduledFor,
+    }).from(programAnnouncementsTable)
+      .where(eq(programAnnouncementsTable.id, announcementId)).limit(1);
+    announcement = legacyAnnouncement
+      ? { ...legacyAnnouncement, businessId: null }
+      : undefined;
+  }
   if (!announcement) {
     res.status(404).json({ error: "Announcement not found." });
     return;
@@ -925,9 +1108,10 @@ router.post("/announcements/:id/read", async (req, res): Promise<void> => {
       eq(applicationsTable.status, "accepted"),
     ));
   const programIds = new Set(acceptedPrograms.map((item) => item.programId));
+  const acceptedBusinessPrograms = await getAcceptedParticipantBusinessPrograms(participant.userId);
   if (
     !programIds.size ||
-    (announcement.programId !== null && !programIds.has(announcement.programId)) ||
+    !canParticipantAccessAnnouncement(announcement, programIds, acceptedBusinessPrograms) ||
     (announcement.sessionId !== null && !canParticipantAccessRecordingNotice({
       sessionId: announcement.sessionId,
       programId: announcement.programId,

@@ -14,6 +14,10 @@ export interface ParticipantAnnouncement {
   /** @nullable */
   programName: string | null;
   /** @nullable */
+  businessId: number | null;
+  /** @nullable */
+  businessName: string | null;
+  /** @nullable */
   sessionId: number | null;
   /** @nullable */
   sessionTitle: string | null;

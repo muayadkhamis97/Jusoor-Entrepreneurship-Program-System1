@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   pgTable,
@@ -7,6 +9,7 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { businessesTable } from "./businesses";
 import { programsTable } from "./programs";
 import { sessionsTable } from "./sessions";
 import { staffMembersTable } from "./staff";
@@ -18,6 +21,7 @@ export const programAnnouncementsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     programId: integer("program_id").references(() => programsTable.id, { onDelete: "restrict" }),
+    businessId: integer("business_id").references(() => businessesTable.id, { onDelete: "restrict" }),
     sessionId: integer("session_id").references(() => sessionsTable.id, { onDelete: "cascade" }),
     recordingVersion: integer("recording_version"),
     kind: text("kind").notNull().default("update"),
@@ -28,7 +32,12 @@ export const programAnnouncementsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    check(
+      "jusoor_program_announcements_business_requires_program_check",
+      sql`${table.businessId} IS NULL OR ${table.programId} IS NOT NULL`,
+    ),
     index("jusoor_program_announcements_program_idx").on(table.programId, table.scheduledFor),
+    index("jusoor_program_announcements_business_idx").on(table.businessId, table.scheduledFor),
     index("jusoor_program_announcements_scheduled_idx").on(table.scheduledFor),
     uniqueIndex("jusoor_program_announcements_session_recording_version_unique")
       .on(table.sessionId, table.recordingVersion),
