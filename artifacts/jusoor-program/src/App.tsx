@@ -46,7 +46,7 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
 import { participantSignInInstructions } from './participant-dashboard-helpers';
-import { trackEvent } from './lib/analytics';
+import { trackEvent, trackZoomFailure } from './lib/analytics';
 import { brandedAdminRoleLabel, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
 import { downloadProgramLifecycleCsv } from './program-lifecycle-export';
@@ -525,6 +525,8 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
     if (!zoomCallbackResult) return;
     if (coordinator && zoomCallbackResult === 'connected') {
       trackEvent('zoom_connection_success');
+    } else if (coordinator && zoomCallbackResult === 'error') {
+      trackZoomFailure({ name: 'zoom_connection_failure', stage: 'authorization_callback' });
     }
     const url = new URL(window.location.href);
     url.searchParams.delete('zoom');
@@ -567,7 +569,10 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
     setZoomActionMessage(null);
     connectZoom.mutate({ data: {} }, {
       onSuccess: response => window.location.assign(response.authorizationUrl),
-      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not start Zoom authorization.') }),
+      onError: error => {
+        trackZoomFailure({ name: 'zoom_connection_failure', stage: 'authorization_start' });
+        setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not start Zoom authorization.') });
+      },
     });
   };
   const disconnectZoomAccount = () => disconnectZoom.mutate({ data: {} }, {
@@ -576,7 +581,10 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
       setZoomActionMessage({ tone: 'good', text: 'Zoom was disconnected. Existing session links and recordings remain available.' });
       refreshZoomViews();
     },
-    onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not disconnect Zoom.') }),
+    onError: error => {
+      trackZoomFailure({ name: 'zoom_connection_failure', stage: 'disconnect' });
+      setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not disconnect Zoom.') });
+    },
   });
   const manageMeeting = (session: Session) => {
     setZoomActionMessage(null);
@@ -587,11 +595,20 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
         setZoomActionMessage({ tone: 'good', kind: 'meeting-saved', title: updated.title });
         refreshZoomViews();
       },
-      onError: error => setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not create a Zoom meeting.') }),
+      onError: error => {
+        trackZoomFailure({ name: 'zoom_meeting_save_failure', action });
+        setZoomActionMessage({ tone: 'bad', text: apiErrorMessage(error, 'Could not create a Zoom meeting.') });
+      },
     });
   };
   const retryRecordingAlertEmail = (id: number) => retryRecordingEmailMutation.mutate({ id }, {
-    onSuccess: () => void recordingAlertsQuery.refetch(),
+    onSuccess: response => {
+      if (response.emailStatus === 'failed') {
+        trackZoomFailure({ name: 'zoom_recording_alert_retry_failure' });
+      }
+      void recordingAlertsQuery.refetch();
+    },
+    onError: () => trackZoomFailure({ name: 'zoom_recording_alert_retry_failure' }),
   });
   const zoomNotice = zoomCallbackResult === 'connected'
     ? 'Zoom authorization is complete.'
