@@ -26,6 +26,7 @@ import type { StaffAccess } from "../middlewares/staffAccess";
 import { getZoomAttendanceReport } from "../lib/zoom-attendance";
 import { canTrainerAccessSessionQuestion } from "../lib/trainer-access";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { filterAssignedTrainerPrograms } from "../lib/trainer-programs";
 
 const router: IRouter = Router();
 
@@ -45,10 +46,16 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
   const programIds = await getAssignedProgramIds(staff);
   if (!programIds.length) {
-    res.json(GetTrainerDashboardResponse.parse({ sessions: [], assignments: [], submissions: [], questions: [] }));
+    res.json(GetTrainerDashboardResponse.parse({ programs: [], sessions: [], assignments: [], submissions: [], questions: [] }));
     return;
   }
 
+  const programs = await db.select({
+    id: programsTable.id,
+    name: programsTable.name,
+  }).from(programsTable)
+    .where(inArray(programsTable.id, programIds))
+    .orderBy(asc(programsTable.name));
   const sessions = await db.select().from(sessionsTable)
     .where(eq(sessionsTable.trainerStaffId, staff.id))
     .orderBy(asc(sessionsTable.scheduledDate), asc(sessionsTable.startTime));
@@ -110,7 +117,13 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
   const visibleQuestions = questions.filter(({ sessionId }) =>
     canTrainerAccessSessionQuestion(sessionId, assignedSessionIds),
   );
-  res.json(GetTrainerDashboardResponse.parse({ sessions, assignments, submissions, questions: visibleQuestions }));
+  res.json(GetTrainerDashboardResponse.parse({
+    programs: filterAssignedTrainerPrograms(programIds, programs),
+    sessions,
+    assignments,
+    submissions,
+    questions: visibleQuestions,
+  }));
 });
 
 router.get("/attendance", async (_req, res): Promise<void> => {

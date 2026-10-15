@@ -10,6 +10,12 @@ const sourceRoot = path.resolve(import.meta.dirname);
 const intentionallyEnglishExamples = new Set([
   'https://…',
   'https://drive.google.com/file/d/…/view',
+  'Jusoor',
+  'J',
+  'ZOOM_CLIENT_ID',
+  'ZOOM_CLIENT_SECRET',
+  'meeting:write:meeting',
+  'recording.completed',
 ]);
 
 function addStaticTranslationArgument(node: ts.Node, keys: Set<string>) {
@@ -50,6 +56,72 @@ function addNamedObjectValues(source: ts.SourceFile, name: string, keys: Set<str
             ts.isNoSubstitutionTemplateLiteral(property.initializer))
         ) {
           keys.add(property.initializer.text);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+}
+
+function addObjectFieldTextValues(
+  source: ts.SourceFile,
+  name: string,
+  fieldNames: readonly string[],
+  keys: Set<string>,
+) {
+  function addStringLiterals(node: ts.Node) {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      keys.add(node.text);
+    }
+    ts.forEachChild(node, addStringLiterals);
+  }
+
+  function visit(node: ts.Node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name &&
+      node.initializer
+    ) {
+      function visitProperties(value: ts.Node) {
+        if (ts.isPropertyAssignment(value)) {
+          const fieldName = value.name.getText(source).replace(/^['"]|['"]$/g, '');
+          if (fieldNames.includes(fieldName)) addStringLiterals(value.initializer);
+          else if (ts.isObjectLiteralExpression(value.initializer) || ts.isArrayLiteralExpression(value.initializer)) {
+            visitProperties(value.initializer);
+          }
+        } else if (ts.isObjectLiteralExpression(value)) {
+          value.properties.forEach(visitProperties);
+        } else if (ts.isArrayLiteralExpression(value)) {
+          value.elements.forEach(visitProperties);
+        }
+      }
+      visitProperties(node.initializer);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+}
+
+function addComponentPropStrings(
+  source: ts.SourceFile,
+  componentName: string,
+  propNames: readonly string[],
+  keys: Set<string>,
+) {
+  function visit(node: ts.Node) {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      ts.isIdentifier(node.tagName) &&
+      node.tagName.text === componentName
+    ) {
+      for (const attribute of node.attributes.properties) {
+        if (!ts.isJsxAttribute(attribute) || !propNames.includes(attribute.name.getText(source))) continue;
+        if (!attribute.initializer) continue;
+        if (ts.isStringLiteral(attribute.initializer)) keys.add(attribute.initializer.text);
+        else if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+          addStaticTranslationArgument(attribute.initializer.expression, keys);
         }
       }
     }
@@ -156,7 +228,15 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
   addNamedObjectValues(source, 'stageNames', keys);
   addNamedObjectValues(source, 'statusWords', keys);
 
+  if (fileName === 'role-access.tsx') {
+    addObjectFieldTextValues(source, 'roles', ['title', 'kind', 'summary'], keys);
+    addObjectFieldTextValues(source, 'matrix', ['area', 'detail'], keys);
+    addObjectFieldTextValues(source, 'previewData', ['headline', 'note', 'items', 'actions'], keys);
+  }
+
   if (fileName === 'App.tsx') {
+    addComponentPropStrings(source, 'PageHeading', ['kicker', 'title', 'summary'], keys);
+    addComponentPropStrings(source, 'EmptyState', ['title', 'body'], keys);
     for (const key of [
       'Food & agriculture',
       'Circular economy',
@@ -194,11 +274,53 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
   }
 }
 
+function collectRawJsxText(fileName: string): string[] {
+  const text = readFileSync(path.join(sourceRoot, fileName), 'utf8');
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const raw: string[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isJsxText(node)) {
+      const value = node.text.replace(/\s+/g, ' ').trim();
+      if (/[A-Za-z]/.test(value) && !intentionallyEnglishExamples.has(value)) raw.push(value);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return raw;
+}
+
+function collectRawJsxTextInFunctions(fileName: string, functionNames: readonly string[]): string[] {
+  const text = readFileSync(path.join(sourceRoot, fileName), 'utf8');
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const raw: string[] = [];
+  function scanFunction(node: ts.Node, name: string) {
+    if (ts.isJsxText(node)) {
+      const value = node.text.replace(/\s+/g, ' ').trim();
+      if (/[A-Za-z]/.test(value) && !intentionallyEnglishExamples.has(value)) raw.push(`${name}: ${value}`);
+    }
+    ts.forEachChild(node, child => scanFunction(child, name));
+  }
+  function visit(node: ts.Node) {
+    if (
+      ts.isFunctionDeclaration(node) &&
+      node.name &&
+      functionNames.includes(node.name.text)
+    ) {
+      scanFunction(node, node.name.text);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return raw;
+}
+
 test('applicant, coordinator, and profile flow strings have Arabic translations', () => {
   const keys = new Set<string>();
   collectFlowTranslationKeys('intake-surfaces.tsx', keys);
   collectFlowTranslationKeys('App.tsx', keys);
   collectFlowTranslationKeys('profile-surfaces.tsx', keys);
+  collectFlowTranslationKeys('role-surfaces.tsx', keys);
   collectFlowTranslationKeys('analytics-surfaces.tsx', keys);
   collectFlowTranslationKeys('session-interactions.tsx', keys);
   collectFlowTranslationKeys('role-access.tsx', keys);
@@ -244,12 +366,36 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
     'Your answer',
     'We could not load your business team.',
     'An application for this email and program already exists. Sign in with that email to track it, or contact the program team.',
+    'Could not create a Zoom meeting.',
+    'Could not disconnect Zoom.',
+    'Could not start Zoom authorization.',
+    'Trainers and participants can now use its session link.',
+    'Zoom authorization is complete.',
+    'Zoom authorization was cancelled.',
+    'Zoom could not be connected. Check the Zoom app settings and try again.',
+    'Zoom meeting saved for',
+    'Zoom was disconnected. Existing session links and recordings remain available.',
   ].forEach(key => keys.add(key));
   const missing = [...keys]
     .filter(key => !hasArabicTranslation(key) && !intentionallyEnglishExamples.has(key))
     .sort();
 
   assert.deepEqual(missing, [], `Add Arabic translations for: ${missing.join(', ')}`);
+});
+
+test('fixed copy in role-access and communication screens is translated; dynamic text stays out of the scan', () => {
+  const untranslated = ['role-access.tsx', 'communications-surfaces.tsx']
+    .flatMap(file => collectRawJsxText(file).map(text => `${file}: ${text}`));
+  untranslated.push(
+    ...collectRawJsxTextInFunctions('intake-surfaces.tsx', ['EnrollmentCard', 'ParticipantLearning']),
+    ...collectRawJsxTextInFunctions('role-surfaces.tsx', ['TrainerDashboardPage', 'RoleNotFound']),
+    ...collectRawJsxTextInFunctions('App.tsx', ['SessionsPage', 'SupportPage', 'PitchesPage']),
+  );
+  assert.deepEqual(untranslated, [], `Wrap fixed UI copy in t(): ${untranslated.join(' | ')}`);
+
+  const participantProvidedAnswer = 'I need help choosing my market';
+  assert.equal(translate(participantProvidedAnswer, 'ar'), participantProvidedAnswer);
+  assert.equal(hasArabicTranslation(participantProvidedAnswer), false);
 });
 
 test('Arabic translation and English fallback preserve dynamic and example content', () => {

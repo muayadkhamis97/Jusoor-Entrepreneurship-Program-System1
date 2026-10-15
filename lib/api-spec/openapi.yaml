@@ -4719,6 +4719,14 @@ components:
     TrainerDashboard:
       type: object
       properties:
+        programs:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+            required: [id, name]
         sessions:
           type: array
           items: { $ref: "#/components/schemas/Session" }
@@ -4731,7 +4739,7 @@ components:
         questions:
           type: array
           items: { $ref: "#/components/schemas/TrainerQuestion" }
-      required: [sessions, assignments, submissions, questions]
+      required: [programs, sessions, assignments, submissions, questions]
     TrainerAttendanceReport:
       type: object
       properties:

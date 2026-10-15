@@ -1738,6 +1738,11 @@ export type TrainerQuestion = ParticipantQuestion & {
   programName: string;
 };
 
+export type TrainerDashboardProgramsItem = {
+  id: number;
+  name: string;
+};
+
 export type SessionStatus = typeof SessionStatus[keyof typeof SessionStatus];
 
 
@@ -1780,6 +1785,7 @@ export interface Session {
 }
 
 export interface TrainerDashboard {
+  programs: TrainerDashboardProgramsItem[];
   sessions: Session[];
   assignments: TrainingAssignment[];
   submissions: TrainerSubmission[];

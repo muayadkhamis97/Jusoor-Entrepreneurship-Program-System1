@@ -4,6 +4,9 @@ import test from 'node:test';
 
 const indexCss = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
 const languageCss = readFileSync(new URL('./language.css', import.meta.url), 'utf8');
+const analyticsCss = readFileSync(new URL('./analytics.css', import.meta.url), 'utf8');
+const roleAccessCss = readFileSync(new URL('./role-access.css', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const teamAssignments = readFileSync(new URL('./team-assignments.tsx', import.meta.url), 'utf8');
 const roleAccess = readFileSync(new URL('./role-access.tsx', import.meta.url), 'utf8');
 const intakeSurfaces = readFileSync(new URL('./intake-surfaces.tsx', import.meta.url), 'utf8');
@@ -53,7 +56,22 @@ test('functional controls retain mobile text sizing and reduced-motion support',
 test('Arabic font and direction support remain explicit in the style contract', () => {
   assert.match(indexCss, /Noto Sans Arabic/);
   assert.match(languageCss, /lang="ar"/);
+  assert.match(languageCss, /html\[dir="rtl"\]\s+\.analytics-page \.ana-table\s*\{\s*direction:\s*rtl/);
+  assert.match(roleAccessCss, /padding-inline-start/);
+  assert.match(roleAccessCss, /text-align:start/);
   assert.match(languageCss, /lucide-arrow-up-right\s*\{\s*transform:\s*scaleX\(-1\)/);
+});
+
+test('small fixed UI text and placeholders use readable contrast and minimum sizing', () => {
+  assert.match(indexCss, /--ui-readable-min:\s*0\.75rem/);
+  assert.match(indexCss, /font-size:\s*max\(var\(--ui-readable-min\),\s*0\.9em\)/);
+  assert.match(indexCss, /::placeholder\s*\{\s*color:\s*hsl\(var\(--muted-foreground\)\);\s*opacity:\s*1/);
+  assert.match(indexCss, /\.participant-wrap :is\([^]*\.participant-entry-links a/);
+  assert.match(indexCss, /\.analytics-page :is\([^]*\.ana-panel-foot/);
+});
+
+test('session date labels select an Arabic locale when Arabic is active', () => {
+  assert.match(appSource, /toLocaleDateString\(currentLanguage\(\) === 'ar' \? 'ar-JO' : 'en'/);
 });
 
 test('dense assignment tables expose a keyboard-focusable labelled scroll region', () => {

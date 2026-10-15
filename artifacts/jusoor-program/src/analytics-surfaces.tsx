@@ -406,38 +406,38 @@ export function ProgramAnalyticsPage() {
 
         <section className="ana-chart-grid">
           <article className="ana-panel ana-panel-stage">
-            <div className="ana-panel-head"><div><span className="ana-eyebrow">FOUNDER JOURNEY</span><h3>Stage distribution</h3><p>Businesses grouped by their current recorded stage.</p></div><ExportButton rows={stageRows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, businesses: r.count }))} filename="stage-distribution.csv" /></div>
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">{t('FOUNDER JOURNEY')}</span><h3>{t('Stage distribution')}</h3><p>{t('Businesses grouped by their current recorded stage.')}</p></div><ExportButton rows={stageRows.map((r) => ({ stage: t(STAGE_LABELS[r.stage] ?? r.stage), businesses: r.count }))} filename="stage-distribution.csv" /></div>
             {loading ? <div className="ana-chart-skeleton" /> : stageRows.length ? <div className="ana-stage-list">{stageRows.map((row, index) => {
               const maximum = Math.max(...stageRows.map((item) => item.count), 1);
-              return <div className="ana-stage-row" key={row.stage}><span className="ana-stage-index">0{index + 1}</span><span className="ana-stage-name">{STAGE_LABELS[row.stage] ?? row.stage}</span><span className="ana-stage-bar"><i style={{ width: `${Math.max(3, row.count / maximum * 100)}%` }} /></span><b>{fmt(row.count)}</b></div>;
-            })}</div> : <div className="ana-inline-empty"><Activity size={18} /><span>No stage records for this program.</span></div>}
-            <div className="ana-panel-foot">Source: current business stage records</div>
+              return <div className="ana-stage-row" key={row.stage}><span className="ana-stage-index">0{index + 1}</span><span className="ana-stage-name">{t(STAGE_LABELS[row.stage] ?? row.stage)}</span><span className="ana-stage-bar"><i style={{ width: `${Math.max(3, row.count / maximum * 100)}%` }} /></span><b>{fmt(row.count)}</b></div>;
+            })}</div> : <div className="ana-inline-empty"><Activity size={18} /><span>{t('No stage records for this program.')}</span></div>}
+            <div className="ana-panel-foot">{t('Source: current business stage records')}</div>
           </article>
           <article className="ana-panel ana-panel-trend">
-            <div className="ana-panel-head"><div><span className="ana-eyebrow">ATTENDANCE RECORDS</span><h3>Participation over time</h3><p>Recorded present, absent and excused marks by period.</p></div><ExportButton rows={trendRows.map((row) => ({ period: row.period, present: row.present, absent: row.absent, excused: row.excused }))} filename="attendance-trend.csv" /></div>
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">{t('ATTENDANCE RECORDS')}</span><h3>{t('Participation over time')}</h3><p>{t('Recorded present, absent and excused marks by period.')}</p></div><ExportButton rows={trendRows.map((row) => ({ period: row.period, present: row.present, absent: row.absent, excused: row.excused }))} filename="attendance-trend.csv" /></div>
             {loading ? <div className="ana-chart-skeleton" /> : hasAttendanceData ? <div className="ana-chart"><ResponsiveContainer width="100%" height={230} debounce={0}><AreaChart data={trendRows} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 5" stroke={chartGrid} vertical={false} /><XAxis dataKey="period" tick={{ fontSize: 11, fill: chartTicks }} stroke={chartGrid} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: chartTicks }} stroke="transparent" axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip isAnimationActive={false} contentStyle={{ borderRadius: 8, borderColor: chartGrid, background: isDark ? "#1c302d" : "#fffdf7", color: isDark ? "#e8eee9" : "#283a36", fontSize: 12 }} />
-               <Area type="monotone" dataKey="present" name="Present" stackId="attendance" stroke={COLORS.teal} fill={COLORS.teal} fillOpacity={.22} strokeWidth={2.3} isAnimationActive={false} />
-               <Area type="monotone" dataKey="absent" name="Absent" stackId="attendance" stroke={COLORS.coral} fill={COLORS.coral} fillOpacity={.18} strokeWidth={2} isAnimationActive={false} />
-               <Area type="monotone" dataKey="excused" name="Excused" stackId="attendance" stroke={COLORS.gold} fill={COLORS.gold} fillOpacity={.16} strokeWidth={1.8} isAnimationActive={false} />
-            </AreaChart></ResponsiveContainer><div className="ana-legend"><span><i className="legend-present" />Present</span><span><i className="legend-absent" />Absent</span><span><i className="legend-excused" />Excused</span></div></div> : <div className="ana-inline-empty"><Activity size={18} /><span>No attendance data in this date range.</span></div>}
-            <div className="ana-panel-foot">Missing attendance is not counted as absent.</div>
+                <Area type="monotone" dataKey="present" name={t('Present')} stackId="attendance" stroke={COLORS.teal} fill={COLORS.teal} fillOpacity={.22} strokeWidth={2.3} isAnimationActive={false} />
+                <Area type="monotone" dataKey="absent" name={t('Absent')} stackId="attendance" stroke={COLORS.coral} fill={COLORS.coral} fillOpacity={.18} strokeWidth={2} isAnimationActive={false} />
+                <Area type="monotone" dataKey="excused" name={t('Excused')} stackId="attendance" stroke={COLORS.gold} fill={COLORS.gold} fillOpacity={.16} strokeWidth={1.8} isAnimationActive={false} />
+             </AreaChart></ResponsiveContainer><div className="ana-legend"><span><i className="legend-present" />{t('Present')}</span><span><i className="legend-absent" />{t('Absent')}</span><span><i className="legend-excused" />{t('Excused')}</span></div></div> : <div className="ana-inline-empty"><Activity size={18} /><span>{t('No attendance data in this date range.')}</span></div>}
+             <div className="ana-panel-foot">{t('Missing attendance is not counted as absent.')}</div>
           </article>
         </section>
 
         <section className="ana-panel ana-engagement">
-          <div className="ana-panel-head ana-engagement-head"><div><span className="ana-eyebrow">FOUNDER-LEVEL SIGNALS</span><h3>Engagement &amp; progress</h3><p>Activity captured inside the selected date window.</p></div>
-            <div className="ana-eng-summary"><b>{loading ? "—" : fmt(engagementRows.length)}</b><span>business records</span></div>
+          <div className="ana-panel-head ana-engagement-head"><div><span className="ana-eyebrow">{t('FOUNDER-LEVEL SIGNALS')}</span><h3>{t('Engagement & progress')}</h3><p>{t('Activity captured inside the selected date window.')}</p></div>
+            <div className="ana-eng-summary"><b>{loading ? "—" : fmt(engagementRows.length)}</b><span>{t('business records')}</span></div>
             <ExportButton rows={engagementRows.map((person) => ({ business: person.businessName, stage: STAGE_LABELS[person.stage] ?? person.stage, sessionsAttended: person.sessionsAttended, sessionsMarked: person.sessionsMarked, attendanceRate: person.attendanceRate == null ? "No marks" : `${person.attendanceRate.toFixed(1)}%`, assignmentsSubmitted: person.assignmentsSubmitted, assignmentsAvailable: person.assignmentsAvailable, questionsAsked: person.questionsAsked, supportEngagements: person.supportEngagements, lastActivityAt: person.lastActivityAt ?? "No recorded activity" }))} filename="founder-engagement.csv" />
           </div>
-          {loading ? <div className="ana-table-skeleton"><i /><i /><i /><i /></div> : engagementRows.length ? <div className="ana-table-scroll"><table className="ana-table"><thead><tr><th>Business</th><th>Current stage</th><th>Sessions</th><th>Attendance</th><th>Assignments</th><th>Questions</th><th>Support</th><th>Last activity</th></tr></thead><tbody>{engagementRows.map((person) => <tr key={person.businessId}>
+           {loading ? <div className="ana-table-skeleton"><i /><i /><i /><i /></div> : engagementRows.length ? <div className="ana-table-scroll"><table className="ana-table"><thead><tr><th>{t('Business')}</th><th>{t('Current stage')}</th><th>{t('Sessions')}</th><th>{t('Attendance')}</th><th>{t('Assignments')}</th><th>{t('Questions')}</th><th>{t('Support')}</th><th>{t('Last activity')}</th></tr></thead><tbody>{engagementRows.map((person) => <tr key={person.businessId}>
             <td><span className="ana-business"><i>{person.businessName.slice(0, 1).toUpperCase()}</i><b>{person.businessName}</b></span></td>
-            <td><span className="ana-stage-chip">{STAGE_LABELS[person.stage] ?? person.stage}</span></td><td>{fmt(person.sessionsAttended)} <span className="ana-table-muted">/ {fmt(person.sessionsMarked)} marked</span></td>
-            <td>{person.attendanceRate == null ? <span className="ana-missing">No marks</span> : <span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(person.attendanceRate, 100))}%` } as React.CSSProperties} />{person.attendanceRate.toFixed(0)}%</span>}</td>
-            <td>{fmt(person.assignmentsSubmitted)} <span className="ana-table-muted">/ {fmt(person.assignmentsAvailable)}</span></td><td>{fmt(person.questionsAsked)}</td><td>{fmt(person.supportEngagements)}</td><td>{person.lastActivityAt ? dateLabel(person.lastActivityAt.slice(0, 10)) : <span className="ana-missing">No recent activity</span>}</td>
-          </tr>)}</tbody></table></div> : <div className="ana-inline-empty"><Users size={18} /><span>No founder activity records match these filters.</span></div>}
-          <div className="ana-panel-foot">A dash means the source contains no record for that metric; it is not treated as zero performance.</div>
+             <td><span className="ana-stage-chip">{t(STAGE_LABELS[person.stage] ?? person.stage)}</span></td><td>{fmt(person.sessionsAttended)} <span className="ana-table-muted">/ {fmt(person.sessionsMarked)} {t('marked')}</span></td>
+             <td>{person.attendanceRate == null ? <span className="ana-missing">{t('No marks')}</span> : <span className="ana-rate"><i style={{ "--rate-width": `${Math.max(0, Math.min(person.attendanceRate, 100))}%` } as React.CSSProperties} />{person.attendanceRate.toFixed(0)}%</span>}</td>
+             <td>{fmt(person.assignmentsSubmitted)} <span className="ana-table-muted">/ {fmt(person.assignmentsAvailable)}</span></td><td>{fmt(person.questionsAsked)}</td><td>{fmt(person.supportEngagements)}</td><td>{person.lastActivityAt ? dateLabel(person.lastActivityAt.slice(0, 10)) : <span className="ana-missing">{t('No recent activity')}</span>}</td>
+           </tr>)}</tbody></table></div> : <div className="ana-inline-empty"><Users size={18} /><span>{t('No founder activity records match these filters.')}</span></div>}
+           <div className="ana-panel-foot">{t('A dash means the source contains no record for that metric; it is not treated as zero performance.')}</div>
         </section>
 
         <section className="ana-panel ana-interactions">
@@ -522,29 +522,29 @@ export function ProgramAnalyticsPage() {
 
         <section className="ana-lower-grid">
           <article className="ana-panel ana-session-panel">
-            <div className="ana-panel-head"><div><span className="ana-eyebrow">COLLECTION DESK</span><h3>Session attendance</h3><p>Select a session to mark present, absent, excused or unmarked.</p></div><span className="ana-count-tag">{fmt(sessions.length)} sessions</span></div>
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">{t('COLLECTION DESK')}</span><h3>{t('Session attendance')}</h3><p>{t('Select a session to mark present, absent, excused or unmarked.')}</p></div><span className="ana-count-tag">{fmt(sessions.length)} {t('sessions')}</span></div>
             {loading ? <div className="ana-sessions-loading"><i /><i /><i /></div> : sessions.length ? <div className="ana-session-list">{sessions.map((session) => <div className="ana-session" key={session.id}>
-              <div className="ana-date-tile"><b>{session.scheduledDate.slice(8, 10)}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString("en", { month: "short" })}</span></div>
-              <div className="ana-session-copy"><b>{session.title}</b><span>{dateLabel(session.scheduledDate)} <i /> {session.status}</span><small>{session.attendanceMarks ? `${fmt(session.present)} present · ${fmt(session.attendanceMarks)} marked` : "No attendance recorded"}</small></div>
-              <button className="ana-button subtle" onClick={() => setActiveSession(session.id)}><ClipboardCheck size={14} /> Register</button>
-            </div>)}</div> : <div className="ana-inline-empty"><CalendarDays size={18} /><span>No sessions are recorded in this date range.</span></div>}
+              <div className="ana-date-tile"><b>{session.scheduledDate.slice(8, 10)}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: "short" })}</span></div>
+              <div className="ana-session-copy"><b>{session.title}</b><span>{dateLabel(session.scheduledDate)} <i /> {t(session.status)}</span><small>{session.attendanceMarks ? `${fmt(session.present)} ${t('present')} · ${fmt(session.attendanceMarks)} ${t('marked')}` : t("No attendance recorded")}</small></div>
+              <button className="ana-button subtle" onClick={() => setActiveSession(session.id)}><ClipboardCheck size={14} /> {t('Register')}</button>
+            </div>)}</div> : <div className="ana-inline-empty"><CalendarDays size={18} /><span>{t('No sessions are recorded in this date range.')}</span></div>}
           </article>
           <article className="ana-panel ana-kpi-panel">
-            <div className="ana-panel-head"><div><span className="ana-eyebrow">OUTCOME MEASUREMENT</span><h3>Impact indicators</h3><p>Admin-defined KPIs and business-level observations.</p></div><button className="ana-icon-btn print-hide" onClick={() => setKpiEditor("new")} disabled={!selectedProgram} title={!selectedProgram ? "Choose a program to manage KPIs" : "Create impact KPI"} aria-label="Create impact KPI"><Plus size={17} /></button></div>
-            {!selectedProgram ? <div className="ana-inline-empty"><Target size={18} /><span>Select a single program to manage impact indicators.</span></div> : kpiQuery.isLoading ? <div className="ana-sessions-loading"><i /><i /></div> : kpiQuery.isError ? <div className="ana-inline-empty"><CircleAlert size={18} /><span>Impact indicators could not load. Refresh to try again.</span></div> : kpis.length ? <div className="ana-kpi-list">{kpis.map((kpi) => {
+            <div className="ana-panel-head"><div><span className="ana-eyebrow">{t('OUTCOME MEASUREMENT')}</span><h3>{t('Impact indicators')}</h3><p>{t('Admin-defined KPIs and business-level observations.')}</p></div><button className="ana-icon-btn print-hide" onClick={() => setKpiEditor("new")} disabled={!selectedProgram} title={!selectedProgram ? t("Choose a program to manage KPIs") : t("Create impact KPI")} aria-label={t("Create impact KPI")}><Plus size={17} /></button></div>
+            {!selectedProgram ? <div className="ana-inline-empty"><Target size={18} /><span>{t("Select a single program to manage impact indicators.")}</span></div> : kpiQuery.isLoading ? <div className="ana-sessions-loading"><i /><i /></div> : kpiQuery.isError ? <div className="ana-inline-empty"><CircleAlert size={18} /><span>{t("Impact indicators could not load. Refresh to try again.")}</span></div> : kpis.length ? <div className="ana-kpi-list">{kpis.map((kpi) => {
               const latest = [...kpi.values].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd))[0];
               const targetText = kpi.targetValue == null ? "Target not set" : `${kpi.targetValue} ${kpi.unit} target`;
               const progress = latest && kpi.targetValue !== null && kpi.targetValue !== 0 ? Math.min(100, Math.max(0, latest.value / kpi.targetValue * 100)) : 0;
               return <div className="ana-kpi-row" key={kpi.id}><div className="ana-kpi-copy"><span className="ana-kpi-symbol"><Target size={15} /></span><div><b>{kpi.name}</b><small>{kpi.description || targetText}</small></div></div>
-                <div className="ana-kpi-value">{latest ? <><strong>{latest.value} <small>{kpi.unit}</small></strong><span>{dateLabel(latest.periodEnd)}</span></> : <span className="ana-missing">No business values</span>}</div>
+                <div className="ana-kpi-value">{latest ? <><strong>{latest.value} <small>{kpi.unit}</small></strong><span>{dateLabel(latest.periodEnd)}</span></> : <span className="ana-missing">{t("No business values")}</span>}</div>
                 {kpi.targetValue != null && <div className="ana-target-line"><i style={{ width: `${progress}%` }} /></div>}
-                <div className="ana-kpi-actions print-hide"><button onClick={() => setValueEditor(kpi)} title="Record a business value">Record value</button><button aria-label={`Edit ${kpi.name}`} onClick={() => setKpiEditor(kpi)}><Pencil size={14} /></button><button aria-label={`Remove ${kpi.name}`} onClick={() => setDeleteKpi(kpi)}><Trash2 size={14} /></button></div>
+                <div className="ana-kpi-actions print-hide"><button onClick={() => setValueEditor(kpi)} title={t("Record a business value")}>{t("Record value")}</button><button aria-label={`${t("Edit")} ${kpi.name}`} onClick={() => setKpiEditor(kpi)}><Pencil size={14} /></button><button aria-label={`${t("Remove")} ${kpi.name}`} onClick={() => setDeleteKpi(kpi)}><Trash2 size={14} /></button></div>
               </div>;
-            })}</div> : <div className="ana-kpi-empty"><Target size={20} /><b>No impact indicators defined</b><span>Add an indicator to start collecting measurable outcomes from businesses.</span><button className="ana-button primary print-hide" onClick={() => setKpiEditor("new")}><Plus size={14} /> Create indicator</button></div>}
+            })}</div> : <div className="ana-kpi-empty"><Target size={20} /><b>{t("No impact indicators defined")}</b><span>{t("Add an indicator to start collecting measurable outcomes from businesses.")}</span><button className="ana-button primary print-hide" onClick={() => setKpiEditor("new")}><Plus size={14} /> {t("Create indicator")}</button></div>}
           </article>
         </section>
       </>}
-      <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> ADMIN ANALYTICS</span><span>Only recorded program activity is shown</span></footer>
+      <footer className="ana-footer"><span>JUSOOR PROGRAM HUB <i /> {t("ADMIN ANALYTICS")}</span><span>{t("Only recorded program activity is shown")}</span></footer>
     </div>
 
     {activeSession !== null && <AccessibleDialogSurface className="ana-modal ana-attendance-modal" overlayClassName="ana-modal-backdrop" labelledBy="attendance-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestAttendanceClose} closeOnEscape={!attendanceDirty && !attendancePending} closeOnOutsideInteraction={!attendanceDirty && !attendancePending} onDismissAttempt={() => { if (attendanceDirty && !attendancePending) setDiscardTarget("attendance"); }} testId="dialog-attendance-register">

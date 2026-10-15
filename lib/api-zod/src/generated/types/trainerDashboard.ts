@@ -6,11 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Session } from './session';
+import type { TrainerDashboardProgramsItem } from './trainerDashboardProgramsItem';
 import type { TrainerQuestion } from './trainerQuestion';
 import type { TrainerSubmission } from './trainerSubmission';
 import type { TrainingAssignment } from './trainingAssignment';
 
 export interface TrainerDashboard {
+  programs: TrainerDashboardProgramsItem[];
   sessions: Session[];
   assignments: TrainingAssignment[];
   submissions: TrainerSubmission[];

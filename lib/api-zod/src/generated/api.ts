@@ -2731,6 +2731,10 @@ export const getTrainerDashboardResponseAssignmentsItemDueDateRegExp = new RegEx
 
 
 export const GetTrainerDashboardResponse = zod.object({
+  "programs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
   "sessions": zod.array(zod.object({
   "id": zod.number().int(),
   "programId": zod.number().int().nullish(),

@@ -289,6 +289,7 @@ export * from './supportUpdate';
 export * from './trainerAttendanceReport';
 export * from './trainerAttendanceReports';
 export * from './trainerDashboard';
+export * from './trainerDashboardProgramsItem';
 export * from './trainerQuestion';
 export * from './trainerSubmission';
 export * from './trainingAnswerInput';

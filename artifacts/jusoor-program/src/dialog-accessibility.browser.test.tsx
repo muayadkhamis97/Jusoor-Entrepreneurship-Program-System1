@@ -178,6 +178,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     });
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    await page.route('**/*', route => {
+      const requestUrl = new URL(route.request().url());
+      if (requestUrl.origin === `http://127.0.0.1:${port}` && route.request().method() === 'GET') {
+        return route.continue();
+      }
+      return route.abort('blockedbyclient');
+    });
     await page.goto(`http://127.0.0.1:${port}/src/test-fixtures/dialog-accessibility.html`, { waitUntil: 'domcontentloaded' });
 
     await page.setViewportSize({ width: 1280, height: 800 });

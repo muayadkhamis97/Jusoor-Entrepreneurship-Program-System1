@@ -100,9 +100,9 @@ const previewData: Record<RoleKey, { headline: string; note: string; items: { la
 };
 
 function AccessMark({ value }: { value: Access }) {
-  if (value === 'full') return <span className="access-mark access-yes"><Check size={13} /><span>Allowed</span></span>;
-  if (value === 'limited') return <span className="access-mark access-limited"><span className="access-dot" /><span>Scoped</span></span>;
-  return <span className="access-mark access-no"><X size={13} /><span>No access</span></span>;
+  if (value === 'full') return <span className="access-mark access-yes"><Check size={13} /><span>{t('Allowed')}</span></span>;
+  if (value === 'limited') return <span className="access-mark access-limited"><span className="access-dot" /><span>{t('Scoped')}</span></span>;
+  return <span className="access-mark access-no"><X size={13} /><span>{t('No access')}</span></span>;
 }
 
 export function RoleAccessPage() {
@@ -112,23 +112,23 @@ export function RoleAccessPage() {
   const preview = previewData[selected];
   return <div className="access-page" data-testid="page-role-access">
     <header className="page-heading access-heading">
-      <div><div className="eyebrow">GOVERNANCE / ROLE ACCESS</div><h1 className="app-title">Clear roles. Shared purpose.</h1><p>See what each Jusoor role can reach, and preview the workspace each role is designed for.</p></div>
-      <div className="access-heading-stamp"><Shield size={17} /><span>ADMIN VIEW</span></div>
+      <div><div className="eyebrow">{t('GOVERNANCE / ROLE ACCESS')}</div><h1 className="app-title">{t('Clear roles. Shared purpose.')}</h1><p>{t('See what each Jusoor role can reach, and preview the workspace each role is designed for.')}</p></div>
+      <div className="access-heading-stamp"><Shield size={17} /><span>{t('ADMIN VIEW')}</span></div>
     </header>
 
     <div className="access-notice" role="note">
       <div className="access-notice-icon"><LockKeyhole size={17} /></div>
-      <p><b>Preview only — illustrative data; actions disabled; no role access is granted.</b><span>This page is a static guide. It does not impersonate users, change access, or show live participant data.</span></p>
+      <p><b>{t('Preview only — illustrative data; actions disabled; no role access is granted.')}</b><span>{t('This page is a static guide. It does not impersonate users, change access, or show live participant data.')}</span></p>
     </div>
 
     <section className="panel access-matrix-section" aria-labelledby="matrix-title">
       <div className="access-section-head">
-        <div><div className="eyebrow">ACCESS MATRIX</div><h2 id="matrix-title" className="app-title">Who can do what</h2><p>Scoped access is limited to the person’s own work or assigned activity.</p></div>
-        <div className="matrix-legend"><span><i className="legend-full" />Allowed</span><span><i className="legend-limited" />Scoped</span><span><i className="legend-none" />No access</span></div>
+        <div><div className="eyebrow">{t('ACCESS MATRIX')}</div><h2 id="matrix-title" className="app-title">{t('Who can do what')}</h2><p>{t('Scoped access is limited to the person’s own work or assigned activity.')}</p></div>
+        <div className="matrix-legend"><span><i className="legend-full" />{t('Allowed')}</span><span><i className="legend-limited" />{t('Scoped')}</span><span><i className="legend-none" />{t('No access')}</span></div>
       </div>
       <div className="access-table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable results table')}>
         <table className="access-table">
-          <thead><tr><th scope="col">WORKSPACE AREA</th>{roles.map(item => <th scope="col" key={item.id}>{t(item.title)}</th>)}</tr></thead>
+          <thead><tr><th scope="col">{t('WORKSPACE AREA')}</th>{roles.map(item => <th scope="col" key={item.id}>{t(item.title)}</th>)}</tr></thead>
           <tbody>{matrix.map(row => {
             const Icon = row.icon;
             return <tr key={row.area} data-testid={`row-access-${slug(row.area)}`}>
@@ -138,36 +138,36 @@ export function RoleAccessPage() {
           })}</tbody>
         </table>
       </div>
-      <div className="matrix-foot"><span>SCOPED ACCESS FOLLOWS ASSIGNMENT OR PERSONAL OWNERSHIP</span><span>JUSOOR PROGRAM HUB <i /></span></div>
+      <div className="matrix-foot"><span>{t('SCOPED ACCESS FOLLOWS ASSIGNMENT OR PERSONAL OWNERSHIP')}</span><span>{t('JUSOOR PROGRAM HUB')} <i /></span></div>
     </section>
 
     <section className="access-preview-section" aria-labelledby="preview-title">
       <div className="access-section-head preview-head">
-        <div><div className="eyebrow">WORKSPACE PREVIEW</div><h2 id="preview-title" className="app-title">A view for every role</h2><p>Select a role to see its workspace shape using fictional examples.</p></div>
-        <span className="preview-count">06 ROLES</span>
+        <div><div className="eyebrow">{t('WORKSPACE PREVIEW')}</div><h2 id="preview-title" className="app-title">{t('A view for every role')}</h2><p>{t('Select a role to see its workspace shape using fictional examples.')}</p></div>
+        <span className="preview-count">{t('06 ROLES')}</span>
       </div>
       <Tabs value={selected} onValueChange={value => setSelected(value as RoleKey)}>
-      <TabsList className="role-selector h-auto bg-transparent p-0 text-foreground" aria-label="Select workspace role">
+      <TabsList className="role-selector h-auto bg-transparent p-0 text-foreground" aria-label={t('Select workspace role')}>
         {roles.map((item, index) => <TabsTrigger key={item.id} type="button" value={item.id} className={`role-select ${selected === item.id ? 'selected' : ''}`} data-testid={`button-preview-${item.id}`}>
-          <span className="role-select-index">0{index + 1}</span><span className="role-select-title">{item.title}</span><span className="role-select-kind">{item.kind}</span>
+          <span className="role-select-index">0{index + 1}</span><span className="role-select-title">{t(item.title)}</span><span className="role-select-kind">{t(item.kind)}</span>
         </TabsTrigger>)}
       </TabsList>
-      <TabsContent value={selected} className="role-preview-tab mt-0 outline-none" aria-label={`${role.title} workspace preview`} data-testid="panel-role-preview">
+      <TabsContent value={selected} className="role-preview-tab mt-0 outline-none" aria-label={`${t(role.title)} ${t('workspace preview')}`} data-testid="panel-role-preview">
       <article className="role-preview">
-        <div className="preview-window-top"><div className="preview-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>PROGRAM HUB</small></span></div><div className="preview-window-context"><span className="preview-window-dot" /> {role.title.toUpperCase()} WORKSPACE</div><span className="preview-lock"><LockKeyhole size={13} /> VISUAL PREVIEW</span></div>
+        <div className="preview-window-top"><div className="preview-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></div><div className="preview-window-context"><span className="preview-window-dot" /> {t(role.title).toUpperCase()} {t('WORKSPACE')}</div><span className="preview-lock"><LockKeyhole size={13} /> {t('VISUAL PREVIEW')}</span></div>
         <div className="preview-body">
-          <aside className="preview-rail"><span className="preview-rail-label">WORKSPACE</span><div className="preview-nav-item active"><BriefcaseBusiness size={14} />{selected === 'participant' ? 'My journey' : selected === 'judge' ? 'Assigned pitches' : selected === 'mentor' ? 'My engagements' : selected === 'trainer' ? 'Cohort desk' : 'Overview'}</div><div className="preview-nav-item"><CalendarDays size={14} />{selected === 'participant' ? 'Sessions' : selected === 'judge' ? 'Scorecards' : selected === 'mentor' ? 'Schedule' : 'Program work'}</div><div className="preview-nav-item"><MessageCircle size={14} />{selected === 'trainer' || selected === 'participant' ? 'Questions' : 'Support'}</div><div className="preview-rail-rule" /><div className="preview-role-identity"><span>{role.title.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{role.title}</b><small>{role.kind}</small></div></div></aside>
+          <aside className="preview-rail"><span className="preview-rail-label">{t('WORKSPACE')}</span><div className="preview-nav-item active"><BriefcaseBusiness size={14} />{t(selected === 'participant' ? 'My journey' : selected === 'judge' ? 'Assigned pitches' : selected === 'mentor' ? 'My engagements' : selected === 'trainer' ? 'Cohort desk' : 'Overview')}</div><div className="preview-nav-item"><CalendarDays size={14} />{t(selected === 'participant' ? 'Sessions' : selected === 'judge' ? 'Scorecards' : selected === 'mentor' ? 'Schedule' : 'Program work')}</div><div className="preview-nav-item"><MessageCircle size={14} />{t(selected === 'trainer' || selected === 'participant' ? 'Questions' : 'Support')}</div><div className="preview-rail-rule" /><div className="preview-role-identity"><span>{role.title.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{t(role.title)}</b><small>{t(role.kind)}</small></div></div></aside>
           <div className="preview-workspace-content">
-            <div className="preview-workspace-heading"><div><div className="eyebrow">{preview.note.toUpperCase()}</div><h3>{preview.headline}</h3></div><span className="illustrative-stamp">ILLUSTRATIVE</span></div>
-            <div className="preview-item-list">{preview.items.map((item, index) => <div className="preview-item" key={item.title} data-testid={`preview-item-${selected}-${index}`}><span className={`preview-item-icon preview-tone-${index}`} aria-hidden="true">{selected === 'participant' && index === 1 ? <Video size={15} /> : selected === 'trainer' && index === 2 ? <ClipboardCheck size={15} /> : selected === 'judge' && index === 1 ? <Presentation size={15} /> : selected === 'mentor' && index === 1 ? <FileText size={15} /> : <BriefcaseBusiness size={15} />}</span><div className="preview-item-copy"><small>{item.label}</small><b>{item.title}</b><span>{item.meta}</span></div><span className="preview-item-tag">{item.tag}</span></div>)}</div>
-            <div className="preview-actions"><span>AVAILABLE IN THIS ROLE</span><div>{preview.actions.map(action => <button type="button" disabled key={action} className="preview-action-button" data-testid={`preview-action-${selected}-${slug(action)}`}>{action}<ArrowRight size={12} /></button>)}</div></div>
+            <div className="preview-workspace-heading"><div><div className="eyebrow">{t(preview.note).toUpperCase()}</div><h3>{t(preview.headline)}</h3></div><span className="illustrative-stamp">{t('ILLUSTRATIVE')}</span></div>
+            <div className="preview-item-list">{preview.items.map((item, index) => <div className="preview-item" key={item.title} data-testid={`preview-item-${selected}-${index}`}><span className={`preview-item-icon preview-tone-${index}`} aria-hidden="true">{selected === 'participant' && index === 1 ? <Video size={15} /> : selected === 'trainer' && index === 2 ? <ClipboardCheck size={15} /> : selected === 'judge' && index === 1 ? <Presentation size={15} /> : selected === 'mentor' && index === 1 ? <FileText size={15} /> : <BriefcaseBusiness size={15} />}</span><div className="preview-item-copy"><small>{t(item.label)}</small><b>{t(item.title)}</b><span>{t(item.meta)}</span></div><span className="preview-item-tag">{t(item.tag)}</span></div>)}</div>
+            <div className="preview-actions"><span>{t('AVAILABLE IN THIS ROLE')}</span><div>{preview.actions.map(action => <button type="button" disabled key={action} className="preview-action-button" data-testid={`preview-action-${selected}-${slug(action)}`}>{t(action)}<ArrowRight size={12} /></button>)}</div></div>
           </div>
         </div>
-        <div className="preview-bottom-note"><LockKeyhole size={13} /><span>Preview only — illustrative data; actions disabled; no role access is granted.</span></div>
+        <div className="preview-bottom-note"><LockKeyhole size={13} /><span>{t('Preview only — illustrative data; actions disabled; no role access is granted.')}</span></div>
       </article>
       </TabsContent>
       </Tabs>
-      <div className="access-preview-caption"><span><b>{t(role.title)}</b> · {role.summary}</span><span><Shield size={14} /> Your actual workspace depends on your approved role.</span></div>
+      <div className="access-preview-caption"><span><b>{t(role.title)}</b> · {t(role.summary)}</span><span><Shield size={14} /> {t('Your actual workspace depends on your approved role.')}</span></div>
     </section>
   </div>;
 }
