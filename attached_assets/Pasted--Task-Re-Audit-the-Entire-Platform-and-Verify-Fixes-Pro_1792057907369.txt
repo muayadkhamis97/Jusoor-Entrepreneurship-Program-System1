@@ -1,0 +1,154 @@
+# Task: Re-Audit the Entire Platform and Verify Fixes
+
+**Project:** Jusoor Entrepreneurship Program System  
+**Original audit:** `docs/UX_UI_PLATFORM_AUDIT.md`
+
+## Objective
+
+Repeat the comprehensive UX/UI audit of the current platform to determine which issues from the original audit have actually been fixed, which are partially fixed, which remain unresolved, and which cannot be verified.
+
+This is a **READ-ONLY verification task**. Do not implement fixes, modify application code, change configuration, or alter existing data.
+
+## 1. Review the Original Audit
+
+Read the complete original audit report, including:
+
+- All 20 prioritized findings.
+- The coverage matrix for all 30 route surfaces.
+- Evidence and reproduction steps.
+- Recommendations and the original verification limitations.
+
+Extract every original finding into a verification checklist. Preserve the original finding IDs, descriptions, severity, and affected routes wherever available.
+
+Do not focus only on the top five findings. Verify every original finding.
+
+## 2. Inspect the Current Implementation
+
+Inspect the current source code, shared components, design tokens, translations, routes, and tests.
+
+Check the current implementation for evidence that each original finding has been addressed. Review relevant changes and tests where possible.
+
+Specifically verify:
+
+- Dialog keyboard accessibility: focus entry, focus containment, Escape behavior, focus restoration, and accessible names.
+- Participant sign-out and account-switch functionality.
+- Text contrast, typography, label sizes, and readability.
+- Arabic translations, RTL layout handling, and untranslated interface strings.
+- Error messages, validation, loading states, retry behavior, and recovery.
+- Responsive navigation and page layouts.
+- Shared component consistency and design system patterns.
+- All remaining issues documented in the original audit.
+
+Do not assume an issue is fixed because code was changed or a test was added. Verify the current implementation and supporting evidence.
+
+## 3. Run Available Verification Checks
+
+Run appropriate, non-destructive checks supported by the project, including:
+
+- Relevant automated tests.
+- Existing typechecks.
+- Existing build or lint checks where appropriate.
+- Translation completeness checks, if available.
+- Existing accessibility tests.
+- Safe browser checks, if an authorized test environment is available.
+
+Do not install dependencies or change configuration just to make checks pass.
+
+Do not access or modify existing databases. Do not submit real forms, send emails, trigger external services, or change authentication settings.
+
+Do not publish or deploy.
+
+## 4. Verify the Actual User Experience
+
+If a safe browser-testing environment is available, inspect the relevant pages at these viewport sizes:
+
+- Mobile: 390 × 844.
+- Tablet: 768 px wide.
+- Desktop: 1440 px wide.
+- Wide desktop: 1920 px wide.
+
+Inspect English and Arabic views where possible, including RTL behavior.
+
+Verify authenticated role-specific pages only through authorized test accounts or an approved safe environment. Do not bypass authentication or authorization.
+
+If a page cannot be rendered or accessed, inspect its source code and tests, but clearly distinguish source-level evidence from actual visual verification.
+
+## 5. Assign a Status to Every Original Finding
+
+Use these statuses consistently:
+
+- **Fixed — Verified:** The issue is resolved and supported by relevant evidence or successful testing.
+- **Partially Fixed:** Some aspects are resolved, but meaningful problems remain.
+- **Not Fixed:** The original problem remains.
+- **Blocked:** Verification or remediation cannot proceed because of a specific access or environment limitation.
+- **Unable to Verify:** Available evidence is insufficient to determine whether the issue is resolved.
+
+For each finding, report:
+
+1. Original finding ID and severity.
+2. Original issue summary.
+3. Current status.
+4. Evidence from the current source code or tests.
+5. Tests or browser checks actually performed and their results.
+6. Remaining problems.
+7. Recommended next action.
+
+Do not label an issue Fixed — Verified based solely on an implementation claim or the presence of code that appears intended to solve it.
+
+## 6. Check for Regressions and New Issues
+
+In addition to verifying the original findings, identify any newly introduced UX/UI regressions or accessibility problems discovered during this review.
+
+Clearly separate:
+
+- Original findings that remain unresolved.
+- Original findings that have been fixed.
+- New issues discovered during this re-audit.
+
+Do not expand the scope into unrelated feature development.
+
+## 7. Update the Audit Report
+
+Update `docs/UX_UI_PLATFORM_AUDIT.md` with a dated re-audit section, or create `docs/UX_UI_PLATFORM_REAUDIT.md` if preserving the original report is preferable.
+
+Include:
+
+### A. Executive summary
+- Total original findings reviewed.
+- Number fixed and verified.
+- Number partially fixed.
+- Number not fixed.
+- Number blocked or unable to verify.
+
+### B. Complete verification matrix
+Include every original finding and its status, with concise supporting evidence.
+
+### C. Verification results
+List the exact tests, typechecks, builds, and browser checks executed, including failures and checks that could not be run.
+
+### D. Coverage matrix
+Record which routes, roles, viewport sizes, and languages were actually inspected and which remain unverified.
+
+### E. Remaining work
+Rank unresolved findings by severity and user impact. Recommend the next implementation task based on the verified results, not assumptions.
+
+### F. New findings
+Document any new issues discovered, with evidence and severity.
+
+## 8. Strict Requirements
+
+- READ-ONLY: do not fix anything during this task.
+- Do not modify application source code, tests, configuration, or dependencies.
+- The audit report may be updated or a new re-audit report may be created.
+- Do not modify databases, run migrations, or perform schema pushes.
+- Do not send emails or trigger external integrations.
+- Do not change authentication or authorization.
+- Do not publish or deploy.
+- Do not claim visual, keyboard, Arabic, or authenticated-role verification unless it was actually performed.
+- Clearly distinguish confirmed evidence, source-level inspection, and unverified assumptions.
+
+## Final Deliverable
+
+Provide a concise summary of the current state and a complete, evidence-based status for every original audit finding.
+
+The goal is to establish **what is genuinely fixed today, what still needs work, and what remains unverified** before authorizing another implementation phase.
