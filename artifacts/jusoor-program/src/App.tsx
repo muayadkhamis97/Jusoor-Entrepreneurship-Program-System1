@@ -109,7 +109,11 @@ const calendlyMeetingDateTime = (value: string, timezone: string | null) => {
 };
 const industryLabel = (value?: string | null) => value ? t(value) : '—';
 type MentorFollowUpStatus = 'overdue' | 'upcoming' | 'undated';
-const localCalendarDateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const localCalendarDateKey = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en', { timeZone: 'Asia/Amman', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+  const values = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
 const mentorFollowUpStatus = (date: string | null, today: string): MentorFollowUpStatus => !date ? 'undated' : date < today ? 'overdue' : 'upcoming';
 const money = (value?: number | null) => new Intl.NumberFormat(currentLanguage() === 'ar' ? 'ar-JO' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 const display = (v?: string | null) => v ? t(v === 'coordinator' ? 'Admin' : v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
@@ -829,7 +833,10 @@ function PitchJudgeControl({ pitchId, pitchLabel, judges, client }: { pitchId: n
 }
 
 function MentorBookingStatusPage() {
-  const [followUpFilter, setFollowUpFilter] = useState('all');
+  const [followUpFilter, setFollowUpFilter] = useState(() => {
+    const value = new URLSearchParams(window.location.search).get('followUp');
+    return value === 'overdue' || value === 'upcoming' || value === 'undated' ? value : 'all';
+  });
   const today = localCalendarDateKey();
   const query = useGetMentorBookingStatus({
     query: { queryKey: getGetMentorBookingStatusQueryKey(), refetchOnWindowFocus: true },
@@ -866,7 +873,15 @@ function MentorBookingStatusPage() {
             <span className="section-meta">{pendingCount} still need Calendly</span>
           </div>
           <div className="mentor-booking-toolbar">
-            <label className="filter-select"><Filter size={15} /><select aria-label="Filter mentors by follow-up status" value={followUpFilter} onChange={event => setFollowUpFilter(event.target.value)} data-testid="select-mentor-follow-up-filter"><option value="all">All mentors</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option><option value="undated">Undated</option></select><ChevronDown size={13} /></label>
+            <label className="filter-select"><Filter size={15} /><select aria-label="Filter mentors by follow-up status" value={followUpFilter} onChange={event => {
+              const value = event.target.value;
+              setFollowUpFilter(value);
+              const search = new URLSearchParams(window.location.search);
+              if (value === 'all') search.delete('followUp');
+              else search.set('followUp', value);
+              const query = search.toString();
+              window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+            }} data-testid="select-mentor-follow-up-filter"><option value="all">All mentors</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option><option value="undated">Undated</option></select><ChevronDown size={13} /></label>
             <span className="toolbar-count"><b>{visibleMentors.length}</b> mentors</span>
           </div>
           <div className="table-wrap"><table>

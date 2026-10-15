@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { startZoomAttendanceSyncWorker } from "./lib/zoom-attendance";
 import { startCourseReminderWorker } from "./lib/course-reminders";
 import { startGoogleCalendarSyncWorker } from "./lib/googleCalendarSync";
+import { startMentorFollowUpDigestWorker } from "./lib/mentor-follow-up-digests";
 
 const rawPort = process.env["PORT"];
 
@@ -28,4 +29,5 @@ app.listen(port, (err) => {
   startZoomAttendanceSyncWorker();
   startCourseReminderWorker();
   startGoogleCalendarSyncWorker();
+  startMentorFollowUpDigestWorker();
 });
