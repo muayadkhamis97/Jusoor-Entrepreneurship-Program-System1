@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { chromium } from 'playwright-core';
 import { createServer as createViteServer } from 'vite';
+import { getAccessibleBrandForeground } from './branding-contrast';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
@@ -85,6 +86,7 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     });
     await page.goto(`http://127.0.0.1:${port}/src/test-fixtures/program-controls.html`, { waitUntil: 'domcontentloaded' });
     await page.locator('.api-page .api-button-primary').waitFor();
+    await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
     await page.evaluate(() => {
       document.documentElement.lang = 'ar';
       document.documentElement.dir = 'rtl';
@@ -100,7 +102,7 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     assert.deepEqual(arabicDocument, {
       language: 'ar',
       direction: 'rtl',
-      text: 'حفظ التغييرات',
+      text: 'حفظ التغييرات وإرسال التحديثات إلى جميع أعضاء البرنامج ومراجعة بيانات المشاركين والأنشطة والتقارير والتحقق من ملخص النتائج قبل المتابعة',
       inputDirection: 'rtl',
       iconTransform: 'matrix(-1, 0, 0, -1, 0, 0)',
     }, 'Arabic staff controls should render in RTL with mirrored directional icons.');
@@ -110,7 +112,7 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     ).evaluateAll(elements => elements.map(element => {
       const style = getComputedStyle(element);
       return {
-        height: style.height,
+        minHeight: style.minHeight,
         radius: style.borderRadius,
         fontSize: style.fontSize,
         background: style.backgroundColor,
@@ -118,7 +120,7 @@ test('workspace, analytics, API and grant controls share the same design tokens'
       };
     }));
     assert.equal(primaryButtons.length, 3);
-    assert.ok(primaryButtons.every(style => JSON.stringify(style) === JSON.stringify(primaryButtons[0])), 'Primary actions should resolve to identical size and theme styles.');
+    assert.ok(primaryButtons.every(style => JSON.stringify(style) === JSON.stringify(primaryButtons[0])), 'Primary actions should resolve to identical minimum sizing and theme styles.');
 
     const compactVariants = await page.locator(
       '.api-button-revoke, .ana-tool, .grant-action-button, .session-admin-actions .button, .recording-ready-email .button, .mentor-follow-up-actions .button, .participant-account-actions .button, .announcement-confirm .button',
@@ -165,17 +167,31 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     });
     assert.deepEqual(focusStyle, { outlineStyle: 'solid', outlineWidth: '2px' }, 'Keyboard focus should use the shared visible focus ring.');
 
-    await page.evaluate(({ primaryToken, accentToken }) => {
+    const primaryForeground = getAccessibleBrandForeground('#e8a33d');
+    await page.evaluate(({ primaryToken, accentToken, foreground }) => {
       document.documentElement.style.setProperty('--primary', primaryToken);
       document.documentElement.style.setProperty('--ring', primaryToken);
       document.documentElement.style.setProperty('--accent', accentToken);
-      document.documentElement.style.setProperty('--primary-foreground', '0 0% 100%');
-    }, { primaryToken: hexToHslToken('#713ab8'), accentToken: hexToHslToken('#e8a33d') });
+      document.documentElement.style.setProperty('--primary-foreground', foreground);
+      document.documentElement.style.setProperty('--app-font-sans', 'Georgia, serif');
+      const preview = document.querySelector('.branding-preview') as HTMLElement;
+      preview.style.setProperty('--preview-primary', '#e8a33d');
+      preview.style.setProperty('--preview-primary-foreground', `hsl(${foreground})`);
+    }, { primaryToken: hexToHslToken('#e8a33d'), accentToken: hexToHslToken('#713ab8'), foreground: primaryForeground });
     const customTheme = await page.evaluate(() => {
       const primaryButton = document.querySelector('.workspace .button-primary')!;
+      const secondaryButton = document.querySelector('.workspace .button-outline')!;
+      const dangerButton = document.querySelector('.workspace .button-danger')!;
+      const disabledButton = document.querySelector('.workspace button:disabled')!;
+      const previewButton = document.querySelector('.branding-preview button')!;
+      const brandingField = document.querySelector('.branding-field input')!;
       const iconButton = document.querySelector('.icon-button')!;
       const field = document.querySelector('.workspace .form-control')!;
       const buttonStyle = getComputedStyle(primaryButton);
+      const secondaryStyle = getComputedStyle(secondaryButton);
+      const dangerStyle = getComputedStyle(dangerButton);
+      const disabledStyle = getComputedStyle(disabledButton);
+      const previewStyle = getComputedStyle(previewButton);
       const iconStyle = getComputedStyle(iconButton);
       const fieldStyle = getComputedStyle(field);
       const rootStyle = getComputedStyle(document.documentElement);
@@ -183,17 +199,44 @@ test('workspace, analytics, API and grant controls share the same design tokens'
         primary: rootStyle.getPropertyValue('--primary').trim(),
         buttonBackground: buttonStyle.backgroundColor,
         buttonForeground: buttonStyle.color,
+        secondaryBackground: secondaryStyle.backgroundColor,
+        secondaryForeground: secondaryStyle.color,
+        dangerBackground: dangerStyle.backgroundColor,
+        dangerForeground: dangerStyle.color,
+        disabledBackground: disabledStyle.backgroundColor,
+        disabledForeground: disabledStyle.color,
+        disabledOpacity: disabledStyle.opacity,
+        previewBackground: previewStyle.backgroundColor,
+        previewForeground: previewStyle.color,
+        brandingFieldBackground: getComputedStyle(brandingField).backgroundColor,
+        brandingFieldForeground: getComputedStyle(brandingField).color,
         iconForeground: iconStyle.color,
         cardBackground: getComputedStyle(document.querySelector('.workspace')!).backgroundColor,
-        ring: getComputedStyle(primaryButton).outlineColor,
         fieldBackground: fieldStyle.backgroundColor,
         fieldForeground: fieldStyle.color,
+        buttonFont: buttonStyle.fontFamily,
+        fieldFont: fieldStyle.fontFamily,
       };
     });
-    assert.equal(customTheme.primary, hexToHslToken('#713ab8'), 'The fixture should apply a non-default brand primary.');
+    assert.equal(customTheme.primary, hexToHslToken('#e8a33d'), 'The fixture should apply a light custom brand primary.');
     assert.ok(contrastRatio(customTheme.buttonForeground, customTheme.buttonBackground) >= 4.5, 'Custom primary-button text should meet WCAG AA contrast.');
+    assert.ok(contrastRatio(customTheme.secondaryForeground, customTheme.secondaryBackground) >= 4.5, 'Secondary-button text should remain readable with custom branding.');
+    assert.ok(contrastRatio(customTheme.dangerForeground, customTheme.dangerBackground) >= 4.5, 'Destructive-button text should remain readable with custom branding.');
+    assert.equal(customTheme.disabledOpacity, '1', 'Disabled controls should not fade their text and background together.');
+    assert.ok(contrastRatio(customTheme.disabledForeground, customTheme.disabledBackground) >= 4.5, 'Disabled-button labels should remain readable.');
+    assert.ok(contrastRatio(customTheme.previewForeground, customTheme.previewBackground) >= 4.5, 'The branding preview should choose a readable label color for a light primary.');
+    assert.ok(contrastRatio(customTheme.brandingFieldForeground, customTheme.brandingFieldBackground) >= 4.5, 'Brand-setting field text should remain readable under custom colors.');
     assert.ok(contrastRatio(customTheme.iconForeground, customTheme.cardBackground) >= 4.5, 'Icon-button glyphs should remain readable on the custom-brand card.');
     assert.ok(contrastRatio(customTheme.fieldForeground, customTheme.fieldBackground) >= 4.5, 'Field text should remain readable under custom branding.');
+    assert.match(customTheme.buttonFont, /Georgia/);
+    assert.match(customTheme.fieldFont, /Georgia/);
+
+    await page.locator('.workspace [data-primary-family="workspace"]').hover();
+    const customHover = await page.locator('.workspace [data-primary-family="workspace"]').evaluate(element => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, foreground: style.color };
+    });
+    assert.ok(contrastRatio(customHover.foreground, customHover.background) >= 4.5, `The branded primary action should retain readable text on hover. ${JSON.stringify(customHover)}; contrast ${contrastRatio(customHover.foreground, customHover.background)}`);
 
     await page.locator('.workspace [data-primary-family="workspace"]').focus();
     await page.keyboard.press('Tab');
@@ -206,16 +249,38 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     assert.equal(customFocus.outlineWidth, '2px');
     assert.ok(contrastRatio(customFocus.outlineColor, customFocus.parentBackground) >= 3, 'The custom-brand keyboard focus ring should remain distinguishable from its surface.');
 
+    const brandingInput = page.locator('.branding-field input');
+    await brandingInput.focus();
+    const brandingFocus = await brandingInput.evaluate(element => {
+      const style = getComputedStyle(element);
+      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, outlineColor: style.outlineColor };
+    });
+    assert.deepEqual({ outlineStyle: brandingFocus.outlineStyle, outlineWidth: brandingFocus.outlineWidth }, { outlineStyle: 'solid', outlineWidth: '2px' });
+    assert.ok(contrastRatio(brandingFocus.outlineColor, 'rgb(252, 250, 245)') >= 3, 'Brand-setting inputs should keep visible keyboard focus with a pale custom primary.');
+
+    const desktopButton = await page.locator('.workspace [data-primary-family="workspace"]').evaluate(element => ({
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      height: element.getBoundingClientRect().height,
+    }));
+    assert.ok(desktopButton.scrollWidth <= desktopButton.clientWidth, 'Long Arabic button labels should wrap instead of clipping at desktop width.');
+
     await page.setViewportSize({ width: 390, height: 844 });
     const mobileLayout = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
       viewportWidth: window.innerWidth,
       columns: getComputedStyle(document.querySelector('.controls-fixture')!).gridTemplateColumns,
       rtl: getComputedStyle(document.querySelector('.controls-fixture')!).direction,
+      longButton: (() => {
+        const button = document.querySelector('.workspace [data-primary-family="workspace"]') as HTMLButtonElement;
+        return { scrollWidth: button.scrollWidth, clientWidth: button.clientWidth, height: button.getBoundingClientRect().height };
+      })(),
     }));
     assert.ok(mobileLayout.documentWidth <= mobileLayout.viewportWidth, 'Shared controls should not force horizontal overflow at mobile width.');
     assert.equal(mobileLayout.columns.split(' ').length, 1, 'Feature control groups should stack on narrow screens.');
     assert.equal(mobileLayout.rtl, 'rtl', 'The responsive Arabic fixture should retain RTL direction.');
+    assert.ok(mobileLayout.longButton.scrollWidth <= mobileLayout.longButton.clientWidth, 'Long Arabic button labels should wrap instead of clipping on mobile.');
+    assert.ok(mobileLayout.longButton.height > 38, 'Long button labels should expand the control height to fit wrapped lines.');
   } finally {
     await browser?.close();
     await vite?.close();

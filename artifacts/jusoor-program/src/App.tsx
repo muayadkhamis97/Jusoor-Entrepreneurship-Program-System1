@@ -4,6 +4,7 @@ import './role-access.css';
 import './session-recording.css';
 import './language.css';
 import './program-controls.css';
+import { getAccessibleBrandForeground } from './branding-contrast';
 import { lazy, Suspense, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -1159,13 +1160,7 @@ function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
     };
     const primaryHsl = toHsl(branding.primaryColor);
     const accentHsl = toHsl(branding.accentColor);
-    const rgb = [1, 3, 5].map(offset => parseInt(branding.primaryColor.slice(offset, offset + 2), 16) / 255);
-    const luminance = rgb.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
-      .reduce((total, value, index) => total + value * [0.2126, 0.7152, 0.0722][index], 0);
-    const darkTextLuminance = 0.035;
-    const darkContrast = (luminance + 0.05) / (darkTextLuminance + 0.05);
-    const lightContrast = 1.05 / (luminance + 0.05);
-    const foreground = darkContrast >= lightContrast ? '203 28% 19%' : '0 0% 100%';
+    const foreground = getAccessibleBrandForeground(branding.primaryColor);
     document.documentElement.style.setProperty('--primary', primaryHsl);
     document.documentElement.style.setProperty('--ring', primaryHsl);
     document.documentElement.style.setProperty('--accent', accentHsl);

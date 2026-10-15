@@ -5,6 +5,7 @@ import type { ProgramBrandingInput } from '@workspace/api-client-react';
 import { Check, CircleAlert, Image, Palette, RotateCcw, Save } from 'lucide-react';
 import { t, useAppLanguage } from './language';
 import './branding-surfaces.css';
+import { getAccessibleBrandForeground } from './branding-contrast';
 
 const defaults: ProgramBrandingInput = {
   brandName: 'Jusoor',
@@ -74,7 +75,7 @@ export function BrandingPage() {
       </form>
       <aside className="branding-preview-wrap">
         <div className="branding-preview-label"><span>{t('LIVE PREVIEW')}</span><span>{t('Unsaved changes')}</span></div>
-        <section className="branding-preview" style={{ '--preview-primary': form.primaryColor, '--preview-accent': form.accentColor } as CSSProperties} aria-label={t('Branding preview')}>
+        <section className="branding-preview" style={{ '--preview-primary': form.primaryColor, '--preview-primary-foreground': `hsl(${getAccessibleBrandForeground(form.primaryColor)})`, '--preview-accent': form.accentColor } as CSSProperties} aria-label={t('Branding preview')}>
           <div className="branding-preview-nav">{form.logoUrl ? <img src={form.logoUrl} alt="" /> : <span className="branding-preview-mark">{form.brandName.slice(0, 1) || 'J'}</span>}<b>{form.brandName || t('Your brand name')}</b><span>{t('PROGRAM HUB')}</span></div>
           <div className="branding-preview-body"><span className="branding-preview-kicker">{t('YOUR COHORT / LEARNING')}</span><h3>{t('A clear path for what comes next.')}</h3><p>{t('Your program, your next step, and the people moving with you.')}</p><button type="button" tabIndex={-1}>{t('View learning path')} <Check size={13} /></button></div>
           <div className="branding-preview-swatches"><span><i />{t('Primary')}</span><span><i />{t('Accent')}</span></div>

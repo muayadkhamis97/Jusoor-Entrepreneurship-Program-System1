@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="/src/api-integrations.css" />
     <link rel="stylesheet" href="/src/grant-surfaces.css" />
     <link rel="stylesheet" href="/src/calendar-communications.css" />
+    <link rel="stylesheet" href="/src/branding-surfaces.css" />
     <link rel="stylesheet" href="/src/program-controls.css" />
     <style>
       body { padding: 24px; }
@@ -23,7 +24,10 @@
   <body>
     <main class="controls-fixture">
       <section class="workspace">
-        <button class="button button-primary" data-primary-family="workspace">حفظ التغييرات</button>
+        <button class="button button-primary" data-primary-family="workspace">حفظ التغييرات وإرسال التحديثات إلى جميع أعضاء البرنامج ومراجعة بيانات المشاركين والأنشطة والتقارير والتحقق من ملخص النتائج قبل المتابعة</button>
+        <button class="button button-outline">الإجراء الثانوي</button>
+        <button class="button button-danger">حذف البرنامج نهائيًا</button>
+        <button class="button button-primary" disabled>جارٍ حفظ التغييرات</button>
         <button class="icon-button" type="button" aria-label="المزيد من الخيارات">
           <svg class="lucide-arrow-right icon-directional" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" /></svg>
         </button>
@@ -45,6 +49,14 @@
         <button class="api-button api-button-primary">حفظ إعدادات الربط</button>
         <button class="api-button api-button-revoke">Revoke key</button>
         <label class="api-field">اسم التكامل<input aria-label="اسم التكامل" /></label>
+      </section>
+      <section>
+        <div class="branding-form">
+          <label class="branding-field"><span>Primary color hex value</span><input aria-label="Primary color hex value" value="#e8a33d" /></label>
+        </div>
+        <div class="branding-preview" style="--preview-primary:#e8a33d;--preview-primary-foreground:#23313e">
+          <div class="branding-preview-body"><button type="button">معاينة الإجراء الرئيسي</button></div>
+        </div>
       </section>
       <section class="workspace">
         <button class="button button-primary grant-action-button">تحديث المنحة</button>

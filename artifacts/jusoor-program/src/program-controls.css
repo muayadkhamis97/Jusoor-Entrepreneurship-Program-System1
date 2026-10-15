@@ -5,7 +5,7 @@
   --program-control-button-font: 0.75rem;
   --program-control-field-height: 2.375rem;
   --program-control-field-font: 0.875rem;
-  --program-control-focus-shadow: 0 0 0 3px hsl(var(--ring) / 0.16);
+  --program-control-focus-shadow: 0 0 0 3px hsl(var(--foreground) / 0.16);
   --program-control-transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
@@ -26,22 +26,25 @@
   font-weight: 700;
   line-height: 1.2;
   text-decoration: none;
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
   cursor: pointer;
   transition: var(--program-control-transition);
 }
 
-.button:hover,
-.ana-button:hover,
+.button:hover:not(:disabled),
+.ana-button:hover:not(:disabled),
 .api-button:hover:not(:disabled),
-.ana-tool:hover {
+.ana-tool:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
 .button:disabled,
 .ana-button:disabled,
 .api-button:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
   transform: none;
 }
@@ -51,12 +54,6 @@
 .api-button-primary {
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-}
-
-.button-primary:hover,
-.ana-button.primary:hover,
-.api-button-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, hsl(var(--primary)) 88%, black);
 }
 
 .button-outline,
@@ -83,13 +80,21 @@
   color: hsl(var(--primary));
 }
 
+.ana-tool:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
 .button-quiet {
   background: transparent;
 }
 
-.button-outline:hover,
-.button-quiet:hover,
-.ana-button.subtle:hover,
+.button-outline:hover:not(:disabled),
+.button-quiet:hover:not(:disabled),
+.ana-button.subtle:hover:not(:disabled),
 .api-button-quiet:hover:not(:disabled) {
   border-color: hsl(var(--primary) / 0.38);
   background: hsl(var(--primary) / 0.06);
@@ -102,10 +107,19 @@
   color: hsl(var(--destructive-foreground));
 }
 
-.button-danger:hover,
-.ana-button.danger:hover,
+.button-danger:hover:not(:disabled),
+.ana-button.danger:hover:not(:disabled),
 .api-button-danger:hover:not(:disabled) {
   background: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
+}
+
+.button:disabled,
+.ana-button:disabled,
+.api-button:disabled {
+  opacity: 1;
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
 .api-button-revoke {
@@ -209,8 +223,9 @@
 .api-field input:focus-visible,
 .api-field select:focus-visible,
 .ana-register-person > input:focus-visible,
-.grant-status-filter select:focus-visible {
-  outline: 2px solid hsl(var(--ring));
+.grant-status-filter select:focus-visible,
+.branding-field input:focus-visible {
+  outline: 2px solid hsl(var(--foreground));
   outline-offset: 2px;
 }
 
