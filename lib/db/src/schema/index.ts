@@ -53,4 +53,3 @@ export * from "./idea-validation";
 export * from "./participant-business-plans";
 export * from "./participant-peer-directory";
 export * from "./user-profiles";
-export * from "./email-sender-connections";

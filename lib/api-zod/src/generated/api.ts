@@ -3103,49 +3103,6 @@ export const DisconnectZoomResponse = zod.void()
 
 
 /**
- * @summary Get the shared Gmail sender connection status
- */
-export const GetEmailSenderStatusResponse = zod.object({
-  "clientConfigured": zod.boolean(),
-  "storageReady": zod.boolean(),
-  "connected": zod.boolean(),
-  "accountEmail": zod.string().email().nullable(),
-  "connectedAt": zod.coerce.date().nullable(),
-  "callbackUrl": zod.string().url().nullable()
-})
-
-
-/**
- * @summary Begin Gmail sender authorization in the live app
- */
-export const StartGmailSenderConnectionBody = zod.object({
-  "returnPath": zod.string().describe('Current integration page path used for a same-origin callback redirect.')
-})
-
-export const StartGmailSenderConnectionResponse = zod.object({
-  "authorizationUrl": zod.string().url()
-})
-
-
-/**
- * @summary Complete Gmail sender authorization
- */
-export const CompleteGmailSenderConnectionQueryParams = zod.object({
-  "code": zod.coerce.string().optional(),
-  "state": zod.coerce.string().optional(),
-  "error": zod.coerce.string().optional()
-})
-
-export const CompleteGmailSenderConnectionResponse = zod.void()
-
-
-/**
- * @summary Revoke and remove the connected Gmail sender
- */
-export const DisconnectGmailSenderResponse = zod.void()
-
-
-/**
  * @summary Create or update the Zoom meeting for a program session
  */
 export const CreateOrUpdateZoomMeetingParams = zod.object({
