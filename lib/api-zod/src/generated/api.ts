@@ -3351,6 +3351,8 @@ export const RemovePitchJudgeResponse = zod.void()
  */
 export const ListAnnouncementsResponseItem = zod.object({
   "id": zod.number().int(),
+  "sessionId": zod.number().int().nullable(),
+  "isCurrentRecordingNotice": zod.boolean(),
   "programId": zod.number().int().nullable(),
   "programName": zod.string().nullable(),
   "businessId": zod.number().int().nullable(),
@@ -3388,6 +3390,8 @@ export const CreateAnnouncementBody = zod.object({
 
 export const CreateAnnouncementResponse = zod.object({
   "id": zod.number().int(),
+  "sessionId": zod.number().int().nullable(),
+  "isCurrentRecordingNotice": zod.boolean(),
   "programId": zod.number().int().nullable(),
   "programName": zod.string().nullable(),
   "businessId": zod.number().int().nullable(),
@@ -3398,6 +3402,26 @@ export const CreateAnnouncementResponse = zod.object({
   "scheduledFor": zod.coerce.date(),
   "createdAt": zod.coerce.date(),
   "status": zod.enum(['scheduled', 'published'])
+})
+
+
+/**
+ * @summary List accepted participants and their read receipts for the current recording notice
+ */
+export const GetRecordingNoticeReceiptsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetRecordingNoticeReceiptsResponse = zod.object({
+  "announcementId": zod.number().int(),
+  "sessionId": zod.number().int(),
+  "sessionTitle": zod.string(),
+  "recordingVersion": zod.number().int(),
+  "participants": zod.array(zod.object({
+  "founderName": zod.string(),
+  "email": zod.string(),
+  "readAt": zod.coerce.date().nullable()
+}))
 })
 
 

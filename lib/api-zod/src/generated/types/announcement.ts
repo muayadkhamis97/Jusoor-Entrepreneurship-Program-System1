@@ -11,6 +11,9 @@ import type { AnnouncementStatus } from './announcementStatus';
 export interface Announcement {
   id: number;
   /** @nullable */
+  sessionId: number | null;
+  isCurrentRecordingNotice: boolean;
+  /** @nullable */
   programId: number | null;
   /** @nullable */
   programName: string | null;

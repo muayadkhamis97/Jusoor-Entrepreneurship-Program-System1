@@ -1,23 +1,38 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import {
   CreateAnnouncementBody,
   CreateAnnouncementResponse,
   DeleteAnnouncementResponse,
+  GetRecordingNoticeReceiptsParams,
+  GetRecordingNoticeReceiptsResponse,
   ListAnnouncementsResponse,
 } from "@workspace/api-zod";
-import { businessesTable, db, programAnnouncementsTable, programsTable } from "@workspace/db";
+import {
+  announcementReceiptsTable,
+  applicationsTable,
+  businessesTable,
+  db,
+  programAnnouncementsTable,
+  programsTable,
+  sessionsTable,
+} from "@workspace/db";
 import { requireCoordinator } from "../middlewares/staffAccess";
 import {
   businessBelongsToSelectedProgram,
   isMissingAnnouncementBusinessColumn,
 } from "../lib/announcement-targeting";
+import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
 
 const router: IRouter = Router();
 router.use(requireCoordinator);
 
 type AnnouncementListRow = {
   id: number;
+  sessionId: number | null;
+  recordingVersion: number | null;
+  currentRecordingVersion: number | null;
+  recordingUrl: string | null;
   programId: number | null;
   businessId: number | null;
   programName: string | null;
@@ -33,6 +48,10 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
   try {
     return await db.select({
       id: programAnnouncementsTable.id,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      currentRecordingVersion: sessionsTable.recordingVersion,
+      recordingUrl: sessionsTable.recordingUrl,
       programId: programAnnouncementsTable.programId,
       businessId: programAnnouncementsTable.businessId,
       programName: programsTable.name,
@@ -44,6 +63,7 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
       createdAt: programAnnouncementsTable.createdAt,
     }).from(programAnnouncementsTable)
       .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
       .leftJoin(businessesTable, and(
         eq(programAnnouncementsTable.businessId, businessesTable.id),
         eq(programAnnouncementsTable.programId, businessesTable.programId),
@@ -53,6 +73,10 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
     if (!isMissingAnnouncementBusinessColumn(error)) throw error;
     const rows = await db.select({
       id: programAnnouncementsTable.id,
+      sessionId: programAnnouncementsTable.sessionId,
+      recordingVersion: programAnnouncementsTable.recordingVersion,
+      currentRecordingVersion: sessionsTable.recordingVersion,
+      recordingUrl: sessionsTable.recordingUrl,
       programId: programAnnouncementsTable.programId,
       programName: programsTable.name,
       kind: programAnnouncementsTable.kind,
@@ -62,6 +86,7 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
       createdAt: programAnnouncementsTable.createdAt,
     }).from(programAnnouncementsTable)
       .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
+      .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
       .orderBy(desc(programAnnouncementsTable.scheduledFor), desc(programAnnouncementsTable.createdAt));
     return rows.map(row => ({ ...row, businessId: null, businessName: null }));
   }
@@ -71,6 +96,21 @@ router.get("/communications", async (_req, res): Promise<void> => {
   const now = new Date();
   const announcements = (await listAnnouncementRows()).map(announcement => ({
     id: announcement.id,
+    sessionId: announcement.sessionId,
+    isCurrentRecordingNotice: isCurrentRecordingNotice({
+      sessionId: announcement.sessionId,
+      programId: announcement.programId,
+      recordingVersion: announcement.recordingVersion,
+    }, announcement.sessionId !== null &&
+      announcement.currentRecordingVersion !== null &&
+      announcement.recordingUrl !== null
+      ? {
+          id: announcement.sessionId,
+          programId: announcement.programId,
+          recordingVersion: announcement.currentRecordingVersion,
+          recordingUrl: announcement.recordingUrl,
+        }
+      : null),
     programId: announcement.programId,
     businessId: announcement.businessId,
     programName: announcement.programName,
@@ -83,6 +123,70 @@ router.get("/communications", async (_req, res): Promise<void> => {
     status: announcement.scheduledFor > now ? "scheduled" : "published",
   }));
   res.json(ListAnnouncementsResponse.parse(announcements));
+});
+
+router.get("/communications/:id/read-receipts", async (req, res): Promise<void> => {
+  const params = GetRecordingNoticeReceiptsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [announcement] = await db.select({
+    id: programAnnouncementsTable.id,
+    sessionId: programAnnouncementsTable.sessionId,
+    programId: programAnnouncementsTable.programId,
+    recordingVersion: programAnnouncementsTable.recordingVersion,
+    scheduledFor: programAnnouncementsTable.scheduledFor,
+  }).from(programAnnouncementsTable)
+    .where(eq(programAnnouncementsTable.id, params.data.id))
+    .limit(1);
+  if (!announcement?.sessionId) {
+    res.status(404).json({ error: "Current recording notice not found." });
+    return;
+  }
+
+  const [session] = await db.select({
+    id: sessionsTable.id,
+    programId: sessionsTable.programId,
+    title: sessionsTable.title,
+    recordingVersion: sessionsTable.recordingVersion,
+    recordingUrl: sessionsTable.recordingUrl,
+  }).from(sessionsTable)
+    .where(eq(sessionsTable.id, announcement.sessionId))
+    .limit(1);
+  if (
+    !session ||
+    session.programId === null ||
+    announcement.scheduledFor > new Date() ||
+    !isCurrentRecordingNotice(announcement, session)
+  ) {
+    res.status(404).json({ error: "Current recording notice not found." });
+    return;
+  }
+
+  const participants = await db.select({
+    founderName: applicationsTable.founderName,
+    email: applicationsTable.email,
+    readAt: announcementReceiptsTable.readAt,
+  }).from(applicationsTable)
+    .leftJoin(announcementReceiptsTable, and(
+      eq(announcementReceiptsTable.announcementId, announcement.id),
+      eq(announcementReceiptsTable.clerkUserId, applicationsTable.clerkUserId),
+    ))
+    .where(and(
+      eq(applicationsTable.programId, session.programId),
+      eq(applicationsTable.status, "accepted"),
+    ))
+    .orderBy(asc(applicationsTable.founderName), asc(applicationsTable.email));
+
+  res.json(GetRecordingNoticeReceiptsResponse.parse({
+    announcementId: announcement.id,
+    sessionId: session.id,
+    sessionTitle: session.title,
+    recordingVersion: session.recordingVersion,
+    participants,
+  }));
 });
 
 router.post("/communications", async (req, res): Promise<void> => {
@@ -170,6 +274,8 @@ router.post("/communications", async (req, res): Promise<void> => {
 
   res.status(201).json(CreateAnnouncementResponse.parse({
     id: announcement.id,
+    sessionId: null,
+    isCurrentRecordingNotice: false,
     programId: announcement.programId,
     businessId,
     programName: program?.name ?? null,

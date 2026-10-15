@@ -1635,6 +1635,9 @@ export const AnnouncementStatus = {
 export interface Announcement {
   id: number;
   /** @nullable */
+  sessionId: number | null;
+  isCurrentRecordingNotice: boolean;
+  /** @nullable */
   programId: number | null;
   /** @nullable */
   programName: string | null;
@@ -1681,6 +1684,21 @@ export interface AnnouncementDeleteResult {
 export interface AnnouncementReadResult {
   id: number;
   readAt: string;
+}
+
+export interface RecordingNoticeParticipant {
+  founderName: string;
+  email: string;
+  /** @nullable */
+  readAt: string | null;
+}
+
+export interface RecordingNoticeReceipts {
+  announcementId: number;
+  sessionId: number;
+  sessionTitle: string;
+  recordingVersion: number;
+  participants: RecordingNoticeParticipant[];
 }
 
 export interface TrainingAssignment {

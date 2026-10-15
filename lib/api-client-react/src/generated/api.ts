@@ -155,6 +155,7 @@ import type {
   ProgramUpdate,
   PutXapiActivityStateParams,
   PutXapiStatementParams,
+  RecordingNoticeReceipts,
   RetryCourseReminder,
   ScormCommitResult,
   Session,
@@ -9065,6 +9066,83 @@ export const useCreateAnnouncement = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateAnnouncementMutationOptions(options));
     }
+
+export const getGetRecordingNoticeReceiptsUrl = (id: number,) => {
+
+
+
+
+  return `/api/communications/${id}/read-receipts`
+}
+
+/**
+ * @summary List accepted participants and their read receipts for the current recording notice
+ */
+export const getRecordingNoticeReceipts = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<RecordingNoticeReceipts> => {
+
+  return customFetch<RecordingNoticeReceipts>(getGetRecordingNoticeReceiptsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRecordingNoticeReceiptsQueryKey = (id: number,) => {
+    return [
+    `/api/communications/${id}/read-receipts`
+    ] as const;
+    }
+
+
+export const getGetRecordingNoticeReceiptsQueryOptions = <TData = Awaited<ReturnType<typeof getRecordingNoticeReceipts>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecordingNoticeReceipts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRecordingNoticeReceiptsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecordingNoticeReceipts>>> = ({ signal }) => getRecordingNoticeReceipts(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecordingNoticeReceipts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRecordingNoticeReceiptsQueryResult = NonNullable<Awaited<ReturnType<typeof getRecordingNoticeReceipts>>>
+export type GetRecordingNoticeReceiptsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List accepted participants and their read receipts for the current recording notice
+ */
+
+export function useGetRecordingNoticeReceipts<TData = Awaited<ReturnType<typeof getRecordingNoticeReceipts>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecordingNoticeReceipts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRecordingNoticeReceiptsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getDeleteAnnouncementUrl = (id: number,) => {
 

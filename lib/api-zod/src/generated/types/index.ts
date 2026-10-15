@@ -239,6 +239,8 @@ export * from './programUpdateStatus';
 export * from './putXapiActivityStateParams';
 export * from './putXapiStatementParams';
 export * from './quizQuestionType';
+export * from './recordingNoticeParticipant';
+export * from './recordingNoticeReceipts';
 export * from './retryCourseReminder';
 export * from './retryCourseReminderStatus';
 export * from './scormCommitResult';

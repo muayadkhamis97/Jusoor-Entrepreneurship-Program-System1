@@ -71,6 +71,21 @@
 .announcement-copy h3 { margin:6px 0 4px; color:hsl(var(--foreground)); font:700 13px 'Manrope',sans-serif; letter-spacing:-.02em; }
 .announcement-copy p { margin:0; color:hsl(var(--muted-foreground)); font-size:10px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .announcement-copy small { display:flex; align-items:center; gap:5px; margin-top:9px; color:hsl(var(--muted-foreground)); font-size:8px; }
+.recording-receipt-actions { margin-top:10px; }
+.recording-receipt-actions > .button { --program-control-button-height:2rem; --program-control-button-padding:.55rem; --program-control-button-font:.72rem; }
+.recording-receipts { margin-top:10px; padding:11px; border:1px solid hsl(var(--border) / .8); border-radius:7px; background:hsl(var(--muted) / .22); }
+.recording-receipts h4 { margin:0 0 8px; color:hsl(var(--foreground)); font-size:10px; }
+.recording-receipts > p,.recording-receipts-error { margin:0; color:hsl(var(--muted-foreground)); font-size:9px; }
+.recording-receipts ul { display:grid; gap:0; margin:0; padding:0; list-style:none; }
+.recording-receipts li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid hsl(var(--border) / .65); }
+.recording-receipt-person { display:grid; min-width:0; gap:2px; }
+.recording-receipt-person b { color:hsl(var(--foreground)); font-size:9px; font-weight:650; }
+.recording-receipt-person small { display:block; margin:0; overflow-wrap:anywhere; font-size:8px; }
+.recording-receipt-status { display:flex; align-items:center; justify-content:flex-end; gap:4px; flex-wrap:wrap; flex:0 0 auto; font-size:8px; white-space:nowrap; }
+.recording-receipt-status.is-read { color:hsl(var(--primary)); }
+.recording-receipt-status.is-unread { color:hsl(var(--muted-foreground)); }
+.recording-receipt-status time { flex-basis:100%; text-align:right; font-size:7px; color:hsl(var(--muted-foreground)); }
+.recording-receipts-error { display:flex; align-items:center; gap:8px; }
 .announcement-delete { flex:0 0 29px; }
 .announcement-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:10px; padding:8px; border-radius:6px; background:hsl(var(--destructive) / .055); color:hsl(var(--foreground)); font-size:9px; }
 .announcement-confirm span { margin-right:auto; }
@@ -108,6 +123,7 @@
   .communications-intro { align-items:flex-start; padding:14px; }
   .privacy-mark { display:none; }
   .compose-panel { padding:15px; }
+  .recording-receipts { padding:9px; }
   .participant-announcements { padding:15px; }
   .participant-announcement.is-unread:before { left:-15px; }
 }

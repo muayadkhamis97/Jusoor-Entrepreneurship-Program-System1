@@ -1,7 +1,7 @@
 import { currentLanguage, t, useAppLanguage } from './language';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getGetParticipantDashboardQueryKey, getListAnnouncementsQueryKey, getListProgramsQueryKey, useCreateAnnouncement, useDeleteAnnouncement, useListAnnouncements, useListBusinesses, useListPrograms, useMarkAnnouncementRead } from '@workspace/api-client-react';
+import { getGetParticipantDashboardQueryKey, getGetRecordingNoticeReceiptsQueryKey, getListAnnouncementsQueryKey, getListProgramsQueryKey, useCreateAnnouncement, useDeleteAnnouncement, useGetRecordingNoticeReceipts, useListAnnouncements, useListBusinesses, useListPrograms, useMarkAnnouncementRead } from '@workspace/api-client-react';
 import type { Announcement, AnnouncementInput, ParticipantAnnouncement } from '@workspace/api-client-react';
 import { AlertCircle, Bell, CalendarClock, Check, CheckCheck, Clock3, Megaphone, Plus, Trash2, Video } from 'lucide-react';
 import { SessionRecordingPlayer } from './session-recording-player';
@@ -19,6 +19,13 @@ export function CommunicationsPage() {
   const create = useCreateAnnouncement();
   const remove = useDeleteAnnouncement();
   const client = useQueryClient();
+  const [openReceiptId, setOpenReceiptId] = useState<number | null>(null);
+  const receiptsQuery = useGetRecordingNoticeReceipts(openReceiptId ?? 0, {
+    query: {
+      enabled: openReceiptId !== null,
+      queryKey: getGetRecordingNoticeReceiptsQueryKey(openReceiptId ?? 0),
+    },
+  });
   const [kind, setKind] = useState<'update' | 'reminder'>('update');
   const [audienceMode, setAudienceMode] = useState<AnnouncementAudienceMode>('all');
   const [cohort, setCohort] = useState('');
@@ -104,7 +111,53 @@ export function CommunicationsPage() {
         {announcementsQuery.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
           : announcementsQuery.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><AlertCircle size={20} /></span><h3>{t('Messages could not load.')}</h3><p>{t('Your cohort notices are unchanged. Try again.')}</p><button className="button button-outline" onClick={() => void announcementsQuery.refetch()} data-testid="button-retry-announcements">{t('Retry messages')}</button></div>
           : !visible.length ? <div className="empty-panel communications-empty"><span className="empty-icon"><Megaphone size={20} /></span><h3>{t(announcements.length ? 'Nothing in this view.' : 'The noticeboard is clear.')}</h3><p>{t(announcements.length ? 'Switch the filter to see other messages.' : 'Publish an update or schedule a reminder to keep founders in the loop.')}</p></div>
-          : <div className="announcement-list">{visible.map(item => <article className="announcement-card" key={item.id} data-testid={`card-announcement-${item.id}`}><div className={`announcement-kind-mark ${item.kind}`} aria-hidden="true">{item.kind === 'reminder' ? <Bell size={15} /> : <Megaphone size={15} />}</div><div className="announcement-copy"><div className="announcement-meta"><span className={`announcement-status ${item.status}`}>{item.status === 'scheduled' ? t('Scheduled') : t('Published')}</span><span>{item.kind === 'reminder' ? t('Reminder') : t('Update')}</span><span>{item.businessName ? `${item.businessName} · ${item.programName}` : item.programName || t('All cohorts')}</span></div><h3>{item.title}</h3><p>{item.body}</p><small><Clock3 size={12} />{item.status === 'scheduled' ? t('Goes live') + ' ' : t('Shared') + ' '}{fmtDate(item.scheduledFor)}</small>{confirmingDelete === item.id && <div className="announcement-confirm" role="group" aria-label={`Confirm removing ${item.title}`}><span>{t('Remove this announcement?')}</span><button type="button" className="button button-quiet" onClick={() => setConfirmingDelete(null)}>{t('Keep')}</button><button type="button" className="button button-danger" onClick={() => deleteAnnouncement(item)} disabled={remove.isPending} data-testid={`button-confirm-delete-announcement-${item.id}`}>{remove.isPending ? t('Removing…') : t('Remove')}</button></div>}{remove.isError && confirmingDelete === item.id && <div className="form-error" role="alert">{t('Could not remove this message. Please try again.')}</div>}</div>{confirmingDelete !== item.id && <button type="button" className="icon-button icon-danger announcement-delete" onClick={() => setConfirmingDelete(item.id)} aria-label={`${t('Remove')} ${item.title}`} data-testid={`button-delete-announcement-${item.id}`}><Trash2 size={15} /></button>}</article>)}</div>}
+          : <div className="announcement-list">{visible.map(item => {
+            const receiptPanelOpen = openReceiptId === item.id && item.isCurrentRecordingNotice;
+            const receiptData = receiptsQuery.data?.announcementId === item.id ? receiptsQuery.data : undefined;
+            return <article className="announcement-card" key={item.id} data-testid={`card-announcement-${item.id}`}>
+              <div className={`announcement-kind-mark ${item.kind}`} aria-hidden="true">{item.kind === 'reminder' ? <Bell size={15} /> : <Megaphone size={15} />}</div>
+              <div className="announcement-copy">
+                <div className="announcement-meta"><span className={`announcement-status ${item.status}`}>{item.status === 'scheduled' ? t('Scheduled') : t('Published')}</span><span>{item.sessionId ? t('Recording') : item.kind === 'reminder' ? t('Reminder') : t('Update')}</span><span>{item.businessName ? `${item.businessName} · ${item.programName}` : item.programName || t('All cohorts')}</span></div>
+                <h3>{item.title}</h3><p>{item.body}</p>
+                <small><Clock3 size={12} />{item.status === 'scheduled' ? t('Goes live') + ' ' : t('Shared') + ' '}{fmtDate(item.scheduledFor)}</small>
+                {item.sessionId !== null && item.isCurrentRecordingNotice && item.status === 'published' && <div className="recording-receipt-actions">
+                  <button
+                    type="button"
+                    className="button button-outline"
+                    aria-expanded={receiptPanelOpen}
+                    onClick={() => setOpenReceiptId(receiptPanelOpen ? null : item.id)}
+                    data-testid={`button-recording-receipts-${item.id}`}
+                  >
+                    {receiptPanelOpen ? t('Close read status') : t('View read status')}
+                  </button>
+                  {receiptPanelOpen && <section className="recording-receipts" aria-label={t('Recording notice read status')} data-testid={`recording-receipts-${item.id}`}>
+                    {receiptsQuery.isLoading && <p>{t('Loading read status…')}</p>}
+                    {receiptsQuery.isError && <div className="recording-receipts-error" role="alert">
+                      <span>{t('Read status could not load.')}</span>
+                      <button type="button" className="text-link" onClick={() => {
+                        void receiptsQuery.refetch();
+                        void client.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() });
+                      }}>{t('Retry')}</button>
+                    </div>}
+                    {receiptData && <>
+                      <h4>{t('Accepted participants')} · {receiptData.participants.length}</h4>
+                      {!receiptData.participants.length
+                        ? <p>{t('No accepted participants are enrolled in this cohort yet.')}</p>
+                        : <ul>{receiptData.participants.map((participant, index) => <li key={`${participant.email}-${index}`}>
+                          <span className="recording-receipt-person"><b>{participant.founderName}</b><small>{participant.email}</small></span>
+                          <span className={`recording-receipt-status ${participant.readAt ? 'is-read' : 'is-unread'}`}>
+                            {participant.readAt ? <><Check size={13} />{t('Read')}<time dateTime={participant.readAt}>{fmtDate(participant.readAt)}</time></> : t('Unread')}
+                          </span>
+                        </li>)}</ul>}
+                    </>}
+                  </section>}
+                </div>}
+                {confirmingDelete === item.id && <div className="announcement-confirm" role="group" aria-label={`Confirm removing ${item.title}`}><span>{t('Remove this announcement?')}</span><button type="button" className="button button-quiet" onClick={() => setConfirmingDelete(null)}>{t('Keep')}</button><button type="button" className="button button-danger" onClick={() => deleteAnnouncement(item)} disabled={remove.isPending} data-testid={`button-confirm-delete-announcement-${item.id}`}>{remove.isPending ? t('Removing…') : t('Remove')}</button></div>}
+                {remove.isError && confirmingDelete === item.id && <div className="form-error" role="alert">{t('Could not remove this message. Please try again.')}</div>}
+              </div>
+              {confirmingDelete !== item.id && <button type="button" className="icon-button icon-danger announcement-delete" onClick={() => setConfirmingDelete(item.id)} aria-label={`${t('Remove')} ${item.title}`} data-testid={`button-delete-announcement-${item.id}`}><Trash2 size={15} /></button>}
+            </article>;
+          })}</div>}
       </section>
     </div>
     <p className="communications-privacy"><CheckCheck size={14} /> {t('Only published announcements are visible to participants. Scheduled messages remain in admin view until their release time.')}</p>

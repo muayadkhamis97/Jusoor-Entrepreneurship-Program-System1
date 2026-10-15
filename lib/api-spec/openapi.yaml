@@ -2172,6 +2172,24 @@ paths:
           description: Invalid input
         "403":
           description: Coordinator access required
+  /communications/{id}/read-receipts:
+    get:
+      operationId: getRecordingNoticeReceipts
+      tags: [communications]
+      summary: List accepted participants and their read receipts for the current recording notice
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Current recording notice receipt status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordingNoticeReceipts"
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Current recording notice not found
   /communications/{id}:
     delete:
       operationId: deleteAnnouncement
@@ -4690,6 +4708,8 @@ components:
       type: object
       properties:
         id: { type: integer }
+        sessionId: { type: ["integer", "null"] }
+        isCurrentRecordingNotice: { type: boolean }
         programId: { type: ["integer", "null"] }
         programName: { type: ["string", "null"] }
         businessId: { type: ["integer", "null"] }
@@ -4700,7 +4720,7 @@ components:
         scheduledFor: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         status: { type: string, enum: [scheduled, published] }
-      required: [id, programId, programName, businessId, businessName, kind, title, body, scheduledFor, createdAt, status]
+      required: [id, sessionId, isCurrentRecordingNotice, programId, programName, businessId, businessName, kind, title, body, scheduledFor, createdAt, status]
     AnnouncementInput:
       type: object
       properties:
@@ -4725,6 +4745,24 @@ components:
         id: { type: integer }
         readAt: { type: string, format: date-time }
       required: [id, readAt]
+    RecordingNoticeParticipant:
+      type: object
+      properties:
+        founderName: { type: string }
+        email: { type: string }
+        readAt: { type: ["string", "null"], format: date-time }
+      required: [founderName, email, readAt]
+    RecordingNoticeReceipts:
+      type: object
+      properties:
+        announcementId: { type: integer }
+        sessionId: { type: integer }
+        sessionTitle: { type: string }
+        recordingVersion: { type: integer }
+        participants:
+          type: array
+          items: { $ref: "#/components/schemas/RecordingNoticeParticipant" }
+      required: [announcementId, sessionId, sessionTitle, recordingVersion, participants]
     TrainingAssignment:
       type: object
       properties:
