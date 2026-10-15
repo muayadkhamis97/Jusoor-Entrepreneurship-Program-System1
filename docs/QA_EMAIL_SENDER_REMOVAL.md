@@ -6,7 +6,7 @@ Removed the Gmail connection panel, Google OAuth endpoints, Gmail delivery path,
 
 ## Data cleanup
 
-The migration `20261015_remove_gmail_sender.sql` drops `email_sender_connections`, including any stored encrypted refresh token. It has **not** been applied. No development or production database was accessed or changed. The historical table-creation migration is retained as migration history.
+The migration `20261015_remove_gmail_sender.sql` drops `email_sender_connections`, including any stored encrypted refresh token. It was run against the development database `heliumdb`. The table was already absent before the migration ran, so the command completed as an idempotent no-op; no Gmail credentials were present in that database at the time of the check. Production was not accessed or changed. The historical table-creation migration is retained as migration history.
 
 ## Verification
 
@@ -17,12 +17,12 @@ The migration `20261015_remove_gmail_sender.sql` drops `email_sender_connections
 - `git diff --check` passed.
 - No Gmail/OAuth implementation references remain in app source or API contracts; the historical create-table migration and new cleanup migration are retained.
 - Web and API workflows restarted successfully; Vite became ready, and the API production bundle built and listened on its configured port.
+- The Gmail sender cleanup SQL completed successfully against the development environment (`heliumdb`). Catalog checks before and after found no `email_sender_connections` table in any schema. No credential values were queried.
 - A local unauthenticated request to the removed sender-status path returned `401` at the shared auth layer, so it did not provide a route-level `404` check. Source and OpenAPI scans show the sender route is no longer mounted or declared.
 
 ## Limitations
 
-- The cleanup migration is pending; any existing saved Gmail authorization data remains in the database until that migration is applied through the normal database-change process.
-- No Gmail account connection state was queried.
-- No external provider, database, email, production environment, or deployment was accessed.
+- This project has no applied-migration ledger, so the database catalog was used to verify the cleanup result. The Gmail table was absent before execution as well as after.
+- No credential values were queried. No production environment, external provider, email, or deployment was accessed.
 - The existing Resend-backed sender was not contacted; delivery remains dependent on its existing configuration.
 - The preview browser rendered the signed-out landing page at the Admin integrations path. The signed-in Admin page was not visually verified.
