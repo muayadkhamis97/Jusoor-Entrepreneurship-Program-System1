@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createCipheriv, createHash, createHmac } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { after, before, test } from "node:test";
 import express from "express";
@@ -13,6 +14,8 @@ import { requireRole } from "../src/middlewares/requireRole";
 const nativeFetch = globalThis.fetch;
 const clientCode = "sensitive-authorization-code";
 const accessToken = "sensitive-calendly-access-token";
+const webhookToken = "test-calendly-webhook-token";
+const webhookSigningKey = "test-calendly-webhook-signing-key";
 const logEntries: unknown[] = [];
 let calendlyRouter: express.Router;
 let server: Server;
@@ -37,7 +40,10 @@ function responseJson(value: unknown, status = 200): Response {
   });
 }
 
-function replaceDbMethod(name: "select" | "update" | "insert", replacement: (...args: never[]) => unknown) {
+function replaceDbMethod(
+  name: "select" | "selectDistinct" | "update" | "insert",
+  replacement: (...args: never[]) => unknown,
+) {
   const original = Object.getOwnPropertyDescriptor(db, name);
   Object.defineProperty(db, name, {
     configurable: true,
@@ -71,6 +77,11 @@ before(async () => {
     });
     next();
   });
+  app.use(express.json({
+    verify: (req, _res, buffer) => {
+      (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+    },
+  }));
   app.use("/api/mentor/calendly", calendlyRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -94,6 +105,146 @@ async function callbackRequest(
     redirect: "manual",
     headers: { cookie: `jusoor_calendly_oauth=${cookie}` },
   });
+}
+
+function encryptedWebhookSecret(value: string): string {
+  const key = createHash("sha256").update(process.env.SESSION_SECRET!).digest();
+  const iv = Buffer.alloc(12, 7);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  return [
+    iv.toString("base64url"),
+    cipher.getAuthTag().toString("base64url"),
+    encrypted.toString("base64url"),
+  ].join(".");
+}
+
+function calendlyWebhookPayload(overrides: {
+  event?: "invitee.created" | "invitee.canceled";
+  createdAt?: string;
+  email?: string;
+  inviteeId?: string;
+  eventName?: string;
+  status?: string;
+} = {}): string {
+  const now = new Date();
+  const startsAt = new Date(now.getTime() + 60 * 60 * 1000);
+  const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
+  return JSON.stringify({
+    event: overrides.event ?? "invitee.created",
+    created_at: overrides.createdAt ?? now.toISOString(),
+    payload: {
+      uri: `https://api.calendly.com/scheduled_events/event-1/invitees/${overrides.inviteeId ?? "invitee-1"}`,
+      email: overrides.email ?? "founder@example.com",
+      status: overrides.status,
+      scheduled_event: {
+        uri: "https://api.calendly.com/scheduled_events/event-1",
+        name: overrides.eventName ?? "Mentoring session",
+        start_time: startsAt.toISOString(),
+        end_time: endsAt.toISOString(),
+      },
+    },
+  });
+}
+
+function calendlyWebhookHeaders(
+  rawBody: string,
+  timestamp = String(Math.floor(Date.now() / 1000)),
+  signingKey = webhookSigningKey,
+): Record<string, string> {
+  const signature = createHmac("sha256", signingKey)
+    .update(`${timestamp}.${rawBody}`, "utf8")
+    .digest("hex");
+  return {
+    "content-type": "application/json",
+    "calendly-webhook-signature": `t=${timestamp},v1=${signature}`,
+  };
+}
+
+async function postCalendlyWebhook(rawBody: string, headers = calendlyWebhookHeaders(rawBody)): Promise<Response> {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return nativeFetch(`http://127.0.0.1:${address.port}/api/mentor/calendly/webhook/${webhookToken}`, {
+    method: "POST",
+    headers,
+    body: rawBody,
+  });
+}
+
+function hasLastEventAtLessThanGuard(chunks: unknown[]): boolean {
+  const column = chunks.find((chunk) => typeof chunk === "object" && chunk !== null && "name" in chunk) as
+    { name?: string } | undefined;
+  const hasLessThan = chunks.some((chunk) => {
+    if (typeof chunk !== "object" || chunk === null || !("value" in chunk)) return false;
+    const value = (chunk as { value?: unknown }).value;
+    return Array.isArray(value) && value.join("").includes("<");
+  });
+  return column?.name === "last_event_at" && hasLessThan;
+}
+
+function installCalendlyWebhookDatabase(matchedBusinesses: Array<{ id: number }> = [{ id: 19 }]) {
+  const savedMeetings = new Map<string, Record<string, unknown>>();
+  const conflictUpdates: Array<Record<string, unknown>> = [];
+  let insertAttempts = 0;
+  const restoreSelect = replaceDbMethod("select", (() => {
+    const query = {
+      from() { return this; },
+      where() { return this; },
+      limit: async () => [{
+        id: 71,
+        webhookSecretEncrypted: encryptedWebhookSecret(webhookSigningKey),
+      }],
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  const restoreSelectDistinct = replaceDbMethod("selectDistinct", (() => {
+    const query = {
+      from() { return this; },
+      innerJoin() { return this; },
+      where: async () => matchedBusinesses,
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  const restoreInsert = replaceDbMethod("insert", (() => ({
+    values(values: Record<string, unknown>) {
+      insertAttempts += 1;
+      this.valuesToInsert = values;
+      return this;
+    },
+    valuesToInsert: {} as Record<string, unknown>,
+    onConflictDoUpdate(options: Record<string, unknown>) {
+      conflictUpdates.push(options);
+      const values = this.valuesToInsert;
+      const inviteeUri = String(values.inviteeUri);
+      const existing = savedMeetings.get(inviteeUri);
+      const condition = options.setWhere as { queryChunks?: Array<unknown> } | undefined;
+      const chunks = condition?.queryChunks ?? [];
+      const strictLastEventAtGuard = hasLastEventAtLessThanGuard(chunks);
+      let returned: Array<{ id: number }> = [];
+      if (!existing) {
+        savedMeetings.set(inviteeUri, { ...values, id: savedMeetings.size + 1 });
+        returned = [{ id: savedMeetings.size }];
+      } else if (
+        strictLastEventAtGuard &&
+        (existing.lastEventAt as Date).getTime() < (values.lastEventAt as Date).getTime()
+      ) {
+        savedMeetings.set(inviteeUri, { ...existing, ...values });
+        returned = [{ id: existing.id as number }];
+      }
+      return { returning: async () => returned };
+    },
+  })) as (...args: never[]) => unknown);
+
+  return {
+    savedMeetings,
+    conflictUpdates,
+    get insertAttempts() { return insertAttempts; },
+    restore() {
+      restoreInsert();
+      restoreSelectDistinct();
+      restoreSelect();
+    },
+  };
 }
 
 test("rejects expired and mismatched OAuth state before contacting Calendly", async () => {
@@ -400,6 +551,108 @@ test("imports paginated active and canceled invitees only for assigned businesse
     restoreUpdate();
     restoreSelect();
     globalThis.fetch = nativeFetch;
+  }
+});
+
+test("rejects invalid Calendly signatures and stale timestamps without changing stored meetings", async () => {
+  const database = installCalendlyWebhookDatabase();
+  const createdAt = new Date(Date.now() - 30_000).toISOString();
+  const originalPayload = calendlyWebhookPayload({ createdAt, eventName: "Original session" });
+
+  try {
+    const accepted = await postCalendlyWebhook(originalPayload);
+    assert.equal(accepted.status, 200);
+    const originalMeeting = database.savedMeetings.get(
+      "https://api.calendly.com/scheduled_events/event-1/invitees/invitee-1",
+    );
+    assert.equal(originalMeeting?.eventName, "Original session");
+    assert.equal(originalMeeting?.status, "confirmed");
+
+    const forgedPayload = calendlyWebhookPayload({
+      event: "invitee.canceled",
+      createdAt: new Date(Date.now() - 10_000).toISOString(),
+      eventName: "Forged update",
+    });
+    const forged = await postCalendlyWebhook(
+      forgedPayload,
+      calendlyWebhookHeaders(forgedPayload, undefined, "attacker-known-key"),
+    );
+    assert.equal(forged.status, 401);
+    assert.match(await forged.text(), /Invalid Calendly webhook signature/);
+
+    const stalePayload = calendlyWebhookPayload({
+      event: "invitee.canceled",
+      createdAt: new Date(Date.now() - 5_000).toISOString(),
+      eventName: "Stale update",
+    });
+    const staleTimestamp = String(Math.floor(Date.now() / 1000) - 4 * 60);
+    const stale = await postCalendlyWebhook(
+      stalePayload,
+      calendlyWebhookHeaders(stalePayload, staleTimestamp),
+    );
+    assert.equal(stale.status, 401);
+    assert.match(await stale.text(), /Invalid Calendly webhook signature/);
+    assert.equal(database.insertAttempts, 1);
+    assert.deepEqual(
+      database.savedMeetings.get("https://api.calendly.com/scheduled_events/event-1/invitees/invitee-1"),
+      originalMeeting,
+    );
+  } finally {
+    database.restore();
+  }
+});
+
+test("does not attach a Calendly event to a founder outside the mentor's assignments", async () => {
+  const database = installCalendlyWebhookDatabase([]);
+  try {
+    const response = await postCalendlyWebhook(calendlyWebhookPayload({
+      email: "unassigned-founder@example.com",
+    }));
+    assert.equal(response.status, 200);
+    assert.equal(database.insertAttempts, 0);
+    assert.equal(database.savedMeetings.size, 0);
+  } finally {
+    database.restore();
+  }
+});
+
+test("duplicate and out-of-order Calendly events cannot replace newer meeting state", async () => {
+  const database = installCalendlyWebhookDatabase();
+  const newestEventAt = new Date(Date.now() - 30_000);
+  const inviteeUri = "https://api.calendly.com/scheduled_events/event-1/invitees/invitee-1";
+  try {
+    const newest = await postCalendlyWebhook(calendlyWebhookPayload({
+      createdAt: newestEventAt.toISOString(),
+      eventName: "Newest confirmed session",
+    }));
+    assert.equal(newest.status, 200);
+
+    const duplicateWithChangedState = await postCalendlyWebhook(calendlyWebhookPayload({
+      event: "invitee.canceled",
+      createdAt: newestEventAt.toISOString(),
+      eventName: "Duplicate cancellation",
+    }));
+    assert.equal(duplicateWithChangedState.status, 200);
+
+    const older = await postCalendlyWebhook(calendlyWebhookPayload({
+      createdAt: new Date(newestEventAt.getTime() - 1_000).toISOString(),
+      eventName: "Out-of-order session",
+    }));
+    assert.equal(older.status, 200);
+
+    assert.equal(database.insertAttempts, 3);
+    assert.equal(database.conflictUpdates.length, 3);
+    assert.ok(database.conflictUpdates.every((options) =>
+      hasLastEventAtLessThanGuard(
+        (options.setWhere as { queryChunks?: unknown[] } | undefined)?.queryChunks ?? [],
+      ),
+    ));
+    const savedMeeting = database.savedMeetings.get(inviteeUri);
+    assert.equal(savedMeeting?.eventName, "Newest confirmed session");
+    assert.equal(savedMeeting?.status, "confirmed");
+    assert.equal((savedMeeting?.lastEventAt as Date).getTime(), newestEventAt.getTime());
+  } finally {
+    database.restore();
   }
 });
 
