@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ClerkProvider, SignIn, SignUp, useAuth, useClerk, useUser } from '@clerk/react';
+import { ClerkProvider, useAuth, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { arSA } from '@clerk/localizations';
@@ -70,6 +70,7 @@ const ApiIntegrationsPage = lazy(() => import('./api-integrations').then(module 
 const OwnProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.OwnProfilePage })));
 const AdminProfilesPage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.AdminProfilesPage })));
 const ParticipantProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.ParticipantProfilePage })));
+const AuthPage = lazy(() => import('./clerk-auth-page').then(module => ({ default: module.ClerkAuthPage })));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -1055,25 +1056,6 @@ function AuthLanding() {
       <div className="auth-foot"><Shield size={15} /><span>{t('Founder progress is private to the applicant. Staff workspace access requires admin approval.')}</span></div>
     </section>
     <div className="auth-side-note"><span>01 — {t('PROGRAM OPERATIONS')}</span><b>{t('Every founder.')}<br />{t('Every next step.')}</b><i>{t('OUTREACH → INCUBATION → GRANTS')}</i></div>
-  </main>;
-}
-
-function AuthPage({ mode, participantRedirect = false }: { mode: 'sign-in' | 'sign-up'; participantRedirect?: boolean }) {
-  useAppLanguage();
-  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
-  const branding = brandingQuery.data;
-  const isSignIn = mode === 'sign-in';
-  return <main className="auth-page auth-form-page">
-    <Link href="/" className="auth-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></Link>
-    <LanguageToggle className="auth-language-toggle" />
-    <div className="auth-form-content"><div className="eyebrow">{t(isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}</div><h1 className="app-title">{t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}</h1><p>{t(isSignIn ? 'Sign in to continue to your program workspace or founder progress.' : 'Use the same verified email you entered on your application. Staff accounts still require admin approval.')}</p>
-      <div className="clerk-card">{isSignIn
-        ? <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={participantRedirect ? `${basePath}/participant` : undefined} />
-        : <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} forceRedirectUrl={`${basePath}/participant`} />}
-      </div>
-      <Link href="/" className="auth-back">← {t('Back to Jusoor Program Hub')}</Link>
-    </div>
-    <div className="auth-form-note"><Shield size={15} /> Founder progress is private to the signed-in applicant. Staff workspace access remains admin-approved.</div>
   </main>;
 }
 

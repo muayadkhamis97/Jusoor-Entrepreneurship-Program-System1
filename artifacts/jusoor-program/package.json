@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
+    "check:bundle": "pnpm build && node scripts/check-initial-bundle.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "test": "tsx --test src/*.test.tsx",
     "test:unit": "tsx --test $(find src -maxdepth 1 -type f -name '*.test.tsx' ! -name '*.browser.test.tsx' -print | sort)",
