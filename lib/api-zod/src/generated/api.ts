@@ -3048,6 +3048,18 @@ export const CompleteGoogleCalendarConnectionResponse = zod.void()
 
 
 /**
+ * Clears the mentor's Google Calendar credentials and public schedule link, and switches booking to Calendly.
+ * @summary Disconnect a mentor's Google Calendar account
+ */
+export const DisconnectGoogleCalendarResponse = zod.object({
+  "bookingProvider": zod.enum(['calendly', 'google_calendar']),
+  "calendlyBookingUrl": zod.string().url().nullable(),
+  "googleCalendarBookingUrl": zod.string().url().nullable(),
+  "googleCalendarConnected": zod.boolean()
+})
+
+
+/**
  * @summary Choose the booking provider and save the Google Calendar booking link
  */
 export const UpdateMentorBookingSettingsBody = zod.object({

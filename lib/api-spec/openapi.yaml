@@ -1865,6 +1865,21 @@ paths:
           description: Redirect to the mentor workspace with the connection result
         "400":
           description: Authorization state is missing or invalid
+  /mentor/google-calendar/connection:
+    delete:
+      operationId: disconnectGoogleCalendar
+      tags: [support]
+      summary: Disconnect a mentor's Google Calendar account
+      description: Clears the mentor's Google Calendar credentials and public schedule link, and switches booking to Calendly.
+      responses:
+        "200":
+          description: Updated mentor booking settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorBookingSettings"
+        "403":
+          description: Mentor access required
   /mentor/booking-settings:
     patch:
       operationId: updateMentorBookingSettings

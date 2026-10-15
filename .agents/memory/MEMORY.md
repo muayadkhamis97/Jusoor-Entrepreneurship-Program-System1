@@ -16,3 +16,4 @@
 - [Global translation state](global-translation-state.md) — Keep the module-level translation helper synchronized with the provider before rendering consumers.
 - [Headless touch-scroll checks](headless-touch-scroll-checks.md) — Chromium CDP touch gestures did not scroll this app’s overflow menu; verify touch capability and the scroll range instead.
 - [Footer branding](footer-branding.md) — Keep static page-end labels generic; configured brand names belong in the branding-driven surfaces.
+- [Google Calendar account replacement](google-calendar-account-replacement.md) — A different Google account needs a fresh public schedule link; same-account reauthorization can retain its link.

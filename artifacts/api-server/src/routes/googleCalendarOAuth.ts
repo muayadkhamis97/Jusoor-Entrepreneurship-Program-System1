@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   StartGoogleCalendarConnectionBody,
   StartGoogleCalendarConnectionResponse,
@@ -238,6 +238,11 @@ router.get("/callback", async (req, res): Promise<void> => {
         googleCalendarAccessTokenEncrypted: encryptGoogleCalendarToken(tokenData.access_token),
         googleCalendarAccessTokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
         googleCalendarSyncToken: null,
+        googleCalendarBookingUrl: sql`case
+          when lower(coalesce(${staffMembersTable.googleCalendarAccountEmail}, '')) <> ${profile.email.trim().toLowerCase()}
+          then null
+          else ${staffMembersTable.googleCalendarBookingUrl}
+        end`,
       })
       .where(and(
         eq(staffMembersTable.id, payload.staffId),

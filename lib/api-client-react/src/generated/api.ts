@@ -7681,6 +7681,81 @@ export function useCompleteGoogleCalendarConnection<TData = Awaited<ReturnType<t
 
 
 
+export const getDisconnectGoogleCalendarUrl = () => {
+
+
+
+
+  return `/api/mentor/google-calendar/connection`
+}
+
+/**
+ * Clears the mentor's Google Calendar credentials and public schedule link, and switches booking to Calendly.
+ * @summary Disconnect a mentor's Google Calendar account
+ */
+export const disconnectGoogleCalendar = async ( options?: Parameters<typeof customFetch>[1]): Promise<MentorBookingSettings> => {
+
+  return customFetch<MentorBookingSettings>(getDisconnectGoogleCalendarUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectGoogleCalendarMutationKey = () => ['disconnectGoogleCalendar'] as const;
+
+export const getDisconnectGoogleCalendarMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogleCalendar>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogleCalendar>>, TError,void, TContext> => {
+
+const mutationKey = getDisconnectGoogleCalendarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectGoogleCalendar>>, void> = () => {
+
+
+          return  disconnectGoogleCalendar(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectGoogleCalendarMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectGoogleCalendar>>>
+
+    export type DisconnectGoogleCalendarMutationError = ErrorType<void>
+
+
+    /**
+ * @summary Disconnect a mentor's Google Calendar account
+ */
+export const useDisconnectGoogleCalendar = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectGoogleCalendar>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectGoogleCalendar>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDisconnectGoogleCalendarMutationOptions(options));
+    }
+
 export const getUpdateMentorBookingSettingsUrl = () => {
 
 

@@ -175,7 +175,8 @@ test("verifies the mentor's Google account and stores only encrypted Google toke
     assert.notEqual(persistedValues[0]?.googleCalendarAccessTokenEncrypted, accessToken);
     assert.equal(fetchCalls.length, 2);
     assert.match(String(fetchCalls[0]?.init?.body), new RegExp(authCode));
-    assert.doesNotMatch(JSON.stringify(persistedValues), new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
+    const persistedTokenFields = persistedValues.map(({ googleCalendarBookingUrl: _bookingUrl, ...values }) => values);
+    assert.doesNotMatch(JSON.stringify(persistedTokenFields), new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
     assert.doesNotMatch(redirect, new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
     assert.doesNotMatch(JSON.stringify(logEntries), new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
   } finally {

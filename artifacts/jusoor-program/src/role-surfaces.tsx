@@ -8,7 +8,7 @@ import {
   useGetTrainerDashboard, useCreateTrainingAssignment, useReviewTrainingAnswer,
   useReplyTrainingQuestion, useGetMentorDashboard, useUpdateAssignedMentoring,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
-  useStartGoogleCalendarConnection, useUpdateMentorBookingSettings,
+  useStartGoogleCalendarConnection, useUpdateMentorBookingSettings, useDisconnectGoogleCalendar,
   getGetProgramBrandingQueryKey, useGetProgramBranding,
 } from '@workspace/api-client-react';
 import type {
@@ -158,6 +158,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
   const update = useUpdateAssignedMentoring();
   const connectCalendly = useStartCalendlyConnection();
   const connectGoogleCalendar = useStartGoogleCalendarConnection();
+  const disconnectGoogleCalendar = useDisconnectGoogleCalendar();
   const saveBookingSettings = useUpdateMentorBookingSettings();
   const [bookingProvider, setBookingProvider] = useState<MentorBookingProvider>('calendly');
   const [googleCalendarBookingUrl, setGoogleCalendarBookingUrl] = useState('');
@@ -215,6 +216,8 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
       <p>{t('Connect your own account, then choose where founders should book time with you.')}</p>
       {bookingNotice && <p role="status" className="form-success">{t(bookingNotice)}</p>}
       {(connectCalendly.isError || connectGoogleCalendar.isError) && <p className="form-error" role="alert">{t('Authorization could not be started. Try again or ask an admin to check the setup.')}</p>}
+      {disconnectGoogleCalendar.isError && <p className="form-error" role="alert">{t('Google Calendar could not be disconnected. Please try again.')}</p>}
+      {disconnectGoogleCalendar.isSuccess && <p className="form-success" role="status">{t('Google Calendar disconnected. Your booking platform was updated.')}</p>}
       <div className="role-form-grid compact">
         <div className="field field-wide">
           <b>{t('Connect an account')}</b>
@@ -232,13 +235,23 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
             <button
               type="button"
               className="button button-outline"
-              disabled={connectGoogleCalendar.isPending}
+              disabled={connectGoogleCalendar.isPending || disconnectGoogleCalendar.isPending}
               onClick={() => connectGoogleCalendar.mutate({ data: {} }, {
                 onSuccess: result => window.location.assign(result.authorizationUrl),
               })}
               data-testid="button-connect-google-calendar"
             >{connectGoogleCalendar.isPending ? t('Connecting…') : dashboard?.googleCalendarConnected ? t('Reconnect Google Calendar') : t('Connect Google Calendar')}</button>
+            {dashboard?.googleCalendarConnected && <button
+              type="button"
+              className="button button-outline"
+              disabled={disconnectGoogleCalendar.isPending || connectGoogleCalendar.isPending}
+              onClick={() => disconnectGoogleCalendar.mutate(undefined, {
+                onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()),
+              })}
+              data-testid="button-disconnect-google-calendar"
+            >{disconnectGoogleCalendar.isPending ? t('Disconnecting…') : t('Disconnect Google Calendar')}</button>}
           </div>
+          {dashboard?.googleCalendarConnected && <small className="field-wide">{t('Disconnecting clears your Google Calendar appointment-schedule link. You can connect another account anytime.')}</small>}
         </div>
         {dashboard?.calendlyBookingUrl && <p className="field-wide"><a href={dashboard.calendlyBookingUrl} target="_blank" rel="noreferrer">{t('Open your Calendly booking page')} <ArrowRight size={14} /></a></p>}
         <form className="role-form-grid compact field-wide" onSubmit={saveBooking}>

@@ -135,16 +135,20 @@ async function refreshGoogleAccessToken(staff: {
     staff.googleCalendarAccessTokenExpiresAt.getTime() > Date.now() + 60_000
   ) return cachedAccessToken;
 
+  const encryptedRefreshToken = staff.googleCalendarRefreshTokenEncrypted;
   if (staff.googleCalendarAccessTokenEncrypted) {
     await db.update(staffMembersTable).set({
       googleCalendarAccessTokenEncrypted: null,
       googleCalendarAccessTokenExpiresAt: null,
-    }).where(eq(staffMembersTable.id, staff.id));
+    }).where(and(
+      eq(staffMembersTable.id, staff.id),
+      ...(encryptedRefreshToken ? [eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, encryptedRefreshToken)] : []),
+    ));
   }
   const refreshToken = decryptGoogleCalendarToken(staff.googleCalendarRefreshTokenEncrypted);
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-  if (!refreshToken || !clientId || !clientSecret) {
+  if (!refreshToken || !encryptedRefreshToken || !clientId || !clientSecret) {
     throw new GoogleCalendarSyncError("Google Calendar connection needs to be authorized again.");
   }
 
@@ -169,13 +173,19 @@ async function refreshGoogleAccessToken(staff: {
   }
 
   const refreshedAt = new Date();
-  await db.update(staffMembersTable).set({
+  const [updated] = await db.update(staffMembersTable).set({
     googleCalendarAccessTokenEncrypted: encryptGoogleCalendarToken(data.access_token),
     googleCalendarAccessTokenExpiresAt: new Date(refreshedAt.getTime() + data.expires_in * 1000),
     ...(typeof data.refresh_token === "string" && data.refresh_token
       ? { googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken(data.refresh_token) }
       : {}),
-  }).where(eq(staffMembersTable.id, staff.id));
+  }).where(and(
+    eq(staffMembersTable.id, staff.id),
+    eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, encryptedRefreshToken),
+  )).returning({ id: staffMembersTable.id });
+  if (!updated) {
+    throw new GoogleCalendarSyncError("Google Calendar connection changed during sync.");
+  }
   return data.access_token;
 }
 
@@ -288,7 +298,12 @@ async function saveGoogleEvent(
 }
 
 async function fetchAndStoreEvents(
-  mentor: { id: number; googleCalendarAccountEmail: string | null; googleCalendarSyncToken: string | null },
+  mentor: {
+    id: number;
+    googleCalendarAccountEmail: string | null;
+    googleCalendarRefreshTokenEncrypted: string;
+    googleCalendarSyncToken: string | null;
+  },
   accessToken: string,
 ): Promise<{ processed: number; matched: number }> {
   const mentorEmail = mentor.googleCalendarAccountEmail;
@@ -340,7 +355,11 @@ async function fetchAndStoreEvents(
 
   if (!nextSyncToken) throw new GoogleCalendarSyncError("Google Calendar sync did not complete.");
   await db.update(staffMembersTable).set({ googleCalendarSyncToken: nextSyncToken })
-    .where(eq(staffMembersTable.id, mentor.id));
+    .where(and(
+      eq(staffMembersTable.id, mentor.id),
+      eq(staffMembersTable.googleCalendarAccountEmail, mentorEmail),
+      eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, mentor.googleCalendarRefreshTokenEncrypted),
+    ));
   return { processed, matched };
 }
 
@@ -364,7 +383,10 @@ export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<v
   ) return;
 
   const accessToken = await refreshGoogleAccessToken(mentor);
-  const result = await fetchAndStoreEvents(mentor, accessToken);
+  const result = await fetchAndStoreEvents({
+    ...mentor,
+    googleCalendarRefreshTokenEncrypted: mentor.googleCalendarRefreshTokenEncrypted,
+  }, accessToken);
   logger.info({ mentorStaffId, ...result }, "Google Calendar booking sync completed");
 }
 

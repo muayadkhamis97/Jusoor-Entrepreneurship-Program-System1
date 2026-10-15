@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import {
+  DisconnectGoogleCalendarResponse,
   GetMentorDashboardResponse,
   UpdateMentorBookingSettingsBody,
   UpdateMentorBookingSettingsResponse,
@@ -104,6 +105,43 @@ router.patch("/booking-settings", async (req, res): Promise<void> => {
     .set({
       bookingProvider: body.data.bookingProvider,
       googleCalendarBookingUrl,
+    })
+    .where(and(
+      eq(staffMembersTable.id, staff.id),
+      eq(staffMembersTable.role, "mentor"),
+      eq(staffMembersTable.status, "active"),
+    ))
+    .returning({
+      bookingProvider: staffMembersTable.bookingProvider,
+      calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+      googleCalendarBookingUrl: staffMembersTable.googleCalendarBookingUrl,
+      googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+    });
+
+  if (!updated) {
+    res.status(403).json({ error: "Active mentor access is required." });
+    return;
+  }
+
+  res.json(DisconnectGoogleCalendarResponse.parse({
+    bookingProvider: updated.bookingProvider,
+    calendlyBookingUrl: updated.calendlyBookingUrl,
+    googleCalendarBookingUrl: updated.googleCalendarBookingUrl,
+    googleCalendarConnected: Boolean(updated.googleCalendarAccountEmail),
+  }));
+});
+
+router.delete("/google-calendar/connection", async (_req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const [updated] = await db.update(staffMembersTable)
+    .set({
+      bookingProvider: "calendly",
+      googleCalendarAccountEmail: null,
+      googleCalendarBookingUrl: null,
+      googleCalendarRefreshTokenEncrypted: null,
+      googleCalendarAccessTokenEncrypted: null,
+      googleCalendarAccessTokenExpiresAt: null,
+      googleCalendarSyncToken: null,
     })
     .where(and(
       eq(staffMembersTable.id, staff.id),
