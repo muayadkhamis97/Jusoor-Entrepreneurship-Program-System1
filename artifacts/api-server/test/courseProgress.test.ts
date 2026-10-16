@@ -38,6 +38,13 @@ function resetState(): void {
       businessName: "Amina Ventures",
       businessId: 201,
       email: "amina@example.com",
+      phone: null,
+      industry: null,
+      website: null,
+      summary: "Amina's application summary",
+      supportNeeds: "Amina's application support needs",
+      reviewNotes: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
       clerkUserId: "participant-a",
       status: "accepted",
     },
@@ -48,6 +55,13 @@ function resetState(): void {
       businessName: "Bilal Ventures",
       businessId: 202,
       email: "bilal@example.com",
+      phone: null,
+      industry: null,
+      website: null,
+      summary: "Bilal's application summary",
+      supportNeeds: "Bilal's application support needs",
+      reviewNotes: null,
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
       clerkUserId: "participant-b",
       status: "accepted",
     },
@@ -127,12 +141,15 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     courseModulesTable,
     ideaValidationWorkbooksTable,
     participantBusinessPlansTable,
+    participantInvitationsTable,
     courseQuizAttemptsTable,
     courseQuizzesTable,
   } = requireDbTables;
   let rows: Array<Record<string, any>> = [];
   if (table === applicationsTable) {
-    if (requestPath.endsWith("/certificate") && joined) {
+    if (requestPath === "/api/applications" && joined) {
+      rows = applications.map((application) => ({ application, programName }));
+    } else if (requestPath.endsWith("/certificate") && joined) {
       const found = applications.find((item) => item.id === Number(requestPath.split("/").at(-2)));
       rows = found ? [{ application: found, programName }] : [];
     } else if (joined && requestUserId && (requestPath.includes("/idea-validation/") || requestPath.includes("/business-plans/"))) {
@@ -178,6 +195,8 @@ function selectRows(table: unknown, joined: boolean, limit: number | undefined):
     rows = ideaValidationWorkbooks.filter((item) => selectedApplicationIds.has(item.applicationId));
   } else if (table === participantBusinessPlansTable) {
     rows = participantBusinessPlans.filter((item) => selectedApplicationIds.has(item.applicationId));
+  } else if (table === participantInvitationsTable) {
+    rows = [];
   } else if (table === courseCertificatesTable) {
     if (requestPath.endsWith("/verification")) {
       const requestedCode = requestPath.split("/").at(-2)?.toUpperCase();
@@ -220,6 +239,7 @@ let requireDbTables: {
   courseModulesTable: unknown;
   ideaValidationWorkbooksTable: unknown;
   participantBusinessPlansTable: unknown;
+  participantInvitationsTable: unknown;
   courseQuizAttemptsTable: unknown;
   courseQuizzesTable: unknown;
 };
@@ -364,12 +384,14 @@ before(async () => {
     courseModulesTable: schema.courseModulesTable,
     ideaValidationWorkbooksTable: schema.ideaValidationWorkbooksTable,
     participantBusinessPlansTable: schema.participantBusinessPlansTable,
+    participantInvitationsTable: schema.participantInvitationsTable,
     courseQuizAttemptsTable: schema.courseQuizAttemptsTable,
     courseQuizzesTable: schema.courseQuizzesTable,
   };
   const { participantCourseProgressRouter, publicCertificateVerificationRouter, staffLearningProgressRouter } =
     await import("../src/routes/courseProgress");
   const participantRouter = (await import("../src/routes/participant")).default;
+  const applicationsRouter = (await import("../src/routes/applications")).default;
   resetState();
 
   restoreSelect = replaceDbMethod("select", (() => makeSelect()) as (...args: never[]) => unknown);
@@ -409,6 +431,7 @@ before(async () => {
   });
   app.use("/api", participantCourseProgressRouter);
   app.use("/api/participant", participantRouter);
+  app.use("/api", applicationsRouter);
   app.use("/api", publicCertificateVerificationRouter);
   app.use("/api", staffLearningProgressRouter);
   server = createServer(app);
@@ -533,7 +556,12 @@ test("participant business plans save per accepted application and remain privat
 
   const otherParticipant = await request("/api/participant/business-plans", { user: "participant-b" });
   const otherPlans = await otherParticipant.json() as { plans: Array<Record<string, any>> };
+  assert.equal(otherPlans.plans.length, 1);
+  assert.equal(otherPlans.plans[0].acquisitionChannels, "");
   assert.equal(otherPlans.plans[0].outreachActions, "");
+  assert.equal(otherPlans.plans[0].fulfillmentSteps, "");
+  assert.equal(otherPlans.plans[0].reviewSignals, "");
+  assert.doesNotMatch(JSON.stringify(otherPlans), /Referrals and local market events|Contact five shop owners|Confirm order, prepare items|Weekly conversations/);
 
   const crossParticipantWrite = await request("/api/participant/business-plans/101", {
     user: "participant-b",
@@ -541,6 +569,17 @@ test("participant business plans save per accepted application and remain privat
     body: plan,
   });
   assert.equal(crossParticipantWrite.status, 404);
+  assert.equal(participantBusinessPlans.length, 1);
+  assert.equal(participantBusinessPlans[0].applicationId, 101);
+  assert.equal(participantBusinessPlans[0].acquisitionChannels, plan.acquisitionChannels);
+  assert.equal(participantBusinessPlans[0].outreachActions, plan.outreachActions);
+  assert.equal(participantBusinessPlans[0].fulfillmentSteps, plan.fulfillmentSteps);
+  assert.equal(participantBusinessPlans[0].reviewSignals, plan.reviewSignals);
+
+  const staffApplicationList = await request("/api/applications", { role: "coordinator" });
+  assert.equal(staffApplicationList.status, 200);
+  const staffApplications = await staffApplicationList.json();
+  assert.doesNotMatch(JSON.stringify(staffApplications), /Referrals and local market events|Contact five shop owners|Confirm order, prepare items|Weekly conversations/);
 
   const invalid = await request("/api/participant/business-plans/101", {
     user: "participant-a",
