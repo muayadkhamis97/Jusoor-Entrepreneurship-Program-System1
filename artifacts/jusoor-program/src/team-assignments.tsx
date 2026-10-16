@@ -14,9 +14,10 @@ import {
   type ProgramSpecialistRole,
   type ProgramTeamAssignments,
 } from '@workspace/api-client-react';
-import { Building2, Check, CircleAlert, History, LoaderCircle, Shield, Users } from 'lucide-react';
+import { Building2, Check, CircleAlert, Download, History, LoaderCircle, Shield, Users } from 'lucide-react';
 import { LanguageToggle, t, useAppLanguage } from './language';
 import { useProgramSelection } from './program-selection';
+import { downloadStaffAssignmentHistoryCsv } from './program-lifecycle-export';
 import './team-assignments.css';
 
 const roleOptions: ProgramSpecialistRole[] = ['trainer', 'mentor', 'judge'];
@@ -211,7 +212,16 @@ function AssignmentAuditHistory({ programs }: { programs: { id: number; name: st
   return <section className="panel program-assignment-panel" data-testid="assignment-audit-history">
     <div className="panel-heading">
       <div><div className="eyebrow">{t('ADMIN HISTORY')}</div><h2 className="app-title"><History size={20} /> {t('Assignment changes')}</h2></div>
-      <span className="section-meta">{t('Latest 250 matching')}</span>
+      <div className="assignment-history-actions">
+        <span className="section-meta">{t('Latest 250 matching')}</span>
+        <button
+          type="button"
+          className="button button-quiet"
+          onClick={() => downloadStaffAssignmentHistoryCsv(events)}
+          disabled={query.isLoading || query.isError || events.length === 0}
+          data-testid="button-export-assignment-history-csv"
+        ><Download size={14} />{t('Export spreadsheet (CSV)')}</button>
+      </div>
     </div>
     <p className="assignment-section-copy">{t('Review who changed specialist access or a participant business team, and when.')}</p>
     <div className="assignment-history-filters">

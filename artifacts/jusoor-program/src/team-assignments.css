@@ -5,6 +5,7 @@
 .assignment-scope-note svg { flex: 0 0 auto; color: hsl(var(--primary)); }
 .program-assignment-panel { padding: 18px 20px 20px; }
 .program-assignment-panel .panel-heading { margin-bottom: 8px; }
+.assignment-history-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .assignment-section-copy { max-width: 850px; margin: 0 0 16px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.65; }
 .assignment-history-filters { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 1.5fr) minmax(170px, 1fr); gap: 12px; margin: 0 0 16px; }
 .assignment-history-filters .field { margin: 0; }
@@ -31,5 +32,6 @@
 @media (max-width: 600px) {
   .program-assignment-panel { padding: 15px 14px; }
   .program-assignments-page .page-heading { align-items: flex-start; gap: 10px; }
+  .assignment-history-actions { justify-content: flex-start; }
   .assignment-scope-card { padding: 15px 14px; }
 }
