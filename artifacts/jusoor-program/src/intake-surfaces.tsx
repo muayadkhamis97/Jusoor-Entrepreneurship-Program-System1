@@ -280,7 +280,7 @@ export function ParticipantDashboardPage() {
               <ParticipantProgramLearning />
             </section>
           </>}
-    </main><footer className="intake-footer footer-brandless"><span>YOUR PROGRESS IS PRIVATE TO YOU</span></footer>
+    </main><footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
   </div>;
 }
 

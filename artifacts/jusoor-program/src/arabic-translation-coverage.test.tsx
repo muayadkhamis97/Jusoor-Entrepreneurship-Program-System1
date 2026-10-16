@@ -7,17 +7,36 @@ import { brandedAdminRoleLabel, hasArabicTranslation, translate } from './langua
 import { getStaffNavigationItems } from './mobile-staff-navigation';
 
 const sourceRoot = path.resolve(import.meta.dirname);
+const componentsThatTranslateTextProps = new Set([
+  'Badge',
+  'EmptyState',
+  'FormDialog',
+  'Heading',
+  'PageHeading',
+  'TextAreaField',
+  'TextField',
+]);
 const intentionallyEnglishExamples = new Set([
   'https://…',
+  'https://',
+  'you@venture.com',
   'https://drive.google.com/file/d/…/view',
   'Cedar & Clay Foods',
   'Venture Launch · Spring',
   'Jusoor',
   'J',
+  'JUSOOR / 404',
   'ZOOM_CLIENT_ID',
   'ZOOM_CLIENT_SECRET',
   'meeting:write:meeting',
   'recording.completed',
+  '/ JSR-',
+  'Calendly',
+  'CALENDLY',
+  'Google Calendar',
+  'GOOGLE CALENDAR',
+  'Zoom',
+  'https://calendar.google.com/calendar/appointments/schedules/…',
 ]);
 
 function addStaticTranslationArgument(node: ts.Node, keys: Set<string>) {
@@ -77,7 +96,7 @@ function addRenderedStaticText(node: ts.Node, keys: Set<string>) {
   }
 }
 
-function collectRawRenderedCopy(fileName: string): string[] {
+function collectRawRenderedCopy(fileName: string, functionNames?: readonly string[]): string[] {
   const text = readFileSync(path.join(sourceRoot, fileName), 'utf8');
   const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const keys = new Set<string>();
@@ -94,7 +113,13 @@ function collectRawRenderedCopy(fileName: string): string[] {
       node.attributes.properties
     ) {
       for (const attribute of node.attributes.properties) {
+        const parent = attribute.parent.parent;
+        const componentTag =
+          (ts.isJsxOpeningElement(parent) || ts.isJsxSelfClosingElement(parent)) &&
+          ts.isIdentifier(parent.tagName) &&
+          componentsThatTranslateTextProps.has(parent.tagName.text);
         if (
+          !componentTag &&
           ts.isJsxAttribute(attribute) &&
           ['aria-label', 'title', 'placeholder', 'alt'].includes(attribute.name.getText(source)) &&
           attribute.initializer
@@ -109,7 +134,23 @@ function collectRawRenderedCopy(fileName: string): string[] {
     }
     ts.forEachChild(node, visit);
   }
-  visit(source);
+  if (!functionNames) {
+    visit(source);
+  } else {
+    const names = functionNames;
+    function visitFunctions(node: ts.Node) {
+      if (
+        ts.isFunctionDeclaration(node) &&
+        node.name &&
+        names.includes(node.name.text)
+      ) {
+        visit(node);
+        return;
+      }
+      ts.forEachChild(node, visitFunctions);
+    }
+    visitFunctions(source);
+  }
   return [...keys].filter(key => /[A-Za-z]{2}/.test(key));
 }
 
@@ -294,6 +335,7 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
   if (fileName === 'App.tsx') {
     addComponentPropStrings(source, 'PageHeading', ['kicker', 'title', 'summary'], keys);
     addComponentPropStrings(source, 'EmptyState', ['title', 'body'], keys);
+    addComponentPropStrings(source, 'Badge', ['label'], keys);
     for (const key of [
       'Food & agriculture',
       'Circular economy',
@@ -310,6 +352,8 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
   }
 
   if (fileName === 'intake-surfaces.tsx') {
+    addComponentPropStrings(source, 'TextField', ['label', 'placeholder'], keys);
+    addComponentPropStrings(source, 'TextAreaField', ['label', 'placeholder', 'helper'], keys);
     for (const key of ['Bootcamp', 'Hackathon']) keys.add(key);
     const schemaStart = text.indexOf('const applicationSchema');
     const schemaEnd = text.indexOf('type ApplicationFormValues', schemaStart);
@@ -329,10 +373,13 @@ function collectFlowTranslationKeys(fileName: string, keys: Set<string>) {
       addValidationMessages(schemaSource);
     }
   }
+
+  if (fileName === 'role-surfaces.tsx') {
+    addComponentPropStrings(source, 'Heading', ['kicker', 'title', 'description', 'count'], keys);
+  }
 }
 
-function collectRawJsxText(fileName: string): string[] {
-  const text = readFileSync(path.join(sourceRoot, fileName), 'utf8');
+function collectRawJsxTextFromSource(text: string, fileName = 'inline.tsx'): string[] {
   const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const raw: string[] = [];
   function visit(node: ts.Node) {
@@ -344,6 +391,10 @@ function collectRawJsxText(fileName: string): string[] {
   }
   visit(source);
   return raw;
+}
+
+function collectRawJsxText(fileName: string): string[] {
+  return collectRawJsxTextFromSource(readFileSync(path.join(sourceRoot, fileName), 'utf8'), fileName);
 }
 
 function collectRawJsxTextInFunctions(fileName: string, functionNames: readonly string[]): string[] {
@@ -440,20 +491,46 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
   assert.deepEqual(missing, [], `Add Arabic translations for: ${missing.join(', ')}`);
 });
 
-test('fixed copy in role-access and communication screens is translated; dynamic text stays out of the scan', () => {
-  const untranslated = ['role-access.tsx', 'communications-surfaces.tsx']
+test('fixed copy on staff, applicant, and participant routes is translated; dynamic text stays out of the scan', () => {
+  const auditedFiles = [
+    'intake-surfaces.tsx',
+    'session-interactions.tsx',
+    'profile-surfaces.tsx',
+    'role-surfaces.tsx',
+  ];
+  const untranslated = auditedFiles
     .flatMap(file => collectRawJsxText(file).map(text => `${file}: ${text}`));
+  const appRouteFunctions = [
+    'FieldControl',
+    'Shell',
+    'Overview',
+    'ProgramsPage',
+    'BusinessesPage',
+    'SessionsPage',
+    'SupportPage',
+    'PitchesPage',
+    'PitchJudgeControl',
+    'MentorBookingStatusPage',
+    'MentorFollowUpEditor',
+    'TeamPage',
+    'NotFoundPage',
+  ];
   untranslated.push(
-    ...collectRawJsxTextInFunctions('intake-surfaces.tsx', ['EnrollmentCard', 'ParticipantLearning']),
-    ...collectRawJsxTextInFunctions('role-surfaces.tsx', ['TrainerDashboardPage', 'RoleNotFound']),
-    ...collectRawJsxTextInFunctions('App.tsx', ['SessionsPage', 'SupportPage', 'PitchesPage']),
-  );
-  untranslated.push(
+    ...collectRawJsxTextInFunctions('App.tsx', appRouteFunctions),
     ...['role-access.tsx', 'communications-surfaces.tsx']
-      .flatMap(file => collectRawRenderedCopy(file).map(text => `${file}: ${text}`))
+      .flatMap(file => collectRawJsxText(file).concat(collectRawRenderedCopy(file)).map(text => `${file}: ${text}`))
       .filter(entry => !intentionallyEnglishExamples.has(entry.slice(entry.indexOf(': ') + 2))),
   );
   assert.deepEqual(untranslated, [], `Wrap fixed UI copy in t(): ${untranslated.join(' | ')}`);
+
+  const regressionExample = `
+    const ParticipantCard = ({ businessName, contactNote }) => (
+      <article><h2>New fixed label</h2><p>{businessName}</p><small>{contactNote}</small>
+        <span>Jusoor</span><code>meeting:write:meeting</code>
+      </article>
+    );
+  `;
+  assert.deepEqual(collectRawJsxTextFromSource(regressionExample), ['New fixed label']);
 
   const participantProvidedAnswer = 'I need help choosing my market';
   assert.equal(translate(participantProvidedAnswer, 'ar'), participantProvidedAnswer);

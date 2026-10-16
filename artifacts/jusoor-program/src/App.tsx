@@ -140,7 +140,7 @@ function FieldControl({ field, value, onChange, autoFocus = false }: { field: Fi
   const common = { value, onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), required: field.required, placeholder: field.placeholder, 'data-testid': `input-${field.name}`, 'data-dialog-autofocus': autoFocus ? '' : undefined };
   if (field.kind === 'textarea') return <textarea {...common} rows={3} className="form-control resize-y" />;
   if (field.kind === 'multiselect') return <select {...common} multiple value={value ? value.split(',').filter(Boolean) : []} onChange={event => onChange(Array.from(event.target.selectedOptions, option => option.value).join(','))} size={Math.min(5, Math.max(2, field.options?.length ?? 2))} className="form-control">{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
-  if (field.kind === 'select') return <select {...common} className="form-control"><option value="">Choose…</option>{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
+  if (field.kind === 'select') return <select {...common} className="form-control"><option value="">{t('Choose…')}</option>{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
   return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
 
@@ -196,9 +196,9 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
     <aside className="sidebar">
-       <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{brandName.slice(0, 1) || 'J'}</span>}<span><b>{brandName}</b><small>PROGRAM HUB</small></span></Link>
+       <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{brandName.slice(0, 1) || 'J'}</span>}<span><b>{brandName}</b><small>{t('PROGRAM HUB')}</small></span></Link>
        <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
-       <nav className="side-nav" aria-label="Main navigation">{nav.map(item => {
+       <nav className="side-nav" aria-label={t('Main navigation')}>{nav.map(item => {
          const Icon = item.icon; const active = isStaffNavigationItemActive(path, item.href);
          return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
       })}</nav>
@@ -394,12 +394,12 @@ function ProgramsPage({ coordinator }: { coordinator: boolean }) {
       </div>
     </div>}
     {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : programs.length === 0
-      ? <EmptyState title={showArchived ? 'No archived programs.' : coordinator ? 'A good program starts with a clear plan.' : 'No active programs are assigned to you.'} body={coordinator ? 'Create a cohort or switch views to review archived program history.' : 'Ask an admin to assign you to an active program.'} action={coordinator && !showArchived ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Create a program</button> : undefined} />
+      ? <EmptyState title={showArchived ? 'No archived programs.' : coordinator ? 'A good program starts with a clear plan.' : 'No active programs are assigned to you.'} body={coordinator ? 'Create a cohort or switch views to review archived program history.' : 'Ask an admin to assign you to an active program.'} action={coordinator && !showArchived ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> {t('Create a program')}</button> : undefined} />
       : <><div className="section-strip"><span><b>{programs.length}</b> {showArchived ? t('archived programs') : t('active cohorts')}</span><span><span className="live-dot" /> {t('Keep cohort dates current')}</span></div><div className="program-grid">{programs.map((program, index) => <article className="program-card" key={program.id} data-testid={`card-program-${program.id}`}><div className="program-card-top"><div className={`program-symbol program-symbol-${index % 3}`}>{program.format === 'bootcamp' ? 'B' : 'H'}</div><Badge value={program.archivedAt ? 'archived' : program.status} /><div className="row-actions">
         {coordinator && !program.archivedAt && <><button className="icon-button" onClick={() => setEditing(program)} aria-label={`Edit ${program.name}`} data-testid={`button-edit-program-${program.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setArchiving(program)} aria-label={`Archive ${program.name}`} data-testid={`button-archive-program-${program.id}`}><Trash2 size={15} /></button></>}
         {coordinator && program.archivedAt && <button className="icon-button" onClick={() => restoreProgram(program)} aria-label={`Restore ${program.name}`} data-testid={`button-restore-program-${program.id}`} disabled={restore.isPending}><RefreshCw size={15} /></button>}
         {coordinator && <button className="icon-button" onClick={() => setHistoryProgram(program)} aria-label={`View archive and restore history for ${program.name}`} data-testid={`button-program-history-${program.id}`}><History size={15} /></button>}
-      </div></div><div className="eyebrow">{display(program.format)} COHORT {program.archivedAt ? `· ${t('ARCHIVED')}` : ''}</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || 'A founder-focused program moving ideas into their next stage.'}</p><div className="program-dates"><div><span>APPLICATION DEADLINE</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>PROGRAM WINDOW</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div>{!program.archivedAt && <Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link>}</article>)}</div></>}
+      </div></div><div className="eyebrow">{display(program.format)} {t('COHORT')} {program.archivedAt ? `· ${t('ARCHIVED')}` : ''}</div><h2 className="app-title">{program.name}</h2><p className="program-description">{program.description || t('A founder-focused program moving ideas into their next stage.')}</p><div className="program-dates"><div><span>{t('APPLICATION DEADLINE')}</span><b>{dateLabel(program.applicationDeadline)}</b></div><div><span>{t('PROGRAM WINDOW')}</span><b>{dateLabel(program.startDate)} <i>→</i> {dateLabel(program.endDate)}</b></div></div>{!program.archivedAt && <Link href={`/businesses?programId=${program.id}`} className="program-link">{t('View cohort businesses')} <ArrowRight size={15} /></Link>}</article>)}</div></>}
     {(archive.error || restore.error) && <div className="form-error" role="alert">{apiErrorMessage(archive.error || restore.error, 'The program archive change could not be completed.')}</div>}
     {historyProgram && <ProgramLifecycleHistoryDialog program={historyProgram} onClose={() => setHistoryProgram(null)} />}
     {showAllHistory && <AllProgramLifecycleHistoryDialog onClose={() => setShowAllHistory(false)} />}
@@ -486,7 +486,7 @@ function BusinessesPage() {
      <PageHeading kicker="FOUNDER JOURNEY / PIPELINE" title="Businesses" summary={t('Browse founders in each cohort and classify ventures by startup industry.')} action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-business"><Plus size={16} /> {t('Add business')}</button>} />
     <section className="pipeline-ribbon"><div className="ribbon-heading"><div className="eyebrow">{t('JUSOOR JOURNEY')}</div><span>{t('Follow progress, not just applications.')}</span></div><div className="ribbon-stages">{businessStages.slice(0, 7).map((s, i) => <div className="ribbon-stage" key={s}><span className={`ribbon-dot dot-${i}`} />{t(stageNames[s])}{i < 6 && <i />}</div>)}</div></section>
      <section className="list-panel panel"><div className="toolbar"><div className="search-box"><Search size={16} /><input type="search" aria-label={t('Search businesses')} placeholder={t('Search business, founder, email or industry…')} value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-businesses" />{search && <button onClick={() => setSearch('')} aria-label={t('Clear search')}><X size={14} /></button>}</div><label className="filter-select"><Filter size={15} /><select value={programId} aria-label={t('Filter by cohort')} onChange={e => changeProgram(e.target.value)} data-testid="select-business-program"><option value="">{t('All programs')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={industry} aria-label={t('Filter by startup industry')} onChange={e => setIndustry(e.target.value)} data-testid="select-business-industry"><option value="">{t('All industries')}</option>{industries.map(value => <option key={value} value={value}>{industryLabel(value)}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={stage} aria-label={t('Filter businesses by stage')} onChange={e => setStage(e.target.value)} data-testid="select-business-stage"><option value="">{t('All stages')}</option>{businessStages.map(s => <option key={s} value={s}>{t(stageNames[s])}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{visibleBusinesses.length}</b> {t('records')}</div></div>
-       {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : visibleBusinesses.length === 0 ? <EmptyState title={hasFilters ? t('No businesses match this view.') : 'The founder pipeline is ready.'} body={hasFilters ? t('Try another cohort, industry, stage or search term.') : 'Add a business or applicant and start tracking the next step.'} action={hasFilters ? <button className="button button-outline" onClick={clearFilters}>{t('Clear all filters')}</button> : <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> Add a business</button>} /> :
+        {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : visibleBusinesses.length === 0 ? <EmptyState title={hasFilters ? t('No businesses match this view.') : 'The founder pipeline is ready.'} body={hasFilters ? t('Try another cohort, industry, stage or search term.') : 'Add a business or applicant and start tracking the next step.'} action={hasFilters ? <button className="button button-outline" onClick={clearFilters}>{t('Clear all filters')}</button> : <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> {t('Add a business')}</button>} /> :
        <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS / FOUNDER')}</th><th>{t('PROGRAM')}</th><th>{t('INDUSTRY')}</th><th>{t('STAGE')}</th><th>{t('APPLIED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>{visibleBusinesses.map(business => <tr key={business.id} data-testid={`row-business-${business.id}`}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName} · {business.email}</small></span></div></td><td>{programs.find(p => p.id === business.programId)?.name || `${t('Program')} ${business.programId}`}</td><td>{industryLabel(business.industry)}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(business)} aria-label={`${t('Edit')} ${business.businessName}`} data-testid={`button-edit-business-${business.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(business)} aria-label={`${t('Delete')} ${business.businessName}`} data-testid={`button-delete-business-${business.id}`}><Trash2 size={15} /></button></div></td></tr>)}</tbody></table></div>}
     </section>
      <div className="list-footnote"><span><Users size={15} /> {t('People first, stage second.')}</span><span>{t('Use notes to keep the context behind the numbers.')}</span></div>
@@ -830,7 +830,7 @@ function PitchJudgeControl({ pitchId, pitchLabel, judges, client }: { pitchId: n
     assign.mutate({ id: pitchId, data: { judgeStaffId: Number(judgeId) } }, { onSuccess: () => { invalidate(client, [getListPitchJudgesQueryKey(pitchId)]); setJudgeId(''); } });
   };
   const removeAssignment = (assignmentId: number) => remove.mutate({ id: assignmentId }, { onSuccess: () => invalidate(client, [getListPitchJudgesQueryKey(pitchId)]) });
-  return <article className="judge-assignment-row" data-testid={`pitch-judge-assignment-${pitchId}`}><div><b>{pitchLabel}</b><span>{query.isLoading ? 'Loading judge assignments…' : assignments.length ? assignments.map(item => `${item.judgeName}${item.submittedAt ? ' · scored' : ''}`).join(' / ') : 'No individual judges assigned'}</span></div><div className="judge-assignment-actions"><label className="sr-only" htmlFor={`assign-judge-${pitchId}`}>Choose judge for {pitchLabel}</label><select id={`assign-judge-${pitchId}`} className="form-control" value={judgeId} onChange={event => setJudgeId(event.target.value)} data-testid={`select-judge-${pitchId}`}><option value="">Choose judge</option>{judges.filter(person => !assignedIds.has(person.id)).map(person => <option key={person.id} value={person.id}>{person.email}</option>)}</select><button className="button button-outline" onClick={add} disabled={!judgeId || assign.isPending} data-testid={`button-assign-judge-${pitchId}`}>{assign.isPending ? 'Assigning…' : 'Assign'}</button></div>{assignments.filter(item => !item.submittedAt).map(item => <button className="judge-remove" key={item.id} onClick={() => removeAssignment(item.id)} disabled={remove.isPending} aria-label={`Remove ${item.judgeName} from ${pitchLabel}`} data-testid={`button-remove-judge-${item.id}`}>Remove {item.judgeName}</button>)}{(assign.isError || remove.isError || query.isError) && <span className="form-error">Judge assignment could not be updated.</span>}</article>;
+  return <article className="judge-assignment-row" data-testid={`pitch-judge-assignment-${pitchId}`}><div><b>{pitchLabel}</b><span>{query.isLoading ? t('Loading judge assignments…') : assignments.length ? assignments.map(item => `${item.judgeName}${item.submittedAt ? ` · ${t('scored')}` : ''}`).join(' / ') : t('No individual judges assigned')}</span></div><div className="judge-assignment-actions"><label className="sr-only" htmlFor={`assign-judge-${pitchId}`}>{t('Choose judge for')} {pitchLabel}</label><select id={`assign-judge-${pitchId}`} className="form-control" value={judgeId} onChange={event => setJudgeId(event.target.value)} data-testid={`select-judge-${pitchId}`}><option value="">{t('Choose judge')}</option>{judges.filter(person => !assignedIds.has(person.id)).map(person => <option key={person.id} value={person.id}>{person.email}</option>)}</select><button className="button button-outline" onClick={add} disabled={!judgeId || assign.isPending} data-testid={`button-assign-judge-${pitchId}`}>{assign.isPending ? t('Assigning…') : t('Assign')}</button></div>{assignments.filter(item => !item.submittedAt).map(item => <button className="judge-remove" key={item.id} onClick={() => removeAssignment(item.id)} disabled={remove.isPending} aria-label={`${t('Remove')} ${item.judgeName} ${t('from')} ${pitchLabel}`} data-testid={`button-remove-judge-${item.id}`}>{t('Remove')} {item.judgeName}</button>)}{(assign.isError || remove.isError || query.isError) && <span className="form-error">{t('Judge assignment could not be updated.')}</span>}</article>;
 }
 
 function MentorBookingStatusPage() {
@@ -859,7 +859,7 @@ function MentorBookingStatusPage() {
       kicker="MENTOR OPERATIONS / SESSION BOOKING"
       title="Mentor booking status"
       summary="See booking connections and keep track of follow-ups for mentors who have not connected Calendly."
-      action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? 'Refreshing…' : <><RefreshCw size={14} /> Refresh status</>}</button>}
+      action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? t('Refreshing…') : <><RefreshCw size={14} /> {t('Refresh status')}</>}</button>}
     />
     {query.isLoading ? <LoadingState label="Loading mentor booking status" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : <>
       <section className="metric-grid mentor-booking-metrics">
@@ -870,11 +870,11 @@ function MentorBookingStatusPage() {
       {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after an admin adds them under Team access." /> :
         <section className="panel staff-panel">
           <div className="panel-heading">
-            <div><div className="eyebrow">BOOKING READINESS</div><h2 className="app-title">Mentor accounts</h2></div>
-            <span className="section-meta">{pendingCount} still need Calendly</span>
+            <div><div className="eyebrow">{t('BOOKING READINESS')}</div><h2 className="app-title">{t('Mentor accounts')}</h2></div>
+            <span className="section-meta">{pendingCount} {t('still need Calendly')}</span>
           </div>
           <div className="mentor-booking-toolbar">
-            <label className="filter-select"><Filter size={15} /><select aria-label="Filter mentors by follow-up status" value={followUpFilter} onChange={event => {
+            <label className="filter-select"><Filter size={15} /><select aria-label={t('Filter mentors by follow-up status')} value={followUpFilter} onChange={event => {
               const value = event.target.value;
               setFollowUpFilter(value);
               const search = new URLSearchParams(window.location.search);
@@ -882,23 +882,23 @@ function MentorBookingStatusPage() {
               else search.set('followUp', value);
               const query = search.toString();
               window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
-            }} data-testid="select-mentor-follow-up-filter"><option value="all">All mentors</option><option value="overdue">Overdue</option><option value="upcoming">Upcoming</option><option value="undated">Undated</option></select><ChevronDown size={13} /></label>
-            <span className="toolbar-count"><b>{visibleMentors.length}</b> mentors</span>
+            }} data-testid="select-mentor-follow-up-filter"><option value="all">{t('All mentors')}</option><option value="overdue">{t('Overdue')}</option><option value="upcoming">{t('Upcoming')}</option><option value="undated">{t('Undated')}</option></select><ChevronDown size={13} /></label>
+            <span className="toolbar-count"><b>{visibleMentors.length}</b> {t('mentors')}</span>
           </div>
           <div className="table-wrap"><table>
-            <thead><tr><th>MENTOR</th><th>JUSOOR ACCOUNT</th><th>BOOKING PROVIDER</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th><th>FOLLOW-UP</th></tr></thead>
+            <thead><tr><th>{t('MENTOR')}</th><th>{t('JUSOOR ACCOUNT')}</th><th>{t('BOOKING PROVIDER')}</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th><th>{t('FOLLOW-UP')}</th></tr></thead>
             <tbody>{visibleMentors.map(mentor => <tr key={mentor.staffId} data-testid={`row-mentor-booking-${mentor.staffId}`}>
               <td><div className="staff-email"><span className="staff-avatar">{mentor.email.slice(0, 1).toUpperCase()}</span><b>{mentor.email}</b></div></td>
               <td><Badge value={mentor.status} label={mentor.status === 'active' ? 'Active' : 'Invitation pending'} /></td>
               <td><b>{mentor.bookingProvider === 'google_calendar' ? 'Google Calendar' : 'Calendly'}</b></td>
-              <td><span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}><span />{mentor.calendlyConnected ? 'Connected' : 'Not connected'}</span></td>
-              <td><span className={`badge ${mentor.googleCalendarConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-google-calendar-${mentor.staffId}`}><span />{mentor.googleCalendarConnected ? 'Connected' : 'Not connected'}</span>{!mentor.googleCalendarConnected && mentor.status === 'invited' && <small className="mentor-booking-note">Waiting for account sign-in</small>}</td>
+              <td><span className={`badge ${mentor.calendlyConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-calendly-${mentor.staffId}`}><span />{mentor.calendlyConnected ? t('Connected') : t('Not connected')}</span></td>
+              <td><span className={`badge ${mentor.googleCalendarConnected ? 'badge-good' : 'badge-warm'}`} data-testid={`status-google-calendar-${mentor.staffId}`}><span />{mentor.googleCalendarConnected ? t('Connected') : t('Not connected')}</span>{!mentor.googleCalendarConnected && mentor.status === 'invited' && <small className="mentor-booking-note">{t('Waiting for account sign-in')}</small>}</td>
               <td><MentorFollowUpEditor mentor={mentor} today={today} onSaved={() => void query.refetch()} /></td>
             </tr>)}</tbody>
           </table></div>
-          {visibleMentors.length === 0 && <div className="mentor-follow-up-empty">No mentors match this follow-up filter.</div>}
+           {visibleMentors.length === 0 && <div className="mentor-follow-up-empty">{t('No mentors match this follow-up filter.')}</div>}
         </section>}
-      <div className="dashboard-note"><span className="note-mark"><CalendarDays size={13} /></span><span><b>Connection status only.</b> This page shows provider selection and account status, not private calendar details or credentials.</span></div>
+       <div className="dashboard-note"><span className="note-mark"><CalendarDays size={13} /></span><span><b>{t('Connection status only.')}</b> {t('This page shows provider selection and account status, not private calendar details or credentials.')}</span></div>
     </>}
   </>;
 }
@@ -920,26 +920,26 @@ function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookin
   );
 
   if (mentor.calendlyConnected) {
-    return <span className="mentor-follow-up-connected">Not needed</span>;
+    return <span className="mentor-follow-up-connected">{t('Not needed')}</span>;
   }
   return <div className="mentor-follow-up-editor" data-testid={`mentor-follow-up-${mentor.staffId}`}>
     <span className={`mentor-follow-up-state ${hasFollowUp ? 'is-recorded' : ''} ${followUpStatus === 'overdue' ? 'is-overdue' : ''}`} data-testid={`mentor-follow-up-state-${mentor.staffId}`}>
-      {followUpStatus === 'overdue' ? 'Overdue' : followUpStatus === 'upcoming' ? (mentor.calendlyFollowUpDate === today ? 'Due today' : 'Upcoming') : hasFollowUp ? 'Recorded · no date' : 'Not recorded'}
-      {mentor.calendlyFollowUpDate && <small>{followUpStatus === 'overdue' ? 'Was due' : 'Due'} {mentor.calendlyFollowUpDate}</small>}
+      {t(followUpStatus === 'overdue' ? 'Overdue' : followUpStatus === 'upcoming' ? (mentor.calendlyFollowUpDate === today ? 'Due today' : 'Upcoming') : hasFollowUp ? 'Recorded · no date' : 'Not recorded')}
+      {mentor.calendlyFollowUpDate && <small>{t(followUpStatus === 'overdue' ? 'Was due' : 'Due')} {mentor.calendlyFollowUpDate}</small>}
       {mentor.calendlyFollowUpNote && <small className="mentor-follow-up-saved-note">{mentor.calendlyFollowUpNote}</small>}
       {mentor.calendlyFollowUpUpdatedAt && <small className="mentor-follow-up-updated" data-testid={`mentor-follow-up-updated-${mentor.staffId}`}>
         {t('Last updated by')} {mentor.calendlyFollowUpUpdatedByEmail || t('former coordinator')} · <time dateTime={mentor.calendlyFollowUpUpdatedAt}>{new Date(mentor.calendlyFollowUpUpdatedAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</time>
       </small>}
     </span>
-    <label className="sr-only" htmlFor={`mentor-follow-up-date-${mentor.staffId}`}>Follow-up date for {mentor.email}</label>
+    <label className="sr-only" htmlFor={`mentor-follow-up-date-${mentor.staffId}`}>{t('Follow-up date for')} {mentor.email}</label>
     <input id={`mentor-follow-up-date-${mentor.staffId}`} className="form-control" type="date" value={followUpDate} onChange={event => setFollowUpDate(event.target.value)} data-testid={`input-mentor-follow-up-date-${mentor.staffId}`} />
-    <label className="sr-only" htmlFor={`mentor-follow-up-note-${mentor.staffId}`}>Follow-up note for {mentor.email}</label>
-    <input id={`mentor-follow-up-note-${mentor.staffId}`} className="form-control" type="text" maxLength={1000} placeholder="Contact note" value={followUpNote} onChange={event => setFollowUpNote(event.target.value)} data-testid={`input-mentor-follow-up-note-${mentor.staffId}`} />
+    <label className="sr-only" htmlFor={`mentor-follow-up-note-${mentor.staffId}`}>{t('Follow-up note for')} {mentor.email}</label>
+    <input id={`mentor-follow-up-note-${mentor.staffId}`} className="form-control" type="text" maxLength={1000} placeholder={t('Contact note')} value={followUpNote} onChange={event => setFollowUpNote(event.target.value)} data-testid={`input-mentor-follow-up-note-${mentor.staffId}`} />
     <div className="mentor-follow-up-actions">
-      <button className="button button-outline" onClick={() => save({ calendlyFollowUpDate: followUpDate || null, calendlyFollowUpNote: followUpNote.trim() || null })} disabled={unchanged || update.isPending} data-testid={`button-save-mentor-follow-up-${mentor.staffId}`}>{update.isPending ? 'Saving…' : hasFollowUp ? 'Save' : 'Save follow-up'}</button>
-      {hasFollowUp && <button className="button button-quiet" onClick={() => save({ calendlyFollowUpDate: null, calendlyFollowUpNote: null })} disabled={update.isPending} data-testid={`button-clear-mentor-follow-up-${mentor.staffId}`}>Clear</button>}
+      <button className="button button-outline" onClick={() => save({ calendlyFollowUpDate: followUpDate || null, calendlyFollowUpNote: followUpNote.trim() || null })} disabled={unchanged || update.isPending} data-testid={`button-save-mentor-follow-up-${mentor.staffId}`}>{update.isPending ? t('Saving…') : hasFollowUp ? t('Save') : t('Save follow-up')}</button>
+      {hasFollowUp && <button className="button button-quiet" onClick={() => save({ calendlyFollowUpDate: null, calendlyFollowUpNote: null })} disabled={update.isPending} data-testid={`button-clear-mentor-follow-up-${mentor.staffId}`}>{t('Clear')}</button>}
     </div>
-    {update.isError && <small className="form-error">Could not save this follow-up. Please try again.</small>}
+    {update.isError && <small className="form-error">{t('Could not save this follow-up. Please try again.')}</small>}
   </div>;
 }
 
@@ -1038,10 +1038,10 @@ function TeamPage() {
   return <>
     <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<div className="team-invite-actions"><button className="button button-outline" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant"><UserPlus size={16} /> {t('Invite participant')}</button><button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button></div>} />
     <div className="team-callout"><Shield size={18} /><div><b>{t('Every role is tied to a verified email.')}</b><span>{t('Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.')}</span></div></div>
-    {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> Add the first staff member</button>} /> :
+    {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> {t('Add the first staff member')}</button>} /> :
       <section className="panel staff-panel">
-        <div className="panel-heading"><div><div className="eyebrow">APPROVED ACCOUNTS</div><h2 className="app-title">{staff.length} team {staff.length === 1 ? 'member' : 'members'}</h2></div><span className="section-meta">Only admins can change access</span></div>
-        <div className="table-wrap"><table><thead><tr><th>EMAIL</th><th>ROLE</th><th>PROGRAMS</th><th>ACCOUNT</th><th>ADDED</th><th className="align-right">ACTIONS</th></tr></thead><tbody>
+        <div className="panel-heading"><div><div className="eyebrow">{t('APPROVED ACCOUNTS')}</div><h2 className="app-title">{staff.length} {t('team')} {t(staff.length === 1 ? 'member' : 'members')}</h2></div><span className="section-meta">{t('Only admins can change access')}</span></div>
+        <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('ROLE')}</th><th>{t('PROGRAMS')}</th><th>{t('ACCOUNT')}</th><th>{t('ADDED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>
           {staff.map(member => <tr key={member.id} data-testid={`row-staff-${member.id}`}>
             <td><div className="staff-email"><span className="staff-avatar">{member.email.slice(0, 1).toUpperCase()}</span><b>{member.email}</b></div></td>
             <td><span className={`role-label ${member.role === 'coordinator' ? 'role-coordinator' : ''}`}>{member.role === 'coordinator' ? <Shield size={13} /> : <Users size={13} />}{display(member.role)}</span></td>
@@ -1080,7 +1080,7 @@ function TeamPage() {
 }
 
 function NotFoundPage() {
-  return <div className="not-found"><div className="eyebrow">JUSOOR / 404</div><h1 className="app-title">That page isn't on the journey.</h1><p>Return to the program overview and find your way back.</p><Link className="button button-primary" href="/">Back to overview <ArrowRight size={16} /></Link></div>;
+  return <div className="not-found"><div className="eyebrow">JUSOOR / 404</div><h1 className="app-title">{t("That page isn't on the journey.")}</h1><p>{t('Return to the program overview and find your way back.')}</p><Link className="button button-primary" href="/">{t('Back to overview')} <ArrowRight size={16} /></Link></div>;
 }
 
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
