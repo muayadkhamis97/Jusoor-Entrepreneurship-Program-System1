@@ -19,6 +19,8 @@ const {
   supportTable,
   pitchJudgesTable,
   trainingAssignmentsTable,
+  trainingQuestionsTable,
+  trainingSubmissionsTable,
 } = database;
 const { createApp } = await import("../src/app");
 
@@ -79,6 +81,138 @@ const judgeResponse: Row = {
   feedback: "Clear market understanding",
   submittedAt: new Date("2026-10-03T00:00:00.000Z"),
 };
+const trainingAssignments: Row[] = [
+  {
+    id: 701,
+    programId: 11,
+    title: "Program 11 activity",
+    instructions: "Complete the customer discovery exercise.",
+    dueDate: null,
+    sessionId: null,
+    sessionTitle: null,
+    createdAt: new Date("2026-10-01T00:00:00.000Z"),
+  },
+  {
+    id: 702,
+    programId: 33,
+    title: "Program 33 activity",
+    instructions: "Complete the market validation exercise.",
+    dueDate: null,
+    sessionId: null,
+    sessionTitle: null,
+    createdAt: new Date("2026-10-02T00:00:00.000Z"),
+  },
+  {
+    id: 703,
+    programId: 22,
+    title: "Program 22 activity",
+    instructions: "This is outside the trainer's role.",
+    dueDate: null,
+    sessionId: null,
+    sessionTitle: null,
+    createdAt: new Date("2026-10-03T00:00:00.000Z"),
+  },
+];
+const trainingSubmissions: Row[] = [
+  {
+    id: 801,
+    assignmentId: 701,
+    programId: 11,
+    businessId: 201,
+    answer: "Program 11 answer",
+    status: "submitted",
+    score: null,
+    feedback: null,
+    submittedAt: new Date("2026-10-04T00:00:00.000Z"),
+    reviewedAt: null,
+    assignmentTitle: "Program 11 activity",
+    businessName: "Program 11 business",
+    founderName: "Founder One",
+    programName: "Jusoor Growth Lab",
+  },
+  {
+    id: 802,
+    assignmentId: 702,
+    programId: 33,
+    businessId: 203,
+    answer: "Program 33 answer",
+    status: "submitted",
+    score: null,
+    feedback: null,
+    submittedAt: new Date("2026-10-05T00:00:00.000Z"),
+    reviewedAt: null,
+    assignmentTitle: "Program 33 activity",
+    businessName: "Program 33 business",
+    founderName: "Founder Three",
+    programName: "Women in Technology",
+  },
+  {
+    id: 803,
+    assignmentId: 703,
+    programId: 22,
+    businessId: 202,
+    answer: "Program 22 answer",
+    status: "submitted",
+    score: null,
+    feedback: null,
+    submittedAt: new Date("2026-10-06T00:00:00.000Z"),
+    reviewedAt: null,
+    assignmentTitle: "Program 22 activity",
+    businessName: "Program 22 business",
+    founderName: "Founder Two",
+    programName: "Pitch Day Program",
+  },
+];
+const trainingQuestions: Row[] = [
+  {
+    id: 901,
+    programId: 11,
+    sessionId: null,
+    assignmentId: null,
+    businessId: 201,
+    sessionTitle: null,
+    assignmentTitle: null,
+    question: "Program 11 question",
+    reply: null,
+    createdAt: new Date("2026-10-07T00:00:00.000Z"),
+    repliedAt: null,
+    businessName: "Program 11 business",
+    founderName: "Founder One",
+    programName: "Jusoor Growth Lab",
+  },
+  {
+    id: 902,
+    programId: 33,
+    sessionId: null,
+    assignmentId: null,
+    businessId: 203,
+    sessionTitle: null,
+    assignmentTitle: null,
+    question: "Program 33 question without a session",
+    reply: null,
+    createdAt: new Date("2026-10-08T00:00:00.000Z"),
+    repliedAt: null,
+    businessName: "Program 33 business",
+    founderName: "Founder Three",
+    programName: "Women in Technology",
+  },
+  {
+    id: 903,
+    programId: 22,
+    sessionId: null,
+    assignmentId: null,
+    businessId: 202,
+    sessionTitle: null,
+    assignmentTitle: null,
+    question: "Program 22 question",
+    reply: null,
+    createdAt: new Date("2026-10-09T00:00:00.000Z"),
+    repliedAt: null,
+    businessName: "Program 22 business",
+    founderName: "Founder Two",
+    programName: "Pitch Day Program",
+  },
+];
 
 let server: Server;
 let requestPath = "";
@@ -132,6 +266,24 @@ function rowsFor(table: unknown): Row[] {
   if (table === sessionsTable && requestPath.startsWith("/api/trainer/") && requestRole === "trainer") {
     return [trainerSession];
   }
+  if (table === trainingAssignmentsTable && requestPath === "/api/trainer/dashboard" && requestRole === "trainer") {
+    return trainingAssignments;
+  }
+  if (table === trainingSubmissionsTable && requestPath === "/api/trainer/dashboard" && requestRole === "trainer") {
+    return trainingSubmissions;
+  }
+  if (table === trainingSubmissionsTable && requestPath.startsWith("/api/trainer/submissions/") && requestRole === "trainer") {
+    const id = Number(requestPath.split("/").at(-1));
+    const submission = trainingSubmissions.find((row) => row.id === id);
+    return submission ? [{ id: submission.id, programId: submission.programId }] : [];
+  }
+  if (table === trainingQuestionsTable && requestPath === "/api/trainer/dashboard" && requestRole === "trainer") {
+    return trainingQuestions;
+  }
+  if (table === trainingQuestionsTable && requestPath.startsWith("/api/trainer/questions/") && requestRole === "trainer") {
+    const id = Number(requestPath.split("/").at(-1));
+    return trainingQuestions.filter((row) => row.id === id);
+  }
   if (table === supportTable && requestPath === "/api/mentor/support/301") return [mentorUpdate];
   if (table === businessesTable && requestPath.includes("/api/mentor/")) return [{ id: 201, programId: 11 }];
   if (table === pitchJudgesTable && requestPath === "/api/judge/scorecards/402") return [judgeResponse];
@@ -164,6 +316,28 @@ function conditionHasArchivedAtIsNull(condition: unknown): boolean {
   return hasArchivedAtColumn && hasIsNull;
 }
 
+function sqlParameterValues(condition: unknown): unknown[] {
+  const values: unknown[] = [];
+  const pending = [condition];
+  const seen = new Set<object>();
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    if ((current as { constructor?: { name?: string } }).constructor?.name === "Param") {
+      values.push((current as { value?: unknown }).value);
+      continue;
+    }
+    if (Array.isArray(current)) {
+      pending.push(...current);
+      continue;
+    }
+    const chunk = current as { queryChunks?: unknown[] };
+    if (Array.isArray(chunk.queryChunks)) pending.push(...chunk.queryChunks);
+  }
+  return values;
+}
+
 function replaceDbMethod(name: "select" | "selectDistinct" | "insert" | "update", replacement: unknown) {
   const original = Object.getOwnPropertyDescriptor(db, name);
   Object.defineProperty(db, name, { configurable: true, writable: true, value: replacement });
@@ -177,6 +351,7 @@ function selectBuilder() {
   let table: unknown;
   let joinedPrograms = false;
   let excludesArchivedPrograms = false;
+  let trainerProgramFilter: number[] | null = null;
   const query: any = {
     from(nextTable: unknown) { table = nextTable; return query; },
     innerJoin(nextTable: unknown) {
@@ -186,6 +361,15 @@ function selectBuilder() {
     leftJoin() { return query; },
     where(condition: unknown) {
       excludesArchivedPrograms = conditionHasArchivedAtIsNull(condition);
+      if (requestPath === "/api/trainer/dashboard" && requestRole === "trainer"
+        && (table === trainingAssignmentsTable || table === trainingSubmissionsTable || table === trainingQuestionsTable)) {
+        trainerProgramFilter = sqlParameterValues(condition).filter((value): value is number => typeof value === "number");
+        assert.deepEqual(
+          [...trainerProgramFilter].sort((a, b) => a - b),
+          [11, 33],
+          "trainer participant-work queries must be scoped to active trainer-role programs",
+        );
+      }
       return query;
     },
     orderBy() { return query; },
@@ -198,6 +382,7 @@ function selectBuilder() {
   };
   function filteredRows(): Row[] {
     const rows = rowsFor(table);
+    if (trainerProgramFilter) return rows.filter(({ programId }) => trainerProgramFilter!.includes(programId));
     if (!excludesArchivedPrograms) return rows;
     if (table === programsTable) return rows.filter(({ id }) => !archivedProgramIds.has(id));
     if (joinedPrograms && (table === staffProgramAssignmentsTable || table === staffProgramRolesTable)) {
@@ -257,10 +442,19 @@ before(async () => {
   }) as never);
   replaceDbMethod("update", ((table: unknown) => {
     let result: Row[] = [];
+    let updateValues: Row = {};
     mutationAttempts.push({ table, path: requestPath, role: requestRole });
     const query: any = {
-      set() { return query; },
+      set(values: Row) { updateValues = values; return query; },
       where() {
+        if (table === trainingSubmissionsTable && requestPath === "/api/trainer/submissions/802" && requestRole === "trainer") {
+          const submission = trainingSubmissions.find(({ id }) => id === 802);
+          if (submission) result = [{ ...submission, ...updateValues }];
+        }
+        if (table === trainingQuestionsTable && requestPath === "/api/trainer/questions/902" && requestRole === "trainer") {
+          const question = trainingQuestions.find(({ id }) => id === 902);
+          if (question) result = [{ ...question, ...updateValues }];
+        }
         if (table === supportTable && requestPath === "/api/mentor/support/301" && requestRole === "mentor") {
           result = [mentorUpdate];
         }
@@ -308,6 +502,46 @@ test("secondary staff roles can use only their assigned program workflows throug
     { id: 33, name: "Women in Technology" },
   ]);
   assert.deepEqual(dashboard.sessions.map(({ programId }: Row) => programId), [11]);
+  assert.deepEqual(dashboard.assignments.map(({ id, programId }: Row) => ({ id, programId })), [
+    { id: 701, programId: 11 },
+    { id: 702, programId: 33 },
+  ]);
+  assert.deepEqual(dashboard.submissions.map(({ id, assignmentId }: Row) => ({ id, assignmentId })).sort((a: Row, b: Row) => a.id - b.id), [
+    { id: 801, assignmentId: 701 },
+    { id: 802, assignmentId: 702 },
+  ]);
+  assert.deepEqual(dashboard.questions.map(({ id, programId }: Row) => ({ id, programId })).sort((a: Row, b: Row) => a.id - b.id), [
+    { id: 901, programId: 11 },
+    { id: 902, programId: 33 },
+  ]);
+
+  const reviewInAssignedProgram = await request("PATCH", "/api/trainer/submissions/802", "trainer", {
+    score: 90,
+    feedback: "Good validation.",
+  });
+  assert.equal(reviewInAssignedProgram.status, 200);
+  assert.equal((await reviewInAssignedProgram.json() as Row).id, 802);
+
+  const mutationsBeforeDeniedReview = mutationAttempts.length;
+  const reviewInUnassignedProgram = await request("PATCH", "/api/trainer/submissions/803", "trainer", {
+    score: 20,
+    feedback: "Must not be saved.",
+  });
+  assert.equal(reviewInUnassignedProgram.status, 404);
+  assert.equal(mutationAttempts.length, mutationsBeforeDeniedReview, "unassigned submission reviews must not reach the database update");
+
+  const replyInAssignedProgramWithoutSession = await request("PATCH", "/api/trainer/questions/902", "trainer", {
+    reply: "Program 33 response.",
+  });
+  assert.equal(replyInAssignedProgramWithoutSession.status, 200);
+  assert.equal((await replyInAssignedProgramWithoutSession.json() as Row).id, 902);
+
+  const mutationsBeforeDeniedReply = mutationAttempts.length;
+  const replyInUnassignedProgram = await request("PATCH", "/api/trainer/questions/903", "trainer", {
+    reply: "Must not be saved.",
+  });
+  assert.equal(replyInUnassignedProgram.status, 404);
+  assert.equal(mutationAttempts.length, mutationsBeforeDeniedReply, "unassigned question replies must not reach the database update");
 
   const trainingAssignment = {
     title: "Customer discovery review",
