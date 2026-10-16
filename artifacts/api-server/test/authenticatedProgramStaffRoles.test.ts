@@ -48,6 +48,12 @@ const trainerSession: Row = {
   status: "scheduled",
   createdAt: new Date("2026-09-01T00:00:00.000Z"),
 };
+const otherTrainerSession: Row = {
+  ...trainerSession,
+  id: 111,
+  title: "Program 11 session led by another trainer",
+  trainerStaffId: 999,
+};
 const mentorUpdate: Row = {
   id: 301,
   businessId: 201,
@@ -212,6 +218,38 @@ const trainingQuestions: Row[] = [
     founderName: "Founder Two",
     programName: "Pitch Day Program",
   },
+  {
+    id: 904,
+    programId: 11,
+    sessionId: 110,
+    assignmentId: null,
+    businessId: 201,
+    sessionTitle: trainerSession.title,
+    assignmentTitle: null,
+    question: "Question from the trainer's own session",
+    reply: null,
+    createdAt: new Date("2026-10-10T00:00:00.000Z"),
+    repliedAt: null,
+    businessName: "Program 11 business",
+    founderName: "Founder One",
+    programName: "Jusoor Growth Lab",
+  },
+  {
+    id: 905,
+    programId: 11,
+    sessionId: 111,
+    assignmentId: null,
+    businessId: 201,
+    sessionTitle: otherTrainerSession.title,
+    assignmentTitle: null,
+    question: "Question from another trainer's session",
+    reply: null,
+    createdAt: new Date("2026-10-11T00:00:00.000Z"),
+    repliedAt: null,
+    businessName: "Program 11 business",
+    founderName: "Founder One",
+    programName: "Jusoor Growth Lab",
+  },
 ];
 
 let server: Server;
@@ -264,7 +302,12 @@ function rowsFor(table: unknown): Row[] {
     ];
   }
   if (table === sessionsTable && requestPath.startsWith("/api/trainer/") && requestRole === "trainer") {
-    return [trainerSession];
+    if (requestPath === "/api/trainer/dashboard") return [trainerSession];
+    const questionId = Number(requestPath.split("/").at(-1));
+    const question = trainingQuestions.find(({ id }) => id === questionId);
+    if (question?.sessionId === trainerSession.id) return [trainerSession];
+    if (question?.sessionId === otherTrainerSession.id) return [otherTrainerSession];
+    return [];
   }
   if (table === trainingAssignmentsTable && requestPath === "/api/trainer/dashboard" && requestRole === "trainer") {
     return trainingAssignments;
@@ -451,8 +494,9 @@ before(async () => {
           const submission = trainingSubmissions.find(({ id }) => id === 802);
           if (submission) result = [{ ...submission, ...updateValues }];
         }
-        if (table === trainingQuestionsTable && requestPath === "/api/trainer/questions/902" && requestRole === "trainer") {
-          const question = trainingQuestions.find(({ id }) => id === 902);
+        if (table === trainingQuestionsTable && requestPath.startsWith("/api/trainer/questions/") && requestRole === "trainer") {
+          const id = Number(requestPath.split("/").at(-1));
+          const question = trainingQuestions.find(({ id: questionId }) => questionId === id);
           if (question) result = [{ ...question, ...updateValues }];
         }
         if (table === supportTable && requestPath === "/api/mentor/support/301" && requestRole === "mentor") {
@@ -513,6 +557,7 @@ test("secondary staff roles can use only their assigned program workflows throug
   assert.deepEqual(dashboard.questions.map(({ id, programId }: Row) => ({ id, programId })).sort((a: Row, b: Row) => a.id - b.id), [
     { id: 901, programId: 11 },
     { id: 902, programId: 33 },
+    { id: 904, programId: 11 },
   ]);
 
   const reviewInAssignedProgram = await request("PATCH", "/api/trainer/submissions/802", "trainer", {
@@ -535,6 +580,23 @@ test("secondary staff roles can use only their assigned program workflows throug
   });
   assert.equal(replyInAssignedProgramWithoutSession.status, 200);
   assert.equal((await replyInAssignedProgramWithoutSession.json() as Row).id, 902);
+
+  const replyInOwnSession = await request("PATCH", "/api/trainer/questions/904", "trainer", {
+    reply: "Reply from the trainer assigned to this session.",
+  });
+  assert.equal(replyInOwnSession.status, 200);
+  assert.equal((await replyInOwnSession.json() as Row).id, 904);
+
+  const mutationsBeforeDeniedSessionReply = mutationAttempts.length;
+  const replyInAnotherTrainersSession = await request("PATCH", "/api/trainer/questions/905", "trainer", {
+    reply: "Must not be saved.",
+  });
+  assert.equal(replyInAnotherTrainersSession.status, 404);
+  assert.equal(
+    mutationAttempts.length,
+    mutationsBeforeDeniedSessionReply,
+    "a trainer must not update a question from another trainer's session in an assigned cohort",
+  );
 
   const mutationsBeforeDeniedReply = mutationAttempts.length;
   const replyInUnassignedProgram = await request("PATCH", "/api/trainer/questions/903", "trainer", {
