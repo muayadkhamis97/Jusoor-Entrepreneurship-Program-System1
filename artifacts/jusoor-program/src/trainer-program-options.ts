@@ -3,6 +3,12 @@ export type TrainerProgramName = {
   name?: string | null;
 };
 
+export type TrainerSession = {
+  id: number;
+  programId?: number | null;
+  title: string;
+};
+
 export function trainerProgramOptions(
   programs: readonly TrainerProgramName[],
   unavailableLabel: string,
@@ -11,4 +17,14 @@ export function trainerProgramOptions(
     id: program.id,
     label: program.name?.trim() || unavailableLabel,
   }));
+}
+
+export function trainerSessionOptions(
+  sessions: readonly TrainerSession[],
+  programId: number | null,
+): { id: number; title: string }[] {
+  if (programId === null) return [];
+  return sessions
+    .filter(session => session.programId === programId)
+    .map(({ id, title }) => ({ id, title }));
 }

@@ -20,7 +20,7 @@ import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3,
 import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
 import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
-import { trainerProgramOptions } from './trainer-program-options';
+import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
@@ -65,11 +65,14 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   const review = useReviewTrainingAnswer();
   const reply = useReplyTrainingQuestion();
   const [assignmentError, setAssignmentError] = useState('');
+  const [assignmentProgramId, setAssignmentProgramId] = useState<number | ''>('');
+  const [assignmentSessionId, setAssignmentSessionId] = useState<number | ''>('');
   const [feedbacks, setFeedbacks] = useState<Record<number, { score: string; feedback: string }>>({});
   const [replies, setReplies] = useState<Record<number, string>>({});
   const dashboard = query.data;
   const sessions = dashboard?.sessions || [];
   const programs = trainerProgramOptions(dashboard?.programs || [], t('Program name unavailable'));
+  const assignmentSessions = trainerSessionOptions(sessions, assignmentProgramId === '' ? null : assignmentProgramId);
   const submitAssignment = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -79,7 +82,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
     const instructions = String(form.get('instructions') || '').trim();
     if (!programId || title.length < 2 || instructions.length < 10) { setAssignmentError('Choose a cohort and add a title and clear instructions.'); return; }
     const data: TrainingAssignmentInput = { programId, title, instructions, dueDate: String(form.get('dueDate') || '') || null, sessionId: form.get('sessionId') ? Number(form.get('sessionId')) : null };
-    create.mutate({ data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); formElement.reset(); setAssignmentError(''); } });
+    create.mutate({ data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); formElement.reset(); setAssignmentProgramId(''); setAssignmentSessionId(''); setAssignmentError(''); } });
   };
   const saveReview = (event: FormEvent<HTMLFormElement>, id: number) => {
     event.preventDefault();
@@ -129,8 +132,8 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
       </section>
       <section className="role-section role-assignment-section"><div className="role-section-title"><div><div className="eyebrow">{t('MAKE THE LEARNING PRACTICAL')}</div><h2>{t('Create a cohort assignment')}</h2></div></div>
         {programs.length === 0 ? <div className="role-inline-note">{t('Assignments become available after a program is assigned to your trainer account.')}</div> : <form className="role-form-grid" onSubmit={submitAssignment}>
-          <label className="field">{t('Cohort')}<select className="form-control" name="programId" defaultValue="" required data-testid="select-assignment-cohort"><option value="">{t('Choose cohort')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.label}</option>)}</select></label>
-          <label className="field">{t('Linked session')}<select className="form-control" name="sessionId" defaultValue="" data-testid="select-assignment-session"><option value="">{t('No specific session')}</option>{sessions.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select></label>
+          <label className="field">{t('Cohort')}<select className="form-control" name="programId" value={assignmentProgramId} onChange={event => { setAssignmentProgramId(event.currentTarget.value ? Number(event.currentTarget.value) : ''); setAssignmentSessionId(''); }} required data-testid="select-assignment-cohort"><option value="">{t('Choose cohort')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.label}</option>)}</select></label>
+          <label className="field">{t('Linked session')}<select className="form-control" name="sessionId" value={assignmentSessionId} onChange={event => setAssignmentSessionId(event.currentTarget.value ? Number(event.currentTarget.value) : '')} data-testid="select-assignment-session"><option value="">{t('No specific session')}</option>{assignmentSessions.map(session => <option key={session.id} value={session.id}>{session.title}</option>)}</select></label>
           <label className="field">{t('Assignment title')}<input className="form-control" name="title" minLength={2} required placeholder={t('e.g. Customer discovery notes')} data-testid="input-assignment-title" /></label>
           <label className="field">{t('Due date')}<input className="form-control" name="dueDate" type="date" data-testid="input-assignment-due-date" /></label>
           <label className="field field-wide">{t('Instructions')}<textarea className="form-control" name="instructions" minLength={10} required rows={4} placeholder={t('What should participants explore, prepare or share?')} data-testid="input-assignment-instructions" /></label>
