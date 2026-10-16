@@ -43,7 +43,8 @@ test('Admin and participant workspaces render Arabic copy and RTL in an isolated
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const viewportWidth = 390;
+    const page = await browser.newPage({ viewport: { width: viewportWidth, height: 844 } });
     const blockedExternalRequests: string[] = [];
     await page.route('**/*', async route => {
       const request = route.request();
@@ -70,6 +71,26 @@ test('Admin and participant workspaces render Arabic copy and RTL in an isolated
     await page.getByRole('heading', { name: 'من يستطيع القيام بماذا' }).waitFor();
     await page.getByRole('heading', { name: 'التواصل' }).waitFor();
 
+    const assertWithinPhoneViewport = async (selector: string) => {
+      const element = page.locator(selector).first();
+      await element.waitFor();
+      const bounds = await element.boundingBox();
+      assert.ok(bounds, `${selector} should have a visible layout box.`);
+      assert.ok(bounds.x >= 0, `${selector} should not extend beyond the left edge.`);
+      assert.ok(bounds.x + bounds.width <= viewportWidth + 1, `${selector} should not extend beyond the right edge.`);
+    };
+    const assertNoDocumentHorizontalOverflow = async () => {
+      const dimensions = await page.evaluate(() => ({
+        documentWidth: document.documentElement.scrollWidth,
+        bodyWidth: document.body.scrollWidth,
+        viewportWidth: window.innerWidth,
+      }));
+      assert.ok(
+        dimensions.documentWidth <= dimensions.viewportWidth && dimensions.bodyWidth <= dimensions.viewportWidth,
+        `The page should not have horizontal overflow (document ${dimensions.documentWidth}px, body ${dimensions.bodyWidth}px, viewport ${dimensions.viewportWidth}px).`,
+      );
+    };
+
     for (const [role, expectedHeadline] of [
       ['coordinator', 'نظرة سريعة على عمليات البرنامج'],
       ['staff', 'نظرة عامة على تنفيذ البرنامج'],
@@ -80,11 +101,22 @@ test('Admin and participant workspaces render Arabic copy and RTL in an isolated
     ] as const) {
       await page.getByTestId(`button-preview-${role}`).click();
       await page.getByRole('heading', { name: expectedHeadline }).waitFor();
+      await assertWithinPhoneViewport(`[data-testid="button-preview-${role}"]`);
+      await assertWithinPhoneViewport('[data-testid="panel-role-preview"]');
+      await assertWithinPhoneViewport('.preview-workspace-heading h3');
+      await assertWithinPhoneViewport(`.preview-action-button`);
+      await assertNoDocumentHorizontalOverflow();
     }
 
     await page.getByText('Founder-provided English subject', { exact: true }).waitFor();
     await page.getByText('Founder-provided English message', { exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'التحديثات والتذكيرات' }).waitFor();
     await page.getByRole('button', { name: 'تحديد كمقروء' }).waitFor();
+    await assertWithinPhoneViewport('[data-testid="button-publish-announcement"]');
+    await assertWithinPhoneViewport('[data-testid="participant-announcements"]');
+    await assertWithinPhoneViewport('.participant-announcement-copy h3');
+    await assertWithinPhoneViewport('[data-testid="button-mark-announcement-read-1"]');
+    await assertNoDocumentHorizontalOverflow();
     assert.ok(blockedExternalRequests.length > 0, 'The fixture should intercept external font or asset requests.');
     assert.ok(blockedExternalRequests.every(url => new URL(url).origin !== origin), 'Every external request should be intercepted and blocked.');
   } finally {
