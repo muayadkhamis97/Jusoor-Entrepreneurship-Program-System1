@@ -3620,3 +3620,24 @@ businessId?: number;
 eventType?: PitchEventType;
 };
 
+export type GetStaffAssignmentHistoryParams = {
+/**
+ * @minimum 1
+ */
+programId?: number;
+/**
+ * Case-insensitive search across affected staff accounts and application identifiers or names
+ * @maxLength 120
+ */
+subject?: string;
+assignmentType?: GetStaffAssignmentHistoryAssignmentType;
+};
+
+export type GetStaffAssignmentHistoryAssignmentType = typeof GetStaffAssignmentHistoryAssignmentType[keyof typeof GetStaffAssignmentHistoryAssignmentType];
+
+
+export const GetStaffAssignmentHistoryAssignmentType = {
+  staff_roles: 'staff_roles',
+  business_team: 'business_team',
+} as const;
+

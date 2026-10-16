@@ -3212,9 +3212,23 @@ paths:
       operationId: getStaffAssignmentHistory
       tags: [staff]
       summary: List staff-role and participant business-team assignment changes for admins
+      parameters:
+        - name: programId
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: subject
+          in: query
+          required: false
+          description: Case-insensitive search across affected staff accounts and application identifiers or names
+          schema: { type: string, maxLength: 120 }
+        - name: assignmentType
+          in: query
+          required: false
+          schema: { type: string, enum: [staff_roles, business_team] }
       responses:
         "200":
-          description: Recent assignment changes with actor, subject, values, and timestamp
+          description: Up to 250 most recent matching changes with actor, subject, values, and timestamp
           content:
             application/json:
               schema:

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type Response } from "express";
 import { alias } from "drizzle-orm/pg-core";
 import {
@@ -13,6 +13,7 @@ import {
   GetMentorBookingStatusResponseItem,
   GetProgramTeamAssignmentsParams,
   GetProgramTeamAssignmentsResponse,
+  GetStaffAssignmentHistoryQueryParams,
   ListStaffResponse,
   UpdateMentorBookingFollowUpBody,
   UpdateMentorBookingFollowUpParams,
@@ -150,7 +151,33 @@ router.get("/staff", requireOperationsStaff, async (_req, res): Promise<void> =>
   res.json(ListStaffResponse.parse(await withProgramIds(members)));
 });
 
-router.get("/staff/assignment-history", requireCoordinator, async (_req, res): Promise<void> => {
+router.get("/staff/assignment-history", requireCoordinator, async (req, res): Promise<void> => {
+  const parsed = GetStaffAssignmentHistoryQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const filters = [];
+  if (parsed.data.programId !== undefined) {
+    filters.push(eq(staffAssignmentAuditEventsTable.programId, parsed.data.programId));
+  }
+  if (parsed.data.assignmentType !== undefined) {
+    filters.push(eq(staffAssignmentAuditEventsTable.assignmentType, parsed.data.assignmentType));
+  }
+  const subject = parsed.data.subject?.trim();
+  if (subject) {
+    const escapedSubject = subject.replace(/[\\%_]/g, "\\$&");
+    const pattern = `%${escapedSubject}%`;
+    filters.push(or(
+      ilike(staffAssignmentAuditEventsTable.affectedAccountEmail, pattern),
+      ilike(staffAssignmentAuditEventsTable.affectedApplicationName, pattern),
+      sql`${staffAssignmentAuditEventsTable.applicationId}::text ILIKE ${pattern}`,
+      sql`${staffAssignmentAuditEventsTable.previousValue}->>'businessName' ILIKE ${pattern}`,
+      sql`${staffAssignmentAuditEventsTable.newValue}->>'businessName' ILIKE ${pattern}`,
+    )!);
+  }
+
   const events = await db.select({
     id: staffAssignmentAuditEventsTable.id,
     assignmentType: staffAssignmentAuditEventsTable.assignmentType,
@@ -166,6 +193,7 @@ router.get("/staff/assignment-history", requireCoordinator, async (_req, res): P
     newValue: staffAssignmentAuditEventsTable.newValue,
     createdAt: staffAssignmentAuditEventsTable.createdAt,
   }).from(staffAssignmentAuditEventsTable)
+    .where(filters.length > 0 ? and(...filters) : undefined)
     .orderBy(desc(staffAssignmentAuditEventsTable.createdAt), desc(staffAssignmentAuditEventsTable.id))
     .limit(250);
   res.json(events.map((event) => ({

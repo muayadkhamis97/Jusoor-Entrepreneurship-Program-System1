@@ -6,6 +6,8 @@
 .program-assignment-panel { padding: 18px 20px 20px; }
 .program-assignment-panel .panel-heading { margin-bottom: 8px; }
 .assignment-section-copy { max-width: 850px; margin: 0 0 16px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.65; }
+.assignment-history-filters { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 1.5fr) minmax(170px, 1fr); gap: 12px; margin: 0 0 16px; }
+.assignment-history-filters .field { margin: 0; }
 .assignment-table { min-width: 780px; }
 .assignment-table th { font-size: 9px; }
 .assignment-table td { vertical-align: top; }
@@ -24,7 +26,7 @@
 @keyframes assignment-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {
-  .assignment-scope-card { grid-template-columns: 1fr; }
+  .assignment-scope-card, .assignment-history-filters { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .program-assignment-panel { padding: 15px 14px; }

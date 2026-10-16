@@ -4928,6 +4928,17 @@ export const GetProgramTeamAssignmentsResponse = zod.object({
 /**
  * @summary List staff-role and participant business-team assignment changes for admins
  */
+
+export const getStaffAssignmentHistoryQuerySubjectMax = 120;
+
+
+
+export const GetStaffAssignmentHistoryQueryParams = zod.object({
+  "programId": zod.coerce.number().int().min(1).optional(),
+  "subject": zod.coerce.string().max(getStaffAssignmentHistoryQuerySubjectMax).optional().describe('Case-insensitive search across affected staff accounts and application identifiers or names'),
+  "assignmentType": zod.enum(['staff_roles', 'business_team']).optional()
+})
+
 export const GetStaffAssignmentHistoryResponseItem = zod.object({
   "id": zod.number().int(),
   "assignmentType": zod.enum(['staff_roles', 'business_team']),

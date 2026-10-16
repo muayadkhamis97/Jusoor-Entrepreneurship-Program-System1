@@ -78,6 +78,7 @@ import type {
   GetLearningProgressAnalyticsParams,
   GetProgramAnalyticsParams,
   GetProgramSessionInteractionAnalyticsParams,
+  GetStaffAssignmentHistoryParams,
   GetXapiActivityState200,
   GetXapiActivityStateParams,
   GetXapiStatementsParams,
@@ -13266,20 +13267,27 @@ export function useGetProgramTeamAssignments<TData = Awaited<ReturnType<typeof g
 
 
 
-export const getGetStaffAssignmentHistoryUrl = () => {
+export const getGetStaffAssignmentHistoryUrl = (params?: GetStaffAssignmentHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/staff/assignment-history`
+  return stringifiedParams.length > 0 ? `/api/staff/assignment-history?${stringifiedParams}` : `/api/staff/assignment-history`
 }
 
 /**
  * @summary List staff-role and participant business-team assignment changes for admins
  */
-export const getStaffAssignmentHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<StaffAssignmentAuditHistory> => {
+export const getStaffAssignmentHistory = async (params?: GetStaffAssignmentHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<StaffAssignmentAuditHistory> => {
 
-  return customFetch<StaffAssignmentAuditHistory>(getGetStaffAssignmentHistoryUrl(),
+  return customFetch<StaffAssignmentAuditHistory>(getGetStaffAssignmentHistoryUrl(params),
   {
     ...options,
     method: 'GET'
@@ -13292,23 +13300,23 @@ export const getStaffAssignmentHistory = async ( options?: Parameters<typeof cus
 
 
 
-export const getGetStaffAssignmentHistoryQueryKey = () => {
+export const getGetStaffAssignmentHistoryQueryKey = (params?: GetStaffAssignmentHistoryParams,) => {
     return [
-    `/api/staff/assignment-history`
+    `/api/staff/assignment-history`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetStaffAssignmentHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetStaffAssignmentHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError = ErrorType<void>>(params?: GetStaffAssignmentHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetStaffAssignmentHistoryQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffAssignmentHistoryQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffAssignmentHistory>>> = ({ signal }) => getStaffAssignmentHistory({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffAssignmentHistory>>> = ({ signal }) => getStaffAssignmentHistory(params, { signal, ...requestOptions });
 
 
 
@@ -13326,11 +13334,11 @@ export type GetStaffAssignmentHistoryQueryError = ErrorType<void>
  */
 
 export function useGetStaffAssignmentHistory<TData = Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError = ErrorType<void>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetStaffAssignmentHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffAssignmentHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetStaffAssignmentHistoryQueryOptions(options)
+  const queryOptions = getGetStaffAssignmentHistoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

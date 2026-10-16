@@ -112,6 +112,8 @@ export * from './getProgramAnalyticsParams';
 export * from './getProgramSessionInteractionAnalyticsActivityType';
 export * from './getProgramSessionInteractionAnalyticsParams';
 export * from './getProgramSessionInteractionAnalyticsPeriod';
+export * from './getStaffAssignmentHistoryAssignmentType';
+export * from './getStaffAssignmentHistoryParams';
 export * from './getXapiActivityState200';
 export * from './getXapiActivityStateParams';
 export * from './getXapiStatementsParams';

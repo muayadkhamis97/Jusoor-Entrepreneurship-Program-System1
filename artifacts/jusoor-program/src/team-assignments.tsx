@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetAuthMeQueryKey,
+  getGetStaffAssignmentHistoryQueryKey,
   getGetProgramTeamAssignmentsQueryKey,
   getListStaffQueryKey,
   useAssignParticipantBusiness,
@@ -109,6 +110,7 @@ export function ProgramTeamAssignmentsPage({ isAdmin }: { isAdmin: boolean }) {
     {data && <AssignmentsSections
       key={selectedProgramId}
       data={data}
+      programs={programs}
       programName={selectedProgramName || t('Selected program')}
       currentStaffId={currentUser.data?.id}
       isAdmin={isAdmin}
@@ -119,12 +121,14 @@ export function ProgramTeamAssignmentsPage({ isAdmin }: { isAdmin: boolean }) {
 
 function AssignmentsSections({
   data,
+  programs,
   programName,
   currentStaffId,
   isAdmin,
   onSaved,
 }: {
   data: ProgramTeamAssignments;
+  programs: { id: number; name: string }[];
   programName: string;
   currentStaffId?: number;
   isAdmin: boolean;
@@ -175,12 +179,24 @@ function AssignmentsSections({
           </table>
         </div>}
     </section>
-    {isAdmin && <AssignmentAuditHistory />}
+    {isAdmin && <AssignmentAuditHistory programs={programs} />}
   </>;
 }
 
-function AssignmentAuditHistory() {
-  const query = useGetStaffAssignmentHistory();
+function AssignmentAuditHistory({ programs }: { programs: { id: number; name: string }[] }) {
+  const historyProgramsQuery = useListPrograms({ includeArchived: true });
+  const historyPrograms = historyProgramsQuery.data || programs;
+  const [programId, setProgramId] = useState('');
+  const [subject, setSubject] = useState('');
+  const [assignmentType, setAssignmentType] = useState<'' | 'staff_roles' | 'business_team'>('');
+  const params = {
+    ...(programId ? { programId: Number(programId) } : {}),
+    ...(subject.trim() ? { subject: subject.trim() } : {}),
+    ...(assignmentType ? { assignmentType } : {}),
+  };
+  const query = useGetStaffAssignmentHistory(params, {
+    query: { queryKey: getGetStaffAssignmentHistoryQueryKey(params) },
+  });
   const events = query.data || [];
   const summarizeValue = (type: string, value: Record<string, unknown>) => {
     if (type === 'staff_roles') {
@@ -195,9 +211,38 @@ function AssignmentAuditHistory() {
   return <section className="panel program-assignment-panel" data-testid="assignment-audit-history">
     <div className="panel-heading">
       <div><div className="eyebrow">{t('ADMIN HISTORY')}</div><h2 className="app-title"><History size={20} /> {t('Assignment changes')}</h2></div>
-      <span className="section-meta">{t('Most recent 250')}</span>
+      <span className="section-meta">{t('Latest 250 matching')}</span>
     </div>
     <p className="assignment-section-copy">{t('Review who changed specialist access or a participant business team, and when.')}</p>
+    <div className="assignment-history-filters">
+      <label className="field">
+        <span>{t('Program')}</span>
+        <select className="form-control" value={programId} onChange={event => setProgramId(event.target.value)} data-testid="filter-assignment-history-program">
+          <option value="">{t('All programs')}</option>
+          {historyPrograms.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}
+        </select>
+      </label>
+      <label className="field">
+        <span>{t('Affected staff account or application')}</span>
+        <input
+          className="form-control"
+          type="search"
+          value={subject}
+          onChange={event => setSubject(event.target.value)}
+          placeholder={t('Email, application ID, founder, or business name')}
+          maxLength={120}
+          data-testid="filter-assignment-history-subject"
+        />
+      </label>
+      <label className="field">
+        <span>{t('Assignment type')}</span>
+        <select className="form-control" value={assignmentType} onChange={event => setAssignmentType(event.target.value as '' | 'staff_roles' | 'business_team')} data-testid="filter-assignment-history-type">
+          <option value="">{t('All changes')}</option>
+          <option value="staff_roles">{t('Staff roles')}</option>
+          <option value="business_team">{t('Business team')}</option>
+        </select>
+      </label>
+    </div>
     {query.isLoading
       ? <div className="empty-panel">{t('Loading assignment history…')}</div>
       : query.isError
