@@ -60,7 +60,7 @@ DATABASE_URL='postgres://test:test@127.0.0.1:1/test' \
 
 Apply the migration only through the approved database change process after reviewing its assumptions and object shapes against the target schema. See [Database migration procedure](DATABASE_MIGRATIONS.md). Then verify coordinator access and assign each non-coordinator account to the programs it should serve. Do not treat these disposable-fixture checks, TypeScript checks, or mocked tests as evidence that an application database migration succeeded.
 
-## Staff access schema recovery — development applied; production publish pending
+## Staff access schema recovery — development applied; publishing confirmed
 
 This is separate from the isolated program-assignment verification above.
 
@@ -77,8 +77,10 @@ This is separate from the isolated program-assignment verification above.
 - Executed the application's complete Drizzle staff-column projection with `LIMIT 0`; it resolved successfully without reading staff records.
 - The subsequent Publish diff contains exactly 12 additive statements corresponding to these migrations, with no structural data loss, removals, truncations, compatibility warnings, or unrelated schema changes.
 
-### Pending and not verified
+### Publishing evidence and remaining limitations
 
-- No production DDL was run from the workspace. Publish must apply the reviewed development-to-production diff.
-- Production sign-in recovery is not yet verified. No signed-in browser session, role assignment changes, provider calls, or email sends were performed for this recovery.
+- No production DDL was run from the workspace. Publishing logs subsequently recorded the 12 reviewed migration statements and a successful publish on 2026-10-16 at 16:12 UTC. The subsequent schema comparison reports no development-to-production difference.
+- The latest publishing record is successful, not failed. API and frontend builds completed. The frontend source-map warning and early startup health-check errors did not prevent promotion.
+- Read-only public requests to the published `/` and `/api/healthz` endpoints both returned HTTP 200 after publishing.
+- Production signed-in access recovery is still not verified. No signed-in browser session, role assignment changes, or email sends were performed for this recovery.
 - Application source did not change, so previously recorded source tests/builds were not rerun or claimed as fresh migration verification.
