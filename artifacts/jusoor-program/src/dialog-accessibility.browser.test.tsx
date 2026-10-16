@@ -158,6 +158,7 @@ async function unusedPort(): Promise<number> {
 
 test('dialogs preserve focus and form state; mobile staff navigation labels its routes', { timeout: 120_000 }, async () => {
   const port = await unusedPort();
+  const origin = `http://127.0.0.1:${port}`;
   const priorPort = process.env.PORT;
   const priorBasePath = process.env.BASE_PATH;
   process.env.PORT = String(port);
@@ -185,7 +186,7 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
       }
       return route.abort('blockedbyclient');
     });
-    await page.goto(`http://127.0.0.1:${port}/src/test-fixtures/dialog-accessibility.html`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${origin}/src/test-fixtures/dialog-accessibility.html`, { waitUntil: 'domcontentloaded' });
 
     await page.setViewportSize({ width: 1280, height: 800 });
     const reviewOpener = page.getByRole('button', { name: 'Open application review' });
@@ -381,6 +382,63 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
       await checkStaffMenu(page, role, 'ar');
       await languageToggle.click();
       await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
+    }
+
+    const directRoutes = {
+      coordinator: '/analytics/',
+      staff: '/team-assignments/',
+    } as const;
+    for (const role of ['coordinator', 'staff'] as const) {
+      for (const language of ['en', 'ar'] as const) {
+        const params = new URLSearchParams({
+          route: directRoutes[role],
+          role,
+          language,
+        });
+        await page.goto(`${origin}/src/test-fixtures/dialog-accessibility.html?${params}`, { waitUntil: 'domcontentloaded' });
+        await page.waitForFunction(expected => document.documentElement.lang === expected, language);
+
+        const assertActiveDestination = async (href: string) => {
+          const item = getStaffNavigationItems(role).find(candidate => candidate.href === href);
+          assert.ok(item, `${role} should allow ${href}.`);
+          const expectedLabel = translate(item.label, language);
+          const activeLink = page.getByTestId(`mobile-nav-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`);
+          await page.waitForFunction(({ route, testId }) => {
+            const marker = document.querySelector('[data-testid="staff-page-marker"]');
+            const active = document.querySelector(`[data-testid="${testId}"]`);
+            return marker?.textContent === route && active?.getAttribute('aria-current') === 'page';
+          }, { route: await page.evaluate(() => window.location.pathname), testId: await activeLink.getAttribute('data-testid') });
+          assert.equal((await activeLink.locator('span').textContent())?.trim(), expectedLabel);
+          assert.equal(await activeLink.getAttribute('aria-current'), 'page');
+          assert.match(await activeLink.getAttribute('class') || '', /mobile-active/);
+          assert.equal(await page.getByTestId('staff-page-marker').textContent(), await page.evaluate(() => window.location.pathname));
+          assert.equal(await page.getByTestId('staff-current-page-label').textContent(), expectedLabel);
+          const allPagesButton = page.getByTestId('button-mobile-all-pages');
+          await allPagesButton.focus();
+          await page.keyboard.press('Enter');
+          const allPagesMenu = page.getByRole('menu', { name: translate('All pages', language) });
+          await allPagesMenu.waitFor();
+          const menuActiveLink = allPagesMenu.getByRole('menuitem').filter({ hasText: expectedLabel });
+          assert.equal((await menuActiveLink.textContent())?.trim(), expectedLabel);
+          assert.equal(await menuActiveLink.getAttribute('aria-current'), 'page');
+          await page.keyboard.press('Escape');
+        };
+
+        const directHref = directRoutes[role].replace(/\/+$/, '');
+        await assertActiveDestination(directHref);
+        const sessionsLink = page.getByTestId('mobile-nav-sessions');
+        await sessionsLink.click();
+        await page.waitForFunction(() => document.querySelector('[data-testid="staff-page-marker"]')?.textContent === '/sessions');
+        await assertActiveDestination('/sessions');
+
+        await page.goBack();
+        await page.waitForFunction(route => document.querySelector('[data-testid="staff-page-marker"]')?.textContent === route, directRoutes[role]);
+        await assertActiveDestination(directHref);
+
+        await page.goForward();
+        await page.waitForFunction(() => document.querySelector('[data-testid="staff-page-marker"]')?.textContent === '/sessions');
+        await assertActiveDestination('/sessions');
+      }
     }
   } finally {
     if (browser) await browser.close();

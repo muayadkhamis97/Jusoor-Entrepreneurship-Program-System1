@@ -45,6 +45,7 @@ import { SessionCalendar } from './session-calendar';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
+import { isStaffNavigationItemActive } from './staff-navigation-items';
 import { participantSignInInstructions } from './participant-dashboard-helpers';
 import { trackEvent, trackZoomFailure } from './lib/analytics';
 import { brandedAdminRoleLabel, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
@@ -191,14 +192,14 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     icon: role === 'trainer' ? BookOpen : role === 'mentor' ? Handshake : Trophy,
   }));
   const nav = [...getStaffNavigationItems(staff.primaryRole === 'coordinator' ? 'coordinator' : 'staff'), ...specialistItems];
-  const label = nav.find(item => item.href === path)?.label || 'Workspace';
+  const label = nav.find(item => isStaffNavigationItemActive(path, item.href))?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
     <aside className="sidebar">
        <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{brandName.slice(0, 1) || 'J'}</span>}<span><b>{brandName}</b><small>PROGRAM HUB</small></span></Link>
        <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
-      <nav className="side-nav" aria-label="Main navigation">{nav.map(item => {
-        const Icon = item.icon; const active = path === item.href;
+       <nav className="side-nav" aria-label="Main navigation">{nav.map(item => {
+         const Icon = item.icon; const active = isStaffNavigationItemActive(path, item.href);
          return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
       })}</nav>
       <div className="sidebar-bottom">
@@ -207,7 +208,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
       </div>
     </aside>
     <main className="main-panel">
-       <header className="topbar"><div className="crumb"><span data-testid="breadcrumb-brand-name">{brandName}</span><span className="crumb-slash">/</span><b>{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
+        <header className="topbar"><div className="crumb"><span data-testid="breadcrumb-brand-name">{brandName}</span><span className="crumb-slash">/</span><b data-testid="staff-current-page">{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
        <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: basePath || '/' })} />
       <div className="page-content page-enter">{children}</div>
         <footer className="footer footer-brandless"><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>

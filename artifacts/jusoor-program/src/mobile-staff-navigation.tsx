@@ -1,7 +1,7 @@
 import { LayoutGrid, LogOut } from 'lucide-react';
 import { Link } from 'wouter';
 import { LanguageToggle, t } from './language';
-import { getStaffNavigationItems, type StaffNavigationItem } from './staff-navigation-items';
+import { getStaffNavigationItems, isStaffNavigationItemActive, type StaffNavigationItem } from './staff-navigation-items';
 export { getStaffNavigationItems } from './staff-navigation-items';
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ export function MobileStaffNavigation({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" side="bottom" className="mobile-all-pages-menu" aria-label={t('All pages')}>
           {items.map(({ href, label, icon: Icon }) => {
-            const active = currentPath === href;
+            const active = isStaffNavigationItemActive(currentPath, href);
             return <DropdownMenuItem asChild key={href}>
               <Link href={href} aria-current={active ? 'page' : undefined} data-testid={`mobile-menu-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`}>
                 <Icon size={16} aria-hidden="true" />
@@ -41,7 +41,7 @@ export function MobileStaffNavigation({
         </DropdownMenuContent>
       </DropdownMenu>
       {items.map(({ href, label, icon: Icon }) => {
-        const active = currentPath === href;
+        const active = isStaffNavigationItemActive(currentPath, href);
         return (
           <Link
             href={href}

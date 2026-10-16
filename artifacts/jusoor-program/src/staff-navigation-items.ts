@@ -11,6 +11,15 @@ export type StaffNavigationItem = {
   icon: LucideIcon;
 };
 
+export function normalizeStaffNavigationPath(path: string): string {
+  const pathname = path.split(/[?#]/, 1)[0] || '/';
+  return pathname.replace(/\/+$/, '') || '/';
+}
+
+export function isStaffNavigationItemActive(currentPath: string, href: string): boolean {
+  return normalizeStaffNavigationPath(currentPath) === normalizeStaffNavigationPath(href);
+}
+
 export function getStaffNavigationItems(role: 'coordinator' | 'staff'): StaffNavigationItem[] {
   return [
     { href: '/', label: 'Overview', icon: LayoutDashboard },

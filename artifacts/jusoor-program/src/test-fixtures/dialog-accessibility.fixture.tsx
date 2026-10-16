@@ -4,18 +4,23 @@ import { Router as WouterRouter, useLocation } from 'wouter';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from '../accessible-dialog';
 import { LanguageProvider, LanguageToggle, t, useAppLanguage } from '../language';
 import { getStaffNavigationItems, MobileStaffNavigation } from '../mobile-staff-navigation';
+import { isStaffNavigationItemActive } from '../staff-navigation-items';
 import '../index.css';
 import '../workspace.css';
 
-const fixtureLocationHook = (): [string, (path: string) => void] => {
-  const [path, setPath] = useState('/sessions');
-  return [path, setPath];
-};
+const fixtureParams = new URLSearchParams(window.location.search);
+const initialPath = fixtureParams.get('route') || '/sessions';
+window.history.replaceState(window.history.state, '', initialPath);
+if (fixtureParams.get('language') === 'ar') window.localStorage.setItem('jusoor-language', 'ar');
+else window.localStorage.removeItem('jusoor-language');
+const initialStaffRole = fixtureParams.get('role') === 'staff' ? 'staff' : 'coordinator';
 
 function DialogAccessibilityFixture() {
   const { language } = useAppLanguage();
   const [currentPath] = useLocation();
-  const [staffRole, setStaffRole] = useState<'coordinator' | 'staff'>('coordinator');
+  const [staffRole, setStaffRole] = useState<'coordinator' | 'staff'>(initialStaffRole);
+  const staffNavItems = getStaffNavigationItems(staffRole);
+  const currentPageLabel = staffNavItems.find(item => isStaffNavigationItemActive(currentPath, item.href))?.label || 'Workspace';
   const [reviewOpen, setReviewOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -261,14 +266,16 @@ function DialogAccessibilityFixture() {
         <button id="button-close-no-opener" onClick={() => setNoOpenerDialogOpen(false)}>Close no-opener dialog</button>
       </AccessibleDialogSurface>}
 
-      <MobileStaffNavigation items={getStaffNavigationItems(staffRole)} currentPath={currentPath} onSignOut={() => undefined} />
+      <MobileStaffNavigation items={staffNavItems} currentPath={currentPath} onSignOut={() => undefined} />
+      <div data-testid="staff-current-page-label">{t(currentPageLabel)}</div>
+      <div data-testid="staff-page-marker">{currentPath}</div>
     </main>
   );
 }
 
 createRoot(document.getElementById('root')!).render(
   <LanguageProvider>
-    <WouterRouter hook={fixtureLocationHook}>
+    <WouterRouter>
       <DialogAccessibilityFixture />
     </WouterRouter>
   </LanguageProvider>,
