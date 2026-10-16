@@ -59,3 +59,26 @@ DATABASE_URL='postgres://test:test@127.0.0.1:1/test' \
 - The migration has been applied only to the disposable local fixtures described above. It has **not** been applied to an application database. The application schema must be migrated through the approved database change process before running changed code against an existing database. Until coordinators assign existing team members to programs in Team access, non-coordinator users have no program access by design.
 
 Apply the migration only through the approved database change process after reviewing its assumptions and object shapes against the target schema. See [Database migration procedure](DATABASE_MIGRATIONS.md). Then verify coordinator access and assign each non-coordinator account to the programs it should serve. Do not treat these disposable-fixture checks, TypeScript checks, or mocked tests as evidence that an application database migration succeeded.
+
+## Staff access schema recovery — development applied; production publish pending
+
+This is separate from the isolated program-assignment verification above.
+
+### Verified diagnosis
+
+- Published runtime logs recorded `GET /api/auth/me` returning 503 after the staff bootstrap insert failed because `calendly_follow_up_updated_by_staff_id` was missing.
+- The same logs recorded the Calendar worker failing because `google_calendar_refresh_token_encrypted` was missing.
+- Read-only development schema inspection confirmed all six columns and the meetings table from the two relevant SQL migrations were absent. The initial development-to-production Publish diff was empty: both database schemas lagged the source definitions.
+
+### Applied and passed in development
+
+- With user approval, applied `20261015_staff_mentor_follow_up_attribution.sql` and `20261015_google_calendar_booking_sync.sql` together in one development-only transaction, which committed successfully. No schema push or force-push was used.
+- Verified the six nullable staff columns, meetings-table types/nullability/defaults, primary key, both meeting foreign keys with `ON DELETE CASCADE`, staff attribution foreign key with `ON DELETE SET NULL`, and both explicitly declared meeting indexes.
+- Executed the application's complete Drizzle staff-column projection with `LIMIT 0`; it resolved successfully without reading staff records.
+- The subsequent Publish diff contains exactly 12 additive statements corresponding to these migrations, with no structural data loss, removals, truncations, compatibility warnings, or unrelated schema changes.
+
+### Pending and not verified
+
+- No production DDL was run from the workspace. Publish must apply the reviewed development-to-production diff.
+- Production sign-in recovery is not yet verified. No signed-in browser session, role assignment changes, provider calls, or email sends were performed for this recovery.
+- Application source did not change, so previously recorded source tests/builds were not rerun or claimed as fresh migration verification.
