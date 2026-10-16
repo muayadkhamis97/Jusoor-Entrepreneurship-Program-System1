@@ -24,6 +24,10 @@ const { createApp } = await import("../src/app");
 
 type Row = Record<string, any>;
 const staffId = 14;
+const archivedStaffId = 15;
+const archivedProgramIds = new Set([44, 55, 66]);
+let activeStaffFixture = true;
+const mutationAttempts: { table: unknown; path: string; role: string }[] = [];
 const trainerSession: Row = {
   id: 110,
   programId: 11,
@@ -84,9 +88,9 @@ const restoreMethods: Array<() => void> = [];
 function rowsFor(table: unknown): Row[] {
   if (table === staffMembersTable) {
     return [{
-      id: staffId,
-      email: "multi-role@example.com",
-      clerkUserId: "test-staff-user",
+      id: activeStaffFixture ? staffId : archivedStaffId,
+      email: activeStaffFixture ? "multi-role@example.com" : "archived-specialist@example.com",
+      clerkUserId: activeStaffFixture ? "test-staff-user" : "test-archived-staff-user",
       role: "staff",
       status: "active",
       bookingProvider: "calendly",
@@ -96,20 +100,33 @@ function rowsFor(table: unknown): Row[] {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     }];
   }
-  if (table === staffProgramAssignmentsTable) return [{ programId: 11 }, { programId: 22 }, { programId: 33 }];
+  if (table === staffProgramAssignmentsTable) {
+    return activeStaffFixture
+      ? [{ programId: 11 }, { programId: 22 }, { programId: 33 }]
+      : [{ programId: 44 }, { programId: 55 }, { programId: 66 }];
+  }
   if (table === staffProgramRolesTable) {
-    return [
-      { programId: 11, role: "trainer" },
-      { programId: 11, role: "mentor" },
-      { programId: 22, role: "judge" },
-      { programId: 33, role: "trainer" },
-    ];
+    return activeStaffFixture
+      ? [
+        { programId: 11, role: "trainer" },
+        { programId: 11, role: "mentor" },
+        { programId: 22, role: "judge" },
+        { programId: 33, role: "trainer" },
+      ]
+      : [
+        { programId: 44, role: "trainer" },
+        { programId: 55, role: "mentor" },
+        { programId: 66, role: "judge" },
+      ];
   }
   if (table === programsTable) {
     return [
       { id: 11, name: "Jusoor Growth Lab", archivedAt: null },
       { id: 22, name: "Pitch Day Program", archivedAt: null },
       { id: 33, name: "Women in Technology", archivedAt: null },
+      { id: 44, name: "Archived Trainer Cohort", archivedAt: new Date("2026-09-01T00:00:00.000Z") },
+      { id: 55, name: "Archived Mentor Cohort", archivedAt: new Date("2026-09-01T00:00:00.000Z") },
+      { id: 66, name: "Archived Judge Cohort", archivedAt: new Date("2026-09-01T00:00:00.000Z") },
     ];
   }
   if (table === sessionsTable && requestPath.startsWith("/api/trainer/") && requestRole === "trainer") {
@@ -119,6 +136,32 @@ function rowsFor(table: unknown): Row[] {
   if (table === businessesTable && requestPath.includes("/api/mentor/")) return [{ id: 201, programId: 11 }];
   if (table === pitchJudgesTable && requestPath === "/api/judge/scorecards/402") return [judgeResponse];
   return [];
+}
+
+function conditionHasArchivedAtIsNull(condition: unknown): boolean {
+  const pending = [condition];
+  const seen = new Set<object>();
+  let hasArchivedAtColumn = false;
+  let hasIsNull = false;
+
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    if (Array.isArray(current)) {
+      pending.push(...current);
+      continue;
+    }
+    const chunk = current as { name?: unknown; queryChunks?: unknown[]; value?: unknown };
+    if (chunk.name === "archived_at") hasArchivedAtColumn = true;
+    if (Array.isArray(chunk.queryChunks)) pending.push(...chunk.queryChunks);
+    if (Array.isArray(chunk.value)) {
+      const text = chunk.value.filter((part): part is string => typeof part === "string").join("");
+      if (/\bis null\b/i.test(text)) hasIsNull = true;
+    }
+  }
+
+  return hasArchivedAtColumn && hasIsNull;
 }
 
 function replaceDbMethod(name: "select" | "selectDistinct" | "insert" | "update", replacement: unknown) {
@@ -132,30 +175,51 @@ function replaceDbMethod(name: "select" | "selectDistinct" | "insert" | "update"
 
 function selectBuilder() {
   let table: unknown;
+  let joinedPrograms = false;
+  let excludesArchivedPrograms = false;
   const query: any = {
     from(nextTable: unknown) { table = nextTable; return query; },
-    innerJoin() { return query; },
+    innerJoin(nextTable: unknown) {
+      if (nextTable === programsTable) joinedPrograms = true;
+      return query;
+    },
     leftJoin() { return query; },
-    where() { return query; },
+    where(condition: unknown) {
+      excludesArchivedPrograms = conditionHasArchivedAtIsNull(condition);
+      return query;
+    },
     orderBy() { return query; },
-    limit(limit: number) { return Promise.resolve(rowsFor(table).slice(0, limit)); },
+    limit(limit: number) {
+      return Promise.resolve(filteredRows().slice(0, limit));
+    },
     then(resolve: (rows: Row[]) => unknown, reject?: (error: unknown) => unknown) {
-      return Promise.resolve(rowsFor(table)).then(resolve, reject);
+      return Promise.resolve(filteredRows()).then(resolve, reject);
     },
   };
+  function filteredRows(): Row[] {
+    const rows = rowsFor(table);
+    if (!excludesArchivedPrograms) return rows;
+    if (table === programsTable) return rows.filter(({ id }) => !archivedProgramIds.has(id));
+    if (joinedPrograms && (table === staffProgramAssignmentsTable || table === staffProgramRolesTable)) {
+      return rows.filter(({ programId }) => !archivedProgramIds.has(programId));
+    }
+    return rows;
+  }
   return query;
 }
 
 const testAuthentication: RequestHandler = (req, _res, next) => {
   requestPath = req.originalUrl;
   requestRole = req.get("x-jusoor-staff-role") ?? "";
+  activeStaffFixture = req.get("x-test-staff-fixture") !== "archived";
+  const userId = activeStaffFixture ? "test-staff-user" : "test-archived-staff-user";
   const authHandler = Object.assign(
     () => ({
       tokenType: "session_token",
-      userId: "test-staff-user",
+      userId,
       sessionId: "test-session",
       sessionStatus: "active",
-      sessionClaims: { sub: "test-staff-user" },
+      sessionClaims: { sub: userId },
     }),
     { [Symbol.for("@clerk/express.auth")]: true },
   );
@@ -168,6 +232,7 @@ before(async () => {
   replaceDbMethod("selectDistinct", selectBuilder as never);
   replaceDbMethod("insert", ((table: unknown) => {
     let values: Row = {};
+    mutationAttempts.push({ table, path: requestPath, role: requestRole });
     const query: any = {
       values(nextValues: Row) { values = nextValues; return query; },
       onConflictDoNothing() { return query; },
@@ -192,6 +257,7 @@ before(async () => {
   }) as never);
   replaceDbMethod("update", ((table: unknown) => {
     let result: Row[] = [];
+    mutationAttempts.push({ table, path: requestPath, role: requestRole });
     const query: any = {
       set() { return query; },
       where() {
@@ -219,13 +285,14 @@ after(async () => {
   });
 });
 
-async function request(method: string, path: string, role: string, body?: Row) {
+async function request(method: string, path: string, role: string, body?: Row, fixture: "active" | "archived" = "active") {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return fetch(`http://127.0.0.1:${address.port}${path}`, {
     method,
     headers: {
       "x-jusoor-staff-role": role,
+      ...(fixture === "archived" ? { "x-test-staff-fixture": "archived" } : {}),
       ...(body ? { "content-type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -285,5 +352,44 @@ test("secondary staff roles can use only their assigned program workflows throug
     feedback: "Not assigned",
   });
   assert.equal(judgeInUnassignedProgram.status, 404);
+});
+
+test("archived-only specialist assignments cannot open or mutate trainer, mentor, or judge workspaces", async () => {
+  const mutationsBefore = mutationAttempts.length;
+  const routes = [
+    {
+      role: "trainer",
+      dashboard: "/api/trainer/dashboard",
+      mutationPath: "/api/trainer/assignments",
+      method: "POST",
+      body: { programId: 44, title: "Archived assignment", instructions: "Must not be created." },
+    },
+    {
+      role: "mentor",
+      dashboard: "/api/mentor/dashboard",
+      mutationPath: "/api/mentor/support/303",
+      method: "PATCH",
+      body: { status: "completed" },
+    },
+    {
+      role: "judge",
+      dashboard: "/api/judge/dashboard",
+      mutationPath: "/api/judge/scorecards/403",
+      method: "PATCH",
+      body: { score: 10, feedback: "Must not be saved." },
+    },
+  ] as const;
+
+  for (const route of routes) {
+    const dashboard = await request("GET", route.dashboard, route.role, undefined, "archived");
+    assert.equal(dashboard.status, 403, `${route.role} should not open a workspace based only on archived assignments`);
+    assert.doesNotMatch(await dashboard.text(), /Archived (Trainer|Mentor|Judge) Cohort/);
+
+    const mutation = await request(route.method, route.mutationPath, route.role, route.body, "archived");
+    assert.equal(mutation.status, 403, `${route.role} should not mutate records in an archived cohort`);
+    assert.doesNotMatch(await mutation.text(), /Archived (Trainer|Mentor|Judge) Cohort/);
+  }
+
+  assert.equal(mutationAttempts.length, mutationsBefore, "archived-only specialist requests must be rejected before any database mutation");
 });
 
