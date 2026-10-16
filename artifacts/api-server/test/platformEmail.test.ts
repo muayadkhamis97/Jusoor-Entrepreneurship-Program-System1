@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ReplitConnectors } from "@replit/connectors-sdk";
+import type { ProgramEmailBranding } from "../src/lib/email-branding";
 import { sendPlatformEmail } from "../src/lib/platform-email";
+
+const testBranding: ProgramEmailBranding = {
+  brandName: "Future Founders",
+  logoUrl: null,
+  primaryColor: "#28665a",
+  accentColor: "#d98a46",
+};
 
 function fakeConnectors(options?: {
   sent?: boolean;
@@ -42,7 +50,7 @@ function email(overrides: Partial<Parameters<typeof sendPlatformEmail>[0]> = {})
 test("Gmail sender rejects empty recipients before calling the connector", async () => {
   const { connectors, requests } = fakeConnectors();
   await assert.rejects(
-    sendPlatformEmail(email({ recipients: [] }), connectors),
+    sendPlatformEmail(email({ recipients: [] }), connectors, async () => testBranding),
     /email has no recipients/i,
   );
   assert.equal(requests.length, 0);
@@ -58,6 +66,7 @@ test("Gmail sender sends an individual UTF-8 MIME email per recipient", async ()
       html: "<p>نص التذكير</p>",
     }),
     connectors,
+    async () => testBranding,
   );
 
   const sends = requests.filter(request => request.path.endsWith("/messages/send"));
@@ -77,7 +86,7 @@ test("Gmail sender sends an individual UTF-8 MIME email per recipient", async ()
 
 test("Gmail sender skips a recipient already found in Sent on retry", async () => {
   const { connectors, requests } = fakeConnectors({ sent: true });
-  await sendPlatformEmail(email(), connectors);
+  await sendPlatformEmail(email(), connectors, async () => testBranding);
 
   assert.equal(
     requests.filter(request => request.path.endsWith("/messages/send")).length,
@@ -91,7 +100,7 @@ test("Gmail sender skips a recipient already found in Sent on retry", async () =
 test("Gmail sender stops if the connected mailbox profile cannot be read", async () => {
   const { connectors, requests } = fakeConnectors({ profileStatus: 403 });
   await assert.rejects(
-    sendPlatformEmail(email(), connectors),
+    sendPlatformEmail(email(), connectors, async () => testBranding),
     /Gmail profile lookup returned HTTP 403/i,
   );
   assert.equal(

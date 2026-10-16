@@ -1,5 +1,11 @@
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { createHash } from "node:crypto";
+import {
+  loadProgramEmailBranding,
+  renderBrandedEmailHtml,
+  renderBrandedEmailText,
+  type ProgramEmailBranding,
+} from "./email-branding";
 
 export type PlatformEmail = {
   recipients: string[];
@@ -10,10 +16,12 @@ export type PlatformEmail = {
 };
 
 type ConnectorClient = Pick<ReplitConnectors, "proxy">;
+type LoadEmailBranding = () => Promise<ProgramEmailBranding>;
 
 export async function sendPlatformEmail(
   message: PlatformEmail,
   connectors: ConnectorClient = new ReplitConnectors(),
+  loadBranding: LoadEmailBranding = loadProgramEmailBranding,
 ): Promise<void> {
   const recipients = [...new Set(message.recipients.map(validateEmailAddress))];
   if (!recipients.length) throw new Error("Email has no recipients.");
@@ -21,6 +29,9 @@ export async function sendPlatformEmail(
   if (!message.idempotencyKey.trim()) {
     throw new Error("Email delivery requires an idempotency key.");
   }
+  const branding = await loadBranding();
+  const brandedText = renderBrandedEmailText(message.text, branding);
+  const brandedHtml = renderBrandedEmailHtml(message.html, branding);
 
   const profileResponse = await connectors.proxy(
     "google-mail",
@@ -44,8 +55,8 @@ export async function sendPlatformEmail(
       from,
       to: recipient,
       subject,
-      text: message.text,
-      html: message.html,
+      text: brandedText,
+      html: brandedHtml,
       messageId,
     });
     const response = await connectors.proxy(
