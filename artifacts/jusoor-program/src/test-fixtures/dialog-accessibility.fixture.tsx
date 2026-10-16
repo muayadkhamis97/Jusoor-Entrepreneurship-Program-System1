@@ -222,6 +222,7 @@ function DialogAccessibilityFixture() {
         <h2 id="fixture-secret-title">One-time program key</h2>
         <p id="fixture-secret-description">Synthetic secret used only to test acknowledgement behavior.</p>
         <code>SYNTHETIC-NOT-A-REAL-KEY</code>
+        <p role="alert">This synthetic key is shown once. Keep it private.</p>
         <button id="button-copy-synthetic-secret" onClick={() => setSecretCanClose(true)}>Copy synthetic key</button>
         <button disabled={!secretCanClose} onClick={() => setSecretOpen(false)}>I saved the key</button>
       </AccessibleDialogSurface>}
@@ -241,6 +242,7 @@ function DialogAccessibilityFixture() {
         <p id="fixture-revoke-description">This is a local confirmation fixture.</p>
         <button id="button-cancel-synthetic-revoke" disabled={revokePending} onClick={() => setRevokeOpen(false)}>Keep key</button>
         <button disabled={revokePending} onClick={() => setRevokePending(true)}>Start synthetic revoke</button>
+        {revokePending && <p role="status" aria-live="polite">Revocation is in progress.</p>}
         {revokePending && <button onClick={() => { setRevokePending(false); setRevokeOpen(false); }}>Finish synthetic revoke</button>}
       </AccessibleDialogSurface>}
 

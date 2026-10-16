@@ -164,3 +164,31 @@ The local route probe visited each path at both listed viewport sizes. In that d
 | Production data/authentication safety | PASS | No production URL/data was used; no credentials were accessed, no auth bypass was added, and no application records or destructive actions were changed. |
 
 Synthetic coverage remains useful but is not a substitute for route-level evidence. The browser fixture verifies representative accessible names, focus entry/containment/return, retained form values after errors, dirty-form keep/discard, destructive confirmation, pending revocation protection, one-time-secret acknowledgement, and responsive bounds. The actual `/applications`, `/analytics`, `/grants`, `/api-integrations`, `/courses`, `/sessions`, `/participant`, and `/participant/profile` dialog workflows remain unverified until an authorized non-production session and a functioning non-production API are available.
+
+## Dialog screen-reader announcement QA (2026-10-16)
+
+### Assistive-technology availability
+
+Actual spoken screen-reader announcements could not be tested in this workspace. The available browser was Chromium 152.0.7977.64 on Ubuntu 24.04.4. No screen reader (including Orca), speech-dispatcher/speech synthesizer, AT-SPI bridge/session, or `/dev/snd` audio device was present. No screen-reader and browser combination or spoken output is therefore claimed as passing.
+
+To collect supporting browser evidence, the existing synthetic Playwright fixture now inspects Chromium's accessibility tree for dialog role/name/description, focused item, action names, alert text, and pending status. This checks browser-exposed semantics, not what a screen reader speaks or the timing/order of live announcements.
+
+| Dialog state | Language | Chromium accessibility-tree result |
+| --- | --- | --- |
+| Application review | English | PASS — named dialog, applicant/venture description, heading focus, and close action present. |
+| Sample form and failed save | English | PASS — named/described dialog, field focus, Cancel/Save/Close actions, and failed-save text exposed with alert role. |
+| Unsaved-change confirmation | English | PASS — alert-dialog title/description, “Keep editing” initial focus, and keep/discard actions. |
+| Destructive confirmation | English | PASS — alert-dialog title/description, safe Cancel initial focus, and Cancel/Remove actions. |
+| One-time secret | English | PASS — named/described dialog, Copy initial focus, warning exposed with alert role, and acknowledgement remains disabled until copying. |
+| Key revocation pending | English | PASS — polite status text is exposed, cancel is disabled, and completion action remains available. The production revoke dialog now supplies a localized `role="status"`/`aria-live="polite"` message during the pending mutation. |
+| Unsaved-change confirmation | Arabic | PASS — translated title/description/actions and Arabic initial focus are present in the tree while the document language and direction are `ar`/`rtl`. |
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Focused dialog Chromium test | PASS | `pnpm --filter @workspace/jusoor-program run test:ui-browser`: 2 passed, 0 failed. Runs Chromium headless with synthetic fixture data; it does not use a screen reader or call the API. |
+| Jusoor web unit tests | PASS | `pnpm --filter @workspace/jusoor-program run test:unit`: 51 passed, 0 failed. |
+| Jusoor web production build | PASS | `PORT=5000 BASE_PATH=/jusoor-program pnpm --filter @workspace/jusoor-program run build` completed. Existing dropdown-menu source-map warning and >500 kB chunk advisory remain; main bundle is 938.97 kB minified (261.30 kB gzip). |
+| Jusoor web typecheck | FAIL — unrelated generated-client mismatch | Reports 34 errors in `App.tsx`, `analytics-surfaces.tsx`, `communications-surfaces.tsx`, `intake-surfaces.tsx`, `role-surfaces.tsx`, and `team-assignments.tsx` due to generated API-client exports/types. No errors were reported in the changed dialog files. |
+| Actual screen-reader speech | BLOCKED | No screen reader, speech service, AT-SPI session, or audio device was available in the workspace. |
+
+**Limitations:** all dialog cases above use the local synthetic fixture, not authenticated production routes. Chromium accessibility-tree inspection does not establish speech quality, announcement order, live-region timing, or actual Arabic pronunciation. Repeat with an authorized non-production account and a supported screen reader/browser combination (including Arabic if supported) before claiming assistive-technology verification.

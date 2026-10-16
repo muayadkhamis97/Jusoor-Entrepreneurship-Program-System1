@@ -35,6 +35,7 @@ test('production dialog call sites preserve dirty and pending-action safeguards'
   assert.match(analytics, /closeOnEscape=\{!removeKpi\.isPending\}/, 'KPI deletion must remain open while pending');
   assert.match(api, /closeOnEscape=\{secretCanClose\}/, 'one-time key dialog must require acknowledgement before dismissal');
   assert.match(api, /closeOnEscape=\{!revokeKey\.isPending\}/, 'key revocation must remain open while pending');
+  assert.match(api, /revokeKey\.isPending && <p role="status" aria-live="polite">/, 'key revocation progress must be announced through a polite live status');
   assert.match(courses, /closeOnEscape=\{!busy && !dirty\}/, 'course forms must protect pending and dirty state');
   assert.match(courses, /confirmCourseFormDiscard && <UnsavedChangesDialog/);
   assert.match(courses, /onChange=\{\(\) => setCourseFormDirty\(true\)\}/);
@@ -143,6 +144,61 @@ async function checkStaffMenu(page: import('playwright-core').Page, role: 'coord
   assert.ok(touchResult.visible, `${role} final destination should be reachable in the touch-scroll container in ${language}.`);
 }
 
+type AccessibilityTreeNode = {
+  role?: { value?: string };
+  name?: { value?: string };
+  description?: { value?: string };
+  properties?: Array<{ name: string; value?: { value?: unknown } }>;
+};
+
+async function getAccessibilityTree(page: import('playwright-core').Page) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Accessibility.enable');
+    const { nodes } = await session.send('Accessibility.getFullAXTree');
+    return nodes as AccessibilityTreeNode[];
+  } finally {
+    await session.detach();
+  }
+}
+
+function axProperty(node: AccessibilityTreeNode | undefined, name: string) {
+  return node?.properties?.find(property => property.name === name)?.value?.value;
+}
+
+async function assertAccessibleDialog(
+  page: import('playwright-core').Page,
+  {
+    role,
+    name,
+    description,
+    focusedName,
+    actions,
+  }: {
+    role: 'dialog' | 'alertdialog';
+    name: string;
+    description?: string;
+    focusedName: string;
+    actions: string[];
+  },
+) {
+  const nodes = (await getAccessibilityTree(page)).filter(node => node.role?.value && node.name?.value);
+  const dialog = nodes.find(node => node.role?.value === role && node.name?.value === name);
+  assert.ok(dialog, `Chromium accessibility tree should expose ${role} "${name}".`);
+  if (description !== undefined) {
+    assert.equal(dialog.description?.value, description, `${name} should expose its description.`);
+  }
+  const focused = nodes.find(node => node.role?.value !== 'RootWebArea' && axProperty(node, 'focused') === true);
+  assert.equal(focused?.name?.value, focusedName, `${name} should expose the intended initial focus.`);
+  const buttonNames = nodes
+    .filter(node => node.role?.value === 'button')
+    .map(node => node.name?.value);
+  for (const action of actions) {
+    assert.ok(buttonNames.includes(action), `${name} should expose the "${action}" action.`);
+  }
+  return nodes;
+}
+
 async function unusedPort(): Promise<number> {
   const listener = createNetServer();
   await new Promise<void>((resolve, reject) => {
@@ -193,6 +249,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await reviewOpener.click();
     const applicationReview = page.getByRole('dialog', { name: 'Application review' });
     await applicationReview.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'dialog',
+      name: 'Application review',
+      description: 'Synthetic applicant and venture details.',
+      focusedName: 'Application review',
+      actions: ['Close review'],
+    });
     assert.equal(await applicationReview.getAttribute('aria-modal'), 'true');
     assert.equal(await applicationReview.getAttribute('aria-describedby'), 'fixture-review-description');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-review-title', 'Application review should focus its heading.');
@@ -207,6 +270,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await openForm.click();
     const formDialog = page.getByRole('dialog', { name: 'Edit sample record' });
     await formDialog.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'dialog',
+      name: 'Edit sample record',
+      description: 'Update this sample record.',
+      focusedName: 'Record name',
+      actions: ['Cancel', 'Save record', 'Close sample form'],
+    });
     assert.equal(await formDialog.getAttribute('aria-modal'), 'true');
     assert.equal(await formDialog.getAttribute('aria-labelledby'), 'fixture-form-title');
     assert.equal(await formDialog.getAttribute('aria-describedby'), 'fixture-form-description');
@@ -218,6 +288,9 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await field.fill('Synthetic value stays here');
     await page.getByRole('button', { name: 'Save record' }).click();
     await page.getByRole('alert').getByText('The record could not be saved. Try again.').waitFor();
+    const formErrorTree = await getAccessibilityTree(page);
+    assert.ok(formErrorTree.some(node => node.role?.value === 'alert'), 'The form error should be exposed to assistive technology as an alert.');
+    assert.ok(formErrorTree.some(node => node.name?.value === 'The record could not be saved. Try again.'), 'The alert text should be present in Chromium’s accessibility tree.');
     assert.equal(await field.inputValue(), 'Synthetic value stays here', 'A failed save must not clear form input.');
     assert.equal(await formDialog.count(), 1, 'A validation/server error should leave the dialog open.');
 
@@ -284,6 +357,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await openConfirm.click();
     const confirmDialog = page.getByRole('alertdialog', { name: 'Confirm removal' });
     await confirmDialog.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'alertdialog',
+      name: 'Confirm removal',
+      description: 'This is a synthetic confirmation only.',
+      focusedName: 'Cancel',
+      actions: ['Cancel', 'Remove'],
+    });
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-confirm-cancel', 'Confirmation should initially focus its safe cancel action.');
     await page.keyboard.press('Escape');
     await confirmDialog.waitFor({ state: 'detached' });
@@ -301,6 +381,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await page.keyboard.press('Escape');
     const discardPrompt = page.getByRole('alertdialog', { name: 'Discard unsaved changes?' });
     await discardPrompt.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'alertdialog',
+      name: 'Discard unsaved changes?',
+      description: 'Your changes have not been saved. Leave this editor and discard them?',
+      focusedName: 'Keep editing',
+      actions: ['Keep editing', 'Discard changes'],
+    });
     await page.getByRole('button', { name: 'Keep editing' }).click();
     await discardPrompt.waitFor({ state: 'detached' });
     assert.equal(await page.getByLabel('Draft value').inputValue(), 'Keep this synthetic draft');
@@ -315,6 +402,20 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await secretOpener.click();
     const secretDialog = page.getByRole('dialog', { name: 'One-time program key' });
     await secretDialog.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'dialog',
+      name: 'One-time program key',
+      description: 'Synthetic secret used only to test acknowledgement behavior.',
+      focusedName: 'Copy synthetic key',
+      actions: ['Copy synthetic key', 'I saved the key'],
+    });
+    const secretTree = await getAccessibilityTree(page);
+    assert.ok(secretTree.some(node => node.role?.value === 'alert'), 'The one-time-secret warning should be exposed as an alert.');
+    assert.ok(secretTree.some(node => node.name?.value === 'This synthetic key is shown once. Keep it private.'), 'The one-time-secret warning text should be available in the accessibility tree.');
+    assert.ok(
+      secretTree.some(node => node.role?.value === 'button' && node.name?.value === 'I saved the key' && axProperty(node, 'disabled') === true),
+      'The one-time-secret acknowledgement action should remain unavailable until the secret is copied.',
+    );
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'button-copy-synthetic-secret');
     await page.keyboard.press('Escape');
     assert.equal(await secretDialog.count(), 1, 'A one-time key cannot be dismissed before acknowledgement.');
@@ -329,7 +430,28 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await revokeOpener.click();
     const revokeDialog = page.getByRole('alertdialog', { name: 'Revoke synthetic key?' });
     await revokeDialog.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'alertdialog',
+      name: 'Revoke synthetic key?',
+      description: 'This is a local confirmation fixture.',
+      focusedName: 'Keep key',
+      actions: ['Keep key', 'Start synthetic revoke'],
+    });
     await page.getByRole('button', { name: 'Start synthetic revoke' }).click();
+    const pendingRevokeTree = await getAccessibilityTree(page);
+    assert.ok(
+      pendingRevokeTree.some(node => node.role?.value === 'button' && node.name?.value === 'Keep key' && axProperty(node, 'disabled') === true),
+      'The pending destructive action should expose its disabled safe-cancel control.',
+    );
+    assert.ok(
+      pendingRevokeTree.some(node => node.role?.value === 'button' && node.name?.value === 'Finish synthetic revoke'),
+      'The pending destructive action should retain its available completion action.',
+    );
+    assert.ok(pendingRevokeTree.some(node => node.role?.value === 'status'), 'Pending revocation should expose a live status.');
+    assert.ok(
+      pendingRevokeTree.some(node => node.name?.value === 'Revocation is in progress.'),
+      'The live status should have useful pending text.',
+    );
     await page.keyboard.press('Escape');
     assert.equal(await revokeDialog.count(), 1, 'A pending revocation cannot be dismissed with Escape.');
     assert.equal(await page.getByRole('button', { name: 'Keep key' }).isDisabled(), true);
@@ -361,6 +483,13 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     await page.keyboard.press('Escape');
     const arabicDiscardPrompt = page.getByRole('alertdialog', { name: 'هل تريد تجاهل التغييرات غير المحفوظة؟' });
     await arabicDiscardPrompt.waitFor();
+    await assertAccessibleDialog(page, {
+      role: 'alertdialog',
+      name: 'هل تريد تجاهل التغييرات غير المحفوظة؟',
+      description: 'لم تُحفظ تغييراتك. هل تريد مغادرة هذه النافذة وتجاهلها؟',
+      focusedName: 'متابعة التحرير',
+      actions: ['متابعة التحرير', 'تجاهل التغييرات'],
+    });
     await page.getByRole('button', { name: 'متابعة التحرير' }).click();
     await arabicDiscardPrompt.waitFor({ state: 'detached' });
     await page.keyboard.press('Escape');
