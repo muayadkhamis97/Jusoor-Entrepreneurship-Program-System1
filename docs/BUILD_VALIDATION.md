@@ -139,3 +139,28 @@ The schema change is additive: a nullable business target, a restrictive busines
 | `git diff --check` | PASS | No whitespace errors. |
 
 **Not verified:** the migration was not run; no development or production database was accessed. Authenticated Admin/participant browser behavior, visual rendering of the message form, email delivery, external providers, production data, publishing, and deployment were not tested. The preview browser has no signed-in Admin session, so it cannot render the protected Communications page.
+
+## Signed-in dialog workflow QA (2026-10-16)
+
+The requested authenticated verification could not be completed safely: no authorized non-production Clerk test session or test account was available, and the API Server workflow was not running. No authentication bypass, test identity fabrication, or production data was used.
+
+| Real route | Expected role and dialog workflow | Desktop 1280×800 | Mobile 390×844 | Result |
+| --- | --- | --- | --- | --- |
+| `/applications` | Admin — review application; protect unsaved status/notes and pending review | Direct local Vite visit reached the app error boundary before the review list/dialog; the proxied app had no signed-in session | Same error boundary before the review list/dialog | Blocked; no application record or real review dialog was available |
+| `/analytics` | Admin — attendance, KPI/value/report, destructive KPI removal, certificate preview | Proxied preview showed the public signed-out landing page; direct local Vite visit reached the app error boundary | Direct local Vite visit reached the same error boundary | Blocked; no real analytics or certificate dialog was available |
+| `/grants` | Admin — grant receipt and correction | Direct local Vite visit reached the app error boundary; no grant data was loaded | Same error boundary | Blocked; no real grant dialog was available |
+| `/api-integrations` | Admin — acknowledge one-time key and safely confirm revocation | Direct local Vite visit reached the app error boundary; no key data was loaded | Same error boundary | Blocked; no real key or destructive dialog was available |
+| `/courses` | Admin / Program Staff — course module/material editor, quiz editor and deletion (staff is scheduling-only) | Direct local Vite visit reached the app error boundary | Same error boundary | Blocked; no real course dialog was available |
+| `/sessions` | Admin / Program Staff / assigned trainer — session activity editor | Direct local Vite visit reached the app error boundary | Same error boundary | Blocked; no real session dialog was available |
+| `/participant` | Participant — own progress and learning-package player | Direct local Vite visit reached the app error boundary; the signed-out proxy did not provide an authorized participant session | Same error boundary | Blocked; no real participant package dialog was available |
+| `/participant/profile` | Participant — own profile and account actions | Direct local Vite visit reached the app error boundary; no participant session was available | Same error boundary | Blocked; no real participant page/dialog was available |
+
+The local route probe visited each path at both listed viewport sizes. In that direct Vite run, each path displayed the error-boundary message `Cannot read properties of undefined (reading 'slice')`; the cause was not isolated because the API Server workflow was not running. A separate screenshot of the proxied `/analytics` route at 1280×800 showed the public signed-out landing page, not analytics. These results are route-access blockers, not evidence that any real dialog passed or failed.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Existing dialog Chromium suite | PASS | `pnpm --filter @workspace/jusoor-program run test:ui-browser`: 2 passed, 0 failed. It exercises the synthetic fixture at desktop and mobile sizes and checks source-level policies at production dialog call sites; it does not authenticate or call the API. |
+| Signed-in route dialog verification | BLOCKED | No authorized non-production test session was available. The web workflow ran, but the API Server workflow was not started and no route dialog could be opened. |
+| Production data/authentication safety | PASS | No production URL/data was used; no credentials were accessed, no auth bypass was added, and no application records or destructive actions were changed. |
+
+Synthetic coverage remains useful but is not a substitute for route-level evidence. The browser fixture verifies representative accessible names, focus entry/containment/return, retained form values after errors, dirty-form keep/discard, destructive confirmation, pending revocation protection, one-time-secret acknowledgement, and responsive bounds. The actual `/applications`, `/analytics`, `/grants`, `/api-integrations`, `/courses`, `/sessions`, `/participant`, and `/participant/profile` dialog workflows remain unverified until an authorized non-production session and a functioning non-production API are available.

@@ -389,3 +389,28 @@ No implementation was begun by this audit.
 **Evidence:** `pnpm --filter @workspace/jusoor-program run test:ui-browser` passed 2 tests (source contracts plus Chromium fixture). The fixture tests desktop bounds at 1280×800, mobile behavior at 390×844 and 320×800, focus entry/Tab/Shift+Tab/Escape/restoration, removed and missing openers, nested dirty-form keep/discard, error-state input retention, a destructive confirmation, pending revocation, a synthetic one-time-secret acknowledgement, and Arabic RTL discard text. `pnpm --filter @workspace/jusoor-program run test:unit` passed 40 tests. The production build completed; typecheck still reports only the two existing assignment-history errors in `src/team-assignments.tsx` (missing generated `useGetStaffAssignmentHistory` export and implicit callback `any`). Full details are in `docs/BUILD_VALIDATION.md`.
 
 **Not verified:** Authenticated Admin or participant routes, route-specific browser rendering, assistive-technology behavior, and other browser engines. The browser fixture is synthetic and does not call the API. No authentication bypass, database, production data, external provider, email, publish, or deployment action was used.
+
+## I. Signed-in dialog workflow QA (2026-10-16)
+
+### Outcome
+
+Route-level dialog verification is **blocked**, not passed. No authorized non-production Clerk test session or test account was available. The existing `artifacts/jusoor-program: web` workflow was started; the API Server workflow remained stopped. No authentication bypass, test identity fabrication, or production data was used.
+
+The direct local Vite browser probe visited each route at 1280×800 and 390×844. Every route reached the app error boundary with `Cannot read properties of undefined (reading 'slice')` before its dialog workflow could be opened. The API Server was not running during this probe, and the cause was not isolated. Separately, the proxied `/analytics` screenshot at 1280×800 displayed the public signed-out landing page rather than analytics. Neither state exposed protected records or dialogs.
+
+| Route | Role and target workflow | Route-level evidence at desktop and mobile |
+| --- | --- | --- |
+| `/applications` | Admin — application review; dirty review changes and pending decision | Both viewport probes stopped at the local error boundary; no application row or review dialog was available. |
+| `/analytics` | Admin — attendance, KPI/value/report, KPI deletion, certificate preview | Both direct local probes stopped at the error boundary. The proxied desktop preview showed the signed-out landing page. |
+| `/grants` | Admin — grant receipt and correction | Both probes stopped at the local error boundary; no grant dialog was available. |
+| `/api-integrations` | Admin — one-time API secret and revocation confirmation | Both probes stopped at the local error boundary; no key or revocation dialog was available. |
+| `/courses` | Admin / Program Staff — module/material, quiz, and deletion; staff remains schedule-only | Both probes stopped at the local error boundary; no course editor or destructive dialog was available. |
+| `/sessions` | Admin / Program Staff / assigned trainer — session activity editor | Both probes stopped at the local error boundary; no activity editor was available. |
+| `/participant` | Participant — progress and learning-package player | Both probes stopped at the local error boundary; no participant session or package dialog was available. |
+| `/participant/profile` | Participant — own profile and account actions | Both probes stopped at the local error boundary; no participant profile page was available. |
+
+### Existing test evidence and remaining gap
+
+`pnpm --filter @workspace/jusoor-program run test:ui-browser` was rerun and passed 2 tests. The Chromium synthetic fixture covers representative accessible names, focus entry/Tab containment/focus return, form retention after an error, dirty-form keep/discard, safe destructive confirmation, pending revocation protection, one-time-secret acknowledgement, Arabic discard text, and desktop/mobile bounds. Its production-callsite assertions inspect safeguards in the real source but do not render authenticated routes.
+
+The real routes above still need an authorized non-production session and a functioning non-production API to verify dialog names, keyboard focus and return, dirty/pending behavior, retained form data, and destructive actions in their actual page compositions. No real mutation was attempted. No screen reader or other browser engine was used.
