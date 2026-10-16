@@ -96,11 +96,6 @@ function publicEmailError(error: unknown): string {
 
 class RecordingEmailConfigurationError extends Error {}
 
-function senderAddress(): string | undefined {
-  const from = process.env.JUSOOR_EMAIL_FROM?.trim();
-  return from && !/[\r\n]/.test(from) && from.includes("@") ? from : undefined;
-}
-
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
     const entities: Record<string, string> = {
@@ -121,7 +116,6 @@ async function sendReadyEmail(input: {
   scheduledDate: string;
   recipients: string[];
 }): Promise<void> {
-  const from = senderAddress();
   if (input.recipients.length === 0) {
     throw new RecordingEmailConfigurationError(
       "No active admin account has an email address to receive alerts.",
@@ -138,7 +132,6 @@ async function sendReadyEmail(input: {
   const html = `<p>A Zoom recording is ready to upload to Google Drive.</p><p><strong>Session:</strong> ${escapeHtml(title)}<br><strong>Date:</strong> ${escapeHtml(input.scheduledDate)}</p><p>After staff upload the video to Drive, add the share link to the session in the platform.</p>`;
   await sendPlatformEmail({
     recipients: input.recipients,
-    fallbackFrom: from,
     subject: `Zoom recording ready: ${title}`,
     text,
     html,

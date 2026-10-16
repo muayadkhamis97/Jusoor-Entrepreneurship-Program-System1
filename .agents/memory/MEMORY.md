@@ -18,3 +18,4 @@
 - [Footer branding](footer-branding.md) — Keep static page-end labels generic; configured brand names belong in the branding-driven surfaces.
 - [Google Calendar account replacement](google-calendar-account-replacement.md) — A different Google account needs a fresh public schedule link; same-account reauthorization can retain its link.
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
+- [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.

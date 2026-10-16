@@ -142,7 +142,6 @@ async function sendCourseReminder(input: {
   dueAt: Date | null;
   subject: string;
 }): Promise<void> {
-  const fallbackFrom = process.env.JUSOOR_EMAIL_FROM?.trim();
   const deadline = input.dueAt?.toLocaleString("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -153,15 +152,14 @@ async function sendCourseReminder(input: {
     "",
     `This is a reminder about the "${input.moduleTitle}" learning module in ${input.programName}.`,
     ...(deadline ? [`Deadline: ${deadline} UTC`] : ["This required module is still incomplete."]),
-    "Sign in to Jusoor to review your learning progress and complete the module.",
+    "Sign in to the program platform to review your learning progress and complete the module.",
   ].join("\n");
   const deadlineHtml = deadline
     ? `<p><strong>Deadline:</strong> ${escapeHtml(deadline)} UTC</p>`
     : "<p>This required module is still incomplete.</p>";
-  const html = `<p>Hello ${escapeHtml(input.founderName)},</p><p>This is a reminder about the <strong>${escapeHtml(input.moduleTitle)}</strong> learning module in ${escapeHtml(input.programName)}.</p>${deadlineHtml}<p>Sign in to Jusoor to review your learning progress and complete the module.</p>`;
+  const html = `<p>Hello ${escapeHtml(input.founderName)},</p><p>This is a reminder about the <strong>${escapeHtml(input.moduleTitle)}</strong> learning module in ${escapeHtml(input.programName)}.</p>${deadlineHtml}<p>Sign in to the program platform to review your learning progress and complete the module.</p>`;
   await sendPlatformEmail({
     recipients: [input.email],
-    fallbackFrom,
     subject: `${input.subject}: ${input.moduleTitle}`,
     text,
     html,

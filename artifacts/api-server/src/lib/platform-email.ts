@@ -1,33 +1,146 @@
 import { ReplitConnectors } from "@replit/connectors-sdk";
+import { createHash } from "node:crypto";
 
 export type PlatformEmail = {
   recipients: string[];
   subject: string;
   text: string;
   html: string;
-  fallbackFrom?: string;
-  idempotencyKey?: string;
+  idempotencyKey: string;
 };
 
-export async function sendPlatformEmail(message: PlatformEmail): Promise<void> {
-  const fallbackFrom = message.fallbackFrom?.trim();
-  if (!fallbackFrom || /[\r\n]/.test(fallbackFrom) || !fallbackFrom.includes("@")) {
-    throw new Error("The platform email sender is not configured.");
-  }
-  if (!message.recipients.length) throw new Error("Email has no recipients.");
+type ConnectorClient = Pick<ReplitConnectors, "proxy">;
 
-  const response = await new ReplitConnectors().proxy("resend", "/emails/batch", {
-    method: "POST",
-    ...(message.idempotencyKey
-      ? { headers: { "Idempotency-Key": message.idempotencyKey } }
-      : {}),
-    body: message.recipients.map((to) => ({
-      from: fallbackFrom,
-      to,
-      subject: message.subject,
+export async function sendPlatformEmail(
+  message: PlatformEmail,
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<void> {
+  const recipients = [...new Set(message.recipients.map(validateEmailAddress))];
+  if (!recipients.length) throw new Error("Email has no recipients.");
+  const subject = validateHeader(message.subject, "subject");
+  if (!message.idempotencyKey.trim()) {
+    throw new Error("Email delivery requires an idempotency key.");
+  }
+
+  const profileResponse = await connectors.proxy(
+    "google-mail",
+    "/gmail/v1/users/me/profile",
+    { method: "GET" },
+  );
+  if (!profileResponse.ok) {
+    throw new Error(`Gmail profile lookup returned HTTP ${profileResponse.status}.`);
+  }
+  const profile = await profileResponse.json() as { emailAddress?: unknown };
+  if (typeof profile.emailAddress !== "string") {
+    throw new Error("Gmail did not return the connected account address.");
+  }
+  const from = validateEmailAddress(profile.emailAddress);
+
+  for (const recipient of recipients) {
+    const messageId = stableMessageId(message.idempotencyKey, recipient);
+    if (await wasAlreadySent(connectors, messageId)) continue;
+
+    const raw = encodeMessage({
+      from,
+      to: recipient,
+      subject,
       text: message.text,
       html: message.html,
-    })),
+      messageId,
+    });
+    const response = await connectors.proxy(
+      "google-mail",
+      "/gmail/v1/users/me/messages/send",
+      { method: "POST", body: { raw } },
+    );
+    if (!response.ok) {
+      throw new Error(`Gmail send returned HTTP ${response.status}.`);
+    }
+  }
+}
+
+async function wasAlreadySent(
+  connectors: ConnectorClient,
+  messageId: string,
+): Promise<boolean> {
+  const query = new URLSearchParams({
+    q: `in:sent rfc822msgid:${messageId}`,
+    maxResults: "1",
   });
-  if (!response.ok) throw new Error(`Email provider returned HTTP ${response.status}.`);
+  const response = await connectors.proxy(
+    "google-mail",
+    `/gmail/v1/users/me/messages?${query.toString()}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    throw new Error(`Gmail sent-message lookup returned HTTP ${response.status}.`);
+  }
+  const result = await response.json() as { messages?: unknown };
+  return Array.isArray(result.messages) && result.messages.length > 0;
+}
+
+function stableMessageId(idempotencyKey: string, recipient: string): string {
+  const digest = createHash("sha256")
+    .update(`${idempotencyKey}\0${recipient.toLowerCase()}`)
+    .digest("hex");
+  return `${digest}@platform.invalid`;
+}
+
+function encodeMessage(input: {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  messageId: string;
+}): string {
+  const boundary = `alt_${input.messageId.slice(0, 32)}`;
+  const encodedSubject = Buffer.from(input.subject, "utf8").toString("base64");
+  const headers = [
+    `From: ${input.from}`,
+    `To: ${input.to}`,
+    `Subject: =?UTF-8?B?${encodedSubject}?=`,
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: <${input.messageId}>`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+  ];
+  const body = [
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    wrapBase64(input.text),
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    wrapBase64(input.html),
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+  return Buffer.from(`${headers.join("\r\n")}\r\n\r\n${body}`, "utf8").toString("base64url");
+}
+
+function wrapBase64(value: string): string {
+  return Buffer.from(value, "utf8")
+    .toString("base64")
+    .replace(/.{1,76}/g, "$&\r\n")
+    .replace(/\r\n$/, "");
+}
+
+function validateHeader(value: string, name: string): string {
+  const normalized = value.trim();
+  if (!normalized || /[\r\n]/.test(normalized)) {
+    throw new Error(`Invalid email ${name}.`);
+  }
+  return normalized;
+}
+
+function validateEmailAddress(value: string): string {
+  const normalized = value.trim();
+  if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(normalized)) {
+    throw new Error("Email contains an invalid address.");
+  }
+  return normalized;
 }

@@ -206,7 +206,6 @@ async function sendDigestEmail(input: {
 
   await sendPlatformEmail({
     recipients: [input.coordinatorEmail],
-    fallbackFrom: process.env.JUSOOR_EMAIL_FROM,
     subject: `Overdue mentor follow-ups (${input.mentors.length})`,
     text,
     html,
