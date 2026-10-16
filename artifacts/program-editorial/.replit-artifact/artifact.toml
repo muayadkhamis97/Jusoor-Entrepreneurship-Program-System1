@@ -1,0 +1,19 @@
+kind = "design-system"
+previewPath = "/program-editorial/"
+title = "Program Editorial"
+description = "A reusable editorial design system extracted from the selected landing mockup: warm paper surfaces, deep teal actions, terracotta accents, expressive serif typography, and fine divider rules. Source screens remain unchanged pending approval."
+version = "1.0.0"
+id = "artifacts/program-editorial"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/program-editorial/" ]
+localPort = 21236
+
+[services.development]
+run = "pnpm --filter @workspace/program-editorial run dev"
+
+[services.env]
+PORT = "21236"
+BASE_PATH = "/program-editorial/"

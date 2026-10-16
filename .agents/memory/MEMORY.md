@@ -20,3 +20,4 @@
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
 - [Schema drift and publishing](schema-drift-publishing.md) — An empty Publish diff can mean both database schemas lag the application; inspect actual columns before treating it as healthy.
+- [Editorial palette contrast](editorial-palette-contrast.md) — Preserve source colors for large emphasis, but measure small-text pairings when applying the extracted design system.
