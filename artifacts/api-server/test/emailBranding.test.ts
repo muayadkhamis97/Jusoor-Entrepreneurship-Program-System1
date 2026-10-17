@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   renderBrandedEmailHtml,
   renderBrandedEmailText,
+  visibleEmailBrandName,
   type ProgramEmailBranding,
 } from "../src/lib/email-branding";
 
@@ -50,4 +51,12 @@ test("branded email falls back to a readable initial mark when no logo is saved"
   assert.match(html, /background:#183a51;color:#ffffff/);
   assert.match(html, />H<\/span>/);
   assert.doesNotMatch(html, /<img\b/);
+});
+
+test("legacy saved organization names are shown as a neutral name in outgoing email", () => {
+  const legacyBrand = { ...configuredBrand, brandName: "Jusoor" };
+
+  assert.equal(visibleEmailBrandName(legacyBrand.brandName), "Program Hub");
+  assert.doesNotMatch(renderBrandedEmailHtml("<p>Invitation</p>", legacyBrand), /Jusoor|جسور/i);
+  assert.doesNotMatch(renderBrandedEmailText("Invitation", legacyBrand), /Jusoor|جسور/i);
 });

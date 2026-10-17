@@ -40,11 +40,12 @@ import { requireCoordinator, requireOperationsStaff, type StaffAccess } from "..
 import { hasAnyProgramStaffRole } from "../lib/programStaffRoles";
 import { canManageProgramAssignments } from "../lib/programAssignmentAuthorization";
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
+import { hasPostgresErrorCode } from "../lib/postgres-error-utils";
+import { sendStaffInvitationEmail } from "../lib/staff-invitation-email";
 
 const router: IRouter = Router();
 const mentorFollowUpEditor = alias(staffMembersTable, "mentor_follow_up_editor");
-const isUndefinedRelation = (error: unknown): boolean =>
-  Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
+const isUndefinedRelation = (error: unknown): boolean => hasPostgresErrorCode(error, "42P01");
 function isProgramSpecialistRole(role: string): role is ProgramSpecialistRole {
   return role === "trainer" || role === "mentor" || role === "judge";
 }
@@ -658,8 +659,14 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
   const current = res.locals.staff as StaffAccess;
   const roleSchemaAvailable = await specialistRoleTableAvailable();
   const primarySpecialistRole = isProgramSpecialistRole(parsed.data.role) ? parsed.data.role : null;
+  if (primarySpecialistRole && programIds.length > 0 && !roleSchemaAvailable) {
+    res.status(503).json({
+      error: "Trainer, mentor, and judge program roles require the program role database update.",
+    });
+    return;
+  }
   if (roleSchemaAvailable && primarySpecialistRole && programIds.length && !(await hasAssignmentAuditSchema(res))) return;
-  const member = await db.transaction(async (tx) => {
+  let member = await db.transaction(async (tx) => {
     const [created] = await tx.insert(staffMembersTable)
       .values({ email, role: parsed.data.role, status: "invited" })
       .onConflictDoNothing({ target: staffMembersTable.email })
@@ -695,13 +702,45 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
     }
     return created;
   });
+  const isNewInvitation = Boolean(member);
   if (!member) {
-    res.status(409).json({ error: "This email already has staff access." });
+    const [existing] = await db.select().from(staffMembersTable)
+      .where(eq(staffMembersTable.email, email))
+      .limit(1);
+    if (!existing || existing.status !== "invited" || existing.role !== parsed.data.role) {
+      res.status(409).json({ error: "This email already has staff access." });
+      return;
+    }
+    const existingAssignments = await db.select({ programId: staffProgramAssignmentsTable.programId })
+      .from(staffProgramAssignmentsTable)
+      .where(eq(staffProgramAssignmentsTable.staffId, existing.id));
+    const existingProgramIds = existingAssignments.map(({ programId }) => programId).sort((a, b) => a - b);
+    const requestedProgramIds = [...programIds].sort((a, b) => a - b);
+    if (existingProgramIds.length !== requestedProgramIds.length
+      || existingProgramIds.some((programId, index) => programId !== requestedProgramIds[index])) {
+      res.status(409).json({ error: "This email already has a pending invitation with different program access." });
+      return;
+    }
+    member = existing;
+  }
+
+  try {
+    await sendStaffInvitationEmail({
+      staffId: member.id,
+      email,
+      role: parsed.data.role,
+      programNames: [...programNames.values()],
+    });
+  } catch {
+    console.error("Staff invitation email delivery failed for staff record", member.id);
+    res.status(503).json({
+      error: "Staff access was saved, but the invitation email could not be sent. Retry the same invitation after checking the connected Gmail account.",
+    });
     return;
   }
 
   const [memberWithAssignments] = await withProgramIds([member]);
-  res.status(201).json(CreateStaffResponse.parse(memberWithAssignments));
+  res.status(isNewInvitation ? 201 : 200).json(CreateStaffResponse.parse(memberWithAssignments));
 });
 
 router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {

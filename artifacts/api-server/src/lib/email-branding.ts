@@ -7,6 +7,11 @@ export type ProgramEmailBranding = {
   accentColor: string;
 };
 
+export function visibleEmailBrandName(value: string | null | undefined): string {
+  const configured = value?.trim();
+  return configured && !/(jusoor|جسور)/i.test(configured) ? configured : "Program Hub";
+}
+
 export async function loadProgramEmailBranding(): Promise<ProgramEmailBranding> {
   const [settings] = await db.select({
     brandName: programBrandingTable.brandName,
@@ -20,7 +25,7 @@ export async function loadProgramEmailBranding(): Promise<ProgramEmailBranding> 
   }
 
   return {
-    brandName: settings.brandName.trim(),
+    brandName: visibleEmailBrandName(settings.brandName),
     logoUrl: publicLogoUrl(settings.logoUrl),
     primaryColor: safeColor(settings.primaryColor, "#28665a"),
     accentColor: safeColor(settings.accentColor, "#d98a46"),
@@ -31,7 +36,7 @@ export function renderBrandedEmailHtml(
   contentHtml: string,
   branding: ProgramEmailBranding,
 ): string {
-  const brandName = escapeHtml(branding.brandName);
+  const brandName = escapeHtml(visibleEmailBrandName(branding.brandName));
   const logoUrl = publicLogoUrl(branding.logoUrl);
   const primaryColor = safeColor(branding.primaryColor, "#28665a");
   const accentColor = safeColor(branding.accentColor, "#d98a46");
@@ -70,7 +75,7 @@ export function renderBrandedEmailText(
   contentText: string,
   branding: ProgramEmailBranding,
 ): string {
-  return `${contentText.trimEnd()}\n\n— ${branding.brandName}`;
+  return `${contentText.trimEnd()}\n\n— ${visibleEmailBrandName(branding.brandName)}`;
 }
 
 function publicLogoUrl(value: string | null): string | null {

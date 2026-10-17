@@ -145,9 +145,9 @@ function FieldControl({ field, value, onChange, autoFocus = false }: { field: Fi
   return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
 
-function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error }: {
+function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error, submitLabel }: {
   title: string; description?: string; fields: Field[]; initial?: Values; loading?: boolean;
-  onClose: () => void; onSubmit: (values: Values) => void; error?: string;
+  onClose: () => void; onSubmit: (values: Values) => void; error?: string; submitLabel?: string;
 }) {
   useAppLanguage();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? ''])));
@@ -165,7 +165,7 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
       <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
         <div className="form-grid">{fields.map((field, index) => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{t(field.label)}{field.required && <i> *</i>}</span><FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} autoFocus={index === 0} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{t(field.hint)}</small>}</label>)}</div>
         {error && <div id="dialog-error" className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
-        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={requestClose} disabled={loading} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t('Save record')}</>}</button></div>
+        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={requestClose} disabled={loading} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t(submitLabel ?? 'Save record')}</>}</button></div>
       </form>
     </AccessibleDialogSurface>
     {confirmDiscard && <UnsavedChangesDialog onKeepEditing={() => setConfirmDiscard(false)} onDiscard={() => { setConfirmDiscard(false); onClose(); }} />}
@@ -963,6 +963,7 @@ function TeamPage() {
   const [deleting, setDeleting] = useState<StaffMember | null>(null);
   const [invitingParticipant, setInvitingParticipant] = useState(false);
   const [participantInviteSuccess, setParticipantInviteSuccess] = useState<string | null>(null);
+  const [staffInviteSuccess, setStaffInviteSuccess] = useState(false);
   const [inviteInstructionsStatus, setInviteInstructionsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const programAssignmentField: Field = {
     name: 'programIds',
@@ -986,14 +987,15 @@ function TeamPage() {
     const programIds = role === 'coordinator'
       ? []
       : [...new Set((values.programIds || '').split(',').filter(Boolean).map(Number).filter(Number.isSafeInteger))];
-    const done = () => {
+    const done = (invitationSent = false) => {
       invalidate(client, [getListStaffQueryKey()]);
       setEditing(undefined);
+      setStaffInviteSuccess(invitationSent);
     };
     if (editing) {
-      update.mutate({ id: editing.id, data: { role, programIds } as StaffUpdate }, { onSuccess: done });
+      update.mutate({ id: editing.id, data: { role, programIds } as StaffUpdate }, { onSuccess: () => done() });
     } else {
-      create.mutate({ data: { email: values.email.trim().toLowerCase(), role, programIds } as StaffInput }, { onSuccess: done });
+      create.mutate({ data: { email: values.email.trim().toLowerCase(), role, programIds } as StaffInput }, { onSuccess: () => done(true) });
     }
   };
   const revoke = () => deleting && remove.mutate({ id: deleting.id }, {
@@ -1037,8 +1039,9 @@ function TeamPage() {
   };
 
   return <>
-    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<div className="team-invite-actions"><button className="button button-outline" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant"><UserPlus size={16} /> {t('Invite participant')}</button><button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button></div>} />
-    <div className="team-callout"><Shield size={18} /><div><b>{t('Every role is tied to a verified email.')}</b><span>{t('Choose admin, program staff, trainer, mentor or judge access. Members sign up using the same verified email address. This approval does not send an email automatically.')}</span></div></div>
+    <PageHeading kicker="TEAM / ACCESS" title="Team access" summary="Invite the right people into each part of the founder journey." action={<div className="team-invite-actions"><button className="button button-outline" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant"><UserPlus size={16} /> {t('Invite participant')}</button><button className="button button-primary" onClick={() => { setStaffInviteSuccess(false); setEditing(null); }} data-testid="button-add-staff"><UserPlus size={16} /> {t('Invite team member')}</button></div>} />
+    <div className="team-callout"><Shield size={18} /><div><b>{t('Every role is tied to a verified email.')}</b><span>{t('Choose admin, program staff, trainer, mentor or judge access. A branded invitation email will be sent after the access record is saved. Members must use the same verified email address.')}</span></div></div>
+    {staffInviteSuccess && <div className="participant-invite-success" role="status" data-testid="staff-invite-success"><b>{t('Invitation email sent.')}</b><p>{t('The person can create an account or sign in using the same verified email address.')}</p></div>}
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> {t('Add the first staff member')}</button>} /> :
       <section className="panel staff-panel">
         <div className="panel-heading"><div><div className="eyebrow">{t('APPROVED ACCOUNTS')}</div><h2 className="app-title">{staff.length} {t('team')} {t(staff.length === 1 ? 'member' : 'members')}</h2></div><span className="section-meta">{t('Only admins can change access')}</span></div>
@@ -1074,7 +1077,7 @@ function TeamPage() {
               </tr>)}
             </tbody></table></div>}
     </section>
-    {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions and program scope this team member should have.' : 'Approve this verified email for the selected role and programs. The person can sign in with this same address.'} fields={[...(editing ? staffRoleFields : staffInviteFields), programAssignmentField]} initial={editing ? { role: editing.role, programIds: editing.programIds.filter(id => programNames.has(id)).join(',') } : { role: 'staff', programIds: '' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
+    {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions and program scope this team member should have.' : 'Save access and send a branded invitation to this verified email. The person should sign in using the same address.'} fields={[...(editing ? staffRoleFields : staffInviteFields), programAssignmentField]} initial={editing ? { role: editing.role, programIds: editing.programIds.filter(id => programNames.has(id)).join(',') } : { role: 'staff', programIds: '' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} submitLabel={editing ? undefined : 'Send invitation'} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
     {invitingParticipant && <FormDialog title="Invite a participant" description="Grant access to the selected program and existing business. The participant must sign in with this email; this action does not send email." fields={[participantInviteFields[0], participantInviteFields[1], participantBusinessField]} loading={createParticipantInvitation.isPending} onClose={() => setInvitingParticipant(false)} onSubmit={saveParticipantInvitation} error={participantInviteError ? participantInviteError.data?.error || 'The participant invitation could not be saved.' : undefined} />}
     {deleting && <ConfirmDialog item={`staff access for ${deleting.email}`} onCancel={() => setDeleting(null)} onConfirm={revoke} loading={remove.isPending} error={deleteError ? deleteError.data?.error || 'The access could not be revoked.' : undefined} />}
   </>;
