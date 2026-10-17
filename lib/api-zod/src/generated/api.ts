@@ -4444,6 +4444,7 @@ export const GetAuthMeResponse = zod.object({
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
   "programIds": zod.array(zod.number().int()),
   "programRoles": zod.array(zod.object({
   "programId": zod.number().int(),
@@ -4817,6 +4818,7 @@ export const ListStaffResponseItem = zod.object({
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
   "programIds": zod.array(zod.number().int()),
   "programRoles": zod.array(zod.object({
   "programId": zod.number().int(),
@@ -4845,6 +4847,7 @@ export const CreateStaffResponse = zod.object({
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
   "programIds": zod.array(zod.number().int()),
   "programRoles": zod.array(zod.object({
   "programId": zod.number().int(),
@@ -4875,6 +4878,7 @@ export const UpdateStaffResponse = zod.object({
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
+  "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
   "programIds": zod.array(zod.number().int()),
   "programRoles": zod.array(zod.object({
   "programId": zod.number().int(),
@@ -4892,6 +4896,29 @@ export const DeleteStaffParams = zod.object({
 })
 
 export const DeleteStaffResponse = zod.void()
+
+
+/**
+ * @summary Retry delivery of a pending staff invitation email
+ */
+export const RetryStaffInvitationEmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RetryStaffInvitationEmailResponse = zod.object({
+  "id": zod.number().int(),
+  "email": zod.string().email(),
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "status": zod.enum(['invited', 'active']),
+  "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
+  "programIds": zod.array(zod.number().int()),
+  "programRoles": zod.array(zod.object({
+  "programId": zod.number().int(),
+  "role": zod.enum(['trainer', 'mentor', 'judge'])
+})),
+  "createdAt": zod.coerce.date()
+})
 
 
 /**

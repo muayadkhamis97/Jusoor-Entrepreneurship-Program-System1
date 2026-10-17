@@ -28,6 +28,7 @@ import {
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
    useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail, useCreateParticipantInvitation, useListParticipantInvitations,
+  useRetryStaffInvitationEmail,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
@@ -120,8 +121,8 @@ const mentorFollowUpStatus = (date: string | null, today: string): MentorFollowU
 const money = (value?: number | null) => new Intl.NumberFormat(currentLanguage() === 'ar' ? 'ar-JO' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 const display = (v?: string | null) => v ? t(v === 'coordinator' ? 'Admin' : v.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
 const statusTone = (status: string) => {
-  if (['active', 'completed', 'scheduled', 'awarded', 'grant_awarded', 'incubator'].includes(status)) return 'good';
-  if (['declined', 'cancelled', 'not_awarded'].includes(status)) return 'bad';
+  if (['active', 'completed', 'scheduled', 'awarded', 'grant_awarded', 'incubator', 'delivered'].includes(status)) return 'good';
+  if (['declined', 'cancelled', 'not_awarded', 'failed'].includes(status)) return 'bad';
   if (['planning', 'outreach', 'requested', 'pending', 'application'].includes(status)) return 'warm';
   return 'neutral';
 };
@@ -957,6 +958,7 @@ function TeamPage() {
   const client = useQueryClient();
   const create = useCreateStaff();
   const createParticipantInvitation = useCreateParticipantInvitation();
+  const retryStaffInvitationEmail = useRetryStaffInvitationEmail();
   const update = useUpdateStaff();
   const remove = useDeleteStaff();
   const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
@@ -967,6 +969,7 @@ function TeamPage() {
     expiresAt: Date;
   } | null>(null);
   const [staffInviteSuccess, setStaffInviteSuccess] = useState(false);
+  const [retryingStaffId, setRetryingStaffId] = useState<number | null>(null);
   const [inviteInstructionsStatus, setInviteInstructionsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const programAssignmentField: Field = {
     name: 'programIds',
@@ -998,7 +1001,10 @@ function TeamPage() {
     if (editing) {
       update.mutate({ id: editing.id, data: { role, programIds } as StaffUpdate }, { onSuccess: () => done() });
     } else {
-      create.mutate({ data: { email: values.email.trim().toLowerCase(), role, programIds } as StaffInput }, { onSuccess: () => done(true) });
+      create.mutate({ data: { email: values.email.trim().toLowerCase(), role, programIds } as StaffInput }, {
+        onSuccess: () => done(true),
+        onError: () => invalidate(client, [getListStaffQueryKey()]),
+      });
     }
   };
   const revoke = () => deleting && remove.mutate({ id: deleting.id }, {
@@ -1054,12 +1060,34 @@ function TeamPage() {
     {query.isLoading ? <LoadingState label="Loading staff access" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : staff.length === 0 ? <EmptyState title="No staff access has been added." body="Add an admin or program staff email to approve the team." action={<button className="button button-primary" onClick={() => setEditing(null)}><UserPlus size={15} /> {t('Add the first staff member')}</button>} /> :
       <section className="panel staff-panel">
         <div className="panel-heading"><div><div className="eyebrow">{t('APPROVED ACCOUNTS')}</div><h2 className="app-title">{staff.length} {t('team')} {t(staff.length === 1 ? 'member' : 'members')}</h2></div><span className="section-meta">{t('Only admins can change access')}</span></div>
-        <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('ROLE')}</th><th>{t('PROGRAMS')}</th><th>{t('ACCOUNT')}</th><th>{t('ADDED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>
+        <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('ROLE')}</th><th>{t('PROGRAMS')}</th><th>{t('ACCOUNT')}</th><th>{t('EMAIL DELIVERY')}</th><th>{t('ADDED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>
           {staff.map(member => <tr key={member.id} data-testid={`row-staff-${member.id}`}>
             <td><div className="staff-email"><span className="staff-avatar">{member.email.slice(0, 1).toUpperCase()}</span><b>{member.email}</b></div></td>
             <td><span className={`role-label ${member.role === 'coordinator' ? 'role-coordinator' : ''}`}>{member.role === 'coordinator' ? <Shield size={13} /> : <Users size={13} />}{display(member.role)}</span></td>
             <td>{member.role === 'coordinator' ? t('All programs') : member.programIds.map(id => programNames.get(id) || `Archived program ${id}`).join(', ') || t('No active programs')}</td>
             <td><Badge value={member.status} label={member.status === 'invited' ? 'Account not linked' : 'Active'} /></td>
+            <td>{member.invitationEmailStatus
+              ? <div className="row-actions">
+                <Badge
+                  value={member.invitationEmailStatus}
+                  label={t(member.invitationEmailStatus === 'delivered' ? 'Delivered' : member.invitationEmailStatus === 'failed' ? 'Failed' : 'Pending')}
+                />
+                {member.status === 'invited' && member.invitationEmailStatus !== 'delivered' && <button
+                  className="button button-quiet"
+                  onClick={() => {
+                    setRetryingStaffId(member.id);
+                    retryStaffInvitationEmail.mutate({ id: member.id }, {
+                      onSuccess: () => invalidate(client, [getListStaffQueryKey()]),
+                      onError: () => invalidate(client, [getListStaffQueryKey()]),
+                      onSettled: () => setRetryingStaffId(null),
+                    });
+                  }}
+                  disabled={retryStaffInvitationEmail.isPending}
+                  aria-label={`${t('Retry email')} for ${member.email}`}
+                  data-testid={`button-retry-staff-invitation-${member.id}`}
+                >{retryingStaffId === member.id ? t('Retrying…') : t('Retry email')}</button>}
+              </div>
+              : '—'}</td>
             <td>{dateLabel(member.createdAt)}</td>
             <td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(member)} aria-label={`Change role for ${member.email}`} data-testid={`button-edit-staff-${member.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(member)} aria-label={`Revoke ${member.email}`} data-testid={`button-delete-staff-${member.id}`}><Trash2 size={15} /></button></div></td>
           </tr>)}

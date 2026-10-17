@@ -2194,6 +2194,15 @@ export const StaffStatus = {
   active: 'active',
 } as const;
 
+export type StaffInvitationEmailStatus = typeof StaffInvitationEmailStatus[keyof typeof StaffInvitationEmailStatus];
+
+
+export const StaffInvitationEmailStatus = {
+  pending: 'pending',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
 export type ProgramSpecialistRole = typeof ProgramSpecialistRole[keyof typeof ProgramSpecialistRole];
 
 
@@ -2214,6 +2223,7 @@ export interface StaffMember {
   role: StaffRole;
   primaryRole: StaffRole;
   status: StaffStatus;
+  invitationEmailStatus: StaffInvitationEmailStatus | null;
   programIds: number[];
   programRoles: ProgramStaffRole[];
   createdAt: string;

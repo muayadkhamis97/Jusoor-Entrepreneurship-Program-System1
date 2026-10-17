@@ -20,6 +20,8 @@ const arabic: Record<string, string> = {
   'All mentors': 'جميع المرشدين',
   'APPLICATION DEADLINE': 'الموعد النهائي للتقديم',
   'APPROVED ACCOUNTS': 'الحسابات المعتمدة',
+  'EMAIL DELIVERY': 'تسليم البريد الإلكتروني',
+  'Delivered': 'تم التسليم',
   'BOOKING PROVIDER': 'منصة الحجز',
   'BOOKING READINESS': 'جاهزية الحجز',
   'Clear': 'مسح',

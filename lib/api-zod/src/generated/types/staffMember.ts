@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProgramStaffRole } from './programStaffRole';
+import type { StaffInvitationEmailStatus } from './staffInvitationEmailStatus';
 import type { StaffRole } from './staffRole';
 import type { StaffStatus } from './staffStatus';
 
@@ -15,6 +16,7 @@ export interface StaffMember {
   role: StaffRole;
   primaryRole: StaffRole;
   status: StaffStatus;
+  invitationEmailStatus: StaffInvitationEmailStatus | null;
   programIds: number[];
   programRoles: ProgramStaffRole[];
   createdAt: Date;

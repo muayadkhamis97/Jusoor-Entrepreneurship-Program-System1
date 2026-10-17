@@ -3192,6 +3192,28 @@ paths:
           description: Staff member not found
         "403":
           description: Coordinator role required
+  /staff/{id}/retry-invitation-email:
+    post:
+      operationId: retryStaffInvitationEmail
+      tags: [staff]
+      summary: Retry delivery of a pending staff invitation email
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Current staff access and invitation email delivery status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        "400":
+          description: Staff account is no longer awaiting an invitation
+        "404":
+          description: Staff member not found
+        "503":
+          description: Invitation email delivery failed
+        "403":
+          description: Coordinator role required
   /programs/{programId}/team-assignments:
     get:
       operationId: getProgramTeamAssignments
@@ -5151,6 +5173,9 @@ components:
     StaffStatus:
       type: string
       enum: [invited, active]
+    StaffInvitationEmailStatus:
+      type: string
+      enum: [pending, delivered, failed]
     StaffMember:
       type: object
       properties:
@@ -5159,6 +5184,10 @@ components:
         role: { $ref: "#/components/schemas/StaffRole" }
         primaryRole: { $ref: "#/components/schemas/StaffRole" }
         status: { $ref: "#/components/schemas/StaffStatus" }
+        invitationEmailStatus:
+          oneOf:
+            - $ref: "#/components/schemas/StaffInvitationEmailStatus"
+            - type: "null"
         programIds:
           type: array
           items: { type: integer }
@@ -5166,7 +5195,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ProgramStaffRole" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, role, primaryRole, status, programIds, programRoles, createdAt]
+      required: [id, email, role, primaryRole, status, invitationEmailStatus, programIds, programRoles, createdAt]
     ProfileAccountType:
       type: string
       enum: [staff, participant, both]

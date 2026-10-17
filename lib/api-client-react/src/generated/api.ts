@@ -13190,6 +13190,80 @@ export const useDeleteStaff = <TError = ErrorType<void>,
       return useMutation(getDeleteStaffMutationOptions(options));
     }
 
+export const getRetryStaffInvitationEmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/staff/${id}/retry-invitation-email`
+}
+
+/**
+ * @summary Retry delivery of a pending staff invitation email
+ */
+export const retryStaffInvitationEmail = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<StaffMember> => {
+
+  return customFetch<StaffMember>(getRetryStaffInvitationEmailUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryStaffInvitationEmailMutationKey = () => ['retryStaffInvitationEmail'] as const;
+
+export const getRetryStaffInvitationEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryStaffInvitationEmail>>, TError,RetryStaffInvitationEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryStaffInvitationEmail>>, TError,RetryStaffInvitationEmailMutationVariables, TContext> => {
+
+const mutationKey = getRetryStaffInvitationEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryStaffInvitationEmail>>, RetryStaffInvitationEmailMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryStaffInvitationEmail(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryStaffInvitationEmailMutationResult = NonNullable<Awaited<ReturnType<typeof retryStaffInvitationEmail>>>
+
+    export type RetryStaffInvitationEmailMutationError = ErrorType<void>
+    export type RetryStaffInvitationEmailMutationVariables = {id: number}
+
+    /**
+ * @summary Retry delivery of a pending staff invitation email
+ */
+export const useRetryStaffInvitationEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryStaffInvitationEmail>>, TError,RetryStaffInvitationEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryStaffInvitationEmail>>,
+        TError,
+        RetryStaffInvitationEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryStaffInvitationEmailMutationOptions(options));
+    }
+
 export const getGetProgramTeamAssignmentsUrl = (programId: number,) => {
 
 

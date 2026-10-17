@@ -22,6 +22,7 @@ type StaffMember = {
   email: string;
   role: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
   status: "invited" | "active";
+  invitationEmailStatus: "pending" | "delivered" | "failed" | null;
   createdAt: Date;
 };
 
@@ -31,6 +32,7 @@ const insertAttempts: unknown[] = [];
 let nextStaffId = 1;
 let server: Server;
 const originalSelect = Object.getOwnPropertyDescriptor(db, "select");
+const originalUpdate = Object.getOwnPropertyDescriptor(db, "update");
 const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
 const originalConnectorProxy = ReplitConnectors.prototype.proxy;
 
@@ -91,6 +93,14 @@ function queryFor(table: unknown) {
   return query;
 }
 
+async function postRetryInvitation(staffId: number): Promise<Response> {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return fetch(`http://127.0.0.1:${address.port}/api/staff/${staffId}/retry-invitation-email`, {
+    method: "POST",
+  });
+}
+
 function resetState() {
   staffMembers.length = 0;
   staffAssignments.length = 0;
@@ -107,6 +117,25 @@ before(async () => {
     configurable: true,
     writable: true,
     value: () => queryFor(undefined),
+  });
+  Object.defineProperty(db, "update", {
+    configurable: true,
+    writable: true,
+    value: (table: unknown) => ({
+      set(values: Record<string, unknown>) {
+        return {
+          where() {
+            return {
+              returning: async () => {
+                const rows = rowsFor(table);
+                for (const row of rows) Object.assign(row, values);
+                return rows;
+              },
+            };
+          },
+        };
+      },
+    }),
   });
   Object.defineProperty(db, "transaction", {
     configurable: true,
@@ -154,6 +183,11 @@ before(async () => {
       return new Response(JSON.stringify({}));
     }
     if (path.endsWith("/messages/send")) {
+      assert.equal(
+        staffMembers[0]?.invitationEmailStatus,
+        "pending",
+        "delivery is recorded as pending before the Gmail send is attempted",
+      );
       const raw = (options?.body as { raw: string }).raw;
       const decoded = Buffer.from(raw, "base64url").toString("utf8");
       const messageId = decoded.match(/^Message-ID: <([^>]+)>/m)?.[1];
@@ -183,6 +217,8 @@ before(async () => {
 after(async () => {
   if (originalSelect) Object.defineProperty(db, "select", originalSelect);
   else Reflect.deleteProperty(db, "select");
+  if (originalUpdate) Object.defineProperty(db, "update", originalUpdate);
+  else Reflect.deleteProperty(db, "update");
   if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
   else Reflect.deleteProperty(db, "transaction");
   ReplitConnectors.prototype.proxy = originalConnectorProxy;
@@ -214,9 +250,14 @@ test("program-staff invitation survives a missing specialist-role table and retr
   assert.match((await firstResponse.json()).error, /access was saved.*could not be sent/i);
   assert.equal(staffMembers.length, 1);
   assert.equal(staffMembers[0]?.email, "program.staff@example.test");
+  assert.equal(staffMembers[0]?.invitationEmailStatus, "failed");
   assert.deepEqual(staffAssignments, [{ staffId: 1, programId: 4, assignedByStaffId: 2 }]);
 
-  const retryResponse = await postInvitation(invite);
+  const listAfterFailure = await fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}/api/staff`);
+  assert.equal(listAfterFailure.status, 200);
+  assert.equal((await listAfterFailure.json())[0].invitationEmailStatus, "failed");
+
+  const retryResponse = await postRetryInvitation(1);
   assert.equal(retryResponse.status, 200, JSON.stringify({
     response: await retryResponse.clone().json(),
     connectorCalls,
@@ -226,9 +267,10 @@ test("program-staff invitation survives a missing specialist-role table and retr
   const result = await retryResponse.json();
   assert.equal(result.id, 1);
   assert.equal(result.role, "staff");
+  assert.equal(result.invitationEmailStatus, "delivered");
   assert.deepEqual(result.programIds, [4]);
   assert.equal(staffMembers.length, 1, "retry must reuse the existing staff-access row");
-  assert.equal(insertAttempts.length, 2, "the retry checks the unique email constraint again");
+  assert.equal(insertAttempts.length, 1, "retrying email must not create another staff-access row");
   assert.equal(
     connectorCalls.filter(call => call.path.endsWith("/messages/send")).length,
     2,
@@ -240,6 +282,16 @@ test("program-staff invitation survives a missing specialist-role table and retr
   assert.equal(successfulDeliveries[0], sendMessageIds[0]);
   const lookupCalls = connectorCalls.filter(call => call.path.includes("/messages?"));
   assert.equal(lookupCalls.length, 2);
+
+  const duplicateInviteResponse = await postInvitation(invite);
+  assert.equal(duplicateInviteResponse.status, 200);
+  assert.equal((await duplicateInviteResponse.json()).invitationEmailStatus, "delivered");
+  assert.equal(staffMembers.length, 1);
+  assert.equal(
+    connectorCalls.filter(call => call.path.endsWith("/messages/send")).length,
+    2,
+    "repeating a delivered invitation must not send another message",
+  );
 });
 
 test("specialist-role invitation clearly reports the missing role schema before saving access", async () => {

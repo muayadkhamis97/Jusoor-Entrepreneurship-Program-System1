@@ -287,6 +287,7 @@ export * from './staffAssignmentAuditEventNewValue';
 export * from './staffAssignmentAuditEventPreviousValue';
 export * from './staffAssignmentAuditHistory';
 export * from './staffInput';
+export * from './staffInvitationEmailStatus';
 export * from './staffMember';
 export * from './staffRole';
 export * from './staffStatus';

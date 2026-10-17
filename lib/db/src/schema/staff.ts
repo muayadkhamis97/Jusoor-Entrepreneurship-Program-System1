@@ -2,12 +2,15 @@ import { createInsertSchema } from "drizzle-zod";
 import { date, integer, pgTable, serial, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
+export type StaffInvitationEmailStatus = "pending" | "delivered" | "failed";
+
 export const staffMembersTable = pgTable("jusoor_staff_members", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   clerkUserId: text("clerk_user_id").unique(),
   role: text("role").notNull().default("staff"),
   status: text("status").notNull().default("invited"),
+  invitationEmailStatus: text("invitation_email_status").$type<StaffInvitationEmailStatus>(),
   bookingProvider: text("booking_provider").notNull().default("calendly"),
   calendlyBookingUrl: text("calendly_booking_url"),
   calendlyFollowUpDate: date("calendly_follow_up_date", { mode: "string" }),

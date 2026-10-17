@@ -34,6 +34,7 @@ import {
   staffAssignmentAuditEventsTable,
   staffProgramAssignmentsTable,
   staffProgramRolesTable,
+  type StaffInvitationEmailStatus,
   type ProgramSpecialistRole,
 } from "@workspace/db";
 import { requireCoordinator, requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
@@ -41,7 +42,7 @@ import { hasAnyProgramStaffRole } from "../lib/programStaffRoles";
 import { canManageProgramAssignments } from "../lib/programAssignmentAuthorization";
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
 import { hasPostgresErrorCode } from "../lib/postgres-error-utils";
-import { sendStaffInvitationEmail } from "../lib/staff-invitation-email";
+import { sendStaffInvitationEmail, type StaffInvitationRole } from "../lib/staff-invitation-email";
 
 const router: IRouter = Router();
 const mentorFollowUpEditor = alias(staffMembersTable, "mentor_follow_up_editor");
@@ -54,7 +55,12 @@ router.get("/auth/me", (_req, res): void => {
   res.json(GetAuthMeResponse.parse(res.locals.staff));
 });
 
-async function withProgramIds<T extends { id: number; role: string }>(members: T[]) {
+async function withProgramIds<T extends {
+  id: number;
+  role: string;
+  status?: string;
+  invitationEmailStatus?: StaffInvitationEmailStatus | null;
+}>(members: T[]) {
   if (members.length === 0) return members.map((member) => ({ ...member, primaryRole: member.role, programIds: [] as number[], programRoles: [] as { programId: number; role: ProgramSpecialistRole }[] }));
   const assignments = await db.select({
       staffId: staffProgramAssignmentsTable.staffId,
@@ -101,9 +107,62 @@ async function withProgramIds<T extends { id: number; role: string }>(members: T
   return members.map((member) => ({
     ...member,
     primaryRole: member.role,
+    invitationEmailStatus: member.status === "invited" ? member.invitationEmailStatus : null,
     programIds: [...(programsByStaff.get(member.id) ?? new Set<number>())].sort((a, b) => a - b),
     programRoles: rolesByStaff.get(member.id) ?? [],
   }));
+}
+
+async function sendAndRecordStaffInvitation(
+  member: typeof staffMembersTable.$inferSelect,
+  role: StaffInvitationRole,
+  programNames: string[],
+): Promise<typeof staffMembersTable.$inferSelect> {
+  const [ready] = await db.update(staffMembersTable)
+    .set({ invitationEmailStatus: "pending" })
+    .where(and(
+      eq(staffMembersTable.id, member.id),
+      ne(staffMembersTable.invitationEmailStatus, "delivered"),
+    ))
+    .returning();
+  if (!ready) {
+    const [current] = await db.select().from(staffMembersTable)
+      .where(eq(staffMembersTable.id, member.id)).limit(1);
+    if (current) return current;
+    throw new Error("Staff member disappeared before invitation delivery.");
+  }
+
+  try {
+    await sendStaffInvitationEmail({
+      staffId: ready.id,
+      email: ready.email,
+      role,
+      programNames,
+    });
+  } catch (error) {
+    const [failed] = await db.update(staffMembersTable)
+      .set({ invitationEmailStatus: "failed" })
+      .where(and(
+        eq(staffMembersTable.id, ready.id),
+        ne(staffMembersTable.invitationEmailStatus, "delivered"),
+      ))
+      .returning();
+    if (failed) throw error;
+    const [current] = await db.select().from(staffMembersTable)
+      .where(eq(staffMembersTable.id, ready.id)).limit(1);
+    if (current) return current;
+    throw error;
+  }
+
+  const [delivered] = await db.update(staffMembersTable)
+    .set({ invitationEmailStatus: "delivered" })
+    .where(eq(staffMembersTable.id, ready.id))
+    .returning();
+  if (delivered) return delivered;
+  const [current] = await db.select().from(staffMembersTable)
+    .where(eq(staffMembersTable.id, ready.id)).limit(1);
+  if (current) return current;
+  throw new Error("Staff member disappeared after invitation delivery.");
 }
 
 async function specialistRoleTableAvailable(): Promise<boolean> {
@@ -668,7 +727,12 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
   if (roleSchemaAvailable && primarySpecialistRole && programIds.length && !(await hasAssignmentAuditSchema(res))) return;
   let member = await db.transaction(async (tx) => {
     const [created] = await tx.insert(staffMembersTable)
-      .values({ email, role: parsed.data.role, status: "invited" })
+      .values({
+        email,
+        role: parsed.data.role,
+        status: "invited",
+        invitationEmailStatus: "pending",
+      })
       .onConflictDoNothing({ target: staffMembersTable.email })
       .returning();
     if (!created) return null;
@@ -725,12 +789,9 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
   }
 
   try {
-    await sendStaffInvitationEmail({
-      staffId: member.id,
-      email,
-      role: parsed.data.role,
-      programNames: [...programNames.values()],
-    });
+    if (member.invitationEmailStatus !== "delivered") {
+      member = await sendAndRecordStaffInvitation(member, parsed.data.role, [...programNames.values()]);
+    }
   } catch {
     console.error("Staff invitation email delivery failed for staff record", member.id);
     res.status(503).json({
@@ -741,6 +802,58 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
 
   const [memberWithAssignments] = await withProgramIds([member]);
   res.status(isNewInvitation ? 201 : 200).json(CreateStaffResponse.parse(memberWithAssignments));
+});
+
+router.post("/staff/:id/retry-invitation-email", requireCoordinator, async (req, res): Promise<void> => {
+  const params = UpdateStaffParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [member] = await db.select().from(staffMembersTable)
+    .where(eq(staffMembersTable.id, params.data.id)).limit(1);
+  if (!member) {
+    res.status(404).json({ error: "Staff member not found." });
+    return;
+  }
+  if (member.status !== "invited") {
+    res.status(400).json({ error: "This staff account is no longer awaiting an invitation." });
+    return;
+  }
+  if (!["coordinator", "staff", "trainer", "mentor", "judge"].includes(member.role)) {
+    res.status(400).json({ error: "This staff invitation has an unsupported role." });
+    return;
+  }
+
+  const assignments = await db.select({ programId: staffProgramAssignmentsTable.programId })
+    .from(staffProgramAssignmentsTable)
+    .where(eq(staffProgramAssignmentsTable.staffId, member.id));
+  const programIds = assignments.map(({ programId }) => programId);
+  const programs = programIds.length > 0
+    ? await db.select({ id: programsTable.id, name: programsTable.name })
+      .from(programsTable).where(inArray(programsTable.id, programIds))
+    : [];
+
+  let updated = member;
+  try {
+    if (member.invitationEmailStatus !== "delivered") {
+      updated = await sendAndRecordStaffInvitation(
+        member,
+        member.role as StaffInvitationRole,
+        programs.map(({ name }) => name),
+      );
+    }
+  } catch {
+    console.error("Staff invitation email delivery failed for staff record", member.id);
+    res.status(503).json({
+      error: "Staff access remains saved, but the invitation email could not be sent. Check the connected Gmail account and retry.",
+    });
+    return;
+  }
+
+  const [memberWithAssignments] = await withProgramIds([updated]);
+  res.json(CreateStaffResponse.parse(memberWithAssignments));
 });
 
 router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {
