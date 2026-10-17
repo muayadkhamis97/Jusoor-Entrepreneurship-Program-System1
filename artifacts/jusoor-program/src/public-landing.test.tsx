@@ -6,6 +6,7 @@ import { tokens } from '@workspace/program-editorial/tokens';
 import { getDisplayBrandName, hasArabicTranslation } from './language';
 
 const source = readFileSync(new URL('./public-landing.tsx', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('./public-landing.css', import.meta.url), 'utf8');
 const readUiFile = (file: string) => readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
 
 test('landing retains the existing application and account entry routes', () => {
@@ -15,9 +16,22 @@ test('landing retains the existing application and account entry routes', () => 
   assert.doesNotMatch(source, /openSignIn|ClerkProvider|fetch\(/);
 });
 
+test('landing prioritizes the entry actions and keeps its stage list responsive', () => {
+  assert.match(source, /className="editorial-hero"/);
+  assert.match(source, /PaperSurface variant="panel" className="editorial-entry"/);
+  assert.match(source, /className="editorial-route editorial-route-apply"/);
+  assert.match(source, /className="editorial-route editorial-route-return"/);
+  assert.match(source, /className="editorial-stages"/);
+  assert.match(styles, /grid-template-columns: minmax\(0, 1\.1fr\) minmax\(320px, 0\.9fr\)/);
+  assert.match(styles, /@media \(max-width: 760px\)/);
+  assert.match(styles, /\.editorial-hero\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.editorial-stages\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+});
+
 test('landing uses configured branding with a neutral fallback and package primitives', () => {
   assert.match(source, /getDisplayBrandName\(brandName\)/);
-  assert.match(source, /logoUrl \? <img src=\{logoUrl\}/);
+  assert.match(source, /logoUrl \? \(/);
+  assert.match(source, /<img src=\{logoUrl\}/);
   assert.equal(getDisplayBrandName(null), 'Program Hub');
   assert.equal(getDisplayBrandName('Legacy program name'), 'Legacy program name');
   assert.equal(getDisplayBrandName('Jusoor'), 'Program Hub');
