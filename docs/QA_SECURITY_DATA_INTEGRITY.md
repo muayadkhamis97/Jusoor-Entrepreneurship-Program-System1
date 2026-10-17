@@ -126,3 +126,20 @@ This is separate from the isolated program-assignment verification above.
 - `pnpm --filter @workspace/jusoor-program run test:unit` passed (57 tests).
 - The full `pnpm run test` command ran but did not pass: three unrelated existing assertions fail in `test/integrationApiKeys.test.ts` (expects the retired `jusoor_live_` prefix) and `test/zoomWorkflow.test.ts` (expects older wording about reusing a meeting). All participant invitation tests passed.
 - The preview's signed-in participant invitation screen and live Gmail delivery were not verified in a signed-in browser session.
+
+## Zoom meeting creation guard column — disposable verified; development applied
+
+### Isolated verification
+
+- Reviewed `lib/db/migrations/20261015_zoom_meeting_creation_guard.sql` and `lib/db/src/schema/sessions.ts`. The migration assumes `public.jusoor_sessions` exists and the target column does not; it adds one nullable `timestamptz` column, with no default, index, or new foreign key.
+- Created a fresh PostgreSQL 16.10 cluster under `/tmp/jusoor-zoom-column-check.zxKDvw`, with a task-owned data directory and Unix socket. `DATABASE_URL` and PostgreSQL connection environment variables were unset. The server used `listen_addresses=''`; connection checks confirmed database `postgres`, role `migration_test`, a data directory and socket inside the new temporary directory, and no TCP server address.
+- Built only the synthetic starting schema and records. The table had 17 columns, two foreign keys, and no target column before the test. Applied the exact migration file with `psql -X -v ON_ERROR_STOP=1 -f`.
+- Assertions passed: the table gained only the expected nullable `timestamp with time zone` column; no default, index, or foreign key was added; the existing synthetic session and foreign keys were preserved; a new row received `NULL`; and a timestamp value round-tripped.
+- The temporary server stopped cleanly and only its task-owned directory was removed.
+
+### Development application
+
+- Read-only preflight confirmed `public.jusoor_sessions` existed and the target column was absent.
+- Applied the exact `ALTER TABLE` statement once to the development database through the Replit development-database operation. Post-apply catalog inspection confirmed `zoom_meeting_creation_pending_at`, type `timestamp with time zone`, nullable, with no default.
+- No application records were queried or changed. No Drizzle push/force-push was used. Production was not changed, and Publish was not run. The earlier read-only diagnosis found this column absent in production; its production schema remains unchanged by this verification.
+- The production dashboard/API was not re-tested by this database-only change. Production will continue to need the user-reviewed Publish schema application before its deployed API can select this new column.
