@@ -30,7 +30,7 @@ export const CertificatePdfPage = React.forwardRef<HTMLElement, CertificatePdfPa
   return <section ref={ref} className={`certificate-pdf-page${preview ? ' is-preview' : ''}`} aria-hidden={!preview} style={style}>
     <div className="certificate-pdf-frame">
       <header className="certificate-pdf-brand">
-        <span className="certificate-pdf-wordmark">{showEnglish && 'JUSOOR'}{showEnglish && showArabic && ' '}{showArabic && <i lang="ar" dir="rtl">جسور</i>}</span>
+        <span className="certificate-pdf-wordmark">{showEnglish && 'PROGRAM'}{showEnglish && showArabic && ' '}{showArabic && <i lang="ar" dir="rtl">البرنامج</i>}</span>
         <span>{showEnglish && 'ENTREPRENEURSHIP PROGRAM'}{showEnglish && showArabic && <b> · </b>}{showArabic && <span lang="ar" dir="rtl">برنامج ريادة الأعمال</span>}</span>
       </header>
       <div className="certificate-pdf-content">

@@ -147,9 +147,9 @@
   --chart-4: 38 55.3% 42.2%;
   --chart-5: 311 17.4% 42.7%;
 
-  --app-font-sans: DM Sans, sans-serif;
-  --app-font-serif: Fraunces, Georgia, serif;
-  --app-font-mono: IBM Plex Mono, monospace;
+  --app-font-sans: DM Sans, Noto Sans Arabic, sans-serif;
+  --app-font-serif: Fraunces, Noto Sans Arabic, Georgia, serif;
+  --app-font-mono: IBM Plex Mono, Noto Sans Arabic, monospace;
   --radius: 0.1875rem;
   --spacing: 0.25rem;
 

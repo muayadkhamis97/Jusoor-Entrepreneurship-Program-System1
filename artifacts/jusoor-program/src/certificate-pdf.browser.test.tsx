@@ -22,7 +22,7 @@ const certificate = {
   certificateCode: 'JUS-2026-AR-8F31D2',
   participantName: 'Layla Al-Haddad ليلى الحداد — Founder and Managing Director',
   businessName: 'Olive Branch Foods شركة غصن الزيتون للأغذية المستدامة',
-  programName: 'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور لحاضنات الأعمال الاجتماعية التي تقودها النساء',
+  programName: 'Women-Led Social Enterprise Incubation Program برنامج حاضنات الأعمال الاجتماعية التي تقودها النساء',
   issuedAt: '2026-09-17T12:00:00.000Z',
   issuedByName: 'Program Admin',
   revokedAt: null,
@@ -43,7 +43,7 @@ const issuedCertificates = new Map([
     certificateCode: 'D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1',
     participantName: 'Amina Founder',
     businessName: 'Amina Ventures',
-    programName: 'Jusoor Learning Program',
+    programName: 'Learning Program',
     issuedAt: '2026-10-11T13:45:00.000Z',
     revokedAt: null,
   }],
@@ -52,7 +52,7 @@ const issuedCertificates = new Map([
     certificateCode: 'JUS-2026-AR-8F31D2',
     participantName: 'Bilal Founder',
     businessName: 'Bilal Ventures',
-    programName: 'Jusoor Learning Program',
+    programName: 'Learning Program',
     issuedAt: '2026-10-11T13:45:00.000Z',
     revokedAt: null,
   }],
@@ -61,7 +61,7 @@ const issuedCertificates = new Map([
     certificateCode: 'E35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1',
     participantName: 'Rana Founder',
     businessName: 'Rana Ventures',
-    programName: 'Jusoor Learning Program',
+    programName: 'Learning Program',
     issuedAt: '2026-10-11T13:45:00.000Z',
     revokedAt: '2026-10-12T09:30:00.000Z',
   }],
@@ -87,7 +87,7 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
   const outputOverride = process.env.CERTIFICATE_BROWSER_ARTIFACT_DIR;
   const outputDir = outputOverride
     ? path.join(path.resolve(outputOverride), engine.name.toLowerCase())
-    : await mkdtemp(path.join(tmpdir(), 'jusoor-certificate-browser-'));
+    : await mkdtemp(path.join(tmpdir(), 'program-certificate-browser-'));
   await mkdir(outputDir, { recursive: true });
 
   const port = await unusedPort();
@@ -116,7 +116,7 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
     await page.route('**/api/branding', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ brandName: 'Jusoor', primaryColor: '#28665a', accentColor: '#c7755d', logoUrl: null }),
+      body: JSON.stringify({ brandName: 'Program Hub', primaryColor: '#28665a', accentColor: '#c7755d', logoUrl: null }),
     }));
     await page.route('**/api/certificates/*/verification', async route => {
       const requestedCode = new URL(route.request().url()).pathname.split('/').at(-2)?.toUpperCase() ?? '';
@@ -170,7 +170,7 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
           const { pdf, canvas } = await downloadCertificatePdf(
             certificatePage,
             verification,
-            'Jusoor-Certificate-JUS-2026-AR-8F31D2.pdf',
+            'Program-Certificate-JUS-2026-AR-8F31D2.pdf',
           );
           await document.fonts.ready;
           const fields = [
@@ -219,7 +219,7 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
     const downloadPromise = page.waitForEvent('download', { timeout: 60_000 });
     await page.locator('#download-certificate').click();
     const download = await downloadPromise;
-    assert.equal(download.suggestedFilename(), 'Jusoor-Certificate-JUS-2026-AR-8F31D2.pdf');
+    assert.equal(download.suggestedFilename(), 'Program-Certificate-JUS-2026-AR-8F31D2.pdf');
 
     const pdfPath = path.join(outputDir, download.suggestedFilename());
     await download.saveAs(pdfPath);
@@ -260,7 +260,7 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
     assert.ok(Math.abs(Number(pageSize[1]) - 841.89) < 0.1, 'Downloaded PDF must be A4 width.');
     assert.ok(Math.abs(Number(pageSize[2]) - 595.28) < 0.1, 'Downloaded PDF must be A4 height.');
 
-    const imagePrefix = path.join(outputDir, 'Jusoor-Certificate-JUS-2026-AR-8F31D2');
+    const imagePrefix = path.join(outputDir, 'Program-Certificate-JUS-2026-AR-8F31D2');
     execFileSync('pdftoppm', ['-f', '1', '-singlefile', '-png', '-r', '100', pdfPath, imagePrefix]);
     const imagePath = `${imagePrefix}.png`;
     const image = await readFile(imagePath);

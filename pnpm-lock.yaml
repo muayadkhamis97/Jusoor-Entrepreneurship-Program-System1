@@ -380,6 +380,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/program-editorial':
+        specifier: workspace:*
+        version: link:../program-editorial
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1

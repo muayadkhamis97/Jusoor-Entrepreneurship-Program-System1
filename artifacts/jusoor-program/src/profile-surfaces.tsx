@@ -37,7 +37,7 @@ export function OwnProfilePage() {
   return <ProfileForm
     profile={query.data}
     pageTitle="Your profile"
-    pageDescription="Edit the profile details used in the Jusoor platform. Your sign-in email and access roles are managed separately."
+    pageDescription="Edit profile details. Your sign-in email and access roles are managed separately."
     onUploadPhoto={async file => {
       const signed = await upload.mutateAsync({ data: { contentType: file.type, size: file.size } });
       await putPhoto(signed.uploadUrl, file);
@@ -62,7 +62,7 @@ export function ParticipantProfilePage() {
   return <ParticipantProfileLayout><ProfileForm
     profile={query.data}
     pageTitle="Your profile"
-    pageDescription="Edit the profile details used in the Jusoor platform. Your sign-in email and program application remain unchanged."
+    pageDescription="Edit profile details. Your sign-in email and program application remain unchanged."
     participant
     onUploadPhoto={async file => {
       const signed = await upload.mutateAsync({ data: { contentType: file.type, size: file.size } });
@@ -303,7 +303,7 @@ function ParticipantProfileLayout({ children }: { children: ReactNode }) {
   const { signOut } = useClerk();
   return <div className="intake-page profile-intake">
     <header className="intake-top profile-intake-top">
-      <Link href="/participant" className="profile-intake-brand"><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></Link>
+      <Link href="/participant" className="profile-intake-brand"><b>{t('Program Hub')}</b><small>{t('PROGRAM HUB')}</small></Link>
       <div className="intake-header-actions"><LanguageToggle /><Link className="text-link" href="/participant" data-testid="link-profile-back-participant">{t('Back to your progress')}</Link></div>
     </header>
     <main className="participant-wrap profile-participant-wrap">

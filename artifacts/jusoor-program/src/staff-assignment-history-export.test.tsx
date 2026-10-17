@@ -105,7 +105,7 @@ test('assignment history download creates a CSV file and releases its temporary 
     downloadStaffAssignmentHistoryCsv([event]);
     assert.ok(appendedLink);
     assert.equal(appendedLink.href, 'blob:assignment-history');
-    assert.match(appendedLink.download, /^jusoor-assignment-history-\d{4}-\d{2}-\d{2}\.csv$/);
+    assert.match(appendedLink.download, /^assignment-history-\d{4}-\d{2}-\d{2}\.csv$/);
     assert.equal(appendedLink.style.display, 'none');
     assert.equal(clicked, true);
     assert.equal(removed, true);

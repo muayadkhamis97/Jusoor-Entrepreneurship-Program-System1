@@ -15,6 +15,7 @@ import {
   type IntegrationApiPermissionGroup,
 } from "@workspace/db";
 import { requireCoordinator, requireStaff, type StaffAccess } from "../middlewares/staffAccess";
+import { displayIntegrationApiKeyPrefix, extractIntegrationApiKey } from "./integrationApiKeyFormat";
 
 export type IntegrationApiKeyContext = {
   id: number;
@@ -64,7 +65,7 @@ export function hashIntegrationApiKey(secret: string): string {
 }
 
 export function createIntegrationApiKeySecret(): string {
-  return `jusoor_live_${randomBytes(32).toString("base64url")}`;
+  return `program_live_${randomBytes(32).toString("base64url")}`;
 }
 
 const rateWindows = new Map<number, { startedAt: number; count: number }>();
@@ -73,14 +74,14 @@ const RATE_LIMIT = 120;
 
 export const requireIntegrationApiKey: RequestHandler = async (req, res, next): Promise<void> => {
   const authorization = req.get("authorization") ?? "";
-  const match = /^Bearer (jusoor_live_[A-Za-z0-9_-]{43})$/.exec(authorization);
-  if (!match) {
-    res.status(401).json({ error: "A valid Jusoor integration API key is required." });
+  const secret = extractIntegrationApiKey(authorization);
+  if (!secret) {
+    res.status(401).json({ error: "A valid integration API key is required." });
     return;
   }
 
   try {
-    const keyHash = hashIntegrationApiKey(match[1]);
+    const keyHash = hashIntegrationApiKey(secret);
     const [key] = await db.select({
       id: integrationApiKeysTable.id,
       programId: integrationApiKeysTable.programId,
@@ -93,7 +94,7 @@ export const requireIntegrationApiKey: RequestHandler = async (req, res, next): 
       ))
       .limit(1);
     if (!key) {
-      res.status(401).json({ error: "A valid Jusoor integration API key is required." });
+      res.status(401).json({ error: "A valid integration API key is required." });
       return;
     }
 
@@ -150,7 +151,11 @@ router.get("/integrations/api-keys", async (_req, res): Promise<void> => {
   }).from(integrationApiKeysTable)
     .innerJoin(programsTable, eq(integrationApiKeysTable.programId, programsTable.id))
     .orderBy(desc(integrationApiKeysTable.createdAt));
-  res.json(ListIntegrationApiKeysResponse.parse({ keys }));
+  const displayKeys = keys.map(key => ({
+    ...key,
+    keyPrefix: displayIntegrationApiKeyPrefix(key.keyPrefix),
+  }));
+  res.json(ListIntegrationApiKeysResponse.parse({ keys: displayKeys }));
 });
 
 router.post("/integrations/api-keys", async (req, res): Promise<void> => {

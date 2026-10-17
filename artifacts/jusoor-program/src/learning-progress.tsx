@@ -127,7 +127,7 @@ function CertificateDownload({ certificate, testIdPrefix }: {
       await downloadCertificatePdf(
         certificateElement,
         verificationUrl,
-        `Jusoor-Certificate-${certificate.certificateCode}.pdf`,
+        `Program-Certificate-${certificate.certificateCode}.pdf`,
       );
     } catch (error) {
       console.error('Could not generate the certificate PDF.', error);
@@ -273,11 +273,11 @@ export function CertificateVerificationPage() {
   };
 
   return <main className="certificate-verification-page" data-testid="certificate-verification-page">
-    <a className="certificate-verification-brand" href="/">{t('Jusoor Program Hub')}</a>
+    <a className="certificate-verification-brand" href="/">{t('Program Hub')}</a>
     <section className="certificate-verification-card">
       <span className="lp-eyebrow">{t('PUBLIC CERTIFICATE CHECK')}</span>
       <h1>{t('Verify a certificate')}</h1>
-      <p>{t('Enter the unique code printed on a Jusoor certificate to confirm its issuance.')}</p>
+      <p>{t('Enter the unique code printed on a program certificate to confirm its issuance.')}</p>
       <form className="certificate-verification-form" onSubmit={submit}>
         <label htmlFor="certificate-code-input">{t('Certificate code')}</label>
         <input

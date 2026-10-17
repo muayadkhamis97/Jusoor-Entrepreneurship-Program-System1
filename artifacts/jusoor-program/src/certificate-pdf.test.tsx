@@ -17,7 +17,7 @@ const certificate = Object.freeze({
   certificateCode: 'JUS-2026-AR-8F31D2',
   participantName: 'Layla Al-Haddad ليلى الحداد — Founder and Managing Director',
   businessName: 'Olive Branch Foods شركة غصن الزيتون للأغذية المستدامة',
-  programName: 'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور لحاضنات الأعمال الاجتماعية التي تقودها النساء',
+  programName: 'Women-Led Social Enterprise Incubation Program برنامج حاضنات الأعمال الاجتماعية التي تقودها النساء',
   issuedAt: '2026-09-17T12:00:00.000Z',
   issuedByName: 'Program Admin',
 }) as Certificate;
@@ -67,7 +67,7 @@ test('renders long English and Arabic certificate details, issue date, and uniqu
   for (const requiredText of [
     'Layla Al-Haddad ليلى الحداد',
     'Olive Branch Foods شركة غصن الزيتون',
-    'Jusoor Women-Led Social Enterprise Incubation Program برنامج جسور',
+    'Women-Led Social Enterprise Incubation Program برنامج',
     '17 Sept 2026',
     '١٧ أيلول ٢٠٢٦',
     certificate.certificateCode,
@@ -128,7 +128,7 @@ test('renders an accessible preview layout without a permanent verification link
   assert.match(markup, /<section class="certificate-pdf-page is-preview" aria-hidden="false"/);
   assert.match(markup, /Layla Al-Haddad/);
   assert.match(markup, /Olive Branch Foods/);
-  assert.match(markup, /Jusoor Women-Led Social Enterprise Incubation Program/);
+  assert.match(markup, /Women-Led Social Enterprise Incubation Program/);
   assert.match(markup, /Assigned after issuance/);
   assert.doesNotMatch(markup, /<small>https:/);
 });

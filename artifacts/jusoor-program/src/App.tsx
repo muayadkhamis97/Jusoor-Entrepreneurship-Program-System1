@@ -4,6 +4,7 @@ import './role-access.css';
 import './session-recording.css';
 import './language.css';
 import './program-controls.css';
+import { PublicLanding } from './public-landing';
 import { getAccessibleBrandForeground } from './branding-contrast';
 import { lazy, Suspense, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -48,7 +49,7 @@ import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-n
 import { isStaffNavigationItemActive } from './staff-navigation-items';
 import { participantSignInInstructions } from './participant-dashboard-helpers';
 import { trackEvent, trackZoomFailure } from './lib/analytics';
-import { brandedAdminRoleLabel, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { brandedAdminRoleLabel, getDisplayBrandName, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { StaffSessionInteractions } from './session-interactions';
 import { downloadProgramLifecycleCsv } from './program-lifecycle-export';
 
@@ -184,7 +185,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
   const { signOut } = useClerk();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
-  const brandName = branding?.brandName || 'Jusoor';
+  const brandName = getDisplayBrandName(branding?.brandName);
   const specialistRoles = [...new Set(staff.programRoles.map(({ role }) => role))];
   const specialistItems = specialistRoles.map(role => ({
     href: `/${role}`,
@@ -484,7 +485,7 @@ function BusinessesPage() {
   const confirmRemove = () => deleting && remove.mutate({ id: deleting.id }, { onSuccess: () => { invalidate(client, [getListBusinessesQueryKey(), getGetDashboardQueryKey()]); setDeleting(null); } });
   return <>
      <PageHeading kicker="FOUNDER JOURNEY / PIPELINE" title="Businesses" summary={t('Browse founders in each cohort and classify ventures by startup industry.')} action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-business"><Plus size={16} /> {t('Add business')}</button>} />
-    <section className="pipeline-ribbon"><div className="ribbon-heading"><div className="eyebrow">{t('JUSOOR JOURNEY')}</div><span>{t('Follow progress, not just applications.')}</span></div><div className="ribbon-stages">{businessStages.slice(0, 7).map((s, i) => <div className="ribbon-stage" key={s}><span className={`ribbon-dot dot-${i}`} />{t(stageNames[s])}{i < 6 && <i />}</div>)}</div></section>
+    <section className="pipeline-ribbon"><div className="ribbon-heading"><div className="eyebrow">{t('PROGRAM JOURNEY')}</div><span>{t('Follow progress, not just applications.')}</span></div><div className="ribbon-stages">{businessStages.slice(0, 7).map((s, i) => <div className="ribbon-stage" key={s}><span className={`ribbon-dot dot-${i}`} />{t(stageNames[s])}{i < 6 && <i />}</div>)}</div></section>
      <section className="list-panel panel"><div className="toolbar"><div className="search-box"><Search size={16} /><input type="search" aria-label={t('Search businesses')} placeholder={t('Search business, founder, email or industry…')} value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-businesses" />{search && <button onClick={() => setSearch('')} aria-label={t('Clear search')}><X size={14} /></button>}</div><label className="filter-select"><Filter size={15} /><select value={programId} aria-label={t('Filter by cohort')} onChange={e => changeProgram(e.target.value)} data-testid="select-business-program"><option value="">{t('All programs')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={industry} aria-label={t('Filter by startup industry')} onChange={e => setIndustry(e.target.value)} data-testid="select-business-industry"><option value="">{t('All industries')}</option>{industries.map(value => <option key={value} value={value}>{industryLabel(value)}</option>)}</select><ChevronDown size={13} /></label><label className="filter-select"><select value={stage} aria-label={t('Filter businesses by stage')} onChange={e => setStage(e.target.value)} data-testid="select-business-stage"><option value="">{t('All stages')}</option>{businessStages.map(s => <option key={s} value={s}>{t(stageNames[s])}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{visibleBusinesses.length}</b> {t('records')}</div></div>
         {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : visibleBusinesses.length === 0 ? <EmptyState title={hasFilters ? t('No businesses match this view.') : 'The founder pipeline is ready.'} body={hasFilters ? t('Try another cohort, industry, stage or search term.') : 'Add a business or applicant and start tracking the next step.'} action={hasFilters ? <button className="button button-outline" onClick={clearFilters}>{t('Clear all filters')}</button> : <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> {t('Add a business')}</button>} /> :
        <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS / FOUNDER')}</th><th>{t('PROGRAM')}</th><th>{t('INDUSTRY')}</th><th>{t('STAGE')}</th><th>{t('APPLIED')}</th><th className="align-right">{t('ACTIONS')}</th></tr></thead><tbody>{visibleBusinesses.map(business => <tr key={business.id} data-testid={`row-business-${business.id}`}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName} · {business.email}</small></span></div></td><td>{programs.find(p => p.id === business.programId)?.name || `${t('Program')} ${business.programId}`}</td><td>{industryLabel(business.industry)}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(business)} aria-label={`${t('Edit')} ${business.businessName}`} data-testid={`button-edit-business-${business.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(business)} aria-label={`${t('Delete')} ${business.businessName}`} data-testid={`button-delete-business-${business.id}`}><Trash2 size={15} /></button></div></td></tr>)}</tbody></table></div>}
@@ -886,7 +887,7 @@ function MentorBookingStatusPage() {
             <span className="toolbar-count"><b>{visibleMentors.length}</b> {t('mentors')}</span>
           </div>
           <div className="table-wrap"><table>
-            <thead><tr><th>{t('MENTOR')}</th><th>{t('JUSOOR ACCOUNT')}</th><th>{t('BOOKING PROVIDER')}</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th><th>{t('FOLLOW-UP')}</th></tr></thead>
+            <thead><tr><th>{t('MENTOR')}</th><th>{t('PROGRAM ACCOUNT')}</th><th>{t('BOOKING PROVIDER')}</th><th>CALENDLY</th><th>GOOGLE CALENDAR</th><th>{t('FOLLOW-UP')}</th></tr></thead>
             <tbody>{visibleMentors.map(mentor => <tr key={mentor.staffId} data-testid={`row-mentor-booking-${mentor.staffId}`}>
               <td><div className="staff-email"><span className="staff-avatar">{mentor.email.slice(0, 1).toUpperCase()}</span><b>{mentor.email}</b></div></td>
               <td><Badge value={mentor.status} label={mentor.status === 'active' ? 'Active' : 'Invitation pending'} /></td>
@@ -1080,7 +1081,7 @@ function TeamPage() {
 }
 
 function NotFoundPage() {
-  return <div className="not-found"><div className="eyebrow">JUSOOR / 404</div><h1 className="app-title">{t("That page isn't on the journey.")}</h1><p>{t('Return to the program overview and find your way back.')}</p><Link className="button button-primary" href="/">{t('Back to overview')} <ArrowRight size={16} /></Link></div>;
+  return <div className="not-found"><div className="eyebrow">404</div><h1 className="app-title">{t("That page isn't on the journey.")}</h1><p>{t('Return to the program overview and find your way back.')}</p><Link className="button button-primary" href="/">{t('Back to overview')} <ArrowRight size={16} /></Link></div>;
 }
 
 function Router({ staff, displayName }: { staff: StaffMember; displayName: string }) {
@@ -1131,21 +1132,9 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
 }
 
 function AuthLanding() {
-  useAppLanguage();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
-  return <main className="auth-page">
-    <div className="auth-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></div>
-    <LanguageToggle className="auth-language-toggle" />
-    <section className="auth-welcome">
-      <div className="eyebrow">{t('JUSOOR ENTREPRENEURSHIP PROGRAM')}</div>
-      <h1 className="app-title">{t('Good work,')}<br /><em>{t('moving forward.')}</em></h1>
-      <p>{t('A private workspace for the team supporting founders from outreach and incubation to pitch day and grants.')}</p>
-      <div className="auth-actions"><Link href="/apply" className="button button-primary">{t('Apply to a program')} <ArrowRight size={16} /></Link><Link href="/participant" className="auth-secondary">{t('Already applied? Sign in to track progress')}</Link><Link href="/sign-in" className="auth-secondary">{t('Program team sign in')}</Link></div>
-      <div className="auth-foot"><Shield size={15} /><span>{t('Founder progress is private to the applicant. Staff workspace access requires admin approval.')}</span></div>
-    </section>
-    <div className="auth-side-note"><span>01 — {t('PROGRAM OPERATIONS')}</span><b>{t('Every founder.')}<br />{t('Every next step.')}</b><i>{t('OUTREACH → INCUBATION → GRANTS')}</i></div>
-  </main>;
+  return <PublicLanding brandName={branding?.brandName} logoUrl={branding?.logoUrl} />;
 }
 
 function AuthLoading() {
@@ -1155,7 +1144,7 @@ function AuthLoading() {
 function AccessDenied({ retry }: { retry?: () => void }) {
   useAppLanguage();
   const { signOut } = useClerk();
-  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask a Jusoor admin to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
+  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask an admin to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
 }
 
 function AccessCheckFailed({ retry, sessionExpired = false }: { retry: () => void; sessionExpired?: boolean }) {
@@ -1235,7 +1224,7 @@ function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
   const [, setLocation] = useLocation();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
-  const brandName = branding?.brandName || 'Jusoor Entrepreneurship Program';
+  const brandName = getDisplayBrandName(branding?.brandName);
   const primaryColor = branding?.primaryColor || '#28665a';
   useEffect(() => {
     if (!branding) return;

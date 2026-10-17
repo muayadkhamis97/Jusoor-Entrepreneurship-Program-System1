@@ -5,11 +5,11 @@ import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-
 test('trainer assignment choices use authorized program names instead of numeric cohort ids', () => {
   assert.deepEqual(
     trainerProgramOptions([
-      { id: 12, name: 'Jusoor Growth Lab 2026' },
+      { id: 12, name: 'Northstar Growth Lab 2026' },
       { id: 31, name: 'Women in Tech Cohort' },
     ], 'Program name unavailable'),
     [
-      { id: 12, label: 'Jusoor Growth Lab 2026' },
+      { id: 12, label: 'Northstar Growth Lab 2026' },
       { id: 31, label: 'Women in Tech Cohort' },
     ],
   );

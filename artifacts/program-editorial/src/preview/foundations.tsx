@@ -11,7 +11,7 @@ const cssName = (name: string) => name.replace(/[A-Z]/g, value => `-${value.toLo
 function Swatches({ roles }: { roles: string[] }) {
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{roles.map(role => <div key={role} className="min-w-0 border border-border">
     <div className="h-24 border-b border-border" style={{ background: `hsl(var(--${cssName(role)}))` }} />
-    <div className="p-4"><p className="text-sm font-semibold">{role}</p><div className="mt-2 flex flex-wrap justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+    <div className="p-4"><p className="text-sm font-semibold">{role}</p><div className="mt-2 flex flex-wrap justify-between gap-2 font-mono text-[11px] text-muted-foreground">
       <span>L {tokens.color.light[role as keyof typeof tokens.color.light]}</span><span>D {tokens.color.dark[role as keyof typeof tokens.color.dark]}</span>
     </div></div>
   </div>)}</div>;
@@ -24,7 +24,7 @@ export function Overview() {
   return <div className="space-y-12">
     <section><Typography variant="label" tone="accent" className="mb-6">Program Editorial / The visual language</Typography>
       <Typography variant="hero">Good work,<br /><em>moving forward.</em></Typography>
-      <Typography className="mt-7 max-w-xl">An editorial system for program teams and founders. Warm paper, expressive serif headings, and clear teal actions—extracted from your selected design.</Typography>
+      <Typography className="mt-7 max-w-xl">An editorial system for program teams and founders. Warm paper, expressive serif headings, and clear teal actions—with typography refined for easier reading.</Typography>
     </section>
     <Swatches roles={["primary", "secondary", "accent"]} />
     <section><div className="mb-6 flex items-center gap-4"><Typography as="h2" variant="label">The component set · 5 families</Typography><Rule className="flex-1" /></div>
@@ -37,7 +37,7 @@ export function Overview() {
       </PaperSurface>
     </section>
     <section className="grid gap-8 md:grid-cols-2">
-      <div><Typography variant="heading">Source, not a reskin.</Typography><Typography className="mt-3 text-sm">The light palette and typefaces come directly from the selected mockup. Layout rules, asymmetric corners, thin dividers, and restrained movement are preserved.</Typography></div>
+      <div><Typography variant="heading">Source roots. Clearer reading.</Typography><Typography className="mt-3 text-sm">The source palette and Latin typefaces are retained. Headings have more room, body text starts at 16px, and Noto Sans Arabic provides a deliberate Arabic pairing. This typography revision is awaiting your review.</Typography></div>
       <div><Typography variant="heading">Extensions are explicit.</Typography><Typography className="mt-3 text-sm">Dark mode, semantic colors, chart slots, and sidebar roles are derived for completeness. This is not a full admin UI kit: inputs, tables, and navigation components were not present in the source.</Typography></div>
     </section>
     <Dialog open={open} onOpenChange={setOpen} eyebrow="Controlled dialog" title="A clear next step." description="The source panel styling, with native modal focus containment, Escape dismissal, and return to the opener."><Button arrow onClick={() => setOpen(false)}>Got it</Button></Dialog>
@@ -57,11 +57,12 @@ export function SupportingColors() {
   </div>;
 }
 export function Fonts() {
-  return <div className="space-y-9"><SectionTitle title="Three voices. One hierarchy." description="The exact three font families declared in the selected mockup. Loaded from Google Fonts; system fallbacks remain available." />
-    <div className="border-y border-border py-7"><Typography variant="label">01 / Fraunces · Headings · 500–700</Typography><p className="mt-3 font-serif text-5xl leading-tight tracking-tight">Good work, <em className="text-accent">moving forward.</em></p></div>
+  return <div className="space-y-9"><SectionTitle title="Editorial Latin. Confident Arabic." description="Three source font families, plus a dedicated Arabic companion. The revised scale uses calmer spacing and larger reading text. Fonts load from Google Fonts, with system fallbacks." />
+    <div className="border-y border-border py-7"><Typography variant="label">01 / Fraunces · Headings · 500–600</Typography><Typography as="h2" variant="heading" className="mt-3">Good work, <em className="text-accent">moving forward.</em></Typography></div>
     <div><Typography variant="label">02 / DM Sans · Interface & body · 400–700</Typography><Typography className="mt-3 text-2xl text-foreground">Clear information for every next step.</Typography></div>
     <div><Typography variant="label">03 / IBM Plex Mono · Labels · 400–500</Typography><p className="mt-3 font-mono text-sm tracking-wider">OUTREACH · INCUBATION · GRANTS</p></div>
-    <Typography className="text-sm">No dedicated Arabic typeface was supplied by the source. Arabic uses the browser’s script fallback; do not claim that the Latin fonts cover Arabic.</Typography>
+    <div lang="ar" dir="rtl" className="border-t border-border pt-7"><Typography variant="label">04 / نوتو العربي · العناوين والمحتوى · ٤٠٠–٧٠٠</Typography><Typography as="h2" variant="heading" className="mt-3">كل خطوة تبدأ بفكرة واضحة.</Typography><Typography className="mt-3">خط عربي واضح، ومسافات مريحة للقراءة دون تمديد الحروف أو إمالتها اصطناعياً.</Typography></div>
+    <Typography className="text-sm">Noto Sans Arabic is an intentional addition, not a source-extracted font. Arabic components inherit their language, use connected script without extra letter spacing or synthetic italics, and have more line-height headroom. This is font coverage, not full platform translation.</Typography>
     <Guidelines items={[{kind:"do",text:"Keep large serif headings paired with restrained, readable sans-serif supporting copy."},{kind:"do",text:"Use monospaced uppercase text for short labels, not paragraphs."}]} />
   </div>;
 }

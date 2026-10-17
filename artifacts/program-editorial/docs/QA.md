@@ -2,7 +2,37 @@
 
 Scope: the new Program Editorial package and its standalone guide only. The selected mockup and application screens remain unchanged, pending approval.
 
-## Passed
+## Typography revision — current review
+
+The user requested a typography revision and delegated the direction. The
+system retains its editorial Latin faces but reduces heading compression,
+increases body/label sizes, and adds Noto Sans Arabic. The extraction results
+below are historical evidence; these are the additional revision checks:
+
+- Typecheck exited0 and Vite build exited0 for this revision.
+- Chromium measured the desktop hero at72px /80.64px line height, weight500,
+  −1.8px tracking; body at16px /28px line height.
+- Explicit and inherited Arabic language both use RTL, normal tracking and
+  normal case. Browser platform-font inspection confirmed Noto Sans Arabic
+  actually rendered Arabic heading glyphs, rather than merely appearing in a
+  fallback stack.
+-12 responsive page checks passed: Overview, Fonts, Typography and Dialog at
+  320px,390px and1440px. No document horizontal overflow. Open dialogs fit the
+  viewport in all three sizes.
+- The dark Typography page rendered. No console/page errors or application API
+  requests were recorded during the browser checks.
+- Desktop light Overview and mobile light Typography screenshots were rendered
+  and inspected, including the Arabic samples. Story sections use explicit grid
+  gaps so the component's margin reset cannot collapse the specimen spacing.
+- Existing mockup/application diffs remained empty; no screens or canvas frames
+  were updated and no publishing occurred.
+
+Limits: this is Chromium desktop/mobile-viewport evidence, not Safari/iOS,
+screen-reader, physical-device or full platform Arabic verification. Web fonts
+still require access to Google Fonts, otherwise the configured system fallbacks
+apply.
+
+## Initial extraction — passed
 
 | Check | Actual evidence |
 |---|---|

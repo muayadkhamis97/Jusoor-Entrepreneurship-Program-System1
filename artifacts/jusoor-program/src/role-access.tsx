@@ -117,7 +117,7 @@ export function RoleAccessPage() {
   const preview = previewData[selected];
   return <div className="access-page" data-testid="page-role-access">
     <header className="page-heading access-heading">
-      <div><div className="eyebrow">{t('GOVERNANCE / ROLE ACCESS')}</div><h1 className="app-title">{t('Clear roles. Shared purpose.')}</h1><p>{t('See what each Jusoor role can reach, and preview the workspace each role is designed for.')}</p></div>
+      <div><div className="eyebrow">{t('GOVERNANCE / ROLE ACCESS')}</div><h1 className="app-title">{t('Clear roles. Shared purpose.')}</h1><p>{t('See what each role can access, and preview the workspace designed for that role.')}</p></div>
       <div className="access-heading-stamp"><Shield size={17} /><span>{t('ADMIN VIEW')}</span></div>
     </header>
 
@@ -143,7 +143,7 @@ export function RoleAccessPage() {
           })}</tbody>
         </table>
       </div>
-      <div className="matrix-foot"><span>{t('SCOPED ACCESS FOLLOWS ASSIGNMENT OR PERSONAL OWNERSHIP')}</span><span>{t('JUSOOR PROGRAM HUB')} <i /></span></div>
+      <div className="matrix-foot"><span>{t('SCOPED ACCESS FOLLOWS ASSIGNMENT OR PERSONAL OWNERSHIP')}</span><span>{t('PROGRAM HUB')} <i /></span></div>
     </section>
 
     <section className="access-preview-section" aria-labelledby="preview-title">
@@ -159,7 +159,7 @@ export function RoleAccessPage() {
       </TabsList>
       <TabsContent value={selected} className="role-preview-tab mt-0 outline-none" aria-label={`${t(role.title)} ${t('workspace preview')}`} data-testid="panel-role-preview">
       <article className="role-preview">
-        <div className="preview-window-top"><div className="preview-brand"><span className="brand-mark">J</span><span><b>Jusoor</b><small>{t('PROGRAM HUB')}</small></span></div><div className="preview-window-context"><span className="preview-window-dot" /> {t(role.title).toUpperCase()} {t('WORKSPACE')}</div><span className="preview-lock"><LockKeyhole size={13} /> {t('VISUAL PREVIEW')}</span></div>
+        <div className="preview-window-top"><div className="preview-brand"><span className="brand-mark" aria-hidden="true" /><span><b>{t('Program Hub')}</b><small>{t('PROGRAM HUB')}</small></span></div><div className="preview-window-context"><span className="preview-window-dot" /> {t(role.title).toUpperCase()} {t('WORKSPACE')}</div><span className="preview-lock"><LockKeyhole size={13} /> {t('VISUAL PREVIEW')}</span></div>
         <div className="preview-body">
           <aside className="preview-rail"><span className="preview-rail-label">{t('WORKSPACE')}</span><div className="preview-nav-item active"><BriefcaseBusiness size={14} />{t(selected === 'participant' ? 'My journey' : selected === 'judge' ? 'Assigned pitches' : selected === 'mentor' ? 'My engagements' : selected === 'trainer' ? 'Cohort desk' : 'Overview')}</div><div className="preview-nav-item"><CalendarDays size={14} />{t(selected === 'participant' ? 'Sessions' : selected === 'judge' ? 'Scorecards' : selected === 'mentor' ? 'Schedule' : 'Program work')}</div><div className="preview-nav-item"><MessageCircle size={14} />{t(selected === 'trainer' || selected === 'participant' ? 'Questions' : 'Support')}</div><div className="preview-rail-rule" /><div className="preview-role-identity"><span>{t(role.title).split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{t(role.title)}</b><small>{t(role.kind)}</small></div></div></aside>
           <div className="preview-workspace-content">

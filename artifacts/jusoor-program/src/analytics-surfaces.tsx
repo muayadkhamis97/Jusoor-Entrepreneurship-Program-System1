@@ -734,7 +734,7 @@ export function ProgramAnalyticsPage() {
   <div className="ana-report-print" aria-hidden="true" lang={currentLanguage()} dir={currentLanguage() === "ar" ? "rtl" : "ltr"}>
       <header className="ana-print-brand">
         <span className="ana-print-mark">J</span>
-        <div className="ana-print-wordmark"><b>JUSOOR</b><span>{t("ENTREPRENEURSHIP PROGRAM · ADMIN REPORT")}</span></div>
+        <div className="ana-print-wordmark"><b>{t('Program Hub')}</b><span>{t("ENTREPRENEURSHIP PROGRAM · ADMIN REPORT")}</span></div>
         <span className="ana-print-issued">{t("Generated")} · {new Date().toLocaleDateString(currentLanguage() === "ar" ? "ar-JO" : "en-GB", { dateStyle: "medium" })}</span>
       </header>
       <div className="ana-print-title">

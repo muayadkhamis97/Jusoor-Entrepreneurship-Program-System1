@@ -17,5 +17,5 @@ export function getParticipantNextAction(hasAcceptedEnrollment: boolean): {
 }
 
 export function participantSignInInstructions(email: string): string {
-  return `Create an account or sign in to the Jusoor Entrepreneurship Program Hub using ${email}. No email was sent; the program team assigned access to a program and business.`;
+  return `Create an account or sign in to the Program Hub using ${email}. No email was sent; the program team assigned access to a program and business.`;
 }

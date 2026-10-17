@@ -11,15 +11,23 @@ import { requireCoordinator, requireStaff } from "../middlewares/staffAccess";
 const router: IRouter = Router();
 
 const defaultBranding = {
-  brandName: "Jusoor",
+  brandName: "Program Hub",
   logoUrl: null,
   primaryColor: "#28665a",
   accentColor: "#d98a46",
 };
 
+function getVisibleBrandName(brandName: string | null | undefined): string {
+  const configured = brandName?.trim();
+  return configured && !/(jusoor|جسور)/i.test(configured) ? configured : "Program Hub";
+}
+
 router.get("/branding", async (_req, res): Promise<void> => {
   const [settings] = await db.select().from(programBrandingTable).limit(1);
-  res.json(GetProgramBrandingResponse.parse(settings ?? defaultBranding));
+  const visibleSettings = settings
+    ? { ...settings, brandName: getVisibleBrandName(settings.brandName) }
+    : defaultBranding;
+  res.json(GetProgramBrandingResponse.parse(visibleSettings));
 });
 
 router.put("/branding", requireStaff, requireCoordinator, async (req, res): Promise<void> => {
@@ -32,6 +40,10 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
   const brandName = parsed.data.brandName.trim();
   if (!brandName) {
     res.status(400).json({ error: "Program name cannot be empty." });
+    return;
+  }
+  if (/(jusoor|جسور)/i.test(brandName)) {
+    res.status(400).json({ error: "This brand name is unavailable. Choose another name." });
     return;
   }
 

@@ -12,21 +12,21 @@ const event = (overrides: Partial<ProgramLifecycleEvent> = {}): ProgramLifecycle
 });
 
 test('program lifecycle CSV includes UTC event times and identifies removed actor accounts', () => {
-  const csv = buildProgramLifecycleCsv('Jusoor Cohort', [
+  const csv = buildProgramLifecycleCsv('Northstar Cohort', [
     event(),
     event({ id: 5, action: 'restored', actorEmail: null }),
   ]);
 
   assert.equal(csv.charCodeAt(0), 0xfeff);
   assert.match(csv.slice(1), /^"Program","Action","Timestamp \(UTC\)","Actor email"/);
-  assert.match(csv, /"Jusoor Cohort","archived","2026-10-14T15:00:00\.000Z","coordinator@example\.com"/);
-  assert.match(csv, /"Jusoor Cohort","restored","2026-10-14T15:00:00\.000Z","Actor account no longer exists"/);
+  assert.match(csv, /"Northstar Cohort","archived","2026-10-14T15:00:00\.000Z","coordinator@example\.com"/);
+  assert.match(csv, /"Northstar Cohort","restored","2026-10-14T15:00:00\.000Z","Actor account no longer exists"/);
 });
 
 test('empty program lifecycle CSV explains that no events were recorded', () => {
-  const csv = buildProgramLifecycleCsv('Jusoor Cohort', []);
+  const csv = buildProgramLifecycleCsv('Northstar Cohort', []);
 
-  assert.match(csv, /"Jusoor Cohort","No archive or restore actions recorded","",""/);
+  assert.match(csv, /"Northstar Cohort","No archive or restore actions recorded","",""/);
 });
 
 test('program and actor values are quoted and protected from spreadsheet formulas', () => {

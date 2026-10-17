@@ -39,9 +39,17 @@ primitives rather than recreating those primitives locally.
 There is no Toaster, toast hook, form input or table in this extracted catalog.
 Do not delete local components the package does not replace.
 
-Load DM Sans 400–700, Fraunces 500–700 (including italic500), and IBM Plex Mono
-400–500 once in the consumer; `index.html` in this package has the exact Google
-Fonts link. Font stacks have system fallbacks; Arabic uses script fallback.
+Load DM Sans400–700, Fraunces500–700 (including italic500), IBM Plex Mono400–500,
+and Noto Sans Arabic400–700 once in the consumer; `index.html` in this package has
+the exact Google Fonts link. All three token stacks include the Arabic face
+before system fallbacks. Typography recognizes inherited or explicit Arabic
+language; set `lang="ar"` and `dir="rtl"` on an Arabic region. A Typography
+component with its own Arabic `lang` defaults toRTL unless `dir` is explicit.
+
+The current review-stage type scale deliberately improves on the extraction:
+hero44–88px/1.12 with restrained tracking, headings24–32px/1.3, body16px/1.75
+with a65ch maximum reading width, short labels11px/1.55. Arabic uses extra
+line-height headroom, no added tracking and no synthetic italic emphasis.
 
 Button accepts native button props and `variant="primary" | "text" | "pill"`,
 with an optional decorative `arrow`. It is not an anchor or routing component.
@@ -53,6 +61,19 @@ and `grain`. Rule accepts `orientation` and `tone`. Dialog is controlled by
 `description`, `children`; it requires native HTML dialog support.
 
 Dark mode uses a `.dark` ancestor and is explicitly derived, not source-extracted.
+
+### Incremental, page-scoped adoption
+
+When only one page is approved for migration, do not replace the global theme
+of unrelated pages. Import `getThemeStyle` from
+`@workspace/program-editorial/lib/theme` and apply its result to that page's
+outer PaperSurface. It derives HSL custom properties, font stacks and radius
+directly from the exported tokens. Register this package's component sources
+with Tailwind's `@source` and retain the consumer's existing semantic mappings.
+Map `font-serif` to `var(--editorial-font-serif, Georgia, serif)` and the sans
+and mono utilities to `--app-font-sans` and `--app-font-mono`. This bridge is for
+an existing app's partial migration only; new/full consumers still import the
+complete stylesheet as described above.
 
 ## Verify
 

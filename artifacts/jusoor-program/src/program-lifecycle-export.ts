@@ -30,7 +30,7 @@ export function downloadProgramLifecycleCsv(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `jusoor-program-${programId}-lifecycle-history-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `program-${programId}-lifecycle-history-${new Date().toISOString().slice(0, 10)}.csv`;
   link.style.display = 'none';
   document.body.append(link);
   link.click();
@@ -79,7 +79,7 @@ export function downloadStaffAssignmentHistoryCsv(events: StaffAssignmentAuditHi
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `jusoor-assignment-history-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `assignment-history-${new Date().toISOString().slice(0, 10)}.csv`;
   link.style.display = 'none';
   document.body.append(link);
   link.click();

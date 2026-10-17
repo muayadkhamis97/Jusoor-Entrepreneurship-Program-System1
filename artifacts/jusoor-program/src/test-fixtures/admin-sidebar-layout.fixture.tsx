@@ -18,7 +18,7 @@ function AdminSidebarFixture() {
       <aside className="sidebar" data-testid="admin-sidebar">
         <Link href="/" className="brand" data-testid="sidebar-brand">
           <span className="brand-mark">J</span>
-          <span><b>Jusoor</b><small>PROGRAM HUB</small></span>
+          <span><b>Program Hub</b><small>PROGRAM HUB</small></span>
         </Link>
         <div className="workspace-tag"><span className="live-dot" />PROGRAM OPERATIONS</div>
         <nav className="side-nav" aria-label="Main navigation">
@@ -44,11 +44,11 @@ function AdminSidebarFixture() {
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-note"><span aria-hidden="true">✦</span><div><b>One journey, in view.</b><span>Move each founder forward.</span></div></div>
-          <div className="profile"><span className="profile-avatar">J</span><div className="profile-copy"><b>Admin User</b><small>Jusoor admin</small></div></div>
+          <div className="profile"><span className="profile-avatar">P</span><div className="profile-copy"><b>Admin User</b><small>Program admin</small></div></div>
         </div>
       </aside>
       <main className="main-panel">
-        <header className="topbar"><div className="crumb"><span>JUSOOR</span><span>/</span><b data-testid="sidebar-current-route">{path}</b></div></header>
+        <header className="topbar"><div className="crumb"><span>PROGRAM HUB</span><span>/</span><b data-testid="sidebar-current-route">{path}</b></div></header>
         <div className="page-content page-enter">
           <h1>Admin page: {path}</h1>
           <div style={{ minHeight: 1600 }}>Synthetic long page content for scroll verification.</div>

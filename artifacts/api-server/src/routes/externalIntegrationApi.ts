@@ -468,7 +468,7 @@ router.post("/programs/:programId/resources/:resource", async (req, res): Promis
     }
     case "sessions": {
       if (["trainerStaffId", "zoomUrl", "zoomMeetingId", "recordingUrl"].some((field) => field in payload)) {
-        invalidPayload(res, "Trainer assignment, Zoom links, and recording links must be managed in the Jusoor platform.");
+        invalidPayload(res, "Trainer assignment, Zoom links, and recording links must be managed in the platform.");
         return;
       }
       const parsed = CreateSessionBody.safeParse(payload);
@@ -808,7 +808,7 @@ router.patch("/programs/:programId/resources/:resource/:recordId", async (req, r
     }
     case "sessions": {
       if (["trainerStaffId", "zoomUrl", "zoomMeetingId", "recordingUrl"].some((field) => field in payload)) {
-        invalidPayload(res, "Trainer assignment, Zoom links, and recording links must be managed in the Jusoor platform.");
+        invalidPayload(res, "Trainer assignment, Zoom links, and recording links must be managed in the platform.");
         return;
       }
       const parsed = UpdateSessionBody.safeParse(payload);

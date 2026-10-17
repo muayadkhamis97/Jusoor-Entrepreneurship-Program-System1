@@ -51,7 +51,7 @@ export function downloadProgramAnalyticsCsv(
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `jusoor-program-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `program-report-${new Date().toISOString().slice(0, 10)}.csv`;
   link.style.display = "none";
   document.body.append(link);
   link.click();

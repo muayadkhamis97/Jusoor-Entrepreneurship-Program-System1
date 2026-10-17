@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import * as ts from 'typescript';
-import { brandedAdminRoleLabel, hasArabicTranslation, translate } from './language';
+import { brandedAdminRoleLabel, getDisplayBrandName, hasArabicTranslation, translate } from './language';
 import { getStaffNavigationItems } from './mobile-staff-navigation';
 
 const sourceRoot = path.resolve(import.meta.dirname);
@@ -17,15 +17,14 @@ const componentsThatTranslateTextProps = new Set([
   'TextField',
 ]);
 const intentionallyEnglishExamples = new Set([
+  'Program Hub',
   'https://…',
   'https://',
   'you@venture.com',
   'https://drive.google.com/file/d/…/view',
   'Cedar & Clay Foods',
   'Venture Launch · Spring',
-  'Jusoor',
   'J',
-  'JUSOOR / 404',
   'ZOOM_CLIENT_ID',
   'ZOOM_CLIENT_SECRET',
   'meeting:write:meeting',
@@ -526,7 +525,7 @@ test('fixed copy on staff, applicant, and participant routes is translated; dyna
   const regressionExample = `
     const ParticipantCard = ({ businessName, contactNote }) => (
       <article><h2>New fixed label</h2><p>{businessName}</p><small>{contactNote}</small>
-        <span>Jusoor</span><code>meeting:write:meeting</code>
+        <span>Program Hub</span><code>meeting:write:meeting</code>
       </article>
     );
   `;
@@ -548,14 +547,17 @@ test('Arabic translation and English fallback preserve dynamic and example conte
 });
 
 test('Admin sidebar role label follows the configured brand in English and Arabic', () => {
-  assert.equal(brandedAdminRoleLabel('Jusoor Growth', 'en'), 'Jusoor Growth admin');
-  assert.equal(brandedAdminRoleLabel('Jusoor Growth', 'ar'), 'مسؤول Jusoor Growth');
-  assert.equal(brandedAdminRoleLabel('  ', 'en'), 'Jusoor admin');
+  assert.equal(brandedAdminRoleLabel('Northstar Growth', 'en'), 'Northstar Growth admin');
+  assert.equal(brandedAdminRoleLabel('Northstar Growth', 'ar'), 'مسؤول Northstar Growth');
+  assert.equal(brandedAdminRoleLabel('  ', 'en'), 'Program Hub admin');
+  assert.equal(getDisplayBrandName('  Program Hub  '), 'Program Hub');
+  assert.equal(getDisplayBrandName('Jusoor'), 'Program Hub');
+  assert.equal(getDisplayBrandName('جسور'), 'Program Hub');
 });
 
 test('Admin page breadcrumb uses the configured brand name instead of a static label', () => {
   const appSource = readFileSync(path.join(sourceRoot, 'App.tsx'), 'utf8');
-  assert.match(appSource, /const brandName = branding\?\.brandName \|\| 'Jusoor'/);
+  assert.match(appSource, /const brandName = getDisplayBrandName\(branding\?\.brandName\)/);
   assert.match(appSource, /data-testid="breadcrumb-brand-name">\{brandName\}/);
   assert.doesNotMatch(appSource, /<span>JUSOOR<\/span>/);
 });

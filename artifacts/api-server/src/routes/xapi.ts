@@ -72,7 +72,7 @@ async function authorizeLaunch(req: Request, res: Response): Promise<XapiLaunchC
   const authorization = req.get("Authorization") ?? "";
   const match = authorization.match(/^Basic\s+([A-Za-z0-9+/=]+)$/i);
   if (!match) {
-    res.setHeader("WWW-Authenticate", 'Basic realm="Jusoor xAPI LRS"');
+  res.setHeader("WWW-Authenticate", 'Basic realm="Learning Record Store"');
     res.status(401).json({ error: "A valid package launch credential is required." });
     return null;
   }

@@ -413,7 +413,7 @@ export async function createOrUpdateZoomMeeting(
         if (storedSession) currentSession = storedSession;
       } catch {
         throw new ZoomIntegrationError(
-          "Jusoor could not check whether this session already has a Zoom meeting. Retry shortly; no new meeting was created.",
+          "The system could not check whether this session already has a Zoom meeting. Retry shortly; no new meeting was created.",
           503,
         );
       }
@@ -553,12 +553,12 @@ async function createOrUpdateZoomMeetingLocked(
   } catch {
     if (!session.zoomMeetingId) {
       throw new ZoomIntegrationError(
-        "Zoom created the meeting, but Jusoor could not save it to this session. Retry the Zoom action; Jusoor will reuse the same meeting. If saving still fails, contact an administrator and do not create another meeting.",
+        "Zoom created the meeting, but the system could not save it to this session. Retry the Zoom action; the existing meeting will be reused. If saving still fails, contact an administrator and do not create another meeting.",
         503,
       );
     }
     throw new ZoomIntegrationError(
-      "Zoom updated the meeting, but Jusoor could not save the changes. Retry the update or contact an administrator.",
+      "Zoom updated the meeting, but the system could not save the changes. Retry the update or contact an administrator.",
       503,
     );
   }

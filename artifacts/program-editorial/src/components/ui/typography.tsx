@@ -7,16 +7,15 @@ export interface TypographyProps extends HTMLAttributes<HTMLElement> {
   tone?: "default" | "accent";
 }
 
-export function Typography({ as, variant = "body", tone = "default", className, lang, ...props }: TypographyProps) {
+export function Typography({ as, variant = "body", tone = "default", className, lang, dir, ...props }: TypographyProps) {
   const Tag = as ?? (variant === "hero" ? "h1" : variant === "heading" ? "h2" : "p");
-  return <Tag lang={lang} {...props} className={cn(
-    "m-0",
-    variant === "hero" && "font-serif font-semibold text-[clamp(3.625rem,8.1vw,7rem)] leading-[.87] tracking-[-.075em] [&_em]:font-medium [&_em]:text-accent",
-    variant === "heading" && "font-serif font-semibold text-[30px] leading-[1.04] tracking-[-.04em]",
-    variant === "body" && "font-sans text-[15px] leading-[1.75] text-muted-foreground",
-    variant === "label" && "font-mono text-[10px] font-medium tracking-[.13em] uppercase text-muted-foreground",
+  return <Tag lang={lang} dir={dir ?? (lang?.toLowerCase().startsWith("ar") ? "rtl" : undefined)} {...props} className={cn(
+    "m-0 [overflow-wrap:anywhere] [&:lang(ar)]:font-sans [&:lang(ar)]:tracking-normal [&:lang(ar)]:normal-case [&:lang(ar)]:not-italic [&:lang(ar)_em]:not-italic",
+    variant === "hero" && "font-serif font-medium text-[clamp(2.75rem,5vw,5.5rem)] leading-[1.12] tracking-[-.025em] [&_em]:font-medium [&_em]:text-accent [&:lang(ar)]:leading-[1.6]",
+    variant === "heading" && "font-serif font-semibold text-[clamp(1.5rem,2.4vw,2rem)] leading-[1.3] tracking-[-.015em] [&:lang(ar)]:leading-[1.6]",
+    variant === "body" && "max-w-[65ch] font-sans text-base leading-[1.75] text-muted-foreground [&:lang(ar)]:leading-[1.85]",
+    variant === "label" && "font-mono text-[11px] leading-[1.55] font-medium tracking-[.08em] uppercase text-muted-foreground [&:lang(ar)]:leading-[1.75]",
     tone === "accent" && (variant === "label" ? "text-[color-mix(in_srgb,hsl(var(--accent))_85%,hsl(var(--foreground)))]" : "text-accent"),
-    lang?.startsWith("ar") && "tracking-normal",
     className,
   )} />;
 }

@@ -76,15 +76,18 @@ export const tokens = {
   "fontFamily": {
     "sans": [
       "DM Sans",
+      "Noto Sans Arabic",
       "sans-serif"
     ],
     "serif": [
       "Fraunces",
+      "Noto Sans Arabic",
       "Georgia",
       "serif"
     ],
     "mono": [
       "IBM Plex Mono",
+      "Noto Sans Arabic",
       "monospace"
     ]
   },

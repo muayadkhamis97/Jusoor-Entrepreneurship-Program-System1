@@ -86,7 +86,7 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
         .limit(1);
 
       if (!invitation) {
-        res.status(403).json({ error: "This account is not approved for Jusoor staff access." });
+        res.status(403).json({ error: "This account is not approved for staff access." });
         return;
       }
 
@@ -106,7 +106,7 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
     }
 
     if (!member) {
-      res.status(403).json({ error: "This account is not approved for Jusoor staff access." });
+      res.status(403).json({ error: "This account is not approved for staff access." });
       return;
     }
 

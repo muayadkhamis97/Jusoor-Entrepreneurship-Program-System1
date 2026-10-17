@@ -139,7 +139,7 @@ router.get("/callback", async (req, res): Promise<void> => {
   const payload = openGoogleCalendarOAuthState(cookieValue(req.get("cookie"), cookieName));
   if (!isGoogleCalendarOAuthStateValid(payload, state)) {
     clearStateCookie(res, req.secure);
-    res.status(400).send("Google authorization expired or could not be verified. Return to Jusoor and try again.");
+    res.status(400).send("Google authorization expired or could not be verified. Return to the program and try again.");
     return;
   }
 

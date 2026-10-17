@@ -13,7 +13,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { id: "colors-brand", name: "Brand palette", description: "Primary, secondary, accent", Page: BrandColors },
     { id: "colors-supporting", name: "Supporting roles", description: "Surfaces, text, semantic and extension colors", Page: SupportingColors },
   ] },
-  { name: "Fonts", entries: [{ id: "fonts-families", name: "Font families", description: "Fraunces, DM Sans, IBM Plex Mono", Page: Fonts }] },
+  { name: "Fonts", entries: [{ id: "fonts-families", name: "Font families", description: "Fraunces, DM Sans, IBM Plex Mono, Noto Sans Arabic", Page: Fonts }] },
   { name: "Layout", entries: [{ id: "layout-principles", name: "Space, shape & motion", description: "Source geometry and responsive behavior", Page: Layout }] },
   { name: "Actions", entries: [{ id: "component-button", name: "Buttons", description: "Primary, text and pill variants", Page: lazy(() => import("./demos/button")) }] },
   { name: "Typography", entries: [{ id: "component-typography", name: "Editorial type", description: "Hero, heading, body and label", Page: lazy(() => import("./demos/typography")) }] },

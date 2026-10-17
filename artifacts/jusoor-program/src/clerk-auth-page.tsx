@@ -2,7 +2,7 @@ import { SignIn, SignUp } from '@clerk/react';
 import { useGetProgramBranding, getGetProgramBrandingQueryKey } from '@workspace/api-client-react';
 import { Shield } from 'lucide-react';
 import { Link } from 'wouter';
-import { LanguageToggle, t, useAppLanguage } from './language';
+import { getDisplayBrandName, LanguageToggle, t, useAppLanguage } from './language';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -26,17 +26,17 @@ export function ClerkAuthPage({
         {branding?.logoUrl ? (
           <img className="brand-logo" src={branding.logoUrl} alt="" />
         ) : (
-          <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>
+          <span className="brand-mark">{getDisplayBrandName(branding?.brandName).slice(0, 1)}</span>
         )}
         <span>
-          <b>{branding?.brandName || 'Jusoor'}</b>
+          <b>{getDisplayBrandName(branding?.brandName)}</b>
           <small>{t('PROGRAM HUB')}</small>
         </span>
       </Link>
       <LanguageToggle className="auth-language-toggle" />
       <div className="auth-form-content">
         <div className="eyebrow">
-          {t(isSignIn ? 'JUSOOR PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}
+          {t(isSignIn ? 'PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}
         </div>
         <h1 className="app-title">
           {t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}
@@ -66,7 +66,7 @@ export function ClerkAuthPage({
           )}
         </div>
         <Link href="/" className="auth-back">
-          ← {t('Back to Jusoor Program Hub')}
+          ← {t('Back to Program Hub')}
         </Link>
       </div>
       <div className="auth-form-note">

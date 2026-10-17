@@ -19,7 +19,7 @@ import type {
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
 import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
-import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -36,7 +36,7 @@ export function RoleFrame({ role, name, children, availableRoles = [], primaryRo
   const otherRoles = availableRoles.filter(availableRole => availableRole !== role);
   return <div className="role-workspace">
     <header className="role-topbar">
-      <Link href={`/${role}`} className="brand" data-testid="link-role-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{branding?.brandName?.slice(0, 1) || 'J'}</span>}<span><b>{branding?.brandName || 'Jusoor'}</b><small>{t('PROGRAM HUB')}</small></span></Link>
+      <Link href={`/${role}`} className="brand" data-testid="link-role-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(branding?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(branding?.brandName)}</b><small>{t('PROGRAM HUB')}</small></span></Link>
        <div className="role-top-actions">{role === 'trainer' && <><Link href={location === '/trainer/sessions' ? '/trainer' : '/trainer/sessions'} className="button button-quiet" data-testid="link-trainer-sessions"><CalendarDays size={14} />{t(location === '/trainer/sessions' ? 'Training workspace' : 'Live sessions')}</Link><Link href={location === '/trainer/courses' ? '/trainer' : '/trainer/courses'} className="button button-quiet" data-testid="link-trainer-learning"><BookOpen size={14} />{t(location === '/trainer/courses' ? 'Training workspace' : 'Course learning')}</Link></>}{otherRoles.map(availableRole => <Link key={availableRole} href={`/${availableRole}`} className="button button-quiet" data-testid={`link-role-${availableRole}`}>{t(`Open ${availableRole} workspace`)}</Link>)}{(primaryRole === 'coordinator' || primaryRole === 'staff') && <Link href="/" className="button button-quiet" data-testid="link-program-operations">{t(primaryRole === 'coordinator' ? 'Admin workspace' : 'Program staff workspace')}</Link>}<Link href="/profile" className="button button-quiet" data-testid="link-role-profile">{t('Profile')}</Link><span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button></div>
     </header>
     <main className="role-main page-enter">{children}</main>
@@ -224,7 +224,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
       <div className="role-form-grid compact">
         <div className="field field-wide">
           <b>{t('Connect an account')}</b>
-          <p data-testid="google-calendar-privacy-disclosure">{t('Jusoor syncs bookings every five minutes using read-only access to calendars you own. It checks event times and guest/organizer email to match assigned founders. Event titles, descriptions, locations, meeting links and guest names are not collected. OAuth tokens are encrypted and retained only to keep this sync active.')}</p>
+          <p data-testid="google-calendar-privacy-disclosure">{t('Bookings sync every five minutes using read-only access to calendars you own. The system checks event times and guest/organizer email to match assigned founders. Event titles, descriptions, locations, meeting links and guest names are not collected. OAuth tokens are encrypted and retained only to keep this sync active.')}</p>
           <div className="role-button-row">
             <button
               type="button"
@@ -313,5 +313,5 @@ export function JudgeDashboardPage({ name, availableRoles, primaryRole }: { name
 }
 
 export function RoleNotFound({ role }: { role: StaffMember['role'] }) {
-  return <main className="auth-status-page"><div className="eyebrow">{t('JUSOOR / PRIVATE WORKSPACE')}</div><h1 className="app-title">{t('This view is not part of your role.')}</h1><p>{t('Your account can only open its assigned program workspace.')}</p><Link className="button button-primary" href={`/${role}`}>{t('Go to my workspace')} <ArrowRight size={15} /></Link></main>;
+  return <main className="auth-status-page"><div className="eyebrow">{t('PRIVATE WORKSPACE')}</div><h1 className="app-title">{t('This view is not part of your role.')}</h1><p>{t('Your account can only open its assigned program workspace.')}</p><Link className="button button-primary" href={`/${role}`}>{t('Go to my workspace')} <ArrowRight size={15} /></Link></main>;
 }
