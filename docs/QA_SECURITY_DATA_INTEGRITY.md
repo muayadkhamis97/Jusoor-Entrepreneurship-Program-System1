@@ -84,3 +84,26 @@ This is separate from the isolated program-assignment verification above.
 - Read-only public requests to the published `/` and `/api/healthz` endpoints both returned HTTP 200 after publishing.
 - Production signed-in access recovery is still not verified. No signed-in browser session, role assignment changes, or email sends were performed for this recovery.
 - Application source did not change, so previously recorded source tests/builds were not rerun or claimed as fresh migration verification.
+
+## Program roles and business teams — disposable verified; development applied
+
+### Isolated verification
+
+- Verified the starting schema requirements from `lib/db/src/schema/staff-program-roles.ts`, `lib/db/src/schema/participant-business-memberships.ts`, and the existing staff, program, application, business, and staff-program-assignment definitions.
+- Applied the exact `lib/db/migrations/20261014_program_roles_and_business_teams.sql` file to a new local PostgreSQL 16.10 cluster under `/tmp/jusoor-role-migration-check.1BcZIZ`. The cluster used a task-owned data directory and Unix socket, `listen_addresses=''`, port `55437`, and a synthetic-only `migration_test` account. `DATABASE_URL`, `PGHOST`, `PGPORT`, `PGDATABASE`, and `PGUSER` were unset before starting it. The connection confirmed its database directory and socket were inside the new temporary directory.
+- Synthetic fixtures passed: existing trainer, mentor, and judge assignments were copied; non-specialist staff were not copied; multiple roles for one staff member in one program were allowed; duplicate roles and invalid roles were rejected; both tables accepted synthetic linked records.
+- Catalog checks passed for all expected columns, `created_at DEFAULT now()`, primary/unique/check constraints, indexes, and foreign-key delete behavior (`CASCADE`, `RESTRICT`, and `SET NULL` as declared).
+- The temporary cluster stopped cleanly and only its task-owned directory was removed.
+
+### Development preparation
+
+- Read-only catalog inspection in the development database confirmed the migration's prerequisites: programs, staff members, staff-program assignments, applications, and businesses existed; `archived_at` and program assignments were already present; both target tables were absent. No application records were read.
+- With user approval, applied the exact migration file once to the development database through the Replit development-database operation. The transaction committed successfully: both tables and their declared indexes were created. The migration's `INSERT ... SELECT` backfill affected **0 rows** in development.
+- Post-apply catalog checks confirmed both tables' columns, defaults, primary and unique constraints, role check, indexes, and foreign-key delete actions.
+- No Drizzle push or force-push was used. Production was not queried or changed, and Publish was not run.
+
+### Publish and data limitations
+
+- The schema source and migration are ready for the user to review in Publish. The production-side diff has not been opened or verified; review the proposed changes there before confirming Publish.
+- The SQL file contains a data backfill in addition to table/index DDL. The development backfill affected zero rows. A Publish schema diff applies structural schema changes; production data backfill behavior was not tested here, and no production data was changed. If existing production specialist assignments need explicit role rows, that requires a separately reviewed and approved data-migration step.
+- The signed-in app preview could not be restarted during this work because the configured web/API ports were already occupied. Runtime behavior after the migration and the signed-in staff-assignment screens are not verified by this record.
