@@ -17,4 +17,5 @@ export interface ParticipantInvitation {
   businessName: string;
   status: ParticipantInvitationStatus;
   createdAt: Date;
+  expiresAt: Date;
 }

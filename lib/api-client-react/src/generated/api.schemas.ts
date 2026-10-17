@@ -1461,6 +1461,7 @@ export type ParticipantInvitationStatus = typeof ParticipantInvitationStatus[key
 export const ParticipantInvitationStatus = {
   pending: 'pending',
   active: 'active',
+  expired: 'expired',
 } as const;
 
 export interface ParticipantInvitation {
@@ -1473,6 +1474,7 @@ export interface ParticipantInvitation {
   businessName: string;
   status: ParticipantInvitationStatus;
   createdAt: string;
+  expiresAt: string;
 }
 
 export type ParticipantInvitationList = ParticipantInvitation[];

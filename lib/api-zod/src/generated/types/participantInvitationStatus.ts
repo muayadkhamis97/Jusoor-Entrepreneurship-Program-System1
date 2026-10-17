@@ -12,4 +12,5 @@ export type ParticipantInvitationStatus = typeof ParticipantInvitationStatus[key
 export const ParticipantInvitationStatus = {
   pending: 'pending',
   active: 'active',
+  expired: 'expired',
 } as const;

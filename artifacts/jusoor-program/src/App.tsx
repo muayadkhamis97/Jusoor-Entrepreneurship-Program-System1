@@ -962,7 +962,10 @@ function TeamPage() {
   const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<StaffMember | null>(null);
   const [invitingParticipant, setInvitingParticipant] = useState(false);
-  const [participantInviteSuccess, setParticipantInviteSuccess] = useState<string | null>(null);
+  const [participantInviteSuccess, setParticipantInviteSuccess] = useState<{
+    email: string;
+    expiresAt: Date;
+  } | null>(null);
   const [staffInviteSuccess, setStaffInviteSuccess] = useState(false);
   const [inviteInstructionsStatus, setInviteInstructionsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const programAssignmentField: Field = {
@@ -1020,16 +1023,22 @@ function TeamPage() {
         ...(displayName ? { displayName } : {}),
       },
     }, {
-      onSuccess: () => {
+      onSuccess: invitation => {
         invalidate(client, [getListParticipantInvitationsQueryKey()]);
-        setParticipantInviteSuccess(email);
+        setParticipantInviteSuccess({
+          email,
+          expiresAt: new Date(invitation.expiresAt),
+        });
         setInvitingParticipant(false);
       },
     });
   };
   const copyParticipantSignInInstructions = async () => {
     if (!participantInviteSuccess) return;
-    const instructions = participantSignInInstructions(participantInviteSuccess);
+    const instructions = participantSignInInstructions(
+      participantInviteSuccess.email,
+      participantInviteSuccess.expiresAt,
+    );
     try {
       await navigator.clipboard.writeText(instructions);
       setInviteInstructionsStatus('copied');
@@ -1059,7 +1068,7 @@ function TeamPage() {
     <section className="panel staff-panel participant-invitation-panel">
       <div className="panel-heading"><div><div className="eyebrow">{t('PARTICIPANT ACCESS')}</div><h2 className="app-title">{t('Participant invitations')}</h2></div><span className="section-meta">{t('Program and existing business access')}</span></div>
       {participantInviteSuccess && <div className="participant-invite-success" role="status" data-testid="participant-invite-success">
-        <div><b>{t('Participant access is ready.')}</b><p>{t('No email was sent. Ask this participant to create an account or sign in using')} <strong>{participantInviteSuccess}</strong> {t('to reach the assigned program and business.')}</p></div>
+        <div><b>{t('Invitation email sent.')}</b><p>{t('Ask this participant to create an account or sign in using')} <strong>{participantInviteSuccess.email}</strong> {t('before the invitation expires on')} <strong>{dateLabel(participantInviteSuccess.expiresAt.toISOString())}</strong>.</p></div>
         <div className="participant-invite-links"><Link href="/sign-up">{t('Create account')}</Link><Link href="/sign-in">{t('Sign in')}</Link></div>
         <button type="button" className="button button-quiet" onClick={() => void copyParticipantSignInInstructions()} data-testid="button-copy-participant-instructions">{t('Copy sign-in instructions')}</button>
         {inviteInstructionsStatus === 'copied' && <small>{t('Instructions copied.')}</small>}
@@ -1072,13 +1081,13 @@ function TeamPage() {
               {participantInvitations.map(invitation => <tr key={invitation.id} data-testid={`row-participant-invitation-${invitation.id}`}>
                 <td><b>{invitation.email}</b></td><td>{invitation.participantName}</td>
                 <td>{invitation.programName}<div className="table-secondary">{invitation.businessName}</div></td>
-                <td><Badge value={invitation.status} label={invitation.status === 'active' ? 'Joined' : 'Waiting for sign-in'} /></td>
+                <td><Badge value={invitation.status} label={invitation.status === 'active' ? 'Joined' : invitation.status === 'expired' ? 'Expired' : 'Waiting for sign-in'} /></td>
                 <td>{dateLabel(invitation.createdAt)}</td>
               </tr>)}
             </tbody></table></div>}
     </section>
     {editing !== undefined && <FormDialog title={editing ? 'Change team role' : 'Invite a team member'} description={editing ? 'Choose the permissions and program scope this team member should have.' : 'Save access and send a branded invitation to this verified email. The person should sign in using the same address.'} fields={[...(editing ? staffRoleFields : staffInviteFields), programAssignmentField]} initial={editing ? { role: editing.role, programIds: editing.programIds.filter(id => programNames.has(id)).join(',') } : { role: 'staff', programIds: '' }} loading={create.isPending || update.isPending} onClose={() => setEditing(undefined)} onSubmit={save} submitLabel={editing ? undefined : 'Send invitation'} error={formError ? formError.data?.error || 'The change could not be saved.' : undefined} />}
-    {invitingParticipant && <FormDialog title="Invite a participant" description="Grant access to the selected program and existing business. The participant must sign in with this email; this action does not send email." fields={[participantInviteFields[0], participantInviteFields[1], participantBusinessField]} loading={createParticipantInvitation.isPending} onClose={() => setInvitingParticipant(false)} onSubmit={saveParticipantInvitation} error={participantInviteError ? participantInviteError.data?.error || 'The participant invitation could not be saved.' : undefined} />}
+    {invitingParticipant && <FormDialog title="Invite a participant" description="Grant access to the selected program and existing business. An invitation email will be sent and remains valid for 30 days." fields={[participantInviteFields[0], participantInviteFields[1], participantBusinessField]} loading={createParticipantInvitation.isPending} onClose={() => setInvitingParticipant(false)} onSubmit={saveParticipantInvitation} error={participantInviteError ? participantInviteError.data?.error || 'The participant invitation could not be saved.' : undefined} />}
     {deleting && <ConfirmDialog item={`staff access for ${deleting.email}`} onCancel={() => setDeleting(null)} onConfirm={revoke} loading={remove.isPending} error={deleteError ? deleteError.data?.error || 'The access could not be revoked.' : undefined} />}
   </>;
 }

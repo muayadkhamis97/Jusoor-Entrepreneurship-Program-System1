@@ -1,7 +1,8 @@
 import { clerkClient, getAuth } from "@clerk/express";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Request, RequestHandler } from "express";
 import { applicationsTable, db } from "@workspace/db";
+import { getExpiredAdminInvitedApplicationIds } from "../lib/participantInvitations";
 
 export type ParticipantAccess = {
   userId: string;
@@ -37,12 +38,27 @@ export function createRequireParticipant(
       return;
     }
 
-    await db.update(applicationsTable)
-      .set({ clerkUserId: userId })
+    const unlinkedApplications = await db.select({ id: applicationsTable.id })
+      .from(applicationsTable)
       .where(and(
         eq(applicationsTable.email, email),
         isNull(applicationsTable.clerkUserId),
       ));
+    const expiredInvitationIds = await getExpiredAdminInvitedApplicationIds(
+      unlinkedApplications.map(({ id }) => id),
+    );
+    const linkableApplicationIds = unlinkedApplications
+      .map(({ id }) => id)
+      .filter((id) => !expiredInvitationIds.has(id));
+    if (linkableApplicationIds.length) {
+      await db.update(applicationsTable)
+        .set({ clerkUserId: userId })
+        .where(and(
+          inArray(applicationsTable.id, linkableApplicationIds),
+          eq(applicationsTable.email, email),
+          isNull(applicationsTable.clerkUserId),
+        ));
+    }
 
     const applications = await db.select({ id: applicationsTable.id })
       .from(applicationsTable)

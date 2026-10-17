@@ -4711,8 +4711,9 @@ export const ListParticipantInvitationsResponseItem = zod.object({
   "programName": zod.string(),
   "businessId": zod.number().int(),
   "businessName": zod.string(),
-  "status": zod.enum(['pending', 'active']),
-  "createdAt": zod.coerce.date()
+  "status": zod.enum(['pending', 'active', 'expired']),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date()
 })
 export const ListParticipantInvitationsResponse = zod.array(ListParticipantInvitationsResponseItem)
 
@@ -4742,8 +4743,9 @@ export const CreateParticipantInvitationResponse = zod.object({
   "programName": zod.string(),
   "businessId": zod.number().int(),
   "businessName": zod.string(),
-  "status": zod.enum(['pending', 'active']),
-  "createdAt": zod.coerce.date()
+  "status": zod.enum(['pending', 'active', 'expired']),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date()
 })
 
 

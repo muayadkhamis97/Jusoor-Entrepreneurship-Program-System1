@@ -6,7 +6,13 @@ import type { RequestHandler } from "express";
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
 
-const { db, applicationsTable, sessionsTable, sessionInteractiveActivitiesTable } = await import("@workspace/db");
+const {
+  db,
+  applicationsTable,
+  participantInvitationsTable,
+  sessionsTable,
+  sessionInteractiveActivitiesTable,
+} = await import("@workspace/db");
 const { createApp } = await import("../src/app");
 const { createRequireParticipant } = await import("../src/middlewares/participantAccess");
 
@@ -14,17 +20,25 @@ type Row = Record<string, unknown>;
 let server: Server;
 let currentEnrollment: Row | null = null;
 let sessionProgramId = 8;
+let hasExpiredInvitation = false;
+let applicationSelectCount = 0;
+let linkedDuringRequest = false;
 let restoreSelect: (() => void) | undefined;
 let restoreUpdate: (() => void) | undefined;
 
 function rowsFor(selection: unknown, table: unknown): Row[] {
   if (table === applicationsTable) {
     if (selection && typeof selection === "object" && Object.keys(selection).length === 1 && "id" in selection) {
-      return [{ id: 5 }];
+      applicationSelectCount += 1;
+      if (applicationSelectCount === 1) return [{ id: 5 }];
+      return linkedDuringRequest ? [{ id: 5 }] : [];
     }
     return currentEnrollment?.status === "accepted" && currentEnrollment.programId === sessionProgramId
       ? [currentEnrollment]
       : [];
+  }
+  if (table === participantInvitationsTable) {
+    return hasExpiredInvitation ? [{ applicationId: 5 }] : [];
   }
   if (table === sessionsTable) {
     return [{ id: 71, programId: sessionProgramId, status: "scheduled", title: "Session" }];
@@ -78,7 +92,10 @@ before(async () => {
   restoreUpdate = replaceDbMethod("update", (() => {
     const query = {
       set() { return query; },
-      where() { return query; },
+      where() {
+        linkedDuringRequest = true;
+        return query;
+      },
       then(resolve: (value: Row[]) => unknown, reject?: (reason: unknown) => unknown) {
         return Promise.resolve([]).then(resolve, reject);
       },
@@ -101,6 +118,9 @@ beforeEach(() => {
     status: "accepted",
   };
   sessionProgramId = 8;
+  hasExpiredInvitation = false;
+  applicationSelectCount = 0;
+  linkedDuringRequest = false;
 });
 
 after(async () => {
@@ -144,4 +164,13 @@ test("the production app composition rejects an accepted participant from anothe
   const response = await requestActivities("cross-program-user");
   const body = await response.text();
   assert.equal(response.status, 403, body);
+});
+
+test("expired admin invitations are not linked during verified-email participant sign-in", async () => {
+  hasExpiredInvitation = true;
+  const response = await requestActivities("expired-invite-user");
+  const body = await response.text();
+
+  assert.equal(response.status, 403, body);
+  assert.equal(linkedDuringRequest, false, "an expired invitation must not be attached to the account");
 });

@@ -14,6 +14,11 @@ import {
   programsTable,
 } from "@workspace/db";
 import { requireCoordinator } from "../middlewares/staffAccess";
+import {
+  getParticipantInvitationStatus,
+  isParticipantInvitationExpired,
+} from "../lib/participantInvitations";
+import { sendParticipantInvitationEmail } from "../lib/participant-invitation-email";
 
 const router: IRouter = Router();
 
@@ -28,7 +33,10 @@ function missingSchema(error: unknown): boolean {
 
 async function invitationSchemaReady(): Promise<boolean> {
   try {
-    await db.select({ applicationId: participantInvitationsTable.applicationId })
+    await db.select({
+      applicationId: participantInvitationsTable.applicationId,
+      expiresAt: participantInvitationsTable.expiresAt,
+    })
       .from(participantInvitationsTable).limit(1);
     return true;
   } catch (error) {
@@ -53,6 +61,7 @@ router.get("/staff/participant-invitations", requireCoordinator, async (_req, re
     businessName: businessesTable.businessName,
     clerkUserId: applicationsTable.clerkUserId,
     createdAt: participantInvitationsTable.createdAt,
+    expiresAt: participantInvitationsTable.expiresAt,
   }).from(participantInvitationsTable)
     .innerJoin(applicationsTable, eq(applicationsTable.id, participantInvitationsTable.applicationId))
     .innerJoin(programsTable, eq(programsTable.id, applicationsTable.programId))
@@ -61,7 +70,7 @@ router.get("/staff/participant-invitations", requireCoordinator, async (_req, re
 
   res.json(ListParticipantInvitationsResponse.parse(records.map(({ clerkUserId, ...record }) => ({
     ...record,
-    status: clerkUserId ? "active" : "pending",
+    status: getParticipantInvitationStatus(clerkUserId, record.expiresAt),
   }))));
 });
 
@@ -101,8 +110,10 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
 
   const participantName = body.data.displayName?.trim() || email.split("@")[0] || email;
   const current = res.locals.staff as { id: number } | undefined;
+  const invitationCreatedAt = new Date();
+  const expiresAt = new Date(invitationCreatedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
   const created = await db.transaction(async (tx) => {
-    const [invitation] = await tx.insert(applicationsTable).values({
+    const [application] = await tx.insert(applicationsTable).values({
       programId: business.programId,
       founderName: participantName,
       email,
@@ -115,7 +126,7 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
       status: "accepted",
       businessId: business.id,
       reviewedByStaffId: current?.id ?? null,
-      reviewedAt: new Date(),
+      reviewedAt: invitationCreatedAt,
     }).onConflictDoNothing().returning({
       id: applicationsTable.id,
       email: applicationsTable.email,
@@ -125,18 +136,87 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
       createdAt: applicationsTable.createdAt,
     });
 
-    if (!invitation || invitation.businessId === null) return null;
+    if (application) {
+      await tx.insert(participantBusinessMembershipsTable).values({
+        applicationId: application.id,
+        businessId: business.id,
+        assignedByStaffId: current?.id ?? null,
+      }).onConflictDoNothing();
+      const [invitationRecord] = await tx.insert(participantInvitationsTable).values({
+        applicationId: application.id,
+        invitedByStaffId: current?.id ?? null,
+        createdAt: invitationCreatedAt,
+        expiresAt,
+      }).returning({
+        createdAt: participantInvitationsTable.createdAt,
+        expiresAt: participantInvitationsTable.expiresAt,
+      });
+      return invitationRecord
+        ? { kind: "created" as const, application, createdAt: invitationRecord.createdAt, expiresAt: invitationRecord.expiresAt }
+        : null;
+    }
 
-    await tx.insert(participantBusinessMembershipsTable).values({
-      applicationId: invitation.id,
-      businessId: invitation.businessId,
-      assignedByStaffId: current?.id ?? null,
-    }).onConflictDoNothing();
-    const [invitationRecord] = await tx.insert(participantInvitationsTable).values({
-      applicationId: invitation.id,
-      invitedByStaffId: current?.id ?? null,
-    }).returning({ createdAt: participantInvitationsTable.createdAt });
-    return invitationRecord ? { ...invitation, createdAt: invitationRecord.createdAt } : null;
+    const [existingApplication] = await tx.select({
+      id: applicationsTable.id,
+      email: applicationsTable.email,
+      participantName: applicationsTable.founderName,
+      programId: applicationsTable.programId,
+      businessId: applicationsTable.businessId,
+      clerkUserId: applicationsTable.clerkUserId,
+    }).from(applicationsTable)
+      .where(and(
+        eq(applicationsTable.programId, business.programId),
+        eq(applicationsTable.email, email),
+      ))
+      .limit(1)
+      .for("update");
+    if (!existingApplication || existingApplication.businessId !== business.id || existingApplication.clerkUserId) {
+      return null;
+    }
+
+    const [existingInvitation] = await tx.select({
+      createdAt: participantInvitationsTable.createdAt,
+      expiresAt: participantInvitationsTable.expiresAt,
+    }).from(participantInvitationsTable)
+      .where(eq(participantInvitationsTable.applicationId, existingApplication.id))
+      .limit(1)
+      .for("update");
+    if (!existingInvitation) return null;
+
+    const [existingMembership] = await tx.select({
+      businessId: participantBusinessMembershipsTable.businessId,
+    }).from(participantBusinessMembershipsTable)
+      .where(eq(participantBusinessMembershipsTable.applicationId, existingApplication.id))
+      .limit(1);
+    if (existingMembership && existingMembership.businessId !== business.id) return null;
+    if (!existingMembership) {
+      await tx.insert(participantBusinessMembershipsTable).values({
+        applicationId: existingApplication.id,
+        businessId: business.id,
+        assignedByStaffId: current?.id ?? null,
+      }).onConflictDoNothing();
+    }
+
+    const renewed = isParticipantInvitationExpired(existingInvitation.expiresAt, invitationCreatedAt)
+      ? (await tx.update(participantInvitationsTable)
+        .set({
+          invitedByStaffId: current?.id ?? null,
+          createdAt: invitationCreatedAt,
+          expiresAt,
+        })
+        .where(eq(participantInvitationsTable.applicationId, existingApplication.id))
+        .returning({
+          createdAt: participantInvitationsTable.createdAt,
+          expiresAt: participantInvitationsTable.expiresAt,
+        }))[0]
+      : existingInvitation;
+    if (!renewed) return null;
+    return {
+      kind: "existing" as const,
+      application: existingApplication,
+      createdAt: renewed.createdAt,
+      expiresAt: renewed.expiresAt,
+    };
   });
   if (!created) {
     res.status(409).json({ error: "This email already has an application or invitation for this program." });
@@ -145,13 +225,35 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
 
   const [program] = await db.select({ name: programsTable.name })
     .from(programsTable)
-    .where(eq(programsTable.id, created.programId))
+    .where(eq(programsTable.id, created.application.programId))
     .limit(1);
-  res.status(201).json(CreateParticipantInvitationResponse.parse({
-    ...created,
+  try {
+    await sendParticipantInvitationEmail({
+      applicationId: created.application.id,
+      email: created.application.email,
+      participantName: created.application.participantName,
+      programName: program?.name ?? "",
+      businessName: business.businessName,
+      expiresAt: created.expiresAt,
+    });
+  } catch {
+    console.error("Participant access was saved but invitation email delivery failed", created.application.id);
+    res.status(503).json({
+      error: "Participant access was saved, but the invitation email could not be sent. Check the connected Gmail account before inviting again.",
+    });
+    return;
+  }
+  res.status(created.kind === "created" ? 201 : 200).json(CreateParticipantInvitationResponse.parse({
+    id: created.application.id,
+    email: created.application.email,
+    participantName: created.application.participantName,
+    programId: created.application.programId,
+    businessId: business.id,
+    createdAt: created.createdAt,
     programName: program?.name ?? "",
     businessName: business.businessName,
     status: "pending",
+    expiresAt: created.expiresAt,
   }));
 });
 

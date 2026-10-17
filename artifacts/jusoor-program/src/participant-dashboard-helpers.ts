@@ -16,6 +16,12 @@ export function getParticipantNextAction(hasAcceptedEnrollment: boolean): {
       };
 }
 
-export function participantSignInInstructions(email: string): string {
-  return `Create an account or sign in to the Program Hub using ${email}. No email was sent; the program team assigned access to a program and business.`;
+export function participantSignInInstructions(email: string, expiresAt: Date): string {
+  const expiry = expiresAt.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+  return `An invitation email was sent to ${email}. Create an account or sign in to the Program Hub using this verified email by ${expiry} to access the assigned program and business.`;
 }

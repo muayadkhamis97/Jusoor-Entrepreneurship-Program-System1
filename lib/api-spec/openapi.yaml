@@ -3050,6 +3050,12 @@ paths:
             schema:
               $ref: "#/components/schemas/ParticipantInvitationInput"
       responses:
+        "200":
+          description: Existing pending invitation reused or expired invitation renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantInvitation"
         "201":
           description: Participant access invitation created
           content:
@@ -4629,7 +4635,7 @@ components:
       required: [applicationId, enrollmentSource, applicationStatus, submittedAt, program, business, sessions, support, calendlyMeetings, googleCalendarMeetings, assignments, questions]
     ParticipantInvitationStatus:
       type: string
-      enum: [pending, active]
+      enum: [pending, active, expired]
     ParticipantInvitation:
       type: object
       properties:
@@ -4642,7 +4648,8 @@ components:
         businessName: { type: string }
         status: { $ref: "#/components/schemas/ParticipantInvitationStatus" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, participantName, programId, programName, businessId, businessName, status, createdAt]
+        expiresAt: { type: string, format: date-time }
+      required: [id, email, participantName, programId, programName, businessId, businessName, status, createdAt, expiresAt]
     ParticipantInvitationList:
       type: array
       items:

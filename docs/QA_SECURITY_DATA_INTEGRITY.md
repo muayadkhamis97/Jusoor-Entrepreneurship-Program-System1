@@ -107,3 +107,22 @@ This is separate from the isolated program-assignment verification above.
 - The schema source and migration are ready for the user to review in Publish. The production-side diff has not been opened or verified; review the proposed changes there before confirming Publish.
 - The SQL file contains a data backfill in addition to table/index DDL. The development backfill affected zero rows. A Publish schema diff applies structural schema changes; production data backfill behavior was not tested here, and no production data was changed. If existing production specialist assignments need explicit role rows, that requires a separately reviewed and approved data-migration step.
 - The signed-in app preview could not be restarted during this work because the configured web/API ports were already occupied. Runtime behavior after the migration and the signed-in staff-assignment screens are not verified by this record.
+
+## Participant invitations — disposable verified; development applied
+
+### Migration verification
+
+- Reviewed `20261014_program_roles_and_business_teams.sql` as the prerequisite that creates `jusoor_participant_business_memberships`, then reviewed `20261015_participant_invitations.sql` for its application/staff foreign keys, 30-day expiry default and legacy-row backfill, expiry index, and replacement of the old unique business index.
+- Applied both exact SQL files in order to a newly created PostgreSQL 16 cluster under a task-owned `/tmp` directory using a private Unix socket and `listen_addresses=''`. Synthetic checks confirmed the membership and invitation tables, expiry default and `NOT NULL` constraint, historical expiry backfill, repeatable migration behavior, expiry and business indexes, and multiple application rows referencing one business. The cluster stopped cleanly and its temporary directory was removed.
+- The development database already contained the membership table and its two declared indexes. Read-only preflight confirmed the invitation table was absent and the legacy unique business index existed.
+- Applied the exact `20261015_participant_invitations.sql` file to the development database through the Replit development-database operation. It committed; post-apply inspection confirmed the membership table remained present and invitation `application_id`, `created_at`, and non-null `expires_at` columns exist. The migration updated zero invitation rows because the table was newly created.
+- The migration removed the development-only unique index on `jusoor_applications.business_id` and created its non-unique lookup index. No application rows were changed.
+- A production read-only schema query returned neither required table. No production schema changes were made. Before using participant invitations in production, an authorized release must apply `20261014_program_roles_and_business_teams.sql` followed by `20261015_participant_invitations.sql` through the approved database change process.
+
+### Application verification
+
+- `pnpm run typecheck` passed.
+- Focused participant invitation and authentication tests passed (14 tests); these cover verified-email linking, expiration, duplicate reuse, expiration renewal, missing schema, program/business scoping, and Gmail message content. Gmail was mocked; no real email was sent.
+- `pnpm --filter @workspace/jusoor-program run test:unit` passed (57 tests).
+- The full `pnpm run test` command ran but did not pass: three unrelated existing assertions fail in `test/integrationApiKeys.test.ts` (expects the retired `jusoor_live_` prefix) and `test/zoomWorkflow.test.ts` (expects older wording about reusing a meeting). All participant invitation tests passed.
+- The preview's signed-in participant invitation screen and live Gmail delivery were not verified in a signed-in browser session.

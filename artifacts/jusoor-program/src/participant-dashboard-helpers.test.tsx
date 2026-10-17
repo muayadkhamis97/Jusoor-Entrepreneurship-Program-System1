@@ -15,9 +15,13 @@ test('participant dashboard next action leads accepted founders to learning and 
   });
 });
 
-test('participant invitation instructions truthfully explain account access without claiming an email was sent', () => {
-  const instructions = participantSignInInstructions('founder@example.org');
+test('participant invitation instructions confirm email delivery and include the expiration date', () => {
+  const instructions = participantSignInInstructions(
+    'founder@example.org',
+    new Date('2026-11-16T12:00:00.000Z'),
+  );
   assert.match(instructions, /founder@example\.org/);
   assert.match(instructions, /Create an account or sign in/);
-  assert.match(instructions, /No email was sent/);
+  assert.match(instructions, /invitation email was sent/i);
+  assert.match(instructions, /November 16, 2026/);
 });

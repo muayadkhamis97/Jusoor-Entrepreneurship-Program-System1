@@ -23,6 +23,10 @@ The database package still exposes direct schema-push scripts. They are not the 
 
 Do not use `drizzle-kit push` or `drizzle-kit push --force` as a substitute for a reviewed migration. If a migration fails or needs reversal, stop and use a separately reviewed recovery or corrective migration; do not improvise against a shared database.
 
+## Participant invitation release
+
+The participant business-membership table is created by `20261014_program_roles_and_business_teams.sql`, and the invitation/expiry table is created by `20261015_participant_invitations.sql`. Apply them in that order through the same approved release process; the participant invitation API remains unavailable until both tables exist. The invitation migration replaces the old unique business index with a lookup index so multiple applications can be assigned to one existing business, and sets unaccepted invitations to expire after 30 days.
+
 ## Current tooling limitation
 
 The repository has versioned SQL migration files but does not currently include a migration runner or applied-migration ledger. Until an approved runner is added, the authorized operator and the organization's database-change process are responsible for selecting the target, applying the reviewed SQL, and recording the result.
