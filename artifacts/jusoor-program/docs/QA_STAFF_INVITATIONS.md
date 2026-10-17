@@ -12,11 +12,14 @@
 
 - On 2026-10-17, deployment logs showed `POST /api/staff` returning HTTP 500 while checking whether the specialist-role table existed.
 - A read-only production schema query confirmed the staff-program assignment table and program archival column exist, while the specialist-role table does not.
-- Automated tests cover nested PostgreSQL error causes, invitation content and escaping, branded-email normalization, Gmail connector sending and retry deduplication.
-- API and web typechecks and the targeted automated tests passed in this workspace.
+- API typecheck passed; API build completed.
+- Web typecheck passed; all 57 web unit tests passed; web production build completed. The build reported an existing sourcemap-location warning and a large-chunk warning.
+- Invitation-focused API tests passed, including nested PostgreSQL error handling, invitation content and escaping, branding normalization, and Gmail connector send/retry behavior.
+- The full API suite completed with 177 passing and 3 failing tests. The failures are in pre-existing API-key-prefix and meeting-error-copy assertions, not in staff invitations.
 
 ## Limits
 
 - No production or development schema was changed. The specialist-role table is already defined in the code schema and the reviewed migration; production still needs the normal Replit Publish schema flow before trainer, mentor, and judge program-role invitations can work.
 - No email was sent during testing. Gmail delivery was verified with a mocked connector, not against the live mailbox.
-- No authenticated production browser test was performed. These code changes are not live until the workspace is published.
+- The staff invitation route was not exercised end-to-end against an isolated database; its schema fallback and email construction/sending paths have focused automated coverage.
+- No authenticated browser or production invitation test was performed. These code changes are not live until the workspace is published.
