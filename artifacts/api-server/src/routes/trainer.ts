@@ -24,6 +24,7 @@ import {
 } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { getZoomAttendanceReport } from "../lib/zoom-attendance";
+import { isParticipantAttendanceSchemaReady } from "../lib/participant-attendance-schema";
 import { canTrainerAccessSessionQuestion } from "../lib/trainer-access";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { filterAssignedTrainerPrograms } from "../lib/trainer-programs";
@@ -122,6 +123,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
 });
 
 router.get("/attendance", async (_req, res): Promise<void> => {
+  if (!(await isParticipantAttendanceSchemaReady())) {
+    res.status(503).json({ error: "Participant attendance requires the attendance schema update." });
+    return;
+  }
   const staff = res.locals.staff as StaffAccess;
   const programIds = await getAssignedProgramIds(staff);
   if (!programIds.length) {

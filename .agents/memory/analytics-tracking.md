@@ -9,6 +9,12 @@ Coordinators need a session attendance register and customizable impact KPIs for
 
 **How to apply:** Keep analytics coordinator-only and preserve the difference between missing records and measured zero values.
 
+Record session attendance per accepted participant and session, with the participant’s assigned business as context. Preserve legacy business-level marks; never infer that every participant on that business attended from one old mark.
+
+**Why:** The user chose individual participant attendance, and copying a business-level mark to each person would invent attendance history.
+
+**How to apply:** Roster and authorization checks must be program-scoped at participant level; keep unrecorded distinct from absent, and do not backfill legacy marks onto individuals.
+
 For poll and survey participation rates, use the distinct businesses on accepted applications in the program as the eligible cohort. A draft activity has no response rate because participants could not respond yet.
 
 **Why:** Only accepted businesses are eligible to participate, and counting drafts as zero engagement would misstate session participation.

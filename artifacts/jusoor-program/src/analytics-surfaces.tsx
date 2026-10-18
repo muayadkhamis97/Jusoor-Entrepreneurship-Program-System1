@@ -159,7 +159,7 @@ export function ProgramAnalyticsPage() {
     },
   });
   const attendanceDirty = Boolean(registerQuery.data?.roster.some((person) => {
-    const draft = attendance[person.businessId];
+    const draft = attendance[person.participantId];
     return draft && (draft.status !== person.status || draft.notes !== (person.notes ?? ""));
   }) || Object.values(participantMatches).some(Boolean));
   const attendancePending = saveAttendance.isPending || resolveAttendanceParticipant.isPending || queueAttendanceSync.isPending;
@@ -208,7 +208,7 @@ export function ProgramAnalyticsPage() {
   useEffect(() => {
     if (registerQuery.data) {
       const next: AttendanceState = {};
-      registerQuery.data.roster.forEach((person) => { next[person.businessId] = { status: person.status, notes: person.notes ?? "" }; });
+      registerQuery.data.roster.forEach((person) => { next[person.participantId] = { status: person.status, notes: person.notes ?? "" }; });
       setAttendance(next);
     }
   }, [registerQuery.data]);
@@ -298,14 +298,14 @@ export function ProgramAnalyticsPage() {
       },
     });
   }
-  function patchAttendance(businessId: number, patch: Partial<AttendanceState[number]>) {
-    setAttendance((current) => ({ ...current, [businessId]: { status: current[businessId]?.status ?? null, notes: current[businessId]?.notes ?? "", ...patch } }));
+  function patchAttendance(participantId: number, patch: Partial<AttendanceState[number]>) {
+    setAttendance((current) => ({ ...current, [participantId]: { status: current[participantId]?.status ?? null, notes: current[participantId]?.notes ?? "", ...patch } }));
   }
   function saveRegister() {
     if (activeSession === null || !registerQuery.data) return;
     saveAttendance.mutate({ sessionId: activeSession, data: { records: registerQuery.data.roster.map((person) => ({
-      businessId: person.businessId, status: attendance[person.businessId]?.status ?? null,
-      notes: attendance[person.businessId]?.notes.trim() || null,
+      participantId: person.participantId, status: attendance[person.participantId]?.status ?? null,
+      notes: attendance[person.participantId]?.notes.trim() || null,
     })) } }, {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: getGetSessionAttendanceRegisterQueryKey(activeSession) });
@@ -322,11 +322,11 @@ export function ProgramAnalyticsPage() {
   }
   function resolveAttendee(participantId: number, ignore: boolean) {
     if (activeSession === null) return;
-    const selectedBusinessId = participantMatches[participantId];
-    if (!ignore && !selectedBusinessId) return;
+    const selectedParticipantId = participantMatches[participantId];
+    if (!ignore && !selectedParticipantId) return;
     resolveAttendanceParticipant.mutate({
       participantId,
-      data: { businessId: ignore ? null : Number(selectedBusinessId), ignore },
+      data: { participantId: ignore ? null : Number(selectedParticipantId), ignore },
     }, {
       onSuccess: () => {
         setParticipantMatches((current) => {
@@ -659,11 +659,11 @@ export function ProgramAnalyticsPage() {
              {queueAttendanceSync.isError && <p className="ana-sync-error" role="alert">Zoom attendance could not be queued. Check the session’s Zoom connection and try again.</p>}
            </div>
            {registerQuery.data?.unmatchedParticipants.length ? <section className="ana-unmatched-panel" aria-label="Unmatched Zoom attendees">
-             <div className="ana-unmatched-heading"><div><span className="ana-eyebrow">ADMIN REVIEW</span><b>{registerQuery.data.unmatchedParticipants.length} unmatched Zoom attendee{registerQuery.data.unmatchedParticipants.length === 1 ? "" : "s"}</b></div><small>Match each attendee to a business or ignore staff and guests.</small></div>
+              <div className="ana-unmatched-heading"><div><span className="ana-eyebrow">{t("Staff review")}</span><b>{fmt(registerQuery.data.unmatchedParticipants.length)} {t(registerQuery.data.unmatchedParticipants.length === 1 ? "Unmatched Zoom attendee" : "Unmatched Zoom attendees")}</b></div><small>{t("Match each attendee to a participant or ignore staff and guests.")}</small></div>
              <div className="ana-unmatched-list">{registerQuery.data.unmatchedParticipants.map((person) => <div className="ana-unmatched-row" key={person.id}>
                <div><b>{person.displayName}</b><span>{person.email || "Email unavailable"} · {Math.round(person.durationSeconds / 60)} min</span></div>
-               <select aria-label={`Match ${person.displayName} to a business`} value={participantMatches[person.id] ?? ""} onChange={(event) => setParticipantMatches((current) => ({ ...current, [person.id]: event.target.value }))}>
-                 <option value="">Choose business</option>{registerQuery.data?.roster.map((business) => <option key={business.businessId} value={business.businessId}>{business.businessName}</option>)}
+                <select aria-label={`${t("Match attendee to a participant")} — ${person.displayName}`} value={participantMatches[person.id] ?? ""} onChange={(event) => setParticipantMatches((current) => ({ ...current, [person.id]: event.target.value }))}>
+                  <option value="">{t("Choose participant")}</option>{registerQuery.data?.roster.map((rosterPerson) => <option key={rosterPerson.participantId} value={rosterPerson.participantId}>{rosterPerson.participantName} — {rosterPerson.businessName}</option>)}
                </select>
                <button className="ana-button primary" onClick={() => resolveAttendee(person.id, false)} disabled={!participantMatches[person.id] || resolveAttendanceParticipant.isPending}>Match</button>
                <button className="ana-button subtle" onClick={() => resolveAttendee(person.id, true)} disabled={resolveAttendanceParticipant.isPending}>Ignore</button>
@@ -671,19 +671,19 @@ export function ProgramAnalyticsPage() {
              {resolveAttendanceParticipant.isError && <p className="ana-sync-error" role="alert">This attendee could not be updated. Refresh and try again.</p>}
            </section> : null}
            <div className="ana-register-tools">
-             <div className="ana-register-tool-copy"><strong>{fmt(registerQuery.data?.roster.length ?? 0)} {t("Businesses on roster")}</strong><span>{t("Set all businesses to")}</span></div>
-             <div className="ana-register-bulk" role="group" aria-label={t("Set attendance for all businesses")}>
-               {ATTENDANCE_OPTIONS.map(({ status, label }) => <EditorialButton key={status ?? "unmarked"} variant="pill" className={`ana-bulk-option ${status ?? "unmarked"}`} aria-label={`${t("Set all businesses to")} ${t(label).toLowerCase()}`} onClick={() => setAttendance((current) => Object.fromEntries((registerQuery.data?.roster ?? []).map((person) => [person.businessId, { ...current[person.businessId], status, notes: current[person.businessId]?.notes ?? "" }])))}>{t(label)}</EditorialButton>)}
+              <div className="ana-register-tool-copy"><strong>{fmt(registerQuery.data?.roster.length ?? 0)} {t("Participants on roster")}</strong><span>{t("Set all participants to")}</span></div>
+              <div className="ana-register-bulk" role="group" aria-label={t("Set attendance for all participants")}>
+                {ATTENDANCE_OPTIONS.map(({ status, label }) => <EditorialButton key={status ?? "unmarked"} variant="pill" className={`ana-bulk-option ${status ?? "unmarked"}`} aria-label={`${t("Set all participants to")} ${t(label).toLowerCase()}`} onClick={() => setAttendance((current) => Object.fromEntries((registerQuery.data?.roster ?? []).map((person) => [person.participantId, { ...current[person.participantId], status, notes: current[person.participantId]?.notes ?? "" }])))}>{t(label)}</EditorialButton>)}
              </div>
            </div>
            <div className="ana-register-list">
-             {registerQuery.data?.roster.length ? registerQuery.data.roster.map((person) => <div className="ana-register-person" key={person.businessId}>
-               <div className="ana-register-name"><i aria-hidden="true">{person.businessName.slice(0, 1).toUpperCase()}</i><div className="ana-register-copy"><b>{person.businessName}</b>{person.source === "zoom" && person.attendedSeconds !== null && <small>Zoom · {Math.round(person.attendedSeconds / 60)} min</small>}</div></div>
-               <div className="ana-status-set" role="group" aria-label={`${t("Attendance status for")} ${person.businessName}`}>
-                 {ATTENDANCE_OPTIONS.map(({ status, label }) => <EditorialButton key={status ?? "unmarked"} variant="pill" className={`ana-status-option ${status ?? "unmarked"}${attendance[person.businessId]?.status === status ? " selected" : ""}`} aria-label={`${person.businessName}: ${t(label)}`} aria-pressed={attendance[person.businessId]?.status === status} onClick={() => patchAttendance(person.businessId, { status })}>{t(label)}</EditorialButton>)}
+              {registerQuery.data?.roster.length ? registerQuery.data.roster.map((person) => <div className="ana-register-person" key={person.participantId}>
+                <div className="ana-register-name"><i aria-hidden="true">{person.participantName.slice(0, 1).toUpperCase()}</i><div className="ana-register-copy"><b>{person.participantName}</b><small>{person.businessName} · {person.participantEmail}</small>{person.source === "zoom" && person.attendedSeconds !== null && <small>Zoom · {Math.round(person.attendedSeconds / 60)} {t("min")}</small>}</div></div>
+                <div className="ana-status-set" role="group" aria-label={`${t("Attendance status for")} ${person.participantName}`}>
+                  {ATTENDANCE_OPTIONS.map(({ status, label }) => <EditorialButton key={status ?? "unmarked"} variant="pill" className={`ana-status-option ${status ?? "unmarked"}${attendance[person.participantId]?.status === status ? " selected" : ""}`} aria-label={`${person.participantName}: ${t(label)}`} aria-pressed={attendance[person.participantId]?.status === status} onClick={() => patchAttendance(person.participantId, { status })}>{t(label)}</EditorialButton>)}
                </div>
-               <label className="ana-register-note"><span>{t("Optional note")}</span><input aria-label={`${t("Optional note")} — ${person.businessName}`} placeholder={t("Add a note")} value={attendance[person.businessId]?.notes ?? ""} onChange={(event) => patchAttendance(person.businessId, { notes: event.target.value })} /></label>
-             </div>) : <div className="ana-register-empty" role="status">{t("No businesses are on this session’s roster.")}</div>}
+                <label className="ana-register-note"><span>{t("Optional note")}</span><input aria-label={`${t("Optional note")} — ${person.participantName}`} placeholder={t("Add a note")} value={attendance[person.participantId]?.notes ?? ""} onChange={(event) => patchAttendance(person.participantId, { notes: event.target.value })} /></label>
+              </div>) : <div className="ana-register-empty" role="status">{t("No participants are on this session’s roster.")}</div>}
            </div>
            {saveAttendance.isError && <p className="ana-form-error ana-register-error" role="alert">Attendance could not be saved. Your changes are still here; try again.</p>}
          </div>

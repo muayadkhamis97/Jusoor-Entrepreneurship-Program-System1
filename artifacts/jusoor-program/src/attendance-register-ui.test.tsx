@@ -6,12 +6,14 @@ const component = readFileSync(new URL("./analytics-surfaces.tsx", import.meta.u
 const styles = readFileSync(new URL("./analytics.css", import.meta.url), "utf8");
 const translations = readFileSync(new URL("./language.tsx", import.meta.url), "utf8");
 
-test("attendance register uses labeled design-system controls with visible selection state", () => {
+test("attendance register marks each participant and keeps the business association visible", () => {
   assert.match(component, /Button as EditorialButton/);
-  assert.match(component, /role="group" aria-label=\{\`\$\{t\("Attendance status for"\)\} \$\{person\.businessName\}\`\}/);
-  assert.match(component, /aria-pressed=\{attendance\[person\.businessId\]\?\.status === status\}/);
+  assert.match(component, /role="group" aria-label=\{\`\$\{t\("Attendance status for"\)\} \$\{person\.participantName\}\`\}/);
+  assert.match(component, /aria-pressed=\{attendance\[person\.participantId\]\?\.status === status\}/);
+  assert.match(component, /participantName\}\<\/b\><small>\{person\.businessName\} · \{person\.participantEmail\}/);
+  assert.match(component, /participantId: person\.participantId, status:/);
   assert.match(component, /ana-register-note/);
-  assert.match(component, /No businesses are on this session’s roster\./);
+  assert.match(component, /No participants are on this session’s roster\./);
   assert.match(styles, /\.ana-status-set \.ana-status-option \{[^}]*min-height:44px/);
 });
 
@@ -25,8 +27,14 @@ test("attendance register expands on desktop and reflows into touch-sized mobile
 test("new attendance controls have Arabic labels", () => {
   for (const key of [
     "'Unmarked': 'غير محدد'",
+    "'Participants on roster': 'المشاركون في قائمة الجلسة'",
+    "'Set all participants to': 'تحديد الحالة لجميع المشاركين'",
+    "'Staff review': 'مراجعة الفريق'",
+    "'Match attendee to a participant': 'مطابقة الحاضر مع مشارك'",
+    "'Choose participant': 'اختر مشاركاً'",
+    "'No participants are on this session’s roster.': 'لا يوجد مشاركون في قائمة هذه الجلسة.'",
     "'Optional note': 'ملاحظة اختيارية'",
-    "'Set all businesses to': 'تحديد الحالة لجميع المشاريع'",
+    "'Set all participants to': 'تحديد الحالة لجميع المشاركين'",
     "'Save register': 'حفظ سجل الحضور'",
   ]) {
     assert.ok(translations.includes(key), `Missing translation: ${key}`);

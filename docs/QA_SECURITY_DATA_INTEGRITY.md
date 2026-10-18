@@ -170,3 +170,26 @@ This is separate from the isolated program-assignment verification above.
 - The user reviewed and published the changes. On 2026-10-18, deployment metadata showed an active deployment with a successful build. Runtime logs recorded an authenticated `GET /api/auth/me` returning HTTP 200 at 10:32:16 UTC; two subsequent revalidations returned HTTP 304.
 - The route parses the staff response with `GetAuthMeResponse`, which requires `invitationEmailStatus` to be `pending`, `delivered`, `failed`, or `null`. The successful HTTP 200 therefore confirms the live response passed this contract. The response body itself is not logged.
 - The user confirmed the sign-in flow reached the correct staff workspace. The agent did not publish or modify production.
+
+## Participant-level session attendance — 2026-10-18
+
+### Implemented
+
+- Session registers now list accepted participants individually, show each person’s business, and save one present/absent/excused mark and optional note per participant and session.
+- Manual and Zoom records use an additive participant-attendance table. Existing business-level attendance rows are left untouched; they are not copied to participants. Aggregate analytics prefer participant rows for a session once those exist, while retaining the old business-level rows as historical fallback for sessions without participant records.
+- Zoom attendees match automatically only when their email uniquely identifies a participant on that session’s program roster. Missing or ambiguous matches remain for staff review; staff can select a participant or explicitly ignore an attendee.
+- The attendance routes remain coordinator-only; trainer reports remain read-only and session-assignment scoped. Both route families report schema unavailability instead of attempting to use missing attendance columns/tables.
+
+### Automated verification
+
+- OpenAPI client generation and library typechecking completed successfully with `pnpm --filter @workspace/api-spec run codegen`.
+- API-server tests passed: 211 tests, 0 failed. This includes participant matching, malformed business-level input rejection, program-roster source checks, additive-migration checks, and role guards.
+- API-server typecheck passed with `pnpm --filter @workspace/api-server run typecheck`.
+- Web unit tests passed: 69 tests, 0 failed. Web typecheck passed with `pnpm --filter @workspace/jusoor-program run typecheck`.
+- `git diff --check` passed.
+
+### Blocked or not verified
+
+- The additive migration `lib/db/migrations/20261018_session_participant_attendance.sql` was **not executed or applied by this task**. No database was queried, so whether any target already has equivalent objects was not verified. The code detects whether the new attendance table and Zoom-match column are present and returns HTTP 503 for register/sync operations until both exist.
+- No database-backed attendance write, restoration, cross-program request, or migration constraint behavior was exercised. Migration safety checks in the automated suite inspect the SQL source only; they are not a substitute for isolated PostgreSQL execution.
+- No signed-in browser test or Arabic-rendered visual inspection was performed. Automated UI tests cover participant-level labeling, participant-keyed status state, responsive class rules, and Arabic strings, but not the rendered authenticated page.

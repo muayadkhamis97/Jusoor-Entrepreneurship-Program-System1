@@ -25,6 +25,7 @@ export * from "./program-lifecycle-events";
 export * from "./businesses";
 export * from "./sessions";
 export * from "./session-attendance";
+export * from "./session-participant-attendance";
 export * from "./support";
 export * from "./impact-kpis";
 export * from "./impact-kpi-values";

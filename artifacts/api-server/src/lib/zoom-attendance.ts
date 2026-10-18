@@ -1,13 +1,16 @@
-import { and, eq, isNull, lte, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, lte, or } from "drizzle-orm";
 import {
+  applicationsTable,
   businessesTable,
   db,
-  sessionAttendanceTable,
+  participantBusinessMembershipsTable,
+  sessionParticipantAttendanceTable,
   sessionsTable,
   zoomAttendanceParticipantsTable,
   zoomAttendanceSyncsTable,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { isParticipantAttendanceSchemaReady } from "./participant-attendance-schema";
 import {
   getPastMeetingParticipants,
   hasZoomOAuthConfiguration,
@@ -44,6 +47,70 @@ export function findUniqueBusinessIdForEmail(
   if (!normalized) return null;
   const matches = businesses.filter((business) => normalizeEmail(business.email) === normalized);
   return matches.length === 1 ? matches[0].id : null;
+}
+
+export function findUniqueApplicationIdForEmail(
+  email: string | null | undefined,
+  participants: Array<{ id: number; email: string }>,
+): number | null {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return null;
+  const matches = participants.filter((participant) => normalizeEmail(participant.email) === normalized);
+  return matches.length === 1 ? matches[0].id : null;
+}
+
+type SessionParticipant = {
+  participantId: number;
+  participantName: string;
+  participantEmail: string;
+  businessId: number;
+  businessName: string;
+};
+
+async function getSessionParticipantRoster(programId: number): Promise<SessionParticipant[]> {
+  const applications = await db.select({
+    participantId: applicationsTable.id,
+    participantName: applicationsTable.founderName,
+    participantEmail: applicationsTable.email,
+    applicationBusinessId: applicationsTable.businessId,
+  }).from(applicationsTable)
+    .where(and(
+      eq(applicationsTable.programId, programId),
+      eq(applicationsTable.status, "accepted"),
+    ));
+  if (applications.length === 0) return [];
+
+  const memberships = await db.select({
+    participantId: participantBusinessMembershipsTable.applicationId,
+    businessId: participantBusinessMembershipsTable.businessId,
+  }).from(participantBusinessMembershipsTable)
+    .where(inArray(participantBusinessMembershipsTable.applicationId, applications.map(({ participantId }) => participantId)));
+  const membershipBusinessByParticipant = new Map(memberships.map(({ participantId, businessId }) => [participantId, businessId]));
+  const assignedBusinessIds = [...new Set(applications.map((participant) =>
+    membershipBusinessByParticipant.get(participant.participantId) ?? participant.applicationBusinessId,
+  ).filter((id): id is number => id !== null))];
+  if (assignedBusinessIds.length === 0) return [];
+
+  const businesses = await db.select({
+    businessId: businessesTable.id,
+    businessName: businessesTable.businessName,
+  }).from(businessesTable)
+    .where(and(
+      eq(businessesTable.programId, programId),
+      inArray(businessesTable.id, assignedBusinessIds),
+    ));
+  const businessById = new Map(businesses.map((business) => [business.businessId, business]));
+  const roster: SessionParticipant[] = [];
+  for (const participant of applications) {
+    const businessId = membershipBusinessByParticipant.get(participant.participantId) ?? participant.applicationBusinessId;
+    if (businessId === null) continue;
+    const business = businessById.get(businessId);
+    if (!business) continue;
+    roster.push({ ...participant, businessId, businessName: business.businessName });
+  }
+  return roster.sort((left, right) =>
+    left.participantName.localeCompare(right.participantName) || left.businessName.localeCompare(right.businessName),
+  );
 }
 
 function parseTimestamp(value: string | undefined): Date | null {
@@ -122,40 +189,41 @@ export async function queueZoomAttendanceSyncForMeeting(
 }
 
 async function rebuildSessionAttendance(sessionId: number): Promise<void> {
-  const businesses = await db.select({
-    id: businessesTable.id,
-  }).from(businessesTable)
-    .innerJoin(sessionsTable, eq(businessesTable.programId, sessionsTable.programId))
-    .where(eq(sessionsTable.id, sessionId));
+  if (!(await isParticipantAttendanceSchemaReady())) return;
+  const [session] = await db.select({ programId: sessionsTable.programId })
+    .from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
+  if (!session?.programId) return;
+  const roster = await getSessionParticipantRoster(session.programId);
   const participants = await db.select().from(zoomAttendanceParticipantsTable)
     .where(eq(zoomAttendanceParticipantsTable.sessionId, sessionId));
   const manualRecords = await db.select({
-    businessId: sessionAttendanceTable.businessId,
-  }).from(sessionAttendanceTable)
+    participantId: sessionParticipantAttendanceTable.participantId,
+  }).from(sessionParticipantAttendanceTable)
     .where(and(
-      eq(sessionAttendanceTable.sessionId, sessionId),
-      eq(sessionAttendanceTable.source, "manual"),
+      eq(sessionParticipantAttendanceTable.sessionId, sessionId),
+      eq(sessionParticipantAttendanceTable.source, "manual"),
     ));
-  const manuallyRecorded = new Set(manualRecords.map((record) => record.businessId));
+  const manuallyRecorded = new Set(manualRecords.map((record) => record.participantId));
   const unresolved = participants.length === 0 || participants.some((participant) =>
-    participant.matchedBusinessId === null && participant.ignoredAt === null
+    participant.matchedApplicationId === null && participant.ignoredAt === null
   );
-  const byBusiness = new Map<number, typeof participants>();
+  const byParticipant = new Map<number, typeof participants>();
   for (const participant of participants) {
-    if (participant.matchedBusinessId === null) continue;
-    const rows = byBusiness.get(participant.matchedBusinessId) ?? [];
+    if (participant.matchedApplicationId === null) continue;
+    const rows = byParticipant.get(participant.matchedApplicationId) ?? [];
     rows.push(participant);
-    byBusiness.set(participant.matchedBusinessId, rows);
+    byParticipant.set(participant.matchedApplicationId, rows);
   }
 
-  await db.delete(sessionAttendanceTable).where(and(
-    eq(sessionAttendanceTable.sessionId, sessionId),
-    eq(sessionAttendanceTable.source, "zoom"),
+  await db.delete(sessionParticipantAttendanceTable).where(and(
+    eq(sessionParticipantAttendanceTable.sessionId, sessionId),
+    eq(sessionParticipantAttendanceTable.source, "zoom"),
   ));
 
   const now = new Date();
   const values: Array<{
     sessionId: number;
+    participantId: number;
     businessId: number;
     status: string;
     notes: string | null;
@@ -165,15 +233,16 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
     lastLeftAt: Date | null;
     markedAt: Date;
   }> = [];
-  for (const { id: businessId } of businesses) {
-    if (manuallyRecorded.has(businessId)) continue;
-    const matched = byBusiness.get(businessId) ?? [];
+  for (const person of roster) {
+    if (manuallyRecorded.has(person.participantId)) continue;
+    const matched = byParticipant.get(person.participantId) ?? [];
     if (matched.length > 0) {
       const joinTimes = matched.flatMap((item) => item.joinTime ? [item.joinTime] : []);
       const leaveTimes = matched.flatMap((item) => item.leaveTime ? [item.leaveTime] : []);
       values.push({
         sessionId,
-        businessId,
+        participantId: person.participantId,
+        businessId: person.businessId,
         status: "present",
         notes: null,
         source: "zoom",
@@ -185,7 +254,8 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
     } else if (!unresolved) {
       values.push({
         sessionId,
-        businessId,
+        participantId: person.participantId,
+        businessId: person.businessId,
         status: "absent",
         notes: null,
         source: "zoom",
@@ -198,12 +268,12 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
   }
 
   if (values.length > 0) {
-    await db.insert(sessionAttendanceTable).values(values).onConflictDoNothing();
+    await db.insert(sessionParticipantAttendanceTable).values(values).onConflictDoNothing();
   }
 
-  const matchedCount = participants.filter((participant) => participant.matchedBusinessId !== null).length;
+  const matchedCount = participants.filter((participant) => participant.matchedApplicationId !== null).length;
   const unmatchedCount = participants.filter((participant) =>
-    participant.matchedBusinessId === null && participant.ignoredAt === null
+    participant.matchedApplicationId === null && participant.ignoredAt === null
   ).length;
   await db.update(zoomAttendanceSyncsTable).set({
     matchedCount,
@@ -213,20 +283,21 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
 }
 
 export async function resolveZoomAttendanceParticipant(
-  participantId: number,
-  resolution: { businessId: number | null; ignore: boolean },
+  zoomParticipantId: number,
+  resolution: { participantId: number | null; businessId: number | null; ignore: boolean },
   staffId: number,
 ): Promise<number | null> {
   const [participant] = await db.select().from(zoomAttendanceParticipantsTable)
-    .where(eq(zoomAttendanceParticipantsTable.id, participantId)).limit(1);
+    .where(eq(zoomAttendanceParticipantsTable.id, zoomParticipantId)).limit(1);
   if (!participant) return null;
 
   await db.update(zoomAttendanceParticipantsTable).set({
+    matchedApplicationId: resolution.ignore ? null : resolution.participantId,
     matchedBusinessId: resolution.ignore ? null : resolution.businessId,
     ignoredByStaffId: resolution.ignore ? staffId : null,
     ignoredAt: resolution.ignore ? new Date() : null,
     updatedAt: new Date(),
-  }).where(eq(zoomAttendanceParticipantsTable.id, participantId));
+  }).where(eq(zoomAttendanceParticipantsTable.id, zoomParticipantId));
   await rebuildSessionAttendance(participant.sessionId);
   return participant.sessionId;
 }
@@ -241,24 +312,20 @@ export async function getZoomAttendanceReport(sessionId: number) {
   }).from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
   if (!session) return null;
 
-  const businesses = session.programId === null ? [] : await db.select({
-    id: businessesTable.id,
-    businessName: businessesTable.businessName,
-  }).from(businessesTable)
-    .where(eq(businessesTable.programId, session.programId))
-    .orderBy(businessesTable.businessName);
+  const roster = session.programId === null ? [] : await getSessionParticipantRoster(session.programId);
   const attendanceRecords = await db.select({
-    businessId: sessionAttendanceTable.businessId,
-    status: sessionAttendanceTable.status,
-    notes: sessionAttendanceTable.notes,
-    markedAt: sessionAttendanceTable.markedAt,
-    source: sessionAttendanceTable.source,
-    attendedSeconds: sessionAttendanceTable.attendedSeconds,
-    firstJoinedAt: sessionAttendanceTable.firstJoinedAt,
-    lastLeftAt: sessionAttendanceTable.lastLeftAt,
-  }).from(sessionAttendanceTable)
-    .where(eq(sessionAttendanceTable.sessionId, sessionId));
-  const attendanceByBusiness = new Map(attendanceRecords.map((record) => [record.businessId, record]));
+    participantId: sessionParticipantAttendanceTable.participantId,
+    businessId: sessionParticipantAttendanceTable.businessId,
+    status: sessionParticipantAttendanceTable.status,
+    notes: sessionParticipantAttendanceTable.notes,
+    markedAt: sessionParticipantAttendanceTable.markedAt,
+    source: sessionParticipantAttendanceTable.source,
+    attendedSeconds: sessionParticipantAttendanceTable.attendedSeconds,
+    firstJoinedAt: sessionParticipantAttendanceTable.firstJoinedAt,
+    lastLeftAt: sessionParticipantAttendanceTable.lastLeftAt,
+  }).from(sessionParticipantAttendanceTable)
+    .where(eq(sessionParticipantAttendanceTable.sessionId, sessionId));
+  const attendanceByParticipant = new Map(attendanceRecords.map((record) => [record.participantId, record]));
   const [sync] = await db.select().from(zoomAttendanceSyncsTable)
     .where(eq(zoomAttendanceSyncsTable.sessionId, sessionId)).limit(1);
   const unmatchedParticipants = await db.select({
@@ -268,25 +335,24 @@ export async function getZoomAttendanceReport(sessionId: number) {
     joinTime: zoomAttendanceParticipantsTable.joinTime,
     leaveTime: zoomAttendanceParticipantsTable.leaveTime,
     durationSeconds: zoomAttendanceParticipantsTable.durationSeconds,
-    matchedBusinessId: zoomAttendanceParticipantsTable.matchedBusinessId,
-    matchedBusinessName: businessesTable.businessName,
+    matchedParticipantId: zoomAttendanceParticipantsTable.matchedApplicationId,
+    matchedParticipantName: applicationsTable.founderName,
     ignoredAt: zoomAttendanceParticipantsTable.ignoredAt,
   }).from(zoomAttendanceParticipantsTable)
-    .leftJoin(businessesTable, eq(zoomAttendanceParticipantsTable.matchedBusinessId, businessesTable.id))
+    .leftJoin(applicationsTable, eq(zoomAttendanceParticipantsTable.matchedApplicationId, applicationsTable.id))
     .where(and(
       eq(zoomAttendanceParticipantsTable.sessionId, sessionId),
-      isNull(zoomAttendanceParticipantsTable.matchedBusinessId),
+      isNull(zoomAttendanceParticipantsTable.matchedApplicationId),
       isNull(zoomAttendanceParticipantsTable.ignoredAt),
     ))
     .orderBy(zoomAttendanceParticipantsTable.displayName);
 
   return {
     session,
-    roster: businesses.map((business) => {
-      const record = attendanceByBusiness.get(business.id);
+    roster: roster.map((person) => {
+      const record = attendanceByParticipant.get(person.participantId);
       return {
-        businessId: business.id,
-        businessName: business.businessName,
+        ...person,
         status: record?.status ?? null,
         notes: record?.notes ?? null,
         markedAt: record?.markedAt ?? null,
@@ -319,17 +385,16 @@ async function syncSession(sessionId: number): Promise<void> {
   if (!session?.zoomMeetingId) {
     throw new ZoomIntegrationError("This session no longer has a Zoom meeting.", 409);
   }
+  if (!(await isParticipantAttendanceSchemaReady())) {
+    throw new ZoomIntegrationError("Apply the participant attendance schema update before syncing attendance.", 409);
+  }
 
   const zoomRows = await getPastMeetingParticipants(session.zoomMeetingId);
   if (zoomRows.length > 0 && zoomRows.every((row) => Number(row.duration ?? 0) === 0)) {
     throw new ZoomIntegrationError("Zoom is still preparing attendance details. The system will retry.", 404);
   }
 
-  const businesses = session.programId === null ? [] : await db.select({
-    id: businessesTable.id,
-    email: businessesTable.email,
-  }).from(businessesTable)
-    .where(eq(businessesTable.programId, session.programId));
+  const roster = session.programId === null ? [] : await getSessionParticipantRoster(session.programId);
   const prior = await db.select().from(zoomAttendanceParticipantsTable)
     .where(eq(zoomAttendanceParticipantsTable.sessionId, sessionId));
   const priorByKey = new Map(prior.map((participant) => [participant.participantKey, participant]));
@@ -346,7 +411,19 @@ async function syncSession(sessionId: number): Promise<void> {
       ? String(rawKey)
       : `row-${index}-${normalizeEmail(email) ?? displayName}-${joinTime?.toISOString() ?? "unknown"}`;
     const old = priorByKey.get(participantKey);
-    const automaticMatch = findUniqueBusinessIdForEmail(email, businesses);
+    const automaticMatch = findUniqueApplicationIdForEmail(email, roster.map(({ participantId, participantEmail }) => ({
+      id: participantId,
+      email: participantEmail,
+    })));
+    const oldMatchedId = old?.matchedApplicationId ?? null;
+    const priorMatchIsActive = oldMatchedId !== null &&
+      roster.some(({ participantId }) => participantId === oldMatchedId);
+    const matchedParticipantId = old?.ignoredAt
+      ? null
+      : (priorMatchIsActive ? oldMatchedId : automaticMatch);
+    const matchedParticipant = matchedParticipantId === null
+      ? undefined
+      : roster.find(({ participantId }) => participantId === matchedParticipantId);
 
     return {
       sessionId,
@@ -356,7 +433,8 @@ async function syncSession(sessionId: number): Promise<void> {
       joinTime,
       leaveTime,
       durationSeconds,
-      matchedBusinessId: old?.ignoredAt ? null : old?.matchedBusinessId ?? automaticMatch,
+      matchedApplicationId: matchedParticipantId,
+      matchedBusinessId: old?.ignoredAt ? null : matchedParticipant?.businessId ?? old?.matchedBusinessId ?? null,
       ignoredByStaffId: old?.ignoredByStaffId ?? null,
       ignoredAt: old?.ignoredAt ?? null,
       createdAt: old?.createdAt ?? new Date(),

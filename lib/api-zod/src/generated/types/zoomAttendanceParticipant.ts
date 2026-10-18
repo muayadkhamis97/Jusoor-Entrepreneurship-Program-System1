@@ -18,9 +18,9 @@ export interface ZoomAttendanceParticipant {
   /** @minimum 0 */
   durationSeconds: number;
   /** @nullable */
-  matchedBusinessId: number | null;
+  matchedParticipantId: number | null;
   /** @nullable */
-  matchedBusinessName: string | null;
+  matchedParticipantName: string | null;
   /** @nullable */
   ignoredAt: Date | null;
 }

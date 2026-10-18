@@ -1618,7 +1618,7 @@ export const getSaveSessionAttendanceUrl = (sessionId: number,) => {
 }
 
 /**
- * @summary Record or clear session attendance for businesses
+ * @summary Record or clear attendance for individual participants
  */
 export const saveSessionAttendance = async (sessionId: number,
     sessionAttendanceInput: SessionAttendanceInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionAttendanceRegister> => {
@@ -1685,7 +1685,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SaveSessionAttendanceMutationVariables = {sessionId: number;data: BodyType<SessionAttendanceInput>}
 
     /**
- * @summary Record or clear session attendance for businesses
+ * @summary Record or clear attendance for individual participants
  */
 export const useSaveSessionAttendance = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSessionAttendance>>, TError,SaveSessionAttendanceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1707,7 +1707,7 @@ export const getResolveZoomAttendanceParticipantUrl = (participantId: number,) =
 }
 
 /**
- * @summary Match an unmatched Zoom attendee to a business or ignore the attendee
+ * @summary Match an unmatched Zoom attendee to a participant or ignore the attendee
  */
 export const resolveZoomAttendanceParticipant = async (participantId: number,
     zoomAttendanceParticipantResolutionInput: ZoomAttendanceParticipantResolutionInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionAttendanceRegister> => {
@@ -1774,7 +1774,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ResolveZoomAttendanceParticipantMutationVariables = {participantId: number;data: BodyType<ZoomAttendanceParticipantResolutionInput>}
 
     /**
- * @summary Match an unmatched Zoom attendee to a business or ignore the attendee
+ * @summary Match an unmatched Zoom attendee to a participant or ignore the attendee
  */
 export const useResolveZoomAttendanceParticipant = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveZoomAttendanceParticipant>>, TError,ResolveZoomAttendanceParticipantMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

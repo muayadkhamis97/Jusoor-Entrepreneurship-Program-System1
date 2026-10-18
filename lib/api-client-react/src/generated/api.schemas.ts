@@ -1892,6 +1892,9 @@ export const AttendanceSource = {
 } as const;
 
 export interface AttendanceRosterEntry {
+  participantId: number;
+  participantName: string;
+  participantEmail: string;
   businessId: number;
   businessName: string;
   status: AttendanceStatus | null;
@@ -1951,9 +1954,9 @@ export interface ZoomAttendanceParticipant {
   /** @minimum 0 */
   durationSeconds: number;
   /** @nullable */
-  matchedBusinessId: number | null;
+  matchedParticipantId: number | null;
   /** @nullable */
-  matchedBusinessName: string | null;
+  matchedParticipantName: string | null;
   /** @nullable */
   ignoredAt: string | null;
 }
@@ -3298,7 +3301,7 @@ export interface ProgramSessionInteractionAnalytics {
 
 export interface ZoomAttendanceParticipantResolutionInput {
   /** @nullable */
-  businessId: number | null;
+  participantId: number | null;
   ignore: boolean;
 }
 
@@ -3321,7 +3324,7 @@ export interface SessionAttendanceRegister {
 }
 
 export interface SessionAttendanceRecordInput {
-  businessId: number;
+  participantId: number;
   status: AttendanceStatus | null;
   /**
      * @maxLength 1000

@@ -8,6 +8,6 @@
 
 export interface ZoomAttendanceParticipantResolutionInput {
   /** @nullable */
-  businessId: number | null;
+  participantId: number | null;
   ignore: boolean;
 }

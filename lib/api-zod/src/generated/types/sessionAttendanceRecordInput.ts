@@ -8,7 +8,7 @@
 import type { AttendanceStatus } from './attendanceStatus';
 
 export interface SessionAttendanceRecordInput {
-  businessId: number;
+  participantId: number;
   status: AttendanceStatus | null;
   /**
      * @maxLength 1000

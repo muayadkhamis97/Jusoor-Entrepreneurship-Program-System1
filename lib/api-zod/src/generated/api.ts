@@ -691,6 +691,9 @@ export const GetSessionAttendanceRegisterResponse = zod.object({
   "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
+  "participantId": zod.number().int(),
+  "participantName": zod.string(),
+  "participantEmail": zod.string(),
   "businessId": zod.number().int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
@@ -718,8 +721,8 @@ export const GetSessionAttendanceRegisterResponse = zod.object({
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
   "durationSeconds": zod.number().int().min(getSessionAttendanceRegisterResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedBusinessId": zod.number().int().nullable(),
-  "matchedBusinessName": zod.string().nullable(),
+  "matchedParticipantId": zod.number().int().nullable(),
+  "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
 })
@@ -755,7 +758,7 @@ export const QueueZoomAttendanceSyncResponse = zod.object({
 
 
 /**
- * @summary Record or clear session attendance for businesses
+ * @summary Record or clear attendance for individual participants
  */
 export const SaveSessionAttendanceParams = zod.object({
   "sessionId": zod.coerce.number().int()
@@ -767,7 +770,7 @@ export const saveSessionAttendanceBodyRecordsItemNotesMax = 1000;
 
 export const SaveSessionAttendanceBody = zod.object({
   "records": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "participantId": zod.number().int(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().max(saveSessionAttendanceBodyRecordsItemNotesMax).nullable()
 }))
@@ -797,6 +800,9 @@ export const SaveSessionAttendanceResponse = zod.object({
   "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
+  "participantId": zod.number().int(),
+  "participantName": zod.string(),
+  "participantEmail": zod.string(),
   "businessId": zod.number().int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
@@ -824,22 +830,22 @@ export const SaveSessionAttendanceResponse = zod.object({
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
   "durationSeconds": zod.number().int().min(saveSessionAttendanceResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedBusinessId": zod.number().int().nullable(),
-  "matchedBusinessName": zod.string().nullable(),
+  "matchedParticipantId": zod.number().int().nullable(),
+  "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
 })
 
 
 /**
- * @summary Match an unmatched Zoom attendee to a business or ignore the attendee
+ * @summary Match an unmatched Zoom attendee to a participant or ignore the attendee
  */
 export const ResolveZoomAttendanceParticipantParams = zod.object({
   "participantId": zod.coerce.number().int()
 })
 
 export const ResolveZoomAttendanceParticipantBody = zod.object({
-  "businessId": zod.number().int().nullable(),
+  "participantId": zod.number().int().nullable(),
   "ignore": zod.boolean()
 })
 
@@ -867,6 +873,9 @@ export const ResolveZoomAttendanceParticipantResponse = zod.object({
   "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
+  "participantId": zod.number().int(),
+  "participantName": zod.string(),
+  "participantEmail": zod.string(),
   "businessId": zod.number().int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
@@ -894,8 +903,8 @@ export const ResolveZoomAttendanceParticipantResponse = zod.object({
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
   "durationSeconds": zod.number().int().min(resolveZoomAttendanceParticipantResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedBusinessId": zod.number().int().nullable(),
-  "matchedBusinessName": zod.string().nullable(),
+  "matchedParticipantId": zod.number().int().nullable(),
+  "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
 })
@@ -2948,6 +2957,9 @@ export const GetTrainerAttendanceReportsResponseItem = zod.object({
   "sessionTitle": zod.string(),
   "scheduledDate": zod.string().regex(getTrainerAttendanceReportsResponseScheduledDateRegExp),
   "attendance": zod.array(zod.object({
+  "participantId": zod.number().int(),
+  "participantName": zod.string(),
+  "participantEmail": zod.string(),
   "businessId": zod.number().int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
@@ -2975,8 +2987,8 @@ export const GetTrainerAttendanceReportsResponseItem = zod.object({
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
   "durationSeconds": zod.number().int().min(getTrainerAttendanceReportsResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedBusinessId": zod.number().int().nullable(),
-  "matchedBusinessName": zod.string().nullable(),
+  "matchedParticipantId": zod.number().int().nullable(),
+  "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
 })

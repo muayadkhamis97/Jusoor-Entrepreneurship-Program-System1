@@ -9,6 +9,9 @@ import type { AttendanceSource } from './attendanceSource';
 import type { AttendanceStatus } from './attendanceStatus';
 
 export interface AttendanceRosterEntry {
+  participantId: number;
+  participantName: string;
+  participantEmail: string;
   businessId: number;
   businessName: string;
   status: AttendanceStatus | null;

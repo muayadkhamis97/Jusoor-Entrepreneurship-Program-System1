@@ -381,6 +381,8 @@ paths:
           description: Session not found
         "403":
           description: Coordinator access required
+        "503":
+          description: Participant attendance schema update is not applied
     post:
       operationId: queueZoomAttendanceSync
       tags: [dashboard]
@@ -401,10 +403,12 @@ paths:
           description: Session not found
         "403":
           description: Coordinator access required
+        "503":
+          description: Participant attendance schema update is not applied
     put:
       operationId: saveSessionAttendance
       tags: [dashboard]
-      summary: Record or clear session attendance for businesses
+      summary: Record or clear attendance for individual participants
       parameters:
         - name: sessionId
           in: path
@@ -429,11 +433,13 @@ paths:
           description: Session not found
         "403":
           description: Coordinator access required
+        "503":
+          description: Participant attendance schema update is not applied
   /analytics/attendance-participants/{participantId}:
     patch:
       operationId: resolveZoomAttendanceParticipant
       tags: [dashboard]
-      summary: Match an unmatched Zoom attendee to a business or ignore the attendee
+      summary: Match an unmatched Zoom attendee to a participant or ignore the attendee
       parameters:
         - name: participantId
           in: path
@@ -458,6 +464,8 @@ paths:
           description: Session or attendee not found
         "403":
           description: Coordinator access required
+        "503":
+          description: Participant attendance schema update is not applied
   /analytics/kpis:
     get:
       operationId: listProgramImpactKpis
@@ -1762,6 +1770,8 @@ paths:
                 $ref: "#/components/schemas/TrainerAttendanceReports"
         "403":
           description: Trainer access required
+        "503":
+          description: Participant attendance schema update is not applied
   /trainer/assignments:
     post:
       operationId: createTrainingAssignment
@@ -6005,6 +6015,9 @@ components:
     AttendanceRosterEntry:
       type: object
       properties:
+        participantId: { type: integer }
+        participantName: { type: string }
+        participantEmail: { type: string }
         businessId: { type: integer }
         businessName: { type: string }
         status: { oneOf: [{ $ref: "#/components/schemas/AttendanceStatus" }, { type: "null" }] }
@@ -6014,7 +6027,7 @@ components:
         attendedSeconds: { type: ["integer", "null"], minimum: 0 }
         firstJoinedAt: { type: ["string", "null"], format: date-time }
         lastLeftAt: { type: ["string", "null"], format: date-time }
-      required: [businessId, businessName, status, notes, markedAt, source, attendedSeconds, firstJoinedAt, lastLeftAt]
+      required: [participantId, participantName, participantEmail, businessId, businessName, status, notes, markedAt, source, attendedSeconds, firstJoinedAt, lastLeftAt]
     AttendanceSource:
       type: string
       enum: [manual, zoom]
@@ -6039,16 +6052,16 @@ components:
         joinTime: { type: ["string", "null"], format: date-time }
         leaveTime: { type: ["string", "null"], format: date-time }
         durationSeconds: { type: integer, minimum: 0 }
-        matchedBusinessId: { type: ["integer", "null"] }
-        matchedBusinessName: { type: ["string", "null"] }
+        matchedParticipantId: { type: ["integer", "null"] }
+        matchedParticipantName: { type: ["string", "null"] }
         ignoredAt: { type: ["string", "null"], format: date-time }
-      required: [id, displayName, email, joinTime, leaveTime, durationSeconds, matchedBusinessId, matchedBusinessName, ignoredAt]
+      required: [id, displayName, email, joinTime, leaveTime, durationSeconds, matchedParticipantId, matchedParticipantName, ignoredAt]
     ZoomAttendanceParticipantResolutionInput:
       type: object
       properties:
-        businessId: { type: ["integer", "null"] }
+        participantId: { type: ["integer", "null"] }
         ignore: { type: boolean }
-      required: [businessId, ignore]
+      required: [participantId, ignore]
     SessionAttendanceRegister:
       type: object
       properties:
@@ -6075,10 +6088,10 @@ components:
     SessionAttendanceRecordInput:
       type: object
       properties:
-        businessId: { type: integer }
+        participantId: { type: integer }
         status: { oneOf: [{ $ref: "#/components/schemas/AttendanceStatus" }, { type: "null" }] }
         notes: { type: ["string", "null"], maxLength: 1000 }
-      required: [businessId, status, notes]
+      required: [participantId, status, notes]
     SessionAttendanceInput:
       type: object
       properties:

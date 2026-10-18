@@ -9,6 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
+import { applicationsTable } from "./applications";
 import { businessesTable } from "./businesses";
 import { sessionsTable } from "./sessions";
 import { staffMembersTable } from "./staff";
@@ -47,6 +48,7 @@ export const zoomAttendanceParticipantsTable = pgTable(
     joinTime: timestamp("join_time", { withTimezone: true }),
     leaveTime: timestamp("leave_time", { withTimezone: true }),
     durationSeconds: integer("duration_seconds").notNull().default(0),
+    matchedApplicationId: integer("matched_application_id").references(() => applicationsTable.id, { onDelete: "set null" }),
     matchedBusinessId: integer("matched_business_id").references(() => businessesTable.id, { onDelete: "set null" }),
     ignoredByStaffId: integer("ignored_by_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
     ignoredAt: timestamp("ignored_at", { withTimezone: true }),
@@ -56,6 +58,7 @@ export const zoomAttendanceParticipantsTable = pgTable(
   (table) => [
     uniqueIndex("jusoor_zoom_attendance_participant_key_unique").on(table.sessionId, table.participantKey),
     index("jusoor_zoom_attendance_participant_session_idx").on(table.sessionId),
+    index("jusoor_zoom_attendance_participant_application_idx").on(table.matchedApplicationId),
   ],
 );
 

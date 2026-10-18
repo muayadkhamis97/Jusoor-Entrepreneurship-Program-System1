@@ -55,6 +55,7 @@ import {
   pitchesTable,
   programsTable,
   sessionAttendanceTable,
+  sessionParticipantAttendanceTable,
   sessionInteractiveActivitiesTable,
   sessionInteractiveResponsesTable,
   sessionsTable,
@@ -71,6 +72,7 @@ import {
   queueZoomAttendanceSync,
   resolveZoomAttendanceParticipant,
 } from "../lib/zoom-attendance";
+import { isParticipantAttendanceSchemaReady } from "../lib/participant-attendance-schema";
 
 const router: IRouter = Router();
 router.use(requireCoordinator);
@@ -342,7 +344,10 @@ router.get("/analytics", async (req, res): Promise<void> => {
 
   const sessionIds = sessions.map(({ id }) => id);
   const assignmentIds = assignments.map(({ id }) => id);
-  const [attendanceRows, submissionRows, supportRows] = await Promise.all([
+  const participantAttendanceSchemaReady = sessionIds.length > 0
+    ? await isParticipantAttendanceSchemaReady()
+    : false;
+  const [attendanceRows, participantAttendanceRows, submissionRows, supportRows] = await Promise.all([
     sessionIds.length
       ? db.select({
         sessionId: sessionAttendanceTable.sessionId,
@@ -353,6 +358,17 @@ router.get("/analytics", async (req, res): Promise<void> => {
       }).from(sessionAttendanceTable)
         .innerJoin(sessionsTable, eq(sessionAttendanceTable.sessionId, sessionsTable.id))
         .where(inArray(sessionAttendanceTable.sessionId, sessionIds))
+      : Promise.resolve([]),
+    participantAttendanceSchemaReady
+      ? db.select({
+        sessionId: sessionParticipantAttendanceTable.sessionId,
+        businessId: sessionParticipantAttendanceTable.businessId,
+        status: sessionParticipantAttendanceTable.status,
+        markedAt: sessionParticipantAttendanceTable.markedAt,
+        scheduledDate: sessionsTable.scheduledDate,
+      }).from(sessionParticipantAttendanceTable)
+        .innerJoin(sessionsTable, eq(sessionParticipantAttendanceTable.sessionId, sessionsTable.id))
+        .where(inArray(sessionParticipantAttendanceTable.sessionId, sessionIds))
       : Promise.resolve([]),
     assignmentIds.length
       ? db.select({
@@ -380,6 +396,11 @@ router.get("/analytics", async (req, res): Promise<void> => {
         ))
       : Promise.resolve([]),
   ]);
+  const sessionsWithParticipantRecords = new Set(participantAttendanceRows.map(({ sessionId }) => sessionId));
+  const effectiveAttendanceRows = [
+    ...attendanceRows.filter(({ sessionId }) => !sessionsWithParticipantRecords.has(sessionId)),
+    ...participantAttendanceRows,
+  ];
 
   const stageCountsMap = new Map<string, number>();
   for (const business of businessRows) {
@@ -408,7 +429,7 @@ router.get("/analytics", async (req, res): Promise<void> => {
     engagementMap.set(businessId, current);
     return current;
   };
-  for (const row of attendanceRows) {
+  for (const row of effectiveAttendanceRows) {
     if (row.status === "present" || row.status === "absent" || row.status === "excused") {
       attendanceCounts[row.status] += 1;
     }
@@ -678,6 +699,10 @@ router.get("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
     res.status(400).json({ error: params.error.message });
     return;
   }
+  if (!(await isParticipantAttendanceSchemaReady())) {
+    res.status(503).json({ error: "Participant attendance requires the attendance schema update." });
+    return;
+  }
   const register = await getAttendanceRegister(params.data.sessionId);
   if (!register) {
     res.status(404).json({ error: "Session not found." });
@@ -690,6 +715,10 @@ router.post("/analytics/attendance/:sessionId", async (req, res): Promise<void> 
   const params = QueueZoomAttendanceSyncParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!(await isParticipantAttendanceSchemaReady())) {
+    res.status(503).json({ error: "Participant attendance requires the attendance schema update." });
     return;
   }
   const [session] = await db.select({
@@ -720,9 +749,13 @@ router.patch("/analytics/attendance-participants/:participantId", async (req, re
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
   }
-  const { businessId, ignore } = body.data;
-  if ((ignore && businessId !== null) || (!ignore && businessId === null)) {
-    res.status(400).json({ error: "Choose a business to match or explicitly ignore this attendee." });
+  if (!(await isParticipantAttendanceSchemaReady())) {
+    res.status(503).json({ error: "Participant attendance requires the attendance schema update." });
+    return;
+  }
+  const { participantId, ignore } = body.data;
+  if ((ignore && participantId !== null) || (!ignore && participantId === null)) {
+    res.status(400).json({ error: "Choose a participant to match or explicitly ignore this attendee." });
     return;
   }
   const [participant] = await db.select({
@@ -743,19 +776,21 @@ router.patch("/analytics/attendance-participants/:participantId", async (req, re
     res.status(404).json({ error: "Session not found." });
     return;
   }
-  if (businessId !== null) {
-    const [business] = await db.select({ id: businessesTable.id }).from(businessesTable)
-      .where(and(
-        eq(businessesTable.id, businessId),
-        eq(businessesTable.programId, session.programId ?? -1),
-      )).limit(1);
-    if (!business) {
-      res.status(400).json({ error: "Choose a business from this session's cohort." });
+  let selectedParticipant: { participantId: number; businessId: number } | undefined;
+  if (participantId !== null) {
+    const register = await getAttendanceRegister(participant.sessionId);
+    selectedParticipant = register?.roster.find((person) => person.participantId === participantId);
+    if (!selectedParticipant || selectedParticipant.businessId === null) {
+      res.status(400).json({ error: "Choose a participant assigned to this session's program." });
       return;
     }
   }
   const staff = res.locals.staff as StaffAccess;
-  await resolveZoomAttendanceParticipant(params.data.participantId, { businessId, ignore }, staff.id);
+  await resolveZoomAttendanceParticipant(params.data.participantId, {
+    participantId,
+    businessId: selectedParticipant?.businessId ?? null,
+    ignore,
+  }, staff.id);
   const register = await getAttendanceRegister(participant.sessionId);
   res.json(ResolveZoomAttendanceParticipantResponse.parse(register));
 });
@@ -767,6 +802,10 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
     return;
   }
+  if (!(await isParticipantAttendanceSchemaReady())) {
+    res.status(503).json({ error: "Participant attendance requires the attendance schema update." });
+    return;
+  }
   const register = await getAttendanceRegister(params.data.sessionId);
   if (!register) {
     res.status(404).json({ error: "Session not found." });
@@ -776,27 +815,28 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
     res.status(400).json({ error: "Assign this session to a program before recording attendance." });
     return;
   }
-  const rosterIds = new Set(register.roster.map(({ businessId }) => businessId));
+  const rosterByParticipantId = new Map(register.roster.map((person) => [person.participantId, person]));
   const submittedIds = new Set<number>();
   for (const record of body.data.records) {
-    if (!rosterIds.has(record.businessId) || submittedIds.has(record.businessId)) {
-      res.status(400).json({ error: "Attendance records must contain each program business at most once." });
+    if (!rosterByParticipantId.has(record.participantId) || submittedIds.has(record.participantId)) {
+      res.status(400).json({ error: "Attendance records must contain each program participant at most once." });
       return;
     }
-    submittedIds.add(record.businessId);
+    submittedIds.add(record.participantId);
   }
   const staff = res.locals.staff as StaffAccess;
   await db.transaction(async (transaction) => {
     for (const record of body.data.records) {
       if (record.status === null) {
-        await transaction.delete(sessionAttendanceTable).where(and(
-          eq(sessionAttendanceTable.sessionId, params.data.sessionId),
-          eq(sessionAttendanceTable.businessId, record.businessId),
+        await transaction.delete(sessionParticipantAttendanceTable).where(and(
+          eq(sessionParticipantAttendanceTable.sessionId, params.data.sessionId),
+          eq(sessionParticipantAttendanceTable.participantId, record.participantId),
         ));
       } else {
-        await transaction.insert(sessionAttendanceTable).values({
+        await transaction.insert(sessionParticipantAttendanceTable).values({
           sessionId: params.data.sessionId,
-          businessId: record.businessId,
+          participantId: record.participantId,
+          businessId: rosterByParticipantId.get(record.participantId)!.businessId,
           status: record.status,
           notes: record.notes,
           recordedByStaffId: staff.id,
@@ -805,7 +845,7 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
           firstJoinedAt: null,
           lastLeftAt: null,
         }).onConflictDoUpdate({
-          target: [sessionAttendanceTable.sessionId, sessionAttendanceTable.businessId],
+          target: [sessionParticipantAttendanceTable.sessionId, sessionParticipantAttendanceTable.participantId],
           set: {
             status: record.status,
             notes: record.notes,
