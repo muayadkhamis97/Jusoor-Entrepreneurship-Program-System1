@@ -73,7 +73,10 @@ test("Gmail sender sends an individual UTF-8 MIME email per recipient", async ()
   assert.equal(sends.length, 2);
   const firstRaw = (sends[0]?.body as { raw: string }).raw;
   const decoded = Buffer.from(firstRaw, "base64url").toString("utf8");
-  assert.match(decoded, /From: sender@example\.test/);
+  const encodedBrand = Buffer.from(testBranding.brandName, "utf8").toString("base64");
+  assert.ok(decoded.includes(
+    `From: =?UTF-8?B?${encodedBrand}?= <sender@example.test>`,
+  ));
   assert.match(decoded, /To: one@example\.test/);
   assert.match(decoded, /Subject: =\?UTF-8\?B\?/);
   assert.match(decoded, /multipart\/alternative/);
@@ -82,6 +85,28 @@ test("Gmail sender sends an individual UTF-8 MIME email per recipient", async ()
     Buffer.from(firstRaw, "base64url").toString("base64url"),
     firstRaw,
   );
+});
+
+test("Gmail From display name follows the configured brand and safely encodes Unicode", async () => {
+  const { connectors, requests } = fakeConnectors();
+  const brandName = "North & Main أعمال";
+  await sendPlatformEmail(
+    email(),
+    connectors,
+    async () => ({ ...testBranding, brandName }),
+  );
+
+  const send = requests.find(request => request.path.endsWith("/messages/send"));
+  const raw = (send?.body as { raw: string }).raw;
+  const decoded = Buffer.from(raw, "base64url").toString("utf8");
+  const encodedBrand = Buffer.from(brandName, "utf8").toString("base64");
+  const fromHeaders = decoded
+    .split("\r\n")
+    .filter(header => header.startsWith("From:"));
+
+  assert.deepEqual(fromHeaders, [
+    `From: =?UTF-8?B?${encodedBrand}?= <sender@example.test>`,
+  ]);
 });
 
 test("Gmail sender skips a recipient already found in Sent on retry", async () => {

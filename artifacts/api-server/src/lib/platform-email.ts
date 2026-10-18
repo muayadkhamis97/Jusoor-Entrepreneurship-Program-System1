@@ -4,6 +4,7 @@ import {
   loadProgramEmailBranding,
   renderBrandedEmailHtml,
   renderBrandedEmailText,
+  visibleEmailBrandName,
   type ProgramEmailBranding,
 } from "./email-branding";
 
@@ -52,7 +53,7 @@ export async function sendPlatformEmail(
     if (await wasAlreadySent(connectors, messageId)) continue;
 
     const raw = encodeMessage({
-      from,
+      from: formatFromHeader(visibleEmailBrandName(branding.brandName), from),
       to: recipient,
       subject,
       text: brandedText,
@@ -95,6 +96,11 @@ function stableMessageId(idempotencyKey: string, recipient: string): string {
     .update(`${idempotencyKey}\0${recipient.toLowerCase()}`)
     .digest("hex");
   return `${digest}@platform.invalid`;
+}
+
+function formatFromHeader(displayName: string, emailAddress: string): string {
+  const encodedName = Buffer.from(displayName, "utf8").toString("base64");
+  return `=?UTF-8?B?${encodedName}?= <${emailAddress}>`;
 }
 
 function encodeMessage(input: {
