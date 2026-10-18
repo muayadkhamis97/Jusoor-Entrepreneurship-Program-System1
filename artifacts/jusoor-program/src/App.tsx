@@ -6,6 +6,8 @@ import './language.css';
 import './program-controls.css';
 import { PublicLanding } from './public-landing';
 import { getAccessibleBrandForeground } from './branding-contrast';
+import { sessionProgramField } from './session-form-requirements';
+import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { lazy, Suspense, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -138,10 +140,95 @@ function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function ProgramMultiSelect({ field, value, onChange, autoFocus = false }: { field: Field; value: string; onChange: (value: string) => void; autoFocus?: boolean }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const options = field.options ?? [];
+  const optionValues = options.map(option => option.value);
+  const selected = selectedOptionValues(value, optionValues);
+  const selectedSet = new Set(selected);
+  const allSelected = options.length > 0 && selected.length === options.length;
+  const partiallySelected = selected.length > 0 && !allSelected;
+  const summaryText = allSelected
+    ? t('All programs selected')
+    : selected.length === 1
+      ? `1 ${t('program selected')}`
+      : selected.length > 1
+        ? `${selected.length} ${t('programs selected')}`
+        : t('Choose programs…');
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = partiallySelected;
+  }, [partiallySelected]);
+
+  useEffect(() => {
+    const closeWhenOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !detailsRef.current?.contains(event.target) && detailsRef.current) {
+        detailsRef.current.open = false;
+      }
+    };
+    document.addEventListener('pointerdown', closeWhenOutside);
+    return () => document.removeEventListener('pointerdown', closeWhenOutside);
+  }, []);
+
+  const updateOption = (optionValue: string | null, checked: boolean) => {
+    onChange(updateMultiSelectValue(value, optionValues, optionValue, checked));
+  };
+
+  return <details
+    ref={detailsRef}
+    className="program-multiselect"
+    data-testid={`multiselect-${field.name}`}
+    onKeyDown={event => {
+      if (event.key === 'Escape' && detailsRef.current?.open) {
+        event.preventDefault();
+        event.stopPropagation();
+        detailsRef.current.open = false;
+        summaryRef.current?.focus();
+      }
+    }}
+  >
+    <summary
+      ref={summaryRef}
+      className="form-control program-multiselect-summary"
+      aria-label={`${t(field.label)}: ${summaryText}`}
+      data-testid={`input-${field.name}`}
+      data-dialog-autofocus={autoFocus ? '' : undefined}
+    >
+      <span>{summaryText}</span><ChevronDown size={14} aria-hidden="true" />
+    </summary>
+    <div className="program-multiselect-menu" role="group" aria-label={t(field.label)}>
+      {options.length ? <>
+        <label className="program-multiselect-option program-multiselect-all">
+          <input
+            ref={selectAllRef}
+            type="checkbox"
+            checked={allSelected}
+            aria-label={t('Select all programs')}
+            data-testid={`multiselect-select-all-${field.name}`}
+            onChange={event => updateOption(null, event.currentTarget.checked)}
+          />
+          <span>{t('Select all programs')}</span>
+        </label>
+        {options.map(option => <label className="program-multiselect-option" key={option.value}>
+          <input
+            type="checkbox"
+            checked={selectedSet.has(option.value)}
+            data-testid={`multiselect-option-${field.name}-${option.value}`}
+            onChange={event => updateOption(option.value, event.currentTarget.checked)}
+          />
+          <span>{option.label}</span>
+        </label>)}
+      </> : <p className="program-multiselect-empty">{t('No active programs are available.')}</p>}
+    </div>
+  </details>;
+}
+
 function FieldControl({ field, value, onChange, autoFocus = false }: { field: Field; value: string; onChange: (value: string) => void; autoFocus?: boolean }) {
   const common = { value, onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => onChange(event.target.value), required: field.required, placeholder: field.placeholder, 'data-testid': `input-${field.name}`, 'data-dialog-autofocus': autoFocus ? '' : undefined };
   if (field.kind === 'textarea') return <textarea {...common} rows={3} className="form-control resize-y" />;
-  if (field.kind === 'multiselect') return <select {...common} multiple value={value ? value.split(',').filter(Boolean) : []} onChange={event => onChange(Array.from(event.target.selectedOptions, option => option.value).join(','))} size={Math.min(5, Math.max(2, field.options?.length ?? 2))} className="form-control">{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
+  if (field.kind === 'multiselect') return <ProgramMultiSelect field={field} value={value} onChange={onChange} autoFocus={autoFocus} />;
   if (field.kind === 'select') return <select {...common} className="form-control"><option value="">{t('Choose…')}</option>{field.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
   return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
@@ -164,7 +251,15 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
     <AccessibleDialogSurface className="modal-card" labelledBy="dialog-title" describedBy={description ? 'dialog-description' : error ? 'dialog-error' : undefined} initialFocusSelector="[data-dialog-autofocus]" onClose={requestClose} closeOnEscape={!dirty && !loading} closeOnOutsideInteraction={!dirty && !loading} onDismissAttempt={() => { if (dirty && !loading) setConfirmDiscard(true); }}>
       <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p id="dialog-description">{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={requestClose} disabled={loading} data-testid="button-close-dialog"><X size={18} /></button></div>
       <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
-        <div className="form-grid">{fields.map((field, index) => <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}><span>{t(field.label)}{field.required && <i> *</i>}</span><FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} autoFocus={index === 0} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />{field.hint && <small className="field-hint">{t(field.hint)}</small>}</label>)}</div>
+        {fields.some(field => field.required) && <small className="field-hint form-required-note" role="note">{t('Fields marked * are required.')}</small>}
+        <div className="form-grid">{fields.map((field, index) => {
+          const label = <span id={`field-label-${field.name}`}>{t(field.label)}{field.required && <i aria-hidden="true"> *</i>}</span>;
+          const control = <FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} autoFocus={index === 0} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />;
+          const hint = field.hint && <small className="field-hint">{t(field.hint)}</small>;
+          return field.kind === 'multiselect'
+            ? <div key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}</div>
+            : <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}</label>;
+        })}</div>
         {error && <div id="dialog-error" className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
         <div className="modal-actions"><button type="button" className="button button-quiet" onClick={requestClose} disabled={loading} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t(submitLabel ?? 'Save record')}</>}</button></div>
       </form>
@@ -300,17 +395,17 @@ const businessFields = (programs: Program[]): Field[] => [
   { name: 'needs', label: 'Support needs', kind: 'textarea', wide: true, placeholder: 'What would help this business progress?' },
   { name: 'notes', label: 'Admin notes', kind: 'textarea', wide: true },
 ];
-const sessionFields = (programs: Program[], trainers: StaffMember[] = [], includeTrainer = false): Field[] => [
+const sessionFields = (programs: Program[], trainers: StaffMember[] = [], isAdmin = false): Field[] => [
   { name: 'title', label: 'Session title', required: true, wide: true },
   { name: 'type', label: 'Session type', kind: 'select', required: true, options: ['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => ({ value: v, label: display(v) })) },
   { name: 'deliveryMode', label: 'Delivery mode', kind: 'select', required: true, options: [{ value: 'online', label: 'Online' }, { value: 'in_person', label: 'In person' }, { value: 'hybrid', label: 'Hybrid' }] },
-  { name: 'programId', label: 'Program cohort', kind: 'select', options: programs.map(p => ({ value: String(p.id), label: p.name })) },
+  sessionProgramField(programs, isAdmin),
   { name: 'status', label: 'Status', kind: 'select', options: ['scheduled', 'completed', 'cancelled'].map(v => ({ value: v, label: display(v) })) },
   { name: 'scheduledDate', label: 'Date', kind: 'date', required: true },
   { name: 'startTime', label: 'Start time', kind: 'time' },
   { name: 'durationMinutes', label: 'Duration (minutes)', kind: 'number', min: 15, max: 480, step: 15, required: true },
   { name: 'facilitator', label: 'Facilitator' },
-  ...(includeTrainer ? [{ name: 'trainerStaffId', label: 'Assigned trainer', kind: 'select' as const, options: trainers.map(person => ({ value: String(person.id), label: person.email })) }] : []),
+  ...(isAdmin ? [{ name: 'trainerStaffId', label: 'Assigned trainer', kind: 'select' as const, options: trainers.map(person => ({ value: String(person.id), label: person.email })) }] : []),
   { name: 'location', label: 'Location', wide: true, placeholder: 'Venue, room or meeting space' },
   { name: 'zoomUrl', label: 'Zoom meeting link', kind: 'url', wide: true, placeholder: 'https://…' },
   { name: 'recordingUrl', label: 'Google Drive recording link', kind: 'url', wide: true, placeholder: 'https://drive.google.com/file/d/…/view', hint: 'After uploading the video to Drive, paste its share link here. Make sure the intended cohort can view the file; Drive permission settings control playback.' },

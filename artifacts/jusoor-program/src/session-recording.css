@@ -36,6 +36,11 @@
   line-height: 1.5;
 }
 
+.form-required-note {
+  display: block;
+  margin: 0 0 12px;
+}
+
 .session-card .session-recording-player {
   width: min(100%, 560px);
 }
