@@ -9,6 +9,7 @@ import {
   staffProgramAssignmentsTable,
   staffProgramRolesTable,
   type ProgramSpecialistRole,
+  type StaffInvitationEmailStatus,
 } from "@workspace/db";
 
 type StaffAccess = {
@@ -17,6 +18,7 @@ type StaffAccess = {
   role: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
   primaryRole: "coordinator" | "staff" | "trainer" | "mentor" | "judge";
   status: "invited" | "active";
+  invitationEmailStatus: StaffInvitationEmailStatus | null;
   bookingProvider: "calendly" | "google_calendar";
   calendlyBookingUrl: string | null;
   googleCalendarAccountEmail: string | null;
@@ -190,6 +192,8 @@ export const requireStaff: RequestHandler = async (req, res, next): Promise<void
       role: activeRole,
       primaryRole: legacyRole,
       status: member.status as StaffAccess["status"],
+      invitationEmailStatus:
+        member.status === "invited" ? (member.invitationEmailStatus ?? null) : null,
       bookingProvider: member.bookingProvider as StaffAccess["bookingProvider"],
       calendlyBookingUrl: member.calendlyBookingUrl,
       googleCalendarAccountEmail: member.googleCalendarAccountEmail,

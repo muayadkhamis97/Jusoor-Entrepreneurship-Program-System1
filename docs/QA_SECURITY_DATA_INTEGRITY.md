@@ -148,8 +148,9 @@ This is separate from the isolated program-assignment verification above.
 
 ### Finding
 
-- Current deployment logs show Clerk sign-in and first-factor requests completing with HTTP 200, followed by `GET /api/auth/me` returning HTTP 503.
-- The API error identifies the cause: the deployed staff table is missing `invitation_email_status`, which the current staff bootstrap insert references. This explains the generic access-check screen; it is a database-schema mismatch after successful authentication, not a rejected password.
+- Earlier deployment logs showed Clerk sign-in completing with HTTP 200, followed by `GET /api/auth/me` returning HTTP 503 because the staff table lacked `invitation_email_status`.
+- Later deployment logs show `GET /api/auth/me` returning HTTP 500 with a Zod error at `invitationEmailStatus` (`undefined`). Source inspection identified a second cause: `requireStaff` omitted this required nullable property from `res.locals.staff`, and the route validates that object against `GetAuthMeResponse`.
+- This is an access-response construction error after successful authentication, not a rejected password. Production schema was not re-read after those later logs, so they do not establish whether the first missing-column issue has been cleared there.
 - The existing migration `lib/db/migrations/20261017_staff_invitation_email_status.sql` adds a nullable text column, sets it to `pending` for existing rows whose status is `invited`, and constrains non-null values to `pending`, `delivered`, or `failed`.
 
 ### Isolated migration verification
@@ -164,5 +165,6 @@ This is separate from the isolated program-assignment verification above.
 - Development preflight confirmed the staff table existed while the target column and check constraint were absent.
 - Applied the exact migration to development. PostgreSQL reported `ALTER TABLE`, `UPDATE 0`, `ALTER TABLE`; therefore no existing development staff rows were changed by the backfill.
 - Post-apply catalog checks confirmed the nullable text column, no default, and the expected check constraint. Development had zero invited records to backfill.
-- No production database was modified and Publish was not run. The deployed schema still lacks this column, so the access check will continue failing in production until the user reviews and applies the development schema through Publish.
-- No Clerk configuration, application code, or authorization rules were changed. The post-migration signed-in UI and production recovery were not verified.
+- Fixed the access response construction to include `invitationEmailStatus`, using the stored value for invited staff and explicit `null` otherwise. Role permissions and the OpenAPI contract were unchanged.
+- Added a focused `/api/auth/me` regression test covering both an active staff member (explicit `null`) and an invited staff member (`pending`). Full workspace `pnpm run typecheck` and the API-server typecheck passed; `pnpm --filter @workspace/api-server exec tsx --test test/authenticatedProgramStaffRoles.test.ts` passed (3 tests). The development API workflow restarted successfully and listened on port 8080.
+- No production database or application was modified by the agent, and the agent did not run Publish. A signed-in browser session and production recovery were not verified; production needs the user-reviewed Publish flow to receive the development schema and code changes.

@@ -29,6 +29,7 @@ const staffId = 14;
 const archivedStaffId = 15;
 const archivedProgramIds = new Set([44, 55, 66]);
 let activeStaffFixture = true;
+let invitedStaffFixture = false;
 const mutationAttempts: { table: unknown; path: string; role: string }[] = [];
 const trainerSession: Row = {
   id: 110,
@@ -264,7 +265,8 @@ function rowsFor(table: unknown): Row[] {
       email: activeStaffFixture ? "multi-role@example.com" : "archived-specialist@example.com",
       clerkUserId: activeStaffFixture ? "test-staff-user" : "test-archived-staff-user",
       role: "staff",
-      status: "active",
+      status: invitedStaffFixture ? "invited" : "active",
+      invitationEmailStatus: invitedStaffFixture ? "pending" : null,
       bookingProvider: "calendly",
       calendlyBookingUrl: null,
       googleCalendarAccountEmail: null,
@@ -439,7 +441,9 @@ function selectBuilder() {
 const testAuthentication: RequestHandler = (req, _res, next) => {
   requestPath = req.originalUrl;
   requestRole = req.get("x-jusoor-staff-role") ?? "";
-  activeStaffFixture = req.get("x-test-staff-fixture") !== "archived";
+  const staffFixture = req.get("x-test-staff-fixture");
+  activeStaffFixture = staffFixture !== "archived";
+  invitedStaffFixture = staffFixture === "invited";
   const userId = activeStaffFixture ? "test-staff-user" : "test-archived-staff-user";
   const authHandler = Object.assign(
     () => ({
@@ -523,19 +527,30 @@ after(async () => {
   });
 });
 
-async function request(method: string, path: string, role: string, body?: Row, fixture: "active" | "archived" = "active") {
+async function request(method: string, path: string, role: string, body?: Row, fixture: "active" | "archived" | "invited" = "active") {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return fetch(`http://127.0.0.1:${address.port}${path}`, {
     method,
     headers: {
       "x-jusoor-staff-role": role,
-      ...(fixture === "archived" ? { "x-test-staff-fixture": "archived" } : {}),
+      ...(fixture !== "active" ? { "x-test-staff-fixture": fixture } : {}),
       ...(body ? { "content-type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 }
+
+test("current staff access response includes nullable or pending invitation email status", async () => {
+  const response = await request("GET", "/api/auth/me", "staff");
+  assert.equal(response.status, 200);
+  const staff = await response.json() as Row;
+  assert.equal(staff.invitationEmailStatus, null);
+
+  const invitedResponse = await request("GET", "/api/auth/me", "staff", undefined, "invited");
+  assert.equal(invitedResponse.status, 200);
+  assert.equal((await invitedResponse.json() as Row).invitationEmailStatus, "pending");
+});
 
 test("secondary staff roles can use only their assigned program workflows through authenticated routes", async () => {
   const trainerDashboard = await request("GET", "/api/trainer/dashboard", "trainer");
