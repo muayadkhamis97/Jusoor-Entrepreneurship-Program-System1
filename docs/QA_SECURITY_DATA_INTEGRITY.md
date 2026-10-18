@@ -160,11 +160,13 @@ This is separate from the isolated program-assignment verification above.
 - An initial disposable-harness pre-check failed before migration application because its synthetic query omitted the table `FROM` clause. That cluster was stopped and removed; a fresh corrected run completed all checks.
 - The successful test cluster stopped cleanly; only its task-owned temporary directory was removed.
 
-### Development application and remaining production blocker
+### Development application and production verification
 
 - Development preflight confirmed the staff table existed while the target column and check constraint were absent.
 - Applied the exact migration to development. PostgreSQL reported `ALTER TABLE`, `UPDATE 0`, `ALTER TABLE`; therefore no existing development staff rows were changed by the backfill.
 - Post-apply catalog checks confirmed the nullable text column, no default, and the expected check constraint. Development had zero invited records to backfill.
 - Fixed the access response construction to include `invitationEmailStatus`, using the stored value for invited staff and explicit `null` otherwise. Role permissions and the OpenAPI contract were unchanged.
 - Added a focused `/api/auth/me` regression test covering both an active staff member (explicit `null`) and an invited staff member (`pending`). Full workspace `pnpm run typecheck` and the API-server typecheck passed; `pnpm --filter @workspace/api-server exec tsx --test test/authenticatedProgramStaffRoles.test.ts` passed (3 tests). The development API workflow restarted successfully and listened on port 8080.
-- No production database or application was modified by the agent, and the agent did not run Publish. A signed-in browser session and production recovery were not verified; production needs the user-reviewed Publish flow to receive the development schema and code changes.
+- The user reviewed and published the changes. On 2026-10-18, deployment metadata showed an active deployment with a successful build. Runtime logs recorded an authenticated `GET /api/auth/me` returning HTTP 200 at 10:32:16 UTC; two subsequent revalidations returned HTTP 304.
+- The route parses the staff response with `GetAuthMeResponse`, which requires `invitationEmailStatus` to be `pending`, `delivered`, `failed`, or `null`. The successful HTTP 200 therefore confirms the live response passed this contract. The response body itself is not logged.
+- The user confirmed the sign-in flow reached the correct staff workspace. The agent did not publish or modify production.
