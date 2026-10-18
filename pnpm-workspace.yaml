@@ -160,10 +160,8 @@ overrides:
   esbuild: "0.28.2"
   # orval pins js-yaml to an exact version older than the CVE fix (>=4.3.2)
   js-yaml: '4.3.2'
-  # Patched transitive security updates; see the advisory targets below.
-  brace-expansion@>=4.0.0 <5.0.10: '>=5.0.10'
-  brace-expansion@>=4.0.0 <5.0.11: '>=5.0.11'
-  brace-expansion@>=4.0.0 <5.0.12: '>=5.0.12'
-  fast-uri@>=3.0.0 <3.1.8: '>=3.1.8'
-  postcss-selector-parser@<7.1.6: '>=7.1.6'
-  source-map-js@>=1.0.0 <1.2.2: '>=1.2.2'
+  # Security fixes pinned to reviewed targets, not open-ended major upgrades.
+  brace-expansion@>=4.0.0 <5.0.12: '5.0.12'
+  fast-uri@>=3.0.0 <3.1.8: '3.1.8'
+  postcss-selector-parser@<7.1.6: '7.1.6'
+  source-map-js@>=1.0.0 <1.2.2: '1.2.2'
