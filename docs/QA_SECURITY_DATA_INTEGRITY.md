@@ -143,3 +143,26 @@ This is separate from the isolated program-assignment verification above.
 - Applied the exact `ALTER TABLE` statement once to the development database through the Replit development-database operation. Post-apply catalog inspection confirmed `zoom_meeting_creation_pending_at`, type `timestamp with time zone`, nullable, with no default.
 - No application records were queried or changed. No Drizzle push/force-push was used. Production was not changed, and Publish was not run. The earlier read-only diagnosis found this column absent in production; its production schema remains unchanged by this verification.
 - The production dashboard/API was not re-tested by this database-only change. Production will continue to need the user-reviewed Publish schema application before its deployed API can select this new column.
+
+## Staff invitation email status — access-check failure
+
+### Finding
+
+- Current deployment logs show Clerk sign-in and first-factor requests completing with HTTP 200, followed by `GET /api/auth/me` returning HTTP 503.
+- The API error identifies the cause: the deployed staff table is missing `invitation_email_status`, which the current staff bootstrap insert references. This explains the generic access-check screen; it is a database-schema mismatch after successful authentication, not a rejected password.
+- The existing migration `lib/db/migrations/20261017_staff_invitation_email_status.sql` adds a nullable text column, sets it to `pending` for existing rows whose status is `invited`, and constrains non-null values to `pending`, `delivered`, or `failed`.
+
+### Isolated migration verification
+
+- Used PostgreSQL 16.10 in a fresh cluster under a unique `/tmp` directory. Database and PostgreSQL environment variables were unset before starting or connecting. The server had TCP listening disabled and used only its task-owned Unix socket; connection output confirmed database `postgres`, role `isolated_migration_test`, task-local data/socket paths, and a null TCP server address.
+- Tested the exact repository migration against a synthetic table with three synthetic staff rows (two invited, one active), with the target column absent. The corrected isolated run passed: invited rows were backfilled to `pending`, the active row stayed null, the column was nullable text with no default, the check constraint rejected an unsupported value, and all three supported values were accepted.
+- An initial disposable-harness pre-check failed before migration application because its synthetic query omitted the table `FROM` clause. That cluster was stopped and removed; a fresh corrected run completed all checks.
+- The successful test cluster stopped cleanly; only its task-owned temporary directory was removed.
+
+### Development application and remaining production blocker
+
+- Development preflight confirmed the staff table existed while the target column and check constraint were absent.
+- Applied the exact migration to development. PostgreSQL reported `ALTER TABLE`, `UPDATE 0`, `ALTER TABLE`; therefore no existing development staff rows were changed by the backfill.
+- Post-apply catalog checks confirmed the nullable text column, no default, and the expected check constraint. Development had zero invited records to backfill.
+- No production database was modified and Publish was not run. The deployed schema still lacks this column, so the access check will continue failing in production until the user reviews and applies the development schema through Publish.
+- No Clerk configuration, application code, or authorization rules were changed. The post-migration signed-in UI and production recovery were not verified.
