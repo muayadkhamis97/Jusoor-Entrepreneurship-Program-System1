@@ -44,14 +44,12 @@ import {
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { SessionCalendar } from './session-calendar';
-import { SessionRecordingPlayer } from './session-recording-player';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
 import { isStaffNavigationItemActive } from './staff-navigation-items';
 import { participantSignInInstructions } from './participant-dashboard-helpers';
 import { trackEvent, trackZoomFailure } from './lib/analytics';
 import { brandedAdminRoleLabel, getDisplayBrandName, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
-import { StaffSessionInteractions } from './session-interactions';
 import { downloadProgramLifecycleCsv } from './program-lifecycle-export';
 
 const ApplicationsReviewPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplicationsReviewPage })));
@@ -75,6 +73,8 @@ const ApiIntegrationsPage = lazy(() => import('./api-integrations').then(module 
 const OwnProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.OwnProfilePage })));
 const AdminProfilesPage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.AdminProfilesPage })));
 const ParticipantProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.ParticipantProfilePage })));
+const SessionRecordingPlayer = lazy(() => import('./session-recording-player').then(module => ({ default: module.SessionRecordingPlayer })));
+const StaffSessionInteractions = lazy(() => import('./session-interactions').then(module => ({ default: module.StaffSessionInteractions })));
 const AuthPage = lazy(() => import('./clerk-auth-page').then(module => ({ default: module.ClerkAuthPage })));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
@@ -688,8 +688,10 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
           <h2 className="app-title">{session.title}</h2>
           <p>{programs.find(p => p.id === session.programId)?.name || (session.programId ? `${t('Program')} ${session.programId}` : t('All cohorts'))}<span>·</span>{session.startTime || t('Time not set')}<span>·</span>{session.durationMinutes} {t('min')}<span>·</span>{session.facilitator || t('Facilitator TBD')}</p>
            <div className="session-links"><span className="location-detail"><MapPin size={13} /> {session.location || t('Location not set')}</span>{session.deliveryMode !== 'in_person' && session.zoomUrl ? <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link"><Video size={14} /> {t('Join Zoom')} <ExternalLink size={12} /></a> : <span className="disabled-link"><Video size={14} /> {session.deliveryMode === 'in_person' ? t('In-person session') : t('No meeting link')}</span>}</div>
-           <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />
-           <StaffSessionInteractions sessionId={session.id} coordinator={coordinator} staffId={staffId} trainerStaffId={session.trainerStaffId} />
+           <Suspense fallback={null}>
+             <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />
+             <StaffSessionInteractions sessionId={session.id} coordinator={coordinator} staffId={staffId} trainerStaffId={session.trainerStaffId} />
+           </Suspense>
           {coordinator && session.deliveryMode !== 'in_person' && <div className="session-admin-actions">
             <button className="button button-quiet" onClick={() => manageMeeting(session)} disabled={!zoomStatus.data?.connected || createZoomMeeting.isPending} data-testid={`button-zoom-meeting-${session.id}`}><Video size={14} />{meetingPending ? 'Saving…' : session.zoomMeetingId ? 'Update Zoom meeting' : 'Create Zoom meeting'}</button>
           </div>}

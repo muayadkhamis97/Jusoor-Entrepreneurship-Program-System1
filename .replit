@@ -25,7 +25,6 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-JUSOOR_BOOTSTRAP_COORDINATOR_EMAIL = "muayad.khamis97@gmail.com"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-befaf295-567e-4226-890a-e22ad685e464"

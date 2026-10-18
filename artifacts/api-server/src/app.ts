@@ -44,6 +44,7 @@ import { requireStaff } from "./middlewares/staffAccess";
 import { requireParticipant } from "./middlewares/participantAccess";
 import { requireRole } from "./middlewares/requireRole";
 import { logger } from "./lib/logger";
+import { createCorsOptionsDelegate } from "./lib/corsPolicy";
 import programBrandingRouter from "./routes/programBranding";
 import externalIntegrationApiRouter from "./routes/externalIntegrationApi";
 import integrationApiKeysRouter from "./routes/integrationApiKeys";
@@ -74,7 +75,7 @@ app.use(
   }),
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
-app.use(cors({ credentials: true, origin: true }));
+app.use(cors(createCorsOptionsDelegate()));
 app.use(express.json({
   verify: (req, _res, buffer) => {
     (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);

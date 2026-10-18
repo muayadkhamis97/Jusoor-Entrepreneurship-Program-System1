@@ -293,7 +293,14 @@ test("Admin invitation creates a 30-day program/business assignment and emails t
   const decodedText = Buffer.from(encodedText, "base64").toString("utf8");
   assert.match(decodedText, /Program: Spring Program\./);
   assert.match(decodedText, /Business: Northwind\./);
-  assert.match(decodedText, /November 16, 2026/);
+  // The invitation is valid for 30 days from "now", so derive the expected date instead of hardcoding it.
+  const expectedExpiry = new Date(result.expiresAt).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  assert.ok(decodedText.includes(`valid until ${expectedExpiry}.`), `expected "${expectedExpiry}" in: ${decodedText}`);
 });
 
 test("a duplicate invitation reuses its record and does not send duplicate email", async () => {

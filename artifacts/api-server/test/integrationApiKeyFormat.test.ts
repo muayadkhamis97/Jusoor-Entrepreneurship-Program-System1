@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { displayIntegrationApiKeyPrefix, extractIntegrationApiKey } from "./integrationApiKeyFormat";
+import { displayIntegrationApiKeyPrefix, extractIntegrationApiKey } from "../src/routes/integrationApiKeyFormat";
 
 test("new integration keys use a neutral visible prefix", () => {
   const key = `program_live_${"x".repeat(43)}`;

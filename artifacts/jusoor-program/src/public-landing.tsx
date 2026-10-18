@@ -4,7 +4,7 @@ import { Button } from '@workspace/program-editorial/components/ui/button';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
-import { getDisplayBrandName, useAppLanguage } from './language';
+import { getDisplayBrandName, shouldShowBrandCaption, useAppLanguage } from './language';
 import './public-landing.css';
 
 export function PublicLanding({ brandName, logoUrl }: { brandName?: string | null; logoUrl?: string | null }) {
@@ -24,7 +24,7 @@ export function PublicLanding({ brandName, logoUrl }: { brandName?: string | nul
             )}
             <span className="editorial-brand-name">
               <b>{brand}</b>
-              <Typography variant="label" as="span">{t('PROGRAM HUB')}</Typography>
+              {shouldShowBrandCaption(brand) && <Typography variant="label" as="span">{t('PROGRAM HUB')}</Typography>}
             </span>
           </Link>
           <Button

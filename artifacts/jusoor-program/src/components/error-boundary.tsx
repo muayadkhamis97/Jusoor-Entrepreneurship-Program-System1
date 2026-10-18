@@ -35,30 +35,70 @@ function toError(value: unknown): Error {
   }
 }
 
+const FALLBACK_COPY = {
+  en: {
+    title: 'Something went wrong',
+    body: 'This part of the app hit an error. The rest of the app is still running.',
+    help: 'If this keeps happening, contact the program team and tell them what you were doing.',
+    retry: 'Try again',
+    home: 'Back to home',
+  },
+  ar: {
+    title: 'حدث خطأ ما',
+    body: 'واجه هذا الجزء من التطبيق خطأً. بقية التطبيق ما زالت تعمل.',
+    help: 'إذا تكرر ذلك، تواصل مع فريق البرنامج وأخبرهم بما كنت تفعله.',
+    retry: 'حاول مرة أخرى',
+    home: 'العودة إلى الرئيسية',
+  },
+} as const;
+
+/**
+ * This boundary sits outside the language provider, and an error can happen before
+ * the provider has set the page language, so check the saved choice first.
+ */
+function prefersArabic(): boolean {
+  try {
+    if (window.localStorage.getItem('jusoor-language') === 'ar') return true;
+  } catch {
+    // Storage can be unavailable (private mode); fall back to the page language.
+  }
+  return typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('ar');
+}
+
 function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
+  const isArabic = prefersArabic();
+  const copy = isArabic ? FALLBACK_COPY.ar : FALLBACK_COPY.en;
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
-      <div className="max-w-lg w-full text-center">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Something went wrong
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          This part of the app hit an error. The rest of the app is still
-          running.
-        </p>
+    <div
+      className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6"
+      lang={isArabic ? 'ar' : 'en'}
+      dir={isArabic ? 'rtl' : 'ltr'}
+    >
+      <div className="max-w-lg w-full text-center" role="alert">
+        <h1 className="text-xl font-semibold text-gray-900">{copy.title}</h1>
+        <p className="mt-2 text-sm text-gray-600">{copy.body}</p>
+        <p className="mt-1 text-sm text-gray-600">{copy.help}</p>
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
-          <pre className="mt-4 overflow-x-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-800">
+          <pre className="mt-4 overflow-x-auto rounded bg-gray-100 p-3 text-left text-xs text-gray-800" dir="ltr">
             {error.message || String(error)}
           </pre>
         ) : null}
-        <button
-          type="button"
-          onClick={resetError}
-          className="mt-4 rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
-        >
-          Try again
-        </button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={resetError}
+            className="min-h-11 rounded bg-gray-900 px-5 py-2 text-sm text-white hover:bg-gray-700"
+          >
+            {copy.retry}
+          </button>
+          <a
+            href={import.meta.env.BASE_URL || '/'}
+            className="inline-flex min-h-11 items-center rounded border border-gray-300 px-5 py-2 text-sm text-gray-900 hover:bg-gray-100"
+          >
+            {copy.home}
+          </a>
+        </div>
       </div>
     </div>
   );

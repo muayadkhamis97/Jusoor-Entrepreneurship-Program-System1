@@ -2,7 +2,7 @@ import { SignIn, SignUp } from '@clerk/react';
 import { useGetProgramBranding, getGetProgramBrandingQueryKey } from '@workspace/api-client-react';
 import { Shield } from 'lucide-react';
 import { Link } from 'wouter';
-import { getDisplayBrandName, LanguageToggle, t, useAppLanguage } from './language';
+import { getDisplayBrandName, shouldShowBrandCaption, LanguageToggle, t, useAppLanguage } from './language';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -30,7 +30,7 @@ export function ClerkAuthPage({
         )}
         <span>
           <b>{getDisplayBrandName(branding?.brandName)}</b>
-          <small>{t('PROGRAM HUB')}</small>
+          {shouldShowBrandCaption(getDisplayBrandName(branding?.brandName)) && <small>{t('PROGRAM HUB')}</small>}
         </span>
       </Link>
       <LanguageToggle className="auth-language-toggle" />

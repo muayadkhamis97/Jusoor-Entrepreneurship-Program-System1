@@ -33,7 +33,7 @@ import { ParticipantBusinessPlan } from './founder-business-plan';
 import { ParticipantPeerDirectory } from './peer-directory';
 import { ParticipantAccountActions } from './participant-account-actions';
 import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
-import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { getDisplayBrandName, shouldShowBrandCaption, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { applicationSubmitErrorKey } from './application-errors';
 import { getParticipantNextAction } from './participant-dashboard-helpers';
 import {
@@ -83,7 +83,7 @@ function ApplicationFormMessage() {
 function IntakeBrand() {
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const brand = brandingQuery.data;
-  return <Link href="/" className="intake-brand" data-testid="link-program-home">{brand?.logoUrl ? <img className="intake-logo-image" src={brand.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(brand?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(brand?.brandName)}</b><small>{t('PROGRAM HUB')}</small></span></Link>;
+  return <Link href="/" className="intake-brand" data-testid="link-program-home">{brand?.logoUrl ? <img className="intake-logo-image" src={brand.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(brand?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(brand?.brandName)}</b>{shouldShowBrandCaption(getDisplayBrandName(brand?.brandName)) && <small>{t('PROGRAM HUB')}</small>}</span></Link>;
 }
 
 function IntakeFrame({ children }: { children: React.ReactNode }) {

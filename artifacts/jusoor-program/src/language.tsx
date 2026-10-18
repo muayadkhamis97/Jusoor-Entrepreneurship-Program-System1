@@ -2178,6 +2178,11 @@ export function getDisplayBrandName(brandName?: string | null): string {
   return configured && !/(jusoor|جسور)/i.test(configured) ? configured : 'Program Hub';
 }
 
+/** The fallback name already reads "Program Hub", so repeating it as a caption looks like a mistake. */
+export function shouldShowBrandCaption(displayBrandName: string): boolean {
+  return displayBrandName.trim().toLowerCase() !== 'program hub';
+}
+
 export function isAllowedDisplayBrandName(brandName: string): boolean {
   return !/(jusoor|جسور)/i.test(brandName);
 }

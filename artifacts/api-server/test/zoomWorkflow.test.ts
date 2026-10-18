@@ -569,7 +569,7 @@ test("reuses a Zoom meeting after session persistence fails and the coordinator 
         assert.equal(error.statusCode, 503);
         assert.match(
           error.message,
-          /Retry the Zoom action; Jusoor will reuse the same meeting/,
+          /Retry the Zoom action; the existing meeting will be reused/,
         );
         return true;
       },
@@ -848,7 +848,7 @@ test("Zoom routes are coordinator-only and return sanitized provider failures", 
     });
     const persistenceError = await persistenceFailure.text();
     assert.equal(persistenceFailure.status, 503);
-    assert.match(persistenceError, /Retry the Zoom action; Jusoor will reuse the same meeting/);
+    assert.match(persistenceError, /Retry the Zoom action; the existing meeting will be reused/);
     assert.doesNotMatch(persistenceError, /private database diagnostics|route-created-once/);
 
     failSessionSave = false;

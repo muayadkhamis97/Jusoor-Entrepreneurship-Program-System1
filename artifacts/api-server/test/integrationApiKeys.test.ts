@@ -12,7 +12,7 @@ test("API key secrets are high-entropy, prefixed, and hashed deterministically",
   const first = createIntegrationApiKeySecret();
   const second = createIntegrationApiKeySecret();
 
-  assert.match(first, /^jusoor_live_[A-Za-z0-9_-]{40,}$/);
+  assert.match(first, /^program_live_[A-Za-z0-9_-]{40,}$/);
   assert.notEqual(first, second);
   assert.equal(hashIntegrationApiKey(first), hashIntegrationApiKey(first));
   assert.match(hashIntegrationApiKey(first), /^[a-f0-9]{64}$/);
