@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { currentLanguage, t, useAppLanguage } from "./language";
 import { AccessibleDialogSurface, UnsavedChangesDialog } from "./accessible-dialog";
+import { Button as EditorialButton } from "@workspace/program-editorial/components/ui/button";
 import { useProgramSelection } from "./program-selection";
 import { CSVLink } from "react-csv";
 import {
@@ -74,6 +75,12 @@ function ExportButton({ rows, filename, label = t("Export chart data as CSV") }:
 type AttendanceState = Record<number, { status: "present" | "absent" | "excused" | null; notes: string }>;
 type KpiForm = { name: string; description: string; unit: string; targetValue: string; direction: "increase_is_good" | "decrease_is_good" };
 type ReportParts = { summary: boolean; stages: boolean; attendance: boolean; engagement: boolean; impact: boolean };
+const ATTENDANCE_OPTIONS = [
+  { status: "present", label: "Present" },
+  { status: "absent", label: "Absent" },
+  { status: "excused", label: "Excused" },
+  { status: null, label: "Unmarked" },
+] as const;
 
 export function ProgramAnalyticsPage() {
   useAppLanguage();
@@ -639,33 +646,48 @@ export function ProgramAnalyticsPage() {
     {activeSession !== null && <AccessibleDialogSurface className="ana-modal ana-attendance-modal" overlayClassName="ana-modal-backdrop" labelledBy="attendance-title" initialFocusSelector="[data-dialog-autofocus]" onClose={requestAttendanceClose} closeOnEscape={!attendanceDirty && !attendancePending} closeOnOutsideInteraction={!attendanceDirty && !attendancePending} onDismissAttempt={() => { if (attendanceDirty && !attendancePending) setDiscardTarget("attendance"); }} testId="dialog-attendance-register">
       <div className="ana-modal-head"><div><span className="ana-eyebrow">SESSION REGISTER</span><h2 id="attendance-title">{registerQuery.data?.session.title ?? "Attendance register"}</h2><p>{registerQuery.data ? dateLabel(registerQuery.data.session.scheduledDate) : "Loading roster"}</p></div><button className="ana-icon-btn" onClick={requestAttendanceClose} disabled={attendancePending} aria-label="Close register" data-dialog-autofocus><X size={17} /></button></div>
       {registerQuery.isLoading ? <div className="ana-modal-body"><div className="ana-sessions-loading"><i /><i /><i /></div></div> : registerQuery.isError ? <div className="ana-modal-body"><div className="ana-inline-empty"><CircleAlert size={18} /><span>Roster unavailable. Close and try opening this session again.</span></div></div> : <>
-        <div className="ana-sync-panel">
-          <div className="ana-sync-summary">
-            <div><span className="ana-eyebrow">ZOOM ATTENDANCE</span><b>{registerQuery.data?.zoomSync ? registerQuery.data.zoomSync.status.replaceAll("_", " ") : "Not synced yet"}</b><small>{registerQuery.data?.zoomSync ? `${fmt(registerQuery.data.zoomSync.matchedCount)} matched · ${fmt(registerQuery.data.zoomSync.unmatchedCount)} need review` : "The report is added after Zoom ends the meeting."}</small></div>
-            {registerQuery.data?.session.zoomMeetingId ? <button className="ana-button subtle" onClick={queueAttendanceRefresh} disabled={queueAttendanceSync.isPending || ["queued", "syncing"].includes(registerQuery.data?.zoomSync?.status ?? "")}>
-              <RefreshCw size={14} />{queueAttendanceSync.isPending ? "Queueing…" : "Refresh from Zoom"}
-            </button> : <span className="ana-count-tag">Manual register</span>}
-          </div>
-          {registerQuery.data?.session.zoomMeetingId ? <p>Automatic imports require a Zoom Pro-or-higher account, the <code>meeting:read:list_past_participants</code> permission, and the <code>meeting.ended</code> webhook event. Connect or reconnect Zoom in the live platform. Unmatched attendees remain for staff review.</p> : <p>This session has no Zoom meeting, so attendance can only be recorded manually.</p>}
-          {registerQuery.data?.zoomSync?.lastError && <p className="ana-sync-error" role="status">{registerQuery.data.zoomSync.lastError}</p>}
-          {queueAttendanceSync.isError && <p className="ana-sync-error" role="alert">Zoom attendance could not be queued. Check the session’s Zoom connection and try again.</p>}
-        </div>
-        {registerQuery.data?.unmatchedParticipants.length ? <section className="ana-unmatched-panel" aria-label="Unmatched Zoom attendees">
-          <div className="ana-unmatched-heading"><div><span className="ana-eyebrow">ADMIN REVIEW</span><b>{registerQuery.data.unmatchedParticipants.length} unmatched Zoom attendee{registerQuery.data.unmatchedParticipants.length === 1 ? "" : "s"}</b></div><small>Match each attendee to a business or ignore staff and guests.</small></div>
-          <div className="ana-unmatched-list">{registerQuery.data.unmatchedParticipants.map((person) => <div className="ana-unmatched-row" key={person.id}>
-            <div><b>{person.displayName}</b><span>{person.email || "Email unavailable"} · {Math.round(person.durationSeconds / 60)} min</span></div>
-            <select aria-label={`Match ${person.displayName} to a business`} value={participantMatches[person.id] ?? ""} onChange={(event) => setParticipantMatches((current) => ({ ...current, [person.id]: event.target.value }))}>
-              <option value="">Choose business</option>{registerQuery.data?.roster.map((business) => <option key={business.businessId} value={business.businessId}>{business.businessName}</option>)}
-            </select>
-            <button className="ana-button primary" onClick={() => resolveAttendee(person.id, false)} disabled={!participantMatches[person.id] || resolveAttendanceParticipant.isPending}>Match</button>
-            <button className="ana-button subtle" onClick={() => resolveAttendee(person.id, true)} disabled={resolveAttendanceParticipant.isPending}>Ignore</button>
-          </div>)}</div>
-          {resolveAttendanceParticipant.isError && <p className="ana-sync-error" role="alert">This attendee could not be updated. Refresh and try again.</p>}
-        </section> : null}
-        <div className="ana-register-tools"><span>{fmt(registerQuery.data?.roster.length ?? 0)} businesses on roster</span><div>{(["present", "absent", "excused", null] as const).map((status) => <button key={status ?? "unmarked"} onClick={() => setAttendance((current) => Object.fromEntries((registerQuery.data?.roster ?? []).map((person) => [person.businessId, { ...current[person.businessId], status, notes: current[person.businessId]?.notes ?? "" }])))}>{status ?? "Clear all"}</button>)}</div></div>
-        <div className="ana-register-list">{registerQuery.data?.roster.map((person) => <div className="ana-register-person" key={person.businessId}><div className="ana-register-name"><i>{person.businessName.slice(0, 1).toUpperCase()}</i><b>{person.businessName}</b>{person.source === "zoom" && person.attendedSeconds !== null && <small>Zoom · {Math.round(person.attendedSeconds / 60)} min</small>}</div><div className="ana-status-set">{(["present", "absent", "excused", null] as const).map((status) => <button key={status ?? "clear"} className={attendance[person.businessId]?.status === status ? `selected ${status ?? "unmarked"}` : ""} onClick={() => patchAttendance(person.businessId, { status })}>{status ?? "—"}</button>)}</div><input aria-label={`Notes for ${person.businessName}`} placeholder="Optional note" value={attendance[person.businessId]?.notes ?? ""} onChange={(event) => patchAttendance(person.businessId, { notes: event.target.value })} /></div>)}</div>
-         <div className="ana-modal-actions"><button className="ana-button subtle" onClick={requestAttendanceClose} disabled={attendancePending}>Cancel</button><button className="ana-button primary" onClick={saveRegister} disabled={saveAttendance.isPending}><Check size={14} />{saveAttendance.isPending ? "Saving…" : "Save register"}</button></div>
-        {saveAttendance.isError && <p className="ana-form-error">Attendance could not be saved. Your changes are still here; try again.</p>}
+         <div className="ana-attendance-scroll">
+           <div className="ana-sync-panel">
+             <div className="ana-sync-summary">
+               <div><span className="ana-eyebrow">ZOOM ATTENDANCE</span><b>{registerQuery.data?.zoomSync ? registerQuery.data.zoomSync.status.replaceAll("_", " ") : "Not synced yet"}</b><small>{registerQuery.data?.zoomSync ? `${fmt(registerQuery.data.zoomSync.matchedCount)} matched · ${fmt(registerQuery.data.zoomSync.unmatchedCount)} need review` : "The report is added after Zoom ends the meeting."}</small></div>
+               {registerQuery.data?.session.zoomMeetingId ? <button className="ana-button subtle" onClick={queueAttendanceRefresh} disabled={queueAttendanceSync.isPending || ["queued", "syncing"].includes(registerQuery.data?.zoomSync?.status ?? "")}>
+                 <RefreshCw size={14} />{queueAttendanceSync.isPending ? "Queueing…" : "Refresh from Zoom"}
+               </button> : <span className="ana-count-tag">Manual register</span>}
+             </div>
+             {registerQuery.data?.session.zoomMeetingId ? <p>Automatic imports require a Zoom Pro-or-higher account, the <code>meeting:read:list_past_participants</code> permission, and the <code>meeting.ended</code> webhook event. Connect or reconnect Zoom in the live platform. Unmatched attendees remain for staff review.</p> : <p>This session has no Zoom meeting, so attendance can only be recorded manually.</p>}
+             {registerQuery.data?.zoomSync?.lastError && <p className="ana-sync-error" role="status">{registerQuery.data.zoomSync.lastError}</p>}
+             {queueAttendanceSync.isError && <p className="ana-sync-error" role="alert">Zoom attendance could not be queued. Check the session’s Zoom connection and try again.</p>}
+           </div>
+           {registerQuery.data?.unmatchedParticipants.length ? <section className="ana-unmatched-panel" aria-label="Unmatched Zoom attendees">
+             <div className="ana-unmatched-heading"><div><span className="ana-eyebrow">ADMIN REVIEW</span><b>{registerQuery.data.unmatchedParticipants.length} unmatched Zoom attendee{registerQuery.data.unmatchedParticipants.length === 1 ? "" : "s"}</b></div><small>Match each attendee to a business or ignore staff and guests.</small></div>
+             <div className="ana-unmatched-list">{registerQuery.data.unmatchedParticipants.map((person) => <div className="ana-unmatched-row" key={person.id}>
+               <div><b>{person.displayName}</b><span>{person.email || "Email unavailable"} · {Math.round(person.durationSeconds / 60)} min</span></div>
+               <select aria-label={`Match ${person.displayName} to a business`} value={participantMatches[person.id] ?? ""} onChange={(event) => setParticipantMatches((current) => ({ ...current, [person.id]: event.target.value }))}>
+                 <option value="">Choose business</option>{registerQuery.data?.roster.map((business) => <option key={business.businessId} value={business.businessId}>{business.businessName}</option>)}
+               </select>
+               <button className="ana-button primary" onClick={() => resolveAttendee(person.id, false)} disabled={!participantMatches[person.id] || resolveAttendanceParticipant.isPending}>Match</button>
+               <button className="ana-button subtle" onClick={() => resolveAttendee(person.id, true)} disabled={resolveAttendanceParticipant.isPending}>Ignore</button>
+             </div>)}</div>
+             {resolveAttendanceParticipant.isError && <p className="ana-sync-error" role="alert">This attendee could not be updated. Refresh and try again.</p>}
+           </section> : null}
+           <div className="ana-register-tools">
+             <div className="ana-register-tool-copy"><strong>{fmt(registerQuery.data?.roster.length ?? 0)} {t("Businesses on roster")}</strong><span>{t("Set all businesses to")}</span></div>
+             <div className="ana-register-bulk" role="group" aria-label={t("Set attendance for all businesses")}>
+               {ATTENDANCE_OPTIONS.map(({ status, label }) => <EditorialButton key={status ?? "unmarked"} variant="pill" className={`ana-bulk-option ${status ?? "unmarked"}`} aria-label={`${t("Set all businesses to")} ${t(label).toLowerCase()}`} onClick={() => setAttendance((current) => Object.fromEntries((registerQuery.data?.roster ?? []).map((person) => [person.businessId, { ...current[person.businessId], status, notes: current[person.businessId]?.notes ?? "" }])))}>{t(label)}</EditorialButton>)}
+             </div>
+           </div>
+           <div className="ana-register-list">
+             {registerQuery.data?.roster.length ? registerQuery.data.roster.map((person) => <div className="ana-register-person" key={person.businessId}>
+               <div className="ana-register-name"><i aria-hidden="true">{person.businessName.slice(0, 1).toUpperCase()}</i><div className="ana-register-copy"><b>{person.businessName}</b>{person.source === "zoom" && person.attendedSeconds !== null && <small>Zoom · {Math.round(person.attendedSeconds / 60)} min</small>}</div></div>
+               <div className="ana-status-set" role="group" aria-label={`${t("Attendance status for")} ${person.businessName}`}>
+                 {ATTENDANCE_OPTIONS.map(({ status, label }) => <EditorialButton key={status ?? "unmarked"} variant="pill" className={`ana-status-option ${status ?? "unmarked"}${attendance[person.businessId]?.status === status ? " selected" : ""}`} aria-label={`${person.businessName}: ${t(label)}`} aria-pressed={attendance[person.businessId]?.status === status} onClick={() => patchAttendance(person.businessId, { status })}>{t(label)}</EditorialButton>)}
+               </div>
+               <label className="ana-register-note"><span>{t("Optional note")}</span><input aria-label={`${t("Optional note")} — ${person.businessName}`} placeholder={t("Add a note")} value={attendance[person.businessId]?.notes ?? ""} onChange={(event) => patchAttendance(person.businessId, { notes: event.target.value })} /></label>
+             </div>) : <div className="ana-register-empty" role="status">{t("No businesses are on this session’s roster.")}</div>}
+           </div>
+           {saveAttendance.isError && <p className="ana-form-error ana-register-error" role="alert">Attendance could not be saved. Your changes are still here; try again.</p>}
+         </div>
+         <div className="ana-modal-actions ana-attendance-actions"><button className="ana-button subtle" onClick={requestAttendanceClose} disabled={attendancePending}>{t("Cancel")}</button><button className="ana-button primary" onClick={saveRegister} disabled={saveAttendance.isPending}><Check size={14} />{saveAttendance.isPending ? t("Saving…") : t("Save register")}</button></div>
        </>}
     </AccessibleDialogSurface>}
     {discardTarget === "attendance" && <UnsavedChangesDialog onKeepEditing={() => setDiscardTarget(null)} onDiscard={() => { setDiscardTarget(null); setAttendance({}); setParticipantMatches({}); setActiveSession(null); }} />}
