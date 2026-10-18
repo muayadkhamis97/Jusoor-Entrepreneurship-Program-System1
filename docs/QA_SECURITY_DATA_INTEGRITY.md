@@ -196,10 +196,16 @@ This is separate from the isolated program-assignment verification above.
 - Synthetic behavior checks passed: two participants could be recorded for the same business/session; a duplicate session/participant, invalid status/source, negative duration, and invalid participant/application references were rejected. Deleting an application, business, session, or recording staff exercised the declared cascade/`SET NULL` behavior. A preexisting business-level attendance row and Zoom attendee/business match remained unchanged by the migration.
 - A separate disposable database omitted `jusoor_zoom_attendance_participants`. The migration failed at that prerequisite and its transaction rolled back the new attendance table. This confirms the migration requires that preexisting Zoom table. Its `IF NOT EXISTS` clauses also assume any same-named existing columns/tables already have the expected constraints; they do not repair malformed partial schema.
 - **Schema limitation:** separate single-column foreign keys do not ensure the session, participant, and business belong to the same program. A synthetic cross-program combination was accepted by PostgreSQL. Application routes must continue validating the participant against the session's authorized program roster; this SQL exercise did not call those routes.
-- The local PostgreSQL server stopped cleanly, and only the task-owned temporary directory was removed. No development or production database was accessed or changed; no Drizzle push, workflow restart, external provider, browser session, email, publish, or deployment was used.
+
+### Development application
+
+- Before the write, a read-only development catalog check confirmed all five prerequisite tables were present and the attendance table, Zoom match column, foreign key, and lookup index were absent. No participant or business records were queried.
+- With explicit user approval for development only, applied the exact SQL file above as one transaction through the development database operation. It committed successfully. Post-apply catalog checks all passed: 12 attendance columns, primary/unique keys, three checks, four FKs with the expected delete actions, four attendance indexes including the unique lookup, nullable integer Zoom match column, its `ON DELETE SET NULL` FK, and its lookup index. The required `manual` and `now()` defaults were present.
+- No row-level data was queried or backfilled. No production database was accessed, no Drizzle push was used, and no workflow restart, external provider, browser session, email, publish, or deployment was involved.
+- The isolated PostgreSQL server stopped cleanly, and only its task-owned temporary directory was removed.
 
 ### Still not verified
 
-- The migration has not been applied to development or production, and the existing state of either database was not queried. The app's schema guard returns HTTP 503 for attendance operations if the new table or Zoom-match column is absent.
+- Production was not queried or changed. The application's schema guard returns HTTP 503 for attendance operations in any environment where the new table or Zoom-match column is absent.
 - The SQL checks exercised constraints directly, not authenticated API requests. Cross-program authorization denial was not tested end to end; the database schema itself does not enforce same-program pairings.
 - No signed-in browser test or Arabic-rendered visual inspection was performed. Automated UI tests cover participant-level labeling, participant-keyed status state, responsive class rules, and Arabic strings, but not the rendered authenticated page.
