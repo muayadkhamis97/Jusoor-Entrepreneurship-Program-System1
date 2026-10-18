@@ -1,0 +1,25 @@
+.business-participants-dialog { width: min(590px, 100%); }
+.business-participants-content { display: grid; gap: 17px; padding: 17px 23px 20px; }
+.business-participants-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.business-participants-heading h3 { margin: 0; font-size: 16px; }
+.business-participants-status { display: flex; align-items: center; gap: 8px; padding: 13px 0; color: hsl(var(--muted-foreground)); font-size: 11px; }
+.business-participants-empty { margin: 10px 0 0; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.6; }
+.business-participant-list { display: grid; gap: 7px; max-height: min(30dvh, 220px); overflow: auto; margin: 10px 0 0; padding: 0; list-style: none; }
+.business-participant-list li { display: flex; align-items: center; gap: 10px; min-width: 0; border: 1px solid hsl(var(--border)); border-radius: var(--radius); padding: 9px 10px; background: hsl(var(--card)); }
+.business-participant-avatar { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: hsl(var(--primary) / .1); color: hsl(var(--primary)); font-size: 11px; font-weight: 700; }
+.business-participant-identity { display: grid; min-width: 0; gap: 3px; }
+.business-participant-identity strong { overflow-wrap: anywhere; color: hsl(var(--foreground)); font-size: 11px; }
+.business-participant-identity small { overflow-wrap: anywhere; color: hsl(var(--muted-foreground)); font-size: 10px; }
+.business-participant-invite { border-block-start: 1px solid hsl(var(--border)); padding-block-start: 16px; }
+.business-participant-invite-copy { margin: 5px 0 11px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.5; }
+.business-participant-invite-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.business-participant-invite .modal-actions { margin-block-start: 12px; }
+.business-participant-success { display: flex; align-items: flex-start; gap: 8px; margin-block-end: 11px; border: 1px solid hsl(var(--primary) / .2); border-radius: var(--radius); padding: 10px; background: hsl(var(--primary) / .06); color: hsl(var(--foreground)); font-size: 11px; line-height: 1.5; }
+.business-participant-success svg { flex: 0 0 auto; color: hsl(var(--primary)); }
+.business-participants-error { display: flex; align-items: flex-start; gap: 8px; margin-block-start: 10px; border-radius: var(--radius); padding: 10px; background: hsl(var(--destructive) / .08); color: hsl(var(--destructive)); font-size: 11px; line-height: 1.5; }
+.business-participants-error > span { min-width: 0; overflow-wrap: anywhere; }
+.business-participants-error .button { flex: 0 0 auto; }
+@media (max-width: 520px) {
+  .business-participants-content { padding: 14px 16px 17px; }
+  .business-participant-invite-fields { grid-template-columns: minmax(0, 1fr); }
+}

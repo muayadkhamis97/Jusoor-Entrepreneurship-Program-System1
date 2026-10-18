@@ -76,6 +76,17 @@ test("schema compatibility fallback only recognizes the two expected missing-sch
     code: "42703",
     message: 'column "title" does not exist',
   }), false);
+  assert.equal(isMissingAnnouncementBusinessColumn({
+    message: 'Failed query: select "jusoor_program_announcements"."business_id"',
+    cause: {
+      code: "42703",
+      message: 'column jusoor_program_announcements.business_id does not exist',
+    },
+  }), true);
+  assert.equal(isMissingAnnouncementBusinessColumn({
+    message: "Failed query",
+    cause: { code: "42703", message: 'column "title" does not exist' },
+  }), false);
   assert.equal(isMissingBusinessMembershipTable({
     code: "42P01",
     message: 'relation "jusoor_participant_business_memberships" does not exist',

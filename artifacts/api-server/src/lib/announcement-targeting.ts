@@ -21,15 +21,20 @@ export function canParticipantAccessAnnouncement(
 }
 
 export function isMissingAnnouncementBusinessColumn(error: unknown): boolean {
-  return Boolean(
-    error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "42703" &&
-      "message" in error &&
-      typeof error.message === "string" &&
-      error.message.includes("business_id"),
-  );
+  const visited = new Set<object>();
+  let current = error;
+  while (current && typeof current === "object" && !visited.has(current)) {
+    visited.add(current);
+    if (
+      "code" in current &&
+      current.code === "42703" &&
+      "message" in current &&
+      typeof current.message === "string" &&
+      current.message.includes("business_id")
+    ) return true;
+    current = "cause" in current ? current.cause : undefined;
+  }
+  return false;
 }
 
 export function isMissingBusinessMembershipTable(error: unknown): boolean {

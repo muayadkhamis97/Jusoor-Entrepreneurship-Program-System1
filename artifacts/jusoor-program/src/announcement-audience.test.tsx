@@ -46,3 +46,9 @@ test('Admin can compose a business-team message and participants can identify it
   assert.match(communicationsSource, /buildAnnouncementAudienceTarget\(audienceMode, cohort, businessId\)/);
   assert.match(communicationsSource, /item\.businessName \? 'Business message'/);
 });
+
+test('message history distinguishes a truly empty list from a load failure', () => {
+  assert.match(communicationsSource, /announcementsQuery\.isError \? <div className="empty-panel error-panel"/);
+  assert.match(communicationsSource, /!announcementsQuery\.isError && <span className="badge badge-neutral">/);
+  assert.match(communicationsSource, /announcements\.length \? 'Nothing in this view\.' : 'No messages have been sent yet\.'/);
+});
