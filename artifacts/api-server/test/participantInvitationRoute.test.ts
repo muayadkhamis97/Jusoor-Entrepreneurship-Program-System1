@@ -63,7 +63,8 @@ before(async () => {
         },
         limit() {
           if (table === participantInvitationsTable && invitationSchemaMissing) {
-            return Promise.reject(Object.assign(new Error("missing invitation table"), { code: "42P01" }));
+            const cause = Object.assign(new Error("missing invitation table"), { code: "42P01" });
+            return Promise.reject(Object.assign(new Error("invitation query failed"), { cause }));
           }
           return Promise.resolve(rowsFor(table));
         },
@@ -261,6 +262,24 @@ async function invite(body: unknown): Promise<Response> {
     body: JSON.stringify(body),
   });
 }
+
+async function listInvitations(): Promise<Response> {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return fetch(`http://127.0.0.1:${address.port}/api/staff/participant-invitations`);
+}
+
+test("an empty invitation list is successful, while a missing schema returns a clear unavailable response", async () => {
+  const emptyResponse = await listInvitations();
+  assert.equal(emptyResponse.status, 200);
+  assert.deepEqual(await emptyResponse.json(), []);
+
+  invitationSchemaMissing = true;
+  const unavailableResponse = await listInvitations();
+  const unavailable = await unavailableResponse.json();
+  assert.equal(unavailableResponse.status, 503);
+  assert.match(unavailable.error, /additive participant invitation migration/i);
+});
 
 test("Admin invitation creates a 30-day program/business assignment and emails that participant", async () => {
   const response = await invite({

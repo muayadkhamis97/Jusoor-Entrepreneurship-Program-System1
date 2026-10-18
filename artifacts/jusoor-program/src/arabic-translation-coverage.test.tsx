@@ -444,7 +444,7 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
     'Program and business',
     'Participant invitations',
     'Program and existing business access',
-    'No participant invitations yet.',
+    'No invitations have been sent yet.',
     'Could not load participant invitations.',
     'PARTICIPANT ACCESS',
     'EMAIL',

@@ -1106,7 +1106,7 @@ function TeamPage() {
       </div>}
       {participantInvitationsQuery.isLoading ? <LoadingState label="Loading participant invitations" /> :
         participantInvitationsQuery.isError ? <div className="form-error" role="alert"><CircleAlert size={16} /><span>{t('Could not load participant invitations.')}{participantListError?.data?.error ? ` ${t(participantListError.data.error)}` : ''}</span><button className="button button-quiet" onClick={() => void participantInvitationsQuery.refetch()}>{t('Retry')}</button></div> :
-          participantInvitations.length === 0 ? <p className="empty-inline">{t('No participant invitations yet.')}</p> :
+          participantInvitations.length === 0 ? <p className="empty-inline">{t('No invitations have been sent yet.')}</p> :
             <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('PARTICIPANT')}</th><th>{t('PROGRAM / BUSINESS')}</th><th>{t('ACCOUNT')}</th><th>{t('ADDED')}</th></tr></thead><tbody>
               {participantInvitations.map(invitation => <tr key={invitation.id} data-testid={`row-participant-invitation-${invitation.id}`}>
                 <td><b>{invitation.email}</b></td><td>{invitation.participantName}</td>

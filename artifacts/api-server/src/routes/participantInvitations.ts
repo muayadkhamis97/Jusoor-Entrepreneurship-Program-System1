@@ -22,13 +22,13 @@ import { sendParticipantInvitationEmail } from "../lib/participant-invitation-em
 
 const router: IRouter = Router();
 
-function missingSchema(error: unknown): boolean {
-  return Boolean(
-    error
-    && typeof error === "object"
-    && "code" in error
-    && (error.code === "42P01" || error.code === "42703"),
-  );
+function missingSchema(error: unknown, visited = new Set<object>()): boolean {
+  if (!error || typeof error !== "object" || visited.has(error)) return false;
+  visited.add(error);
+
+  const candidate = error as { code?: unknown; cause?: unknown };
+  if (candidate.code === "42P01" || candidate.code === "42703") return true;
+  return missingSchema(candidate.cause, visited);
 }
 
 async function invitationSchemaReady(): Promise<boolean> {

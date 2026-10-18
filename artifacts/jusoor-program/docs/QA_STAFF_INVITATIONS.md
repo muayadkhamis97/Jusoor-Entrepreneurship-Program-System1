@@ -26,3 +26,25 @@
 - No email was sent during testing. Gmail delivery was verified with a mocked connector, not against the live mailbox.
 - The staff invitation route was not exercised end-to-end against an isolated database; its schema fallback and email construction/sending paths have focused automated coverage.
 - No authenticated browser or production invitation test was performed. These code changes are not live until the workspace is published.
+
+## Participant invitation empty state and schema verification
+
+### Changes
+
+- The invitation list now says “No invitations have been sent yet.” when the API successfully returns an empty list.
+- The API recognizes missing-table/column errors nested under PostgreSQL driver causes and returns the existing actionable `503` response instead of an opaque `500`.
+- The participant invitation migration was applied to the development database after isolated verification. Production was not accessed or changed.
+
+### Evidence
+
+- Verified the migration in a newly initialized temporary PostgreSQL cluster bound only to its private Unix socket. Synthetic starting schemas covered both a fresh installation and a partial existing invitation table; both migration runs passed.
+- Checked the resulting table columns, expiry default and `NOT NULL` constraint, primary key, foreign keys, and indexes. Synthetic checks confirmed expiry backfill, default expiry, `ON DELETE SET NULL` for staff, and `ON DELETE CASCADE` for applications.
+- Stopped and removed the temporary PostgreSQL cluster and its temporary directory successfully.
+- Before applying to development, metadata showed the invitation table absent and the legacy business uniqueness index present. Afterward, development metadata showed the expected invitation columns and expiry index, the legacy unique index was replaced with the non-unique business index, and the invitation table contained zero rows.
+- Participant invitation route tests passed: 5/5, including a successful empty list and a nested PostgreSQL missing-table error. Arabic translation coverage tests passed: 5/5. API and web typechecks passed.
+- API rebuilt and reported “Server listening”; the web workflow started successfully.
+
+### Limitations
+
+- No production database was queried or modified, and the workspace was not published. The live app may continue to report the schema unavailable until its normal Publish flow applies the development schema.
+- The signed-in Admin page was not browser-verified. The empty-result API response and localized copy were verified through automated tests; the actual UI requires a signed-in session.

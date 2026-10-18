@@ -622,7 +622,7 @@ const arabic: Record<string, string> = {
   'Program and business': 'البرنامج والمنشأة',
   'Participant invitations': 'دعوات المشاركين',
   'Program and existing business access': 'صلاحية الوصول إلى البرنامج والمنشأة الحالية',
-  'No participant invitations yet.': 'لا توجد دعوات للمشاركين بعد.',
+  'No invitations have been sent yet.': 'لم يتم إرسال أي دعوات بعد.',
   'Could not load participant invitations.': 'تعذّر تحميل دعوات المشاركين.',
   'PARTICIPANT ACCESS': 'صلاحيات المشاركين',
   'PROGRAM / BUSINESS': 'البرنامج / المنشأة',
