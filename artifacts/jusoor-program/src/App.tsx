@@ -63,6 +63,7 @@ const ParticipantDashboardPage = lazy(() => import('./intake-surfaces').then(mod
 const CourseManagementPage = lazy(() => import('./course-surfaces').then(module => ({ default: module.CourseManagementPage })));
 const JudgeDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.JudgeDashboardPage })));
 const MentorDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.MentorDashboardPage })));
+const StaffMentorMeetingReportsPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.StaffMentorMeetingReportsPage })));
 const RoleFrame = lazy(() => import('./role-surfaces').then(module => ({ default: module.RoleFrame })));
 const RoleNotFound = lazy(() => import('./role-surfaces').then(module => ({ default: module.RoleNotFound })));
 const TrainerDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.TrainerDashboardPage })));
@@ -1260,6 +1261,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/sessions">{() => <SessionsPage coordinator={isAdmin} staffId={staff.id} />}</Route>
     <Route path="/communications" component={isAdmin ? CommunicationsPage : NotFoundPage} />
     <Route path="/support">{() => <SupportPage coordinator={isAdmin} />}</Route>
+    <Route path="/mentor-meeting-reports">{() => isAdmin || isProgramStaff ? <StaffMentorMeetingReportsPage /> : <NotFoundPage />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>
     <Route path="/grants" component={isAdmin ? GrantManagementPage : NotFoundPage} />
     <Route path="/applications" component={isAdmin ? ApplicationsReviewPage : NotFoundPage} />
@@ -1320,7 +1322,7 @@ function AuthenticatedWorkspace() {
     if (staff.primaryRole !== 'coordinator' && staff.primaryRole !== 'staff') return false;
     const isAdmin = staff.primaryRole === 'coordinator';
     if (!isAdmin && ['/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/communications', '/grants'].includes(path)) return false;
-    return ['/', '/businesses', '/programs', '/sessions', '/support', '/pitches', '/courses', '/team-assignments', ...(isAdmin ? ['/communications', '/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/grants', '/profiles'] : [])].includes(path);
+    return ['/', '/businesses', '/programs', '/sessions', '/support', '/mentor-meeting-reports', '/pitches', '/courses', '/team-assignments', ...(isAdmin ? ['/communications', '/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/grants', '/profiles'] : [])].includes(path);
   };
   const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {

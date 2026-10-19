@@ -3217,6 +3217,43 @@ export const SubmitMentorMeetingReportResponse = zod.object({
 
 
 /**
+ * @summary Find submitted coach meeting reports for an authorized program
+ */
+
+
+
+
+export const GetStaffMentorMeetingReportsQueryParams = zod.object({
+  "programId": zod.coerce.number().int().min(1),
+  "businessId": zod.coerce.number().int().min(1).optional()
+})
+
+export const getStaffMentorMeetingReportsResponseOneMeetingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetStaffMentorMeetingReportsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "meetingProvider": zod.enum(['manual', 'calendly', 'google_calendar']),
+  "meetingId": zod.number().int().nullable(),
+  "coachName": zod.string(),
+  "coachEmail": zod.string().email(),
+  "businessName": zod.string(),
+  "meetingDate": zod.string().regex(getStaffMentorMeetingReportsResponseOneMeetingDateRegExp),
+  "attendees": zod.array(zod.string()),
+  "sessionSummary": zod.string(),
+  "smartGrowActions": zod.string(),
+  "achievementsAndOpportunities": zod.string(),
+  "teamRecommendations": zod.string().nullable(),
+  "submittedAt": zod.coerce.date()
+}).and(zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "businessId": zod.number().int()
+}))
+export const GetStaffMentorMeetingReportsResponse = zod.array(GetStaffMentorMeetingReportsResponseItem)
+
+
+/**
  * @summary Start the signed-in mentor's Calendly authorization
  */
 export const StartCalendlyConnectionBody = zod.object({

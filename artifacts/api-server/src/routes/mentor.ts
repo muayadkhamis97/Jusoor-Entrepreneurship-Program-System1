@@ -11,6 +11,8 @@ import {
   UpdateAssignedMentoringResponse,
   GetMentorMeetingReportsParams,
   GetMentorMeetingReportsResponse,
+  GetStaffMentorMeetingReportsQueryParams,
+  GetStaffMentorMeetingReportsResponse,
   SubmitMentorMeetingReportBody,
   SubmitMentorMeetingReportParams,
   SubmitMentorMeetingReportResponse,
@@ -33,6 +35,7 @@ import { activeProgramIdsFor } from "../lib/programScope";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 
 const router: IRouter = Router();
+export const staffMentorMeetingReportsRouter: IRouter = Router();
 
 type AssignedMeetingBusiness = { id: number; businessId: number; businessName: string; programId: number };
 
@@ -134,6 +137,56 @@ async function coachIdentity(staff: StaffAccess, req: Request) {
   }
   return { coachName: name || staff.email.split("@")[0] || staff.email, coachEmail: staff.email };
 }
+
+staffMentorMeetingReportsRouter.get("/mentor-meeting-reports", async (req, res): Promise<void> => {
+  const query = GetStaffMentorMeetingReportsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.includes(query.data.programId)) {
+    res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
+  const filters = [
+    eq(programsTable.id, query.data.programId),
+    eq(supportTable.type, "mentor"),
+    inArray(businessesTable.programId, programIds),
+  ];
+  if (query.data.businessId !== undefined) {
+    filters.push(eq(businessesTable.id, query.data.businessId));
+  }
+  const reports = await db.select({
+    id: mentorMeetingReportsTable.id,
+    calendlyMeetingId: mentorMeetingReportsTable.calendlyMeetingId,
+    googleCalendarMeetingId: mentorMeetingReportsTable.googleCalendarMeetingId,
+    coachName: mentorMeetingReportsTable.coachName,
+    coachEmail: mentorMeetingReportsTable.coachEmail,
+    businessName: mentorMeetingReportsTable.businessName,
+    meetingDate: mentorMeetingReportsTable.meetingDate,
+    attendees: mentorMeetingReportsTable.attendees,
+    sessionSummary: mentorMeetingReportsTable.sessionSummary,
+    smartGrowActions: mentorMeetingReportsTable.smartGrowActions,
+    achievementsAndOpportunities: mentorMeetingReportsTable.achievementsAndOpportunities,
+    teamRecommendations: mentorMeetingReportsTable.teamRecommendations,
+    submittedAt: mentorMeetingReportsTable.submittedAt,
+    programId: programsTable.id,
+    programName: programsTable.name,
+    businessId: businessesTable.id,
+  }).from(mentorMeetingReportsTable)
+    .innerJoin(supportTable, eq(supportTable.id, mentorMeetingReportsTable.supportId))
+    .innerJoin(businessesTable, eq(businessesTable.id, supportTable.businessId))
+    .innerJoin(programsTable, eq(programsTable.id, businessesTable.programId))
+    .where(and(...filters))
+    .orderBy(desc(mentorMeetingReportsTable.meetingDate), desc(mentorMeetingReportsTable.id));
+  res.json(GetStaffMentorMeetingReportsResponse.parse(reports.map((report) => ({
+    ...report,
+    meetingProvider: reportProvider(report),
+    meetingId: reportMeetingId(report),
+  }))));
+});
 
 router.get("/support/:id/meeting-reports", async (req, res): Promise<void> => {
   const params = GetMentorMeetingReportsParams.safeParse(req.params);

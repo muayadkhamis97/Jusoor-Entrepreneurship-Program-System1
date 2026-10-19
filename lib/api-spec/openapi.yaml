@@ -1889,6 +1889,37 @@ paths:
           description: Required report fields are invalid or an attendee is not an accepted business member
         "404":
           description: Engagement is not assigned to this mentor
+  /staff/mentor-meeting-reports:
+    get:
+      operationId: getStaffMentorMeetingReports
+      tags: [support]
+      summary: Find submitted coach meeting reports for an authorized program
+      parameters:
+        - name: programId
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: businessId
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Historical meeting report snapshots in the selected program
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffMentorMeetingReport"
+        "400":
+          description: Program or business filter is invalid
+        "404":
+          description: Program or business is not available to this staff member
   /mentor/calendly/connect:
     post:
       operationId: startCalendlyConnection
@@ -5169,6 +5200,15 @@ components:
           type: array
           items: { $ref: "#/components/schemas/MentorCompletedMeetingOccurrence" }
       required: [coachName, coachEmail, businessName, attendees, reports, completedMeetings]
+    StaffMentorMeetingReport:
+      allOf:
+        - $ref: "#/components/schemas/MentorMeetingReport"
+        - type: object
+          properties:
+            programId: { type: integer }
+            programName: { type: string }
+            businessId: { type: integer }
+          required: [programId, programName, businessId]
     MentorBookingProvider:
       type: string
       enum: [calendly, google_calendar]

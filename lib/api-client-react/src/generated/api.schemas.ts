@@ -2135,6 +2135,12 @@ export interface MentorMeetingReports {
   completedMeetings: MentorCompletedMeetingOccurrence[];
 }
 
+export type StaffMentorMeetingReport = MentorMeetingReport & {
+  programId: number;
+  programName: string;
+  businessId: number;
+};
+
 export interface MentorBookingSettings {
   bookingProvider: MentorBookingProvider;
   /** @nullable */
@@ -3711,6 +3717,17 @@ activityId: string;
 agent: string;
 stateId?: string;
 registration?: string;
+};
+
+export type GetStaffMentorMeetingReportsParams = {
+/**
+ * @minimum 1
+ */
+programId: number;
+/**
+ * @minimum 1
+ */
+businessId?: number;
 };
 
 export type CompleteCalendlyConnectionParams = {

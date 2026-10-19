@@ -9,14 +9,18 @@ import {
   useReplyTrainingQuestion, useGetMentorDashboard,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
   useStartGoogleCalendarConnection, useUpdateMentorBookingSettings, useDisconnectGoogleCalendar,
-  getGetProgramBrandingQueryKey, useGetProgramBranding,
+  getGetProgramBrandingQueryKey, getGetStaffMentorMeetingReportsQueryKey,
+  getListBusinessesQueryKey, getListProgramsQueryKey, useGetProgramBranding,
+  useGetStaffMentorMeetingReports, useListBusinesses, useListPrograms,
 } from '@workspace/api-client-react';
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
   JudgeScorecardInput, StaffMember,
-  MentorBookingSettingsInput,
+  GetStaffMentorMeetingReportsParams, MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
+import { Button } from '@workspace/program-editorial/components/ui/button';
+import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
 import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
@@ -62,6 +66,106 @@ function LoadOrError({ loading, error, retry }: { loading: boolean; error: boole
   return null;
 }
 const invalid = (client: ReturnType<typeof useQueryClient>, key: readonly unknown[]) => void client.invalidateQueries({ queryKey: key });
+
+export function StaffMentorMeetingReportsPage() {
+  useAppLanguage();
+  const [selectedProgramId, setSelectedProgramId] = useState<number | ''>('');
+  const [selectedBusinessId, setSelectedBusinessId] = useState<number | ''>('');
+  const programsQuery = useListPrograms(undefined, {
+    query: { queryKey: getListProgramsQueryKey(), refetchOnWindowFocus: true },
+  });
+  const programs = programsQuery.data ?? [];
+  useEffect(() => {
+    if (selectedProgramId === '' && programs.length > 0) setSelectedProgramId(programs[0].id);
+  }, [programs, selectedProgramId]);
+
+  const businessParams = selectedProgramId === '' ? undefined : { programId: selectedProgramId };
+  const businessesQuery = useListBusinesses(businessParams, {
+    query: {
+      queryKey: getListBusinessesQueryKey(businessParams),
+      enabled: businessParams !== undefined,
+    },
+  });
+  const reportParams: GetStaffMentorMeetingReportsParams = {
+    programId: selectedProgramId === '' ? 0 : selectedProgramId,
+    ...(selectedBusinessId === '' ? {} : { businessId: selectedBusinessId }),
+  };
+  const reportsQuery = useGetStaffMentorMeetingReports(reportParams, {
+    query: {
+      queryKey: getGetStaffMentorMeetingReportsQueryKey(reportParams),
+      enabled: selectedProgramId !== '',
+      refetchOnWindowFocus: true,
+    },
+  });
+  const retry = () => {
+    void programsQuery.refetch();
+    void businessesQuery.refetch();
+    void reportsQuery.refetch();
+  };
+
+  return <>
+    <Heading
+      kicker="COACHING / REPORTS"
+      title="Coach meeting reports"
+      description="Review submitted session notes, agreed actions, achievements and recommendations by program and business."
+      count={reportsQuery.data ? `${reportsQuery.data.length} reports` : undefined}
+    />
+    <section className="role-section role-assignment-section" data-testid="staff-mentor-meeting-report-filters">
+      <div className="role-section-title"><div><div className="eyebrow">{t('FIND REPORTS')}</div><h2>{t('Choose a program and business')}</h2></div></div>
+      {programsQuery.isLoading ? <p role="status">{t('Loading programs…')}</p> : programsQuery.isError ? <div className="role-inline-note" role="alert">
+        <p>{t('Programs could not load.')}</p>
+        <Button type="button" className="button button-quiet" onClick={() => void programsQuery.refetch()}>{t('Retry')}</Button>
+      </div> : programs.length === 0 ? <p className="role-inline-note">{t('No active programs are assigned to this account.')}</p> : <div className="role-form-grid">
+        <label className="field">{t('Program')}
+          <select className="form-control" value={selectedProgramId} onChange={event => {
+            setSelectedProgramId(event.currentTarget.value ? Number(event.currentTarget.value) : '');
+            setSelectedBusinessId('');
+          }} data-testid="select-staff-report-program">
+            {programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}
+          </select>
+        </label>
+        <label className="field">{t('Business')}
+          <select className="form-control" value={selectedBusinessId} onChange={event => setSelectedBusinessId(event.currentTarget.value ? Number(event.currentTarget.value) : '')}
+            disabled={selectedProgramId === '' || businessesQuery.isLoading || businessesQuery.isError}
+            data-testid="select-staff-report-business">
+            <option value="">{t('All businesses')}</option>
+            {(businessesQuery.data ?? []).map(business => <option key={business.id} value={business.id}>{business.businessName}</option>)}
+          </select>
+          {businessesQuery.isError && <span role="alert">{t('Business choices could not load.')}{' '}
+            <Button type="button" className="button button-quiet" onClick={() => void businessesQuery.refetch()}>{t('Retry')}</Button>
+          </span>}
+        </label>
+      </div>}
+    </section>
+    {selectedProgramId !== '' && (reportsQuery.isLoading || businessesQuery.isLoading)
+      ? <p className="role-inline-note" role="status">{t('Loading coach meeting reports…')}</p>
+      : reportsQuery.isError ? <div className="role-inline-note" role="alert">
+        <p>{t('Coach meeting reports could not load.')}</p>
+        <Button type="button" className="button button-quiet" onClick={retry}>{t('Retry')}</Button>
+      </div>
+      : reportsQuery.data && (reportsQuery.data.length === 0
+        ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try another business or check again after a coach submits a report.')}</p></div>
+        : <section className="role-section" aria-label={t('Submitted coach meeting reports')} data-testid="staff-mentor-meeting-reports">
+          <div className="role-section-title"><div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2></div><span className="role-count">{reportsQuery.data.length}</span></div>
+          <div className="answer-list">{reportsQuery.data.map(report => <article className="answer-card" key={report.id} data-testid={`staff-meeting-report-${report.id}`}>
+            <div className="answer-meta"><div>
+              <Typography variant="heading" as="h3">{dateText(report.meetingDate)} · {report.businessName}</Typography>
+              <span>{report.programName} · {t('Submitted')} {dateText(report.submittedAt)}</span>
+            </div></div>
+            <dl className="mentor-meeting-report-identity">
+              <div><dt>{t('Coach name')}</dt><dd>{report.coachName}</dd></div>
+              <div><dt>{t('Coach email')}</dt><dd>{report.coachEmail}</dd></div>
+              <div><dt>{t('Team members who attended the session')}</dt><dd>{report.attendees.length ? report.attendees.join(', ') : t('No attendees recorded')}</dd></div>
+            </dl>
+            <p><b>{t('Meeting occurrence')}:</b> {report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</p>
+            <p><b>{t('Topics, session highlights, connections made, and other notes')}:</b><br />{report.sessionSummary}</p>
+            <p><b>{t('SMART Grow actions recommended and agreed with the team until the next call')}:</b><br />{report.smartGrowActions}</p>
+            <p><b>{t('Key achievements and opportunities resulting from your coaching')}:</b><br />{report.achievementsAndOpportunities}</p>
+            {report.teamRecommendations && <p><b>{t('Recommendations to the program team for further support')}:</b><br />{report.teamRecommendations}</p>}
+          </article>)}</div>
+        </section>)}
+  </>;
+}
 
 export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { name: string; availableRoles?: string[]; primaryRole?: string }) {
   useAppLanguage();

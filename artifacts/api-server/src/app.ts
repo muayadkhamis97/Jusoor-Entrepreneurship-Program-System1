@@ -8,7 +8,7 @@ import healthRouter from "./routes/health";
 import publicApplicationsRouter from "./routes/publicApplications";
 import participantRouter from "./routes/participant";
 import trainerRouter from "./routes/trainer";
-import mentorRouter from "./routes/mentor";
+import mentorRouter, { staffMentorMeetingReportsRouter } from "./routes/mentor";
 import calendlyOAuthRouter from "./routes/calendlyOAuth";
 import googleCalendarOAuthRouter from "./routes/googleCalendarOAuth";
 import zoomRouter from "./routes/zoom";
@@ -40,7 +40,7 @@ import {
   clerkProxyMiddleware,
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
-import { requireStaff } from "./middlewares/staffAccess";
+import { requireOperationsStaff, requireStaff } from "./middlewares/staffAccess";
 import { requireParticipant } from "./middlewares/participantAccess";
 import { requireRole } from "./middlewares/requireRole";
 import { logger } from "./lib/logger";
@@ -114,6 +114,7 @@ app.use("/api/xapi", xapiRouter);
 app.use("/api/trainer", requireStaff, requireRole("trainer"), trainerRouter);
 app.use("/api/mentor", requireStaff, requireRole("mentor"), mentorRouter);
 app.use("/api/judge", requireStaff, requireRole("judge"), judgeRouter);
+app.use("/api/staff", requireStaff, requireOperationsStaff, staffMentorMeetingReportsRouter);
 app.use("/api", requireStaff, staffLearningProgressRouter);
 app.use("/api", requireStaff, profilesRouter);
 app.use("/api", requireStaff);
