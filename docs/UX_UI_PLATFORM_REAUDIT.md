@@ -5,6 +5,11 @@
 
 ## Executive summary
 
+> Current follow-up: [19 October 2026 targeted audit](UX_UI_AUDIT_2026-10-19.md).
+> This document is a historical snapshot. Font loading and invitation behavior
+> have changed; the follow-up distinguishes current source findings from actual
+> visual verification.
+
 The original findings register contains 20 items. This re-audit classifies **9 Fixed—Verified, 11 Partially Fixed, and 0 Not Fixed**. The October 15 follow-up expanded Arabic coverage in applicant, participant, trainer, and key Admin flows; corrected trainer program labels; raised minimum sizing for selected small UI copy; and verified the shared button and form-control styling across feature families. Actual authenticated page rendering, live Clerk behavior, and complete Arabic visual presentation remain unverified.
 
 The original coverage table contains **33 page/surface groups** (including embedded learning features and shared status pages), rather than 30. All 33 groups are carried forward below; none was dropped to force the count to 30.
