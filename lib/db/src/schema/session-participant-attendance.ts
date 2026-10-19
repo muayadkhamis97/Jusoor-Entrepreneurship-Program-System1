@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { foreignKey, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { applicationsTable } from "./applications";
 import { businessesTable } from "./businesses";
@@ -28,21 +28,6 @@ export const sessionParticipantAttendanceTable = pgTable(
     index("jusoor_session_participant_attendance_session_idx").on(table.sessionId),
     index("jusoor_session_participant_attendance_business_idx").on(table.businessId),
     index("jusoor_session_participant_attendance_participant_idx").on(table.participantId),
-    foreignKey({
-      name: "jusoor_session_participant_attendance_session_program_fk",
-      columns: [table.sessionId, table.programId],
-      foreignColumns: [sessionsTable.id, sessionsTable.programId],
-    }).onDelete("cascade"),
-    foreignKey({
-      name: "jusoor_session_participant_attendance_participant_program_fk",
-      columns: [table.participantId, table.programId],
-      foreignColumns: [applicationsTable.id, applicationsTable.programId],
-    }).onDelete("cascade"),
-    foreignKey({
-      name: "jusoor_session_participant_attendance_business_program_fk",
-      columns: [table.businessId, table.programId],
-      foreignColumns: [businessesTable.id, businessesTable.programId],
-    }).onDelete("cascade"),
   ],
 );
 

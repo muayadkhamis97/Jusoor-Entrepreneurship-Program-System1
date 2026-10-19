@@ -205,7 +205,7 @@ This is separate from the isolated program-assignment verification above.
 
 ### Program-bound attendance follow-up — 2026-10-19
 
-- Added `program_id` to participant attendance and composite foreign keys tying each record's session, participant application, and business to the same program. Supporting unique indexes are defined in the Drizzle schema. Manual and Zoom attendance writes now take the program ID from the session; existing accepted-participant and assigned-business roster checks remain active.
+- Added `program_id` to participant attendance and composite foreign keys tying each record's session, participant application, and business to the same program. Supporting parent keys are defined in the Drizzle schema. Manual and Zoom attendance writes now take the program ID from the session; existing accepted-participant and assigned-business roster checks remain active.
 - The additive migration backfills `program_id` only when the existing session, participant, and business agree. It aborts transactionally if any row cannot be assigned one shared program; it does not delete records.
 - Isolated verification used a newly initialized PostgreSQL cluster in `/tmp/attendance-integrity-check.I8FcDk`, with a task-owned data directory and Unix socket, `listen_addresses=''`, and cleared inherited database connection variables. The server reported the expected data directory/socket and `inet_server_addr() IS NULL`.
 - The valid synthetic row was backfilled to program 10; all three composite foreign keys were present. A second migration run succeeded. Synthetic attempts to pair a different-program session, participant, or business were each rejected. A separate fixture with invalid preexisting data failed and rolled the entire migration back, leaving neither the new column nor indexes behind. The temporary server stopped and its task directory was removed.
@@ -217,10 +217,20 @@ This is separate from the isolated program-assignment verification above.
 
 - Successful attendance saves and cross-program denial were not exercised as authenticated HTTP requests against a real database. The API suite includes authorization tests and attendance source-level regression checks, but those are not an end-to-end attendance API test.
 - No signed-in browser test or Arabic-rendered visual inspection was performed; the browser capture environment has no signed-in session.
-- Production remains unchanged. Publish is required to carry both development schema changes to production, and its proposed schema diff has not been reviewed or confirmed.
+- Production remains unchanged. Publish is required to carry the development schema changes to production; the failed validation was on a disposable production-schema fork, not production itself.
 
 ## Staff-assignment audit migration — development applied, production pending Publish
 
 - The role editor's save endpoint requires `jusoor_staff_assignment_audit_events` so role changes and their audit records are committed together. Before the migration, the missing table caused the endpoint to return HTTP 503, matching the error shown in the Admin role dialog.
 - With the user's approval, applied `lib/db/migrations/20261014_staff_assignment_audit_events.sql` to development. Post-apply catalog verification confirmed the 13 columns, primary key, two check constraints, actor-staff foreign key with `ON DELETE SET NULL`, both history indexes, and `created_at NOT NULL DEFAULT now()`.
 - A read-only production schema check found the audit table absent. No production DDL was run; use Publish to review/apply the development schema diff.
+
+### Publish validation diagnosis and staged correction — 2026-10-19
+
+- The disposable-fork error is caused by missing referenced keys in the target schema: production has only single-column primary keys on sessions, applications, and businesses. Development initially had the three composite keys as standalone unique indexes, while the generated Publish diff omitted those parent indexes and attempted the attendance composite foreign keys anyway.
+- Changed the Drizzle source to model the parent keys as explicit `UNIQUE` constraints. In development, the existing unique indexes were adopted as constraints with `UNIQUE USING INDEX`; catalog checks confirmed all three constraints and their backing indexes. This conversion preserved the existing indexes and rows.
+- A disposable PostgreSQL test converted all three indexes, re-ran the conversion migration, confirmed the three parent rows were unchanged, then added all three composite foreign keys. The valid synthetic row was accepted and a mismatched program ID was rejected.
+- The first recomputed Publish diff still ordered the parent `UNIQUE`-constraint statements after the dependent composite foreign keys. Retrying that complete diff would therefore remain unsafe.
+- With the user's approval to stage the Publish, checked that development attendance had zero rows, then temporarily removed only the three composite attendance foreign keys from development and omitted them from the current Drizzle attendance schema. The required `program_id`, simple foreign keys, parent `UNIQUE` constraints, and application roster checks remain. No data was deleted. The final integrity migration still documents the three composite foreign keys for the second stage.
+- The current phase-one diff contains no composite attendance foreign keys, includes the parent `UNIQUE` constraints, and reports no table/column drops or structural data loss. The diff warns that it may ask to truncate the existing parent tables before adding those constraints; this is a generic uniqueness warning because each table's `id` is already a primary key, which guarantees `(id, program_id)` uniqueness. **Do not choose a truncate option.** Production has not been modified or published.
+- After the phase-one Publish succeeds, restore the three composite foreign keys in the Drizzle schema and development database, then review and publish the phase-two diff. Production was not written directly.

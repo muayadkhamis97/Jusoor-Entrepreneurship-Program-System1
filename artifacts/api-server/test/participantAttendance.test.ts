@@ -14,6 +14,9 @@ const attendanceSchema = readFileSync(
   new URL("../../../lib/db/src/schema/session-participant-attendance.ts", import.meta.url),
   "utf8",
 );
+const businessesSchema = readFileSync(new URL("../../../lib/db/src/schema/businesses.ts", import.meta.url), "utf8");
+const applicationsSchema = readFileSync(new URL("../../../lib/db/src/schema/applications.ts", import.meta.url), "utf8");
+const sessionsSchema = readFileSync(new URL("../../../lib/db/src/schema/sessions.ts", import.meta.url), "utf8");
 const attendanceSchemaGuard = readFileSync(
   new URL("../src/lib/participant-attendance-schema.ts", import.meta.url),
   "utf8",
@@ -41,9 +44,9 @@ test("attendance migration enforces shared program IDs with composite foreign ke
   assert.match(programIntegrityMigration, /FOREIGN KEY \(participant_id, program_id\)\s+REFERENCES jusoor_applications\(id, program_id\)/);
   assert.match(programIntegrityMigration, /FOREIGN KEY \(business_id, program_id\)\s+REFERENCES jusoor_businesses\(id, program_id\)/);
   assert.match(attendanceSchema, /programId: integer\("program_id"\)\.notNull\(\)/);
-  assert.match(attendanceSchema, /jusoor_session_participant_attendance_session_program_fk/);
-  assert.match(attendanceSchema, /jusoor_session_participant_attendance_participant_program_fk/);
-  assert.match(attendanceSchema, /jusoor_session_participant_attendance_business_program_fk/);
+  assert.match(businessesSchema, /unique\("jusoor_businesses_id_program_uq"\)\.on\(table\.id, table\.programId\)/);
+  assert.match(applicationsSchema, /unique\("jusoor_applications_id_program_uq"\)\.on\(table\.id, table\.programId\)/);
+  assert.match(sessionsSchema, /unique\("jusoor_sessions_id_program_uq"\)\.on\(table\.id, table\.programId\)/);
   assert.match(attendanceSchemaGuard, /attendance_program_scope_ready/);
   assert.match(attendanceSchemaGuard, /attendance_table_ready\s*&&\s*result\.rows\[0\]\?\.attendance_program_scope_ready/s);
 });
