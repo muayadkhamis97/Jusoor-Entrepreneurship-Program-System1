@@ -1232,7 +1232,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
       if (location === '/trainer/courses') return <RoleFrame role="trainer" name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole}><CourseManagementPage readOnly /></RoleFrame>;
       if (location === '/trainer/sessions') return <RoleFrame role="trainer" name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole}><SessionsPage staffId={staff.id} trainerView /></RoleFrame>;
     }
-    if (activeRole === 'mentor' && location === '/mentor') return <MentorDashboardPage name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole} />;
+    if (activeRole === 'mentor' && (location === '/mentor' || location === '/mentor/settings')) return <MentorDashboardPage key={location} name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole} settingsOnly={location === '/mentor/settings'} />;
     if (activeRole === 'judge' && location === '/judge') return <JudgeDashboardPage name={displayName} availableRoles={availableRoles} primaryRole={staff.primaryRole} />;
     return <RoleNotFound role={activeRole as StaffMember['role']} />;
   }

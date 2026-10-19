@@ -16,3 +16,16 @@ A mentor connected to either Google Calendar or Calendly does not need connectio
 **Why:** The user explicitly said a mentor who connected Google Calendar does not need follow-up. Connection follow-up and complete booking readiness are different concerns.
 
 **How to apply:** Keep staff-page counts, filters, follow-up controls, API checks, and reminder selection consistent with this provider-neutral rule.
+
+## Mentor settings placement
+
+Once a booking account is connected, keep connection controls and schedule-link
+editing in the mentor's Settings page rather than showing the setup form on the
+mentor dashboard.
+
+**Why:** The user explicitly requested hiding connected-account setup on the
+dashboard and making it available under mentor settings.
+
+**How to apply:** Keep settings reachable from the mentor workspace, retain
+dashboard setup for mentors without a connection, and direct connected mentors
+with a missing schedule link to Settings.

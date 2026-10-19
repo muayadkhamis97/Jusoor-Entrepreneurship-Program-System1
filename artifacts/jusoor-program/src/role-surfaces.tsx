@@ -39,7 +39,13 @@ export function RoleFrame({ role, name, children, availableRoles = [], primaryRo
       <Link href={`/${role}`} className="brand" data-testid="link-role-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(branding?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(branding?.brandName)}</b><small>{t('PROGRAM HUB')}</small></span></Link>
        <div className="role-top-actions">{role === 'trainer' && <><Link href={location === '/trainer/sessions' ? '/trainer' : '/trainer/sessions'} className="button button-quiet" data-testid="link-trainer-sessions"><CalendarDays size={14} />{t(location === '/trainer/sessions' ? 'Training workspace' : 'Live sessions')}</Link><Link href={location === '/trainer/courses' ? '/trainer' : '/trainer/courses'} className="button button-quiet" data-testid="link-trainer-learning"><BookOpen size={14} />{t(location === '/trainer/courses' ? 'Training workspace' : 'Course learning')}</Link></>}{otherRoles.map(availableRole => <Link key={availableRole} href={`/${availableRole}`} className="button button-quiet" data-testid={`link-role-${availableRole}`}>{t(`Open ${availableRole} workspace`)}</Link>)}{(primaryRole === 'coordinator' || primaryRole === 'staff') && <Link href="/" className="button button-quiet" data-testid="link-program-operations">{t(primaryRole === 'coordinator' ? 'Admin workspace' : 'Program staff workspace')}</Link>}<Link href="/profile" className="button button-quiet" data-testid="link-role-profile">{t('Profile')}</Link><span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button></div>
     </header>
-    <main className="role-main page-enter">{children}</main>
+    <main className="role-main page-enter">
+      {role === 'mentor' && <nav className="role-button-row" aria-label={t('Mentor navigation')}>
+        <Link href="/mentor" className="button button-quiet" aria-current={location === '/mentor' ? 'page' : undefined}>{t('Mentor workspace')}</Link>
+        <Link href="/mentor/settings" className="button button-quiet" aria-current={location === '/mentor/settings' ? 'page' : undefined} data-testid="link-mentor-settings">{t('Settings')}</Link>
+      </nav>}
+      {children}
+    </main>
     <footer className="footer role-footer footer-brandless"><span>{t('ONE JOURNEY, IN VIEW')}</span></footer>
   </div>;
 }
@@ -154,7 +160,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   </RoleFrame>;
 }
 
-export function MentorDashboardPage({ name, availableRoles, primaryRole }: { name: string; availableRoles?: string[]; primaryRole?: string }) {
+export function MentorDashboardPage({ name, availableRoles, primaryRole, settingsOnly = false }: { name: string; availableRoles?: string[]; primaryRole?: string; settingsOnly?: boolean }) {
   useAppLanguage();
   const query = useGetMentorDashboard({ query: { queryKey: getGetMentorDashboardQueryKey(), refetchOnWindowFocus: true } });
   const client = useQueryClient();
@@ -173,12 +179,13 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
     if (calendly === 'cancelled') return 'Calendly authorization was cancelled.';
     if (calendly === 'error') return 'Calendly could not be connected. Try again or ask an admin to check the setup.';
     const googleCalendar = params.get('googleCalendar');
-    if (googleCalendar === 'connected') return 'Google account connected. Add your appointment-schedule link below to receive founder bookings.';
+    if (googleCalendar === 'connected') return 'Google account connected. Manage your appointment-schedule link in Settings.';
     if (googleCalendar === 'cancelled') return 'Google authorization was cancelled.';
     if (googleCalendar === 'error') return 'Google Calendar could not be connected. Try again or ask an admin to check the setup.';
     return '';
   });
   const dashboard = query.data;
+  const bookingConnected = Boolean(dashboard?.googleCalendarConnected || dashboard?.calendlyBookingUrl);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has('calendly') || params.has('googleCalendar')) {
@@ -212,9 +219,17 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
     update.mutate({ id, data }, { onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()) });
   };
   return <RoleFrame role="mentor" name={name} availableRoles={availableRoles} primaryRole={primaryRole}>
-    <Heading kicker="FOUNDER ENABLEMENT / MENTOR DESK" title="Support, with context." description="Your assigned engagements and the next useful step for each founder." count={`${engagements.length} engagements`} />
+    {settingsOnly
+      ? <Heading kicker="MENTOR SETTINGS" title="Booking settings" description="Manage your connected booking accounts and appointment-schedule link." />
+      : <Heading kicker="FOUNDER ENABLEMENT / MENTOR DESK" title="Support, with context." description="Your assigned engagements and the next useful step for each founder." count={`${engagements.length} engagements`} />}
     <LoadOrError loading={query.isLoading} error={query.isError || !query.data} retry={() => void query.refetch()} />
-    <section className="role-section" data-testid="mentor-booking-settings">
+    {!settingsOnly && dashboard && !query.isError && bookingConnected && <section className="role-section" data-testid="mentor-booking-connected">
+      <div className="role-section-title"><h2>{t('Booking account connected')}</h2><Link href="/mentor/settings" className="text-link">{t('Manage booking settings')} <ArrowRight size={14} /></Link></div>
+      <p>{[dashboard.googleCalendarConnected && 'Google Calendar', dashboard.calendlyBookingUrl && 'Calendly'].filter(Boolean).join(' · ')}</p>
+      {bookingNotice && <p role="status">{t(bookingNotice)}</p>}
+      {dashboard.googleCalendarConnected && !dashboard.googleCalendarBookingUrl && <p>{t('Add your appointment-schedule link in Settings so founders can book with you.')}</p>}
+    </section>}
+    {dashboard && !query.isError && (settingsOnly || !bookingConnected) && <section className="role-section" data-testid="mentor-booking-settings">
       <div className="role-section-title"><div><div className="eyebrow">{t('SESSION BOOKING')}</div><h2>{t('Choose your booking platform')}</h2></div></div>
       <p>{t('Connect your own account, then choose where founders should book time with you.')}</p>
       {bookingNotice && <p role="status" className="form-success">{t(bookingNotice)}</p>}
@@ -279,8 +294,8 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole }: { nam
           <div className="field-wide"><button className="button button-primary" disabled={saveBookingSettings.isPending || !dashboard || (bookingProvider === 'google_calendar' && !dashboard.googleCalendarConnected)} data-testid="button-save-booking-settings">{saveBookingSettings.isPending ? t('Saving…') : t('Save booking platform')}</button></div>
         </form>
       </div>
-    </section>
-    {query.data && (engagements.length === 0 ? <div className="empty-panel"><span className="empty-icon">J</span><h3>{t('No engagements assigned yet.')}</h3><p>{t('Your admin will connect you with a founder when the right support need comes into view.')}</p></div> : <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('YOUR FOUNDER ENGAGEMENTS')}</div><h2>{t('Keep the next step visible')}</h2></div></div><div className="answer-list">{engagements.map(item => {
+    </section>}
+    {!settingsOnly && query.data && (engagements.length === 0 ? <div className="empty-panel"><span className="empty-icon">J</span><h3>{t('No engagements assigned yet.')}</h3><p>{t('Your admin will connect you with a founder when the right support need comes into view.')}</p></div> : <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('YOUR FOUNDER ENGAGEMENTS')}</div><h2>{t('Keep the next step visible')}</h2></div></div><div className="answer-list">{engagements.map(item => {
       const draft = drafts[item.id] || { date: item.scheduledDate || '', status: item.status, notes: item.notes || '' };
       return <article className="answer-card mentor-card" key={item.id} data-testid={`card-mentor-engagement-${item.id}`}><div className="answer-meta"><div><b>{item.founderName} · {item.businessName}</b><span>{item.programName} · {word(item.type)}</span></div><span className={`badge badge-${item.status === 'completed' ? 'good' : 'warm'}`}><span />{word(item.status)}</span></div><h3>{item.topic}</h3><p className="mentor-provider">{item.provider}</p><form className="role-form-grid compact" onSubmit={event => save(event, item.id)}><label className="field">{t('Next meeting')}<input className="form-control" type="date" value={draft.date} onChange={event => setDrafts(old => ({ ...old, [item.id]: { ...draft, date: event.target.value } }))} data-testid={`input-mentor-date-${item.id}`} /></label><label className="field">{t('Engagement status')}<select className="form-control" value={draft.status} onChange={event => setDrafts(old => ({ ...old, [item.id]: { ...draft, status: event.target.value } }))} data-testid={`select-mentor-status-${item.id}`}><option value="requested">{t('Requested')}</option><option value="matched">{t('Matched')}</option><option value="scheduled">{t('Scheduled')}</option><option value="completed">{t('Completed')}</option></select></label><label className="field field-wide">{t('Working notes')}<textarea className="form-control" rows={3} value={draft.notes} onChange={event => setDrafts(old => ({ ...old, [item.id]: { ...draft, notes: event.target.value } }))} placeholder={t('Capture agreed actions and useful context.')} data-testid={`input-mentor-notes-${item.id}`} /></label><div className="field-wide">{update.isError && <span className="form-error">{t('Could not update this engagement.')}</span>}<button className="button button-primary" disabled={update.isPending} data-testid={`button-save-mentor-${item.id}`}>{update.isPending ? t('Saving…') : t('Save engagement')}</button></div></form></article>;
     })}</div></section>)}
