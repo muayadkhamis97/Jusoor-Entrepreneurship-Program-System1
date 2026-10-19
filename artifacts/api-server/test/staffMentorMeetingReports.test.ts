@@ -202,6 +202,30 @@ test("coach choices are distinct and limited to the viewer's authorized program"
   assert.equal(selectDistinctCalls, 0, "coach choices must not be queried after program scope denial");
 });
 
+test("Admin can load coach choices from an active program without an assignment", async () => {
+  requestStaff = { ...assignedStaff, role: "coordinator", primaryRole: "coordinator", programIds: [] };
+  selectedRows = [[{ id: 12 }, { id: 23 }]];
+  selectedDistinctRows = [[
+    { coachName: "Coach Snapshot", coachEmail: "coach@example.test" },
+  ]];
+
+  const response = await getCoachChoices(23);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), selectedDistinctRows[0]);
+  assert.equal(selectCalls, 1, "Admin's active programs should be resolved without assignments");
+  assert.equal(selectDistinctCalls, 1, "coach choices should load after resolving Admin scope");
+});
+
+test("Admin cannot load coach choices from an archived program", async () => {
+  requestStaff = { ...assignedStaff, role: "coordinator", primaryRole: "coordinator", programIds: [] };
+  selectedRows = [[{ id: 12 }]];
+
+  const response = await getCoachChoices(23);
+  assert.equal(response.status, 404);
+  assert.equal(selectCalls, 1, "Admin's active programs should be resolved first");
+  assert.equal(selectDistinctCalls, 0, "coach choices must not be queried for an archived program");
+});
+
 test("program staff cannot query reports from a program outside their assignment", async () => {
   const response = await getReports(23);
   assert.equal(response.status, 404);
