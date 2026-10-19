@@ -1,3 +1,4 @@
+import { hasMentorBookingConnection, mentorBookingConnectionSummary } from './mentor-booking-status';
 import './workspace.css';
 import './role-workspace.css';
 import './role-access.css';
@@ -946,33 +947,29 @@ function MentorBookingStatusPage() {
   const mentors = query.data || [];
   const visibleMentors = mentors.filter(mentor => {
     if (followUpFilter === 'all') return true;
-    if (mentor.calendlyConnected) return false;
+    if (hasMentorBookingConnection(mentor)) return false;
     return mentorFollowUpStatus(mentor.calendlyFollowUpDate, today) === followUpFilter;
   });
-  const calendlyConnectedCount = mentors.filter(mentor => mentor.calendlyConnected).length;
-  const pendingCount = mentors.length - calendlyConnectedCount;
-  const needsFollowUpCount = mentors.filter(mentor =>
-    !mentor.calendlyConnected && !mentor.calendlyFollowUpDate && !mentor.calendlyFollowUpNote,
-  ).length;
+  const { connectedCount, pendingCount, needsFollowUpCount } = mentorBookingConnectionSummary(mentors);
 
   return <>
     <PageHeading
       kicker="MENTOR OPERATIONS / SESSION BOOKING"
       title="Mentor booking status"
-      summary="See booking connections and keep track of follow-ups for mentors who have not connected Calendly."
+      summary="See booking connections and keep track of follow-ups for mentors who have not connected a booking account."
       action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? t('Refreshing…') : <><RefreshCw size={14} /> {t('Refresh status')}</>}</button>}
     />
     {query.isLoading ? <LoadingState label="Loading mentor booking status" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : <>
       <section className="metric-grid mentor-booking-metrics">
         <Metric label="Mentors" value={mentors.length} hint="Invited and active accounts" icon={Users} />
-        <Metric label="Calendly connected" value={calendlyConnectedCount} hint="Calendly account connected" icon={CalendarCheck} />
+        <Metric label="Booking account connected" value={connectedCount} hint="Google Calendar or Calendly connected" icon={CalendarCheck} />
         <Metric label="Needs follow-up" value={needsFollowUpCount} hint="No date or note recorded" icon={CircleAlert} accent="metric-sand" />
       </section>
       {mentors.length === 0 ? <EmptyState title="No mentors have been added yet." body="Mentor accounts will appear here after an admin adds them under Team access." /> :
         <section className="panel staff-panel">
           <div className="panel-heading">
             <div><div className="eyebrow">{t('BOOKING READINESS')}</div><h2 className="app-title">{t('Mentor accounts')}</h2></div>
-            <span className="section-meta">{pendingCount} {t('still need Calendly')}</span>
+            <span className="section-meta">{pendingCount} {t('still need a booking connection')}</span>
           </div>
           <div className="mentor-booking-toolbar">
             <label className="filter-select"><Filter size={15} /><select aria-label={t('Filter mentors by follow-up status')} value={followUpFilter} onChange={event => {
@@ -1020,7 +1017,7 @@ function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookin
     { onSuccess: onSaved },
   );
 
-  if (mentor.calendlyConnected) {
+  if (hasMentorBookingConnection(mentor)) {
     return <span className="mentor-follow-up-connected">{t('Not needed')}</span>;
   }
   return <div className="mentor-follow-up-editor" data-testid={`mentor-follow-up-${mentor.staffId}`}>

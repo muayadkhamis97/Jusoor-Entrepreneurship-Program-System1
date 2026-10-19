@@ -30,6 +30,7 @@ type OverdueMentor = {
   email: string;
   calendlyFollowUpDate: string | null;
   calendlyBookingUrl: string | null;
+  googleCalendarAccountEmail: string | null;
 };
 
 let workerTimer: ReturnType<typeof setInterval> | undefined;
@@ -91,6 +92,7 @@ export function selectOverdueMentors(
     .filter(
       (mentor): mentor is OverdueMentor & { calendlyFollowUpDate: string } =>
         !mentor.calendlyBookingUrl &&
+        !mentor.googleCalendarAccountEmail &&
         Boolean(mentor.calendlyFollowUpDate) &&
         mentor.calendlyFollowUpDate! < calendarDate,
     )
@@ -141,6 +143,7 @@ async function getOverdueMentors(
       email: staffMembersTable.email,
       calendlyFollowUpDate: staffMembersTable.calendlyFollowUpDate,
       calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+      googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
     })
     .from(staffMembersTable)
     .where(inArray(staffMembersTable.id, mentorIds));

@@ -33,26 +33,31 @@ test("digest includes only unconnected mentors with follow-up dates before today
           email: "tomorrow@example.org",
           calendlyFollowUpDate: "2026-10-16",
           calendlyBookingUrl: null,
+          googleCalendarAccountEmail: null,
         },
         {
           email: "connected@example.org",
           calendlyFollowUpDate: "2026-10-12",
           calendlyBookingUrl: "https://calendly.com/example",
+          googleCalendarAccountEmail: null,
         },
         {
           email: "no-date@example.org",
           calendlyFollowUpDate: null,
           calendlyBookingUrl: null,
+          googleCalendarAccountEmail: null,
         },
         {
           email: "today@example.org",
           calendlyFollowUpDate: "2026-10-15",
           calendlyBookingUrl: null,
+          googleCalendarAccountEmail: null,
         },
         {
           email: "overdue@example.org",
           calendlyFollowUpDate: "2026-10-14",
           calendlyBookingUrl: null,
+          googleCalendarAccountEmail: null,
         },
       ],
       "2026-10-15",
@@ -64,4 +69,20 @@ test("digest includes only unconnected mentors with follow-up dates before today
       },
     ],
   );
+});
+
+test("digest excludes Google-connected and dual-connected mentors with old follow-up dates", () => {
+  const googleMentor = {
+    email: "google@example.test",
+    calendlyFollowUpDate: "2026-10-01",
+    calendlyBookingUrl: null,
+    googleCalendarAccountEmail: "private@example.test",
+  };
+  assert.deepEqual(selectOverdueMentors([
+    googleMentor,
+    { ...googleMentor, email: "both@example.test", calendlyBookingUrl: "https://calendly.com/example" },
+  ], "2026-10-19"), []);
+  assert.deepEqual(selectOverdueMentors([
+    { ...googleMentor, googleCalendarAccountEmail: null },
+  ], "2026-10-19"), [{ email: "google@example.test", calendlyFollowUpDate: "2026-10-01" }]);
 });

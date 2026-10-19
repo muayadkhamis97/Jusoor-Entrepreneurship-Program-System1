@@ -638,6 +638,7 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
     staffId: staffMembersTable.id,
     role: staffMembersTable.role,
     calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+    googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
   }).from(staffMembersTable)
     .where(eq(staffMembersTable.id, params.data.id))
     .limit(1);
@@ -645,8 +646,8 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
     res.status(404).json({ error: "Mentor not found." });
     return;
   }
-  if (mentor.calendlyBookingUrl) {
-    res.status(400).json({ error: "Follow-up details can only be changed before Calendly is connected." });
+  if (mentor.calendlyBookingUrl || mentor.googleCalendarAccountEmail) {
+    res.status(400).json({ error: "Follow-up details can only be changed before a booking account is connected." });
     return;
   }
 

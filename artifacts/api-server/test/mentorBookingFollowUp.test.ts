@@ -266,6 +266,30 @@ test("refuses updates for Calendly-connected mentors and non-mentor accounts", a
   assert.equal(updateCalls, 0);
 });
 
+test("Google-connected mentors need no follow-up even without Calendly or a schedule URL", async () => {
+  resetMentor({
+    bookingProvider: "google_calendar",
+    googleCalendarAccountEmail: "private-google@example.test",
+    calendlyFollowUpDate: "2026-10-01",
+    calendlyFollowUpNote: "Old follow-up retained",
+  });
+  const response = await updateFollowUp(mentor.staffId, "2026-11-04", "Do not overwrite");
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /booking account is connected/);
+  assert.equal(updateCalls, 0);
+  assert.equal(mentor.calendlyFollowUpNote, "Old follow-up retained");
+
+  const status = await request("/api/staff/mentor-booking-status", {
+    headers: { "x-staff-role": "coordinator", "x-staff-id": "2" },
+  });
+  assert.equal(status.status, 200);
+  const [result] = await status.json();
+  assert.equal(result.googleCalendarConnected, true);
+  assert.equal(result.calendlyConnected, false);
+  assert.equal("googleCalendarAccountEmail" in result, false);
+  assert.equal(result.calendlyFollowUpNote, "Old follow-up retained");
+});
+
 test("denies follow-up updates from non-coordinator accounts before accessing records", async () => {
   resetMentor();
   const response = await updateFollowUp(mentor.staffId, "2026-11-04", "Unauthorized", "staff");

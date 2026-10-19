@@ -17,7 +17,7 @@
 - [Global translation state](global-translation-state.md) — Keep the module-level translation helper synchronized with the provider before rendering consumers.
 - [Headless touch-scroll checks](headless-touch-scroll-checks.md) — Chromium CDP touch gestures did not scroll this app’s overflow menu; verify touch capability and the scroll range instead.
 - [Footer branding](footer-branding.md) — Keep UI copy generic and prevent retired brand text from resurfacing through defaults or saved settings.
-- [Google Calendar account replacement](google-calendar-account-replacement.md) — A different Google account needs a fresh public schedule link; same-account reauthorization can retain its link.
+- [Google Calendar booking rules](google-calendar-account-replacement.md) — Account replacement clears stale schedule links; either booking connection removes connection follow-up.
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
 - [Schema drift and publishing](schema-drift-publishing.md) — Compare actual schemas with source; inspect composite-FK dependency order and stage prerequisite keys first if necessary.
