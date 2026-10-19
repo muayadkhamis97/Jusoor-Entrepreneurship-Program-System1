@@ -1850,6 +1850,45 @@ paths:
                 $ref: "#/components/schemas/MentorDashboard"
         "403":
           description: Mentor access required
+  /mentor/support/{id}/meeting-reports:
+    get:
+      operationId: getMentorMeetingReports
+      tags: [support]
+      summary: List meeting reports and eligible team members for the mentor's assigned engagement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Report history, coach identity and accepted members of the assigned business
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorMeetingReports"
+        "404":
+          description: Engagement is not assigned to this mentor
+    post:
+      operationId: submitMentorMeetingReport
+      tags: [support]
+      summary: Submit a post-meeting report for the mentor's assigned engagement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MentorMeetingReportInput"
+      responses:
+        "201":
+          description: Post-meeting report recorded with coach and business identity derived by the server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorMeetingReport"
+        "400":
+          description: Required report fields are invalid or an attendee is not an accepted business member
+        "404":
+          description: Engagement is not assigned to this mentor
   /mentor/calendly/connect:
     post:
       operationId: startCalendlyConnection
@@ -5058,6 +5097,54 @@ components:
         googleCalendarBookingUrl: { type: ["string", "null"], format: uri }
         googleCalendarConnected: { type: boolean }
       required: [engagements, bookingProvider, calendlyBookingUrl, googleCalendarBookingUrl, googleCalendarConnected]
+    MentorMeetingAttendee:
+      type: object
+      properties:
+        applicationId: { type: integer }
+        name: { type: string }
+      required: [applicationId, name]
+    MentorMeetingReportInput:
+      type: object
+      properties:
+        meetingDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        attendeeApplicationIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        sessionSummary: { type: string, minLength: 3, maxLength: 5000 }
+        smartGrowActions: { type: string, minLength: 3, maxLength: 5000 }
+        achievementsAndOpportunities: { type: string, minLength: 3, maxLength: 5000 }
+        teamRecommendations: { type: ["string", "null"], maxLength: 5000 }
+      required: [meetingDate, attendeeApplicationIds, sessionSummary, smartGrowActions, achievementsAndOpportunities]
+    MentorMeetingReport:
+      type: object
+      properties:
+        id: { type: integer }
+        coachName: { type: string }
+        coachEmail: { type: string, format: email }
+        businessName: { type: string }
+        meetingDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        attendees: { type: array, items: { type: string } }
+        sessionSummary: { type: string }
+        smartGrowActions: { type: string }
+        achievementsAndOpportunities: { type: string }
+        teamRecommendations: { type: ["string", "null"] }
+        submittedAt: { type: string, format: date-time }
+      required: [id, coachName, coachEmail, businessName, meetingDate, attendees, sessionSummary, smartGrowActions, achievementsAndOpportunities, teamRecommendations, submittedAt]
+    MentorMeetingReports:
+      type: object
+      properties:
+        coachName: { type: string }
+        coachEmail: { type: string, format: email }
+        businessName: { type: string }
+        attendees:
+          type: array
+          items: { $ref: "#/components/schemas/MentorMeetingAttendee" }
+        reports:
+          type: array
+          items: { $ref: "#/components/schemas/MentorMeetingReport" }
+      required: [coachName, coachEmail, businessName, attendees, reports]
     MentorBookingProvider:
       type: string
       enum: [calendly, google_calendar]

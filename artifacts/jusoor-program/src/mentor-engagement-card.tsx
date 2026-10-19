@@ -6,6 +6,7 @@ import {
 } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { t, useAppLanguage } from './language';
+import { MentorMeetingReportForm } from './mentor-meeting-report-form';
 
 export type MentorEngagementDraft = { date: string; status: string; notes: string };
 const label = (value: string) => t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()));
@@ -63,5 +64,6 @@ export function MentorEngagementCard({ item, draft, onDraftChange }: {
         <Button className="button button-primary" type="submit" disabled={update.isPending} data-testid={`button-save-mentor-${item.id}`}>{update.isPending ? t('Saving…') : t('Save engagement')}</Button>
       </div>
     </form>
+    <MentorMeetingReportForm engagementId={item.id} />
   </article>;
 }

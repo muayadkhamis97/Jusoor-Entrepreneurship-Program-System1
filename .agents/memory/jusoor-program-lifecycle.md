@@ -25,6 +25,12 @@ Each program is one cohort. A startup is assigned to the program selected in its
 
 Google Calendar booking: each mentor connects their own Google account and supplies a public appointment-schedule link. Read-only event sync is limited to calendars they own and only metadata needed to match assigned founder appointments is retained.
 
+Mentors must submit a separate report after every meeting. Reports show the coach's name and email and assigned business, list team members who attended, capture session topics/highlights/connections/other notes, and record agreed SMART Grow actions.
+
+**Why:** The coordinator explicitly required a per-meeting mentor report and specified these fields.
+
+**How to apply:** Keep reports attached to the mentor's assigned business engagement; derive coach and business identity server-side; offer only that business's accepted team members as attendees; preserve a separate historical report for every meeting instead of overwriting engagement notes.
+
 **Why:** The user explicitly requested founder appointment history from Google Calendar. Google does not expose appointment schedule bookings separately from ordinary events, so the integration needs a narrow event-read scope; event titles, descriptions, locations, meeting links, and guest names are not needed to match appointments.
 
 **How to apply:** Request only `calendar.events.owned.readonly` in addition to identity scopes. Encrypt refresh and short-lived access tokens with a key derived from `SESSION_SECRET`; keep access-token expiry and the incremental-sync cursor. Request only organizer/guest email, event ID, status, start/end, timezone, and update time; never persist guest email or calendar text content. Match an event only when its organizer is the connected mentor and exactly one currently assigned business is represented by its guests. Show the data-use notice before OAuth.

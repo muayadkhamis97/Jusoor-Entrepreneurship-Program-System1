@@ -2024,6 +2024,65 @@ export interface MentorDashboard {
   googleCalendarConnected: boolean;
 }
 
+export interface MentorMeetingAttendee {
+  applicationId: number;
+  name: string;
+}
+
+export interface MentorMeetingReportInput {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  meetingDate: string;
+  /**
+     * @minItems 1
+     * @items.minimum 1
+     */
+  attendeeApplicationIds: number[];
+  /**
+     * @minLength 3
+     * @maxLength 5000
+     */
+  sessionSummary: string;
+  /**
+     * @minLength 3
+     * @maxLength 5000
+     */
+  smartGrowActions: string;
+  /**
+     * @minLength 3
+     * @maxLength 5000
+     */
+  achievementsAndOpportunities: string;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  teamRecommendations?: string | null;
+}
+
+export interface MentorMeetingReport {
+  id: number;
+  coachName: string;
+  coachEmail: string;
+  businessName: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  meetingDate: string;
+  attendees: string[];
+  sessionSummary: string;
+  smartGrowActions: string;
+  achievementsAndOpportunities: string;
+  /** @nullable */
+  teamRecommendations: string | null;
+  submittedAt: string;
+}
+
+export interface MentorMeetingReports {
+  coachName: string;
+  coachEmail: string;
+  businessName: string;
+  attendees: MentorMeetingAttendee[];
+  reports: MentorMeetingReport[];
+}
+
 export interface MentorBookingSettings {
   bookingProvider: MentorBookingProvider;
   /** @nullable */

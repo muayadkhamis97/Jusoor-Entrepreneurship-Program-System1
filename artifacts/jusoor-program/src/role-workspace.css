@@ -79,7 +79,20 @@
   line-height: var(--text-xs--line-height);
 }
 
+.mentor-meeting-report-panel{margin-top:calc(var(--spacing) * 4);padding-top:calc(var(--spacing) * 3);border-top:1px solid hsl(var(--border))}
+.mentor-meeting-report-panel>div>p,.mentor-meeting-report-panel #meeting-report-content>p{color:hsl(var(--muted-foreground));font-size:var(--text-sm);line-height:1.6}
+.mentor-meeting-report-identity{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(var(--spacing) * 3);margin:calc(var(--spacing) * 3) 0}
+.mentor-meeting-report-identity>div{min-width:0;padding:calc(var(--spacing) * 2);border:1px solid hsl(var(--border));border-radius:var(--radius)}
+.mentor-meeting-report-identity dt{color:hsl(var(--muted-foreground));font:600 var(--text-sm)/1.5 var(--app-font-sans)}
+.mentor-meeting-report-identity dd{margin:4px 0 0;overflow-wrap:anywhere;font:600 var(--text-base)/1.5 var(--app-font-sans)}
+.mentor-meeting-report-panel .role-form-grid fieldset.mentor-meeting-report-roster{gap:calc(var(--spacing) * 2)}
+.mentor-meeting-report-panel h4{margin:calc(var(--spacing) * 4) 0 calc(var(--spacing) * 2);font:700 var(--text-lg)/1.4 var(--app-font-sans)}
+.mentor-meeting-report-panel h5{font:700 var(--text-base)/1.4 var(--app-font-sans)}
+.mentor-meeting-report-panel .answer-card{margin-top:calc(var(--spacing) * 2)}
+
 html[lang="ar"] .role-workspace :is(.role-form-grid .field, .role-inline-note, .role-reply, .role-note span, .role-feature p) {
   line-height: 1.75;
   letter-spacing: normal;
 }
+
+@media(max-width:700px){.mentor-meeting-report-identity{grid-template-columns:1fr}}

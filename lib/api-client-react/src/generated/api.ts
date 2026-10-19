@@ -117,6 +117,9 @@ import type {
   MentorDashboard,
   MentorEngagement,
   MentorEngagementUpdate,
+  MentorMeetingReport,
+  MentorMeetingReportInput,
+  MentorMeetingReports,
   ParticipantBusinessMembership,
   ParticipantBusinessMembershipInput,
   ParticipantBusinessPlan,
@@ -7592,6 +7595,172 @@ export function useGetMentorDashboard<TData = Awaited<ReturnType<typeof getMento
 
 
 
+
+export const getGetMentorMeetingReportsUrl = (id: number,) => {
+
+
+
+
+  return `/api/mentor/support/${id}/meeting-reports`
+}
+
+/**
+ * @summary List meeting reports and eligible team members for the mentor's assigned engagement
+ */
+export const getMentorMeetingReports = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<MentorMeetingReports> => {
+
+  return customFetch<MentorMeetingReports>(getGetMentorMeetingReportsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMentorMeetingReportsQueryKey = (id: number,) => {
+    return [
+    `/api/mentor/support/${id}/meeting-reports`
+    ] as const;
+    }
+
+
+export const getGetMentorMeetingReportsQueryOptions = <TData = Awaited<ReturnType<typeof getMentorMeetingReports>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMentorMeetingReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMentorMeetingReportsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMentorMeetingReports>>> = ({ signal }) => getMentorMeetingReports(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMentorMeetingReports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMentorMeetingReportsQueryResult = NonNullable<Awaited<ReturnType<typeof getMentorMeetingReports>>>
+export type GetMentorMeetingReportsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List meeting reports and eligible team members for the mentor's assigned engagement
+ */
+
+export function useGetMentorMeetingReports<TData = Awaited<ReturnType<typeof getMentorMeetingReports>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMentorMeetingReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMentorMeetingReportsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitMentorMeetingReportUrl = (id: number,) => {
+
+
+
+
+  return `/api/mentor/support/${id}/meeting-reports`
+}
+
+/**
+ * @summary Submit a post-meeting report for the mentor's assigned engagement
+ */
+export const submitMentorMeetingReport = async (id: number,
+    mentorMeetingReportInput: MentorMeetingReportInput, options?: Parameters<typeof customFetch>[1]): Promise<MentorMeetingReport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MentorMeetingReport>(getSubmitMentorMeetingReportUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mentorMeetingReportInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitMentorMeetingReportMutationKey = () => ['submitMentorMeetingReport'] as const;
+
+export const getSubmitMentorMeetingReportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMentorMeetingReport>>, TError,SubmitMentorMeetingReportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitMentorMeetingReport>>, TError,SubmitMentorMeetingReportMutationVariables, TContext> => {
+
+const mutationKey = getSubmitMentorMeetingReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitMentorMeetingReport>>, SubmitMentorMeetingReportMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitMentorMeetingReport(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitMentorMeetingReportMutationResult = NonNullable<Awaited<ReturnType<typeof submitMentorMeetingReport>>>
+    export type SubmitMentorMeetingReportMutationBody = BodyType<MentorMeetingReportInput>
+    export type SubmitMentorMeetingReportMutationError = ErrorType<void>
+    export type SubmitMentorMeetingReportMutationVariables = {id: number;data: BodyType<MentorMeetingReportInput>}
+
+    /**
+ * @summary Submit a post-meeting report for the mentor's assigned engagement
+ */
+export const useSubmitMentorMeetingReport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitMentorMeetingReport>>, TError,SubmitMentorMeetingReportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitMentorMeetingReport>>,
+        TError,
+        SubmitMentorMeetingReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitMentorMeetingReportMutationOptions(options));
+    }
 
 export const getStartCalendlyConnectionUrl = () => {
 

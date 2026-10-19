@@ -3117,6 +3117,90 @@ export const GetMentorDashboardResponse = zod.object({
 
 
 /**
+ * @summary List meeting reports and eligible team members for the mentor's assigned engagement
+ */
+export const GetMentorMeetingReportsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const getMentorMeetingReportsResponseReportsItemMeetingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetMentorMeetingReportsResponse = zod.object({
+  "coachName": zod.string(),
+  "coachEmail": zod.string().email(),
+  "businessName": zod.string(),
+  "attendees": zod.array(zod.object({
+  "applicationId": zod.number().int(),
+  "name": zod.string()
+})),
+  "reports": zod.array(zod.object({
+  "id": zod.number().int(),
+  "coachName": zod.string(),
+  "coachEmail": zod.string().email(),
+  "businessName": zod.string(),
+  "meetingDate": zod.string().regex(getMentorMeetingReportsResponseReportsItemMeetingDateRegExp),
+  "attendees": zod.array(zod.string()),
+  "sessionSummary": zod.string(),
+  "smartGrowActions": zod.string(),
+  "achievementsAndOpportunities": zod.string(),
+  "teamRecommendations": zod.string().nullable(),
+  "submittedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Submit a post-meeting report for the mentor's assigned engagement
+ */
+export const SubmitMentorMeetingReportParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const submitMentorMeetingReportBodyMeetingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const submitMentorMeetingReportBodySessionSummaryMin = 3;
+export const submitMentorMeetingReportBodySessionSummaryMax = 5000;
+
+export const submitMentorMeetingReportBodySmartGrowActionsMin = 3;
+export const submitMentorMeetingReportBodySmartGrowActionsMax = 5000;
+
+export const submitMentorMeetingReportBodyAchievementsAndOpportunitiesMin = 3;
+export const submitMentorMeetingReportBodyAchievementsAndOpportunitiesMax = 5000;
+
+export const submitMentorMeetingReportBodyTeamRecommendationsMax = 5000;
+
+
+
+export const SubmitMentorMeetingReportBody = zod.object({
+  "meetingDate": zod.string().regex(submitMentorMeetingReportBodyMeetingDateRegExp),
+  "attendeeApplicationIds": zod.array(zod.number().int().min(1)).min(1),
+  "sessionSummary": zod.string().min(submitMentorMeetingReportBodySessionSummaryMin).max(submitMentorMeetingReportBodySessionSummaryMax),
+  "smartGrowActions": zod.string().min(submitMentorMeetingReportBodySmartGrowActionsMin).max(submitMentorMeetingReportBodySmartGrowActionsMax),
+  "achievementsAndOpportunities": zod.string().min(submitMentorMeetingReportBodyAchievementsAndOpportunitiesMin).max(submitMentorMeetingReportBodyAchievementsAndOpportunitiesMax),
+  "teamRecommendations": zod.string().max(submitMentorMeetingReportBodyTeamRecommendationsMax).nullish()
+})
+
+export const submitMentorMeetingReportResponseMeetingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const SubmitMentorMeetingReportResponse = zod.object({
+  "id": zod.number().int(),
+  "coachName": zod.string(),
+  "coachEmail": zod.string().email(),
+  "businessName": zod.string(),
+  "meetingDate": zod.string().regex(submitMentorMeetingReportResponseMeetingDateRegExp),
+  "attendees": zod.array(zod.string()),
+  "sessionSummary": zod.string(),
+  "smartGrowActions": zod.string(),
+  "achievementsAndOpportunities": zod.string(),
+  "teamRecommendations": zod.string().nullable(),
+  "submittedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Start the signed-in mentor's Calendly authorization
  */
 export const StartCalendlyConnectionBody = zod.object({

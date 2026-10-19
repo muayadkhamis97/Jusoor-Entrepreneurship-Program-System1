@@ -86,3 +86,73 @@ test('concurrent engagement requests keep pending, errors, success and retries o
     if (priorBase === undefined) delete process.env.BASE_PATH; else process.env.BASE_PATH = priorBase;
   }
 });
+
+test('mentor meeting report form requires each answer and saves attendance and narrative to the selected engagement', { timeout: 60_000 }, async () => {
+  const root = path.resolve(import.meta.dirname, '..');
+  const priorPort = process.env.PORT;
+  const priorBase = process.env.BASE_PATH;
+  process.env.PORT = '1';
+  process.env.BASE_PATH = '/';
+  const server = await createServer({ root, configFile: path.join(root, 'vite.config.ts'), server: { host: '127.0.0.1', port: 0 } });
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+  try {
+    await server.listen();
+    const address = server.httpServer?.address();
+    assert.ok(address && typeof address !== 'string');
+    const origin = `http://127.0.0.1:${address.port}`;
+    browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const report = {
+      id: 980, coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 1',
+      meetingDate: '2026-10-19', attendees: ['Founder 1'], sessionSummary: 'Topics and highlights',
+      smartGrowActions: 'Conduct two customer interviews', achievementsAndOpportunities: 'Identified a new sales channel.',
+      teamRecommendations: 'Consider a marketing introduction.', submittedAt: '2026-10-19T10:00:00.000Z',
+    };
+    let postBody: Record<string, unknown> | undefined;
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) return route.abort();
+      if (url.pathname !== '/api/mentor/support/1/meeting-reports') return route.continue();
+      if (route.request().method() === 'GET') {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 1',
+          attendees: [{ applicationId: 11, name: 'Founder 1' }, { applicationId: 12, name: 'Team member 2' }],
+          reports: postBody ? [report] : [],
+        }) });
+      }
+      postBody = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(report) });
+    });
+    await page.goto(`${origin}/src/test-fixtures/mentor-engagement-cards.html`);
+    await page.getByTestId('button-open-meeting-report-1').click();
+    await page.getByTestId('meeting-attendees-1').waitFor();
+    await page.getByLabel('Meeting date').fill('2026-10-19');
+    await page.getByLabel('Topics, session highlights, connections made, and other notes *').fill('Topics and highlights');
+    await page.getByLabel('SMART Grow actions recommended and agreed with the team until the next call *').fill('Conduct two customer interviews');
+    await page.getByLabel('Key achievements and opportunities resulting from your coaching *').fill('Identified a new sales channel.');
+    await page.getByTestId('button-submit-meeting-report-1').click();
+    await page.getByRole('alert').filter({ hasText: 'Select at least one' }).waitFor();
+    assert.equal(postBody, undefined);
+    await page.getByTestId('meeting-attendee-1-11').check();
+    await page.getByLabel('Recommendations to the program team for further support').fill('Consider a marketing introduction.');
+    const response = page.waitForResponse(request => request.url().includes('/meeting-reports') && request.request().method() === 'POST');
+    await page.getByTestId('button-submit-meeting-report-1').click();
+    assert.equal((await response).status(), 201);
+    assert.deepEqual(postBody, {
+      meetingDate: '2026-10-19',
+      attendeeApplicationIds: [11],
+      sessionSummary: 'Topics and highlights',
+      smartGrowActions: 'Conduct two customer interviews',
+      achievementsAndOpportunities: 'Identified a new sales channel.',
+      teamRecommendations: 'Consider a marketing introduction.',
+    });
+    await page.getByTestId('meeting-report-history-980').waitFor();
+    assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Founder 1/);
+    assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Coach One/);
+  } finally {
+    await browser?.close();
+    await server.close();
+    if (priorPort === undefined) delete process.env.PORT; else process.env.PORT = priorPort;
+    if (priorBase === undefined) delete process.env.BASE_PATH; else process.env.BASE_PATH = priorBase;
+  }
+});
