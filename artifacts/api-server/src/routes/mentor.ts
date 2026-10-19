@@ -12,21 +12,9 @@ import {
 import { businessesTable, db, programsTable, staffMembersTable, supportTable } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 
 const router: IRouter = Router();
-
-function isGoogleCalendarBookingUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" &&
-      !url.username &&
-      !url.password &&
-      url.hostname === "calendar.google.com" &&
-      url.pathname.includes("/appointments/schedules/");
-  } catch {
-    return false;
-  }
-}
 
 router.get("/dashboard", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
