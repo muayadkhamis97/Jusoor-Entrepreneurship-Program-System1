@@ -24,6 +24,8 @@ export const sessionParticipantAttendanceTable = pgTable(
     markedAt: timestamp("marked_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    // Composite program FKs are deferred until the parent UNIQUE keys reach
+    // production. See the two-stage Publish plan in docs/QA_SECURITY_DATA_INTEGRITY.md.
     uniqueIndex("jusoor_session_participant_attendance_session_participant_uq").on(table.sessionId, table.participantId),
     index("jusoor_session_participant_attendance_session_idx").on(table.sessionId),
     index("jusoor_session_participant_attendance_business_idx").on(table.businessId),
