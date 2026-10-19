@@ -208,6 +208,48 @@ test("program staff cannot query reports from a program outside their assignment
   assert.equal(selectCalls, 1, "report records must not be queried after program scope denial");
 });
 
+test("Admin can review reports from an active program without an assignment", async () => {
+  requestStaff = { ...assignedStaff, role: "coordinator", primaryRole: "coordinator", programIds: [] };
+  selectedRows = [
+    [{ id: 12 }, { id: 23 }],
+    [{
+      id: 404,
+      calendlyMeetingId: null,
+      googleCalendarMeetingId: null,
+      coachName: "Coach Snapshot",
+      coachEmail: "coach@example.test",
+      businessName: "Business Snapshot",
+      meetingDate: "2026-10-18",
+      attendees: ["Attendee Snapshot"],
+      sessionSummary: "Session topics and highlights",
+      smartGrowActions: "Complete two customer interviews",
+      achievementsAndOpportunities: "New partnership opportunity",
+      teamRecommendations: null,
+      submittedAt: new Date("2026-10-18T12:00:00.000Z"),
+      programId: 23,
+      programName: "Program Twenty Three",
+      businessId: 230,
+    }],
+  ];
+
+  const response = await getReports(23);
+  assert.equal(response.status, 200);
+  const [report] = await response.json() as Array<Record<string, unknown>>;
+  assert.equal(report.id, 404);
+  assert.equal(report.programId, 23);
+  assert.equal(report.programName, "Program Twenty Three");
+  assert.equal(selectCalls, 2, "active program reports should be queried after resolving Admin scope");
+});
+
+test("Admin cannot query reports from an archived program", async () => {
+  requestStaff = { ...assignedStaff, role: "coordinator", primaryRole: "coordinator", programIds: [] };
+  selectedRows = [[{ id: 12 }]];
+
+  const response = await getReports(23);
+  assert.equal(response.status, 404);
+  assert.equal(selectCalls, 1, "report records must not be queried for an archived program");
+});
+
 test("specialist accounts cannot use the program-staff report view", async () => {
   requestStaff = { ...assignedStaff, role: "mentor" };
   const response = await getReports(12);
