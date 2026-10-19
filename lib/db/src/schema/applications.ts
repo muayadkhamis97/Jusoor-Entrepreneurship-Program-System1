@@ -6,6 +6,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
@@ -36,7 +37,7 @@ export const applicationsTable = pgTable(
   },
   (table) => [
     uniqueIndex("jusoor_applications_program_email_unique").on(table.programId, table.email),
-    uniqueIndex("jusoor_applications_id_program_uq").on(table.id, table.programId),
+    unique("jusoor_applications_id_program_uq").on(table.id, table.programId),
     index("jusoor_applications_business_idx").on(table.businessId),
     index("jusoor_applications_clerk_user_id_idx").on(table.clerkUserId),
   ],

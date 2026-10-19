@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { date, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { programsTable } from "./programs";
 
@@ -17,7 +17,7 @@ export const businessesTable = pgTable("jusoor_businesses", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  uniqueIndex("jusoor_businesses_id_program_uq").on(table.id, table.programId),
+  unique("jusoor_businesses_id_program_uq").on(table.id, table.programId),
 ]);
 
 export const insertBusinessSchema = createInsertSchema(businessesTable).omit({
