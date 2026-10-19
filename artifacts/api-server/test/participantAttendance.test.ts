@@ -14,6 +14,10 @@ const attendanceSchema = readFileSync(
   new URL("../../../lib/db/src/schema/session-participant-attendance.ts", import.meta.url),
   "utf8",
 );
+const attendanceSchemaGuard = readFileSync(
+  new URL("../src/lib/participant-attendance-schema.ts", import.meta.url),
+  "utf8",
+);
 const zoomAttendance = readFileSync(new URL("../src/lib/zoom-attendance.ts", import.meta.url), "utf8");
 const analyticsRoutes = readFileSync(new URL("../src/routes/analytics.ts", import.meta.url), "utf8");
 const trainerRoutes = readFileSync(new URL("../src/routes/trainer.ts", import.meta.url), "utf8");
@@ -40,6 +44,8 @@ test("attendance migration enforces shared program IDs with composite foreign ke
   assert.match(attendanceSchema, /jusoor_session_participant_attendance_session_program_fk/);
   assert.match(attendanceSchema, /jusoor_session_participant_attendance_participant_program_fk/);
   assert.match(attendanceSchema, /jusoor_session_participant_attendance_business_program_fk/);
+  assert.match(attendanceSchemaGuard, /attendance_program_scope_ready/);
+  assert.match(attendanceSchemaGuard, /attendance_table_ready\s*&&\s*result\.rows\[0\]\?\.attendance_program_scope_ready/s);
 });
 
 test("attendance roster and writes are limited to accepted participants assigned in the session program", () => {

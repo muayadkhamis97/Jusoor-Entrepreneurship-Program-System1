@@ -195,17 +195,32 @@ This is separate from the isolated program-assignment verification above.
 - The exact migration committed successfully, then succeeded a second time. Catalog checks found 12 columns, the primary key, one session/participant unique constraint, three checks (status, source, nonnegative attended seconds), four foreign keys (three `ON DELETE CASCADE`, one `ON DELETE SET NULL`), all three lookup indexes, and the Zoom-application lookup index. `source` defaulted to `manual`; `marked_at` was non-null with `now()` default; the Zoom match column was nullable with an application foreign key using `ON DELETE SET NULL`.
 - Synthetic behavior checks passed: two participants could be recorded for the same business/session; a duplicate session/participant, invalid status/source, negative duration, and invalid participant/application references were rejected. Deleting an application, business, session, or recording staff exercised the declared cascade/`SET NULL` behavior. A preexisting business-level attendance row and Zoom attendee/business match remained unchanged by the migration.
 - A separate disposable database omitted `jusoor_zoom_attendance_participants`. The migration failed at that prerequisite and its transaction rolled back the new attendance table. This confirms the migration requires that preexisting Zoom table. Its `IF NOT EXISTS` clauses also assume any same-named existing columns/tables already have the expected constraints; they do not repair malformed partial schema.
-- **Schema limitation:** separate single-column foreign keys do not ensure the session, participant, and business belong to the same program. A synthetic cross-program combination was accepted by PostgreSQL. Application routes must continue validating the participant against the session's authorized program roster; this SQL exercise did not call those routes.
+- **Initial schema limitation:** separate single-column foreign keys did not ensure the session, participant, and business belonged to the same program. The 2026-10-19 program-integrity follow-up below adds composite foreign keys; application roster validation remains in place as a second layer.
 
 ### Development application
 
 - Before the write, a read-only development catalog check confirmed all five prerequisite tables were present and the attendance table, Zoom match column, foreign key, and lookup index were absent. No participant or business records were queried.
 - With explicit user approval for development only, applied the exact SQL file above as one transaction through the development database operation. It committed successfully. Post-apply catalog checks all passed: 12 attendance columns, primary/unique keys, three checks, four FKs with the expected delete actions, four attendance indexes including the unique lookup, nullable integer Zoom match column, its `ON DELETE SET NULL` FK, and its lookup index. The required `manual` and `now()` defaults were present.
-- No row-level data was queried or backfilled. No production database was accessed, no Drizzle push was used, and no workflow restart, external provider, browser session, email, publish, or deployment was involved.
 - The isolated PostgreSQL server stopped cleanly, and only its task-owned temporary directory was removed.
+
+### Program-bound attendance follow-up — 2026-10-19
+
+- Added `program_id` to participant attendance and composite foreign keys tying each record's session, participant application, and business to the same program. Supporting unique indexes are defined in the Drizzle schema. Manual and Zoom attendance writes now take the program ID from the session; existing accepted-participant and assigned-business roster checks remain active.
+- The additive migration backfills `program_id` only when the existing session, participant, and business agree. It aborts transactionally if any row cannot be assigned one shared program; it does not delete records.
+- Isolated verification used a newly initialized PostgreSQL cluster in `/tmp/attendance-integrity-check.I8FcDk`, with a task-owned data directory and Unix socket, `listen_addresses=''`, and cleared inherited database connection variables. The server reported the expected data directory/socket and `inet_server_addr() IS NULL`.
+- The valid synthetic row was backfilled to program 10; all three composite foreign keys were present. A second migration run succeeded. Synthetic attempts to pair a different-program session, participant, or business were each rejected. A separate fixture with invalid preexisting data failed and rolled the entire migration back, leaving neither the new column nor indexes behind. The temporary server stopped and its task directory was removed.
+- Development preflight found zero participant-attendance rows and zero unresolved/cross-program rows. The exact migration committed; catalog checks confirmed `program_id NOT NULL`, all three composite foreign keys, and the three supporting unique indexes. No attendance records were backfilled.
+- Automated verification passed: `pnpm run typecheck:libs`, API-server typecheck, and the full API suite (212 passed, 0 failed). The focused attendance tests cover the migration/schema contract and source-level roster validation.
+- A read-only production schema check found neither the staff-assignment audit table nor participant-attendance table. No production DDL was run. Managed production schema changes must be reviewed and applied through Publish.
 
 ### Still not verified
 
-- Production was not queried or changed. The application's schema guard returns HTTP 503 for attendance operations in any environment where the new table or Zoom-match column is absent.
-- The SQL checks exercised constraints directly, not authenticated API requests. Cross-program authorization denial was not tested end to end; the database schema itself does not enforce same-program pairings.
-- No signed-in browser test or Arabic-rendered visual inspection was performed. Automated UI tests cover participant-level labeling, participant-keyed status state, responsive class rules, and Arabic strings, but not the rendered authenticated page.
+- Successful attendance saves and cross-program denial were not exercised as authenticated HTTP requests against a real database. The API suite includes authorization tests and attendance source-level regression checks, but those are not an end-to-end attendance API test.
+- No signed-in browser test or Arabic-rendered visual inspection was performed; the browser capture environment has no signed-in session.
+- Production remains unchanged. Publish is required to carry both development schema changes to production, and its proposed schema diff has not been reviewed or confirmed.
+
+## Staff-assignment audit migration — development applied, production pending Publish
+
+- The role editor's save endpoint requires `jusoor_staff_assignment_audit_events` so role changes and their audit records are committed together. Before the migration, the missing table caused the endpoint to return HTTP 503, matching the error shown in the Admin role dialog.
+- With the user's approval, applied `lib/db/migrations/20261014_staff_assignment_audit_events.sql` to development. Post-apply catalog verification confirmed the 13 columns, primary key, two check constraints, actor-staff foreign key with `ON DELETE SET NULL`, both history indexes, and `created_at NOT NULL DEFAULT now()`.
+- A read-only production schema check found the audit table absent. No production DDL was run; use Publish to review/apply the development schema diff.
