@@ -816,6 +816,7 @@ const arabic: Record<string, string> = {
   'Mentor navigation': 'تنقل المرشد',
   'MENTOR SETTINGS': 'إعدادات المرشد',
   'Booking settings': 'إعدادات الحجز',
+  'Wait for the booking save to finish before leaving.': 'انتظر اكتمال حفظ إعدادات الحجز قبل المغادرة.',
   'Enter a public Google Calendar appointment-schedule link, not a calendar or event link.': 'أدخل رابطًا عامًا لجدول مواعيد تقويم Google، وليس رابط تقويم أو حدث.',
   'Connect Google Calendar using the connection button above, then save again.': 'اربط تقويم Google باستخدام زر الربط أعلاه، ثم احفظ مجددًا.',
   'Connect Calendly using the connection button above, then save again.': 'اربط Calendly باستخدام زر الربط أعلاه، ثم احفظ مجددًا.',

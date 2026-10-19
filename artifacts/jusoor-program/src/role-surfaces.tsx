@@ -14,7 +14,7 @@ import {
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
   MentorEngagementUpdate, JudgeScorecardInput, StaffMember,
-  MentorBookingProvider, MentorBookingSettingsInput,
+  MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
 import { SessionRecordingPlayer } from './session-recording-player';
@@ -22,12 +22,13 @@ import './attendance-reports.css';
 import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
 import { mentorBookingSaveError } from './mentor-booking-errors';
+import { useMentorBookingDraft } from './use-mentor-booking-draft';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
 const dateText = (date?: string | null) => date ? new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('Not scheduled');
 
-export function RoleFrame({ role, name, children, availableRoles = [], primaryRole }: { role: string; name: string; children: ReactNode; availableRoles?: string[]; primaryRole?: string }) {
+export function RoleFrame({ role, name, children, availableRoles = [], primaryRole, beforeLeave }: { role: string; name: string; children: ReactNode; availableRoles?: string[]; primaryRole?: string; beforeLeave?: () => boolean }) {
   useAppLanguage();
   const { signOut } = useClerk();
   const [location] = useLocation();
@@ -38,7 +39,7 @@ export function RoleFrame({ role, name, children, availableRoles = [], primaryRo
   return <div className="role-workspace">
     <header className="role-topbar">
       <Link href={`/${role}`} className="brand" data-testid="link-role-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(branding?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(branding?.brandName)}</b><small>{t('PROGRAM HUB')}</small></span></Link>
-       <div className="role-top-actions">{role === 'trainer' && <><Link href={location === '/trainer/sessions' ? '/trainer' : '/trainer/sessions'} className="button button-quiet" data-testid="link-trainer-sessions"><CalendarDays size={14} />{t(location === '/trainer/sessions' ? 'Training workspace' : 'Live sessions')}</Link><Link href={location === '/trainer/courses' ? '/trainer' : '/trainer/courses'} className="button button-quiet" data-testid="link-trainer-learning"><BookOpen size={14} />{t(location === '/trainer/courses' ? 'Training workspace' : 'Course learning')}</Link></>}{otherRoles.map(availableRole => <Link key={availableRole} href={`/${availableRole}`} className="button button-quiet" data-testid={`link-role-${availableRole}`}>{t(`Open ${availableRole} workspace`)}</Link>)}{(primaryRole === 'coordinator' || primaryRole === 'staff') && <Link href="/" className="button button-quiet" data-testid="link-program-operations">{t(primaryRole === 'coordinator' ? 'Admin workspace' : 'Program staff workspace')}</Link>}<Link href="/profile" className="button button-quiet" data-testid="link-role-profile">{t('Profile')}</Link><span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => void signOut({ redirectUrl: basePath || '/' })} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button></div>
+       <div className="role-top-actions">{role === 'trainer' && <><Link href={location === '/trainer/sessions' ? '/trainer' : '/trainer/sessions'} className="button button-quiet" data-testid="link-trainer-sessions"><CalendarDays size={14} />{t(location === '/trainer/sessions' ? 'Training workspace' : 'Live sessions')}</Link><Link href={location === '/trainer/courses' ? '/trainer' : '/trainer/courses'} className="button button-quiet" data-testid="link-trainer-learning"><BookOpen size={14} />{t(location === '/trainer/courses' ? 'Training workspace' : 'Course learning')}</Link></>}{otherRoles.map(availableRole => <Link key={availableRole} href={`/${availableRole}`} className="button button-quiet" data-testid={`link-role-${availableRole}`}>{t(`Open ${availableRole} workspace`)}</Link>)}{(primaryRole === 'coordinator' || primaryRole === 'staff') && <Link href="/" className="button button-quiet" data-testid="link-program-operations">{t(primaryRole === 'coordinator' ? 'Admin workspace' : 'Program staff workspace')}</Link>}<Link href="/profile" className="button button-quiet" data-testid="link-role-profile">{t('Profile')}</Link><span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => { if (!beforeLeave || beforeLeave()) void signOut({ redirectUrl: basePath || '/' }); }} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button></div>
     </header>
     <main className="role-main page-enter">
       {role === 'mentor' && <nav className="role-button-row" aria-label={t('Mentor navigation')}>
@@ -172,8 +173,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   const saveBookingSettings = useUpdateMentorBookingSettings();
   const bookingUrlInput = useRef<HTMLInputElement>(null);
   const bookingSaveError = saveBookingSettings.isError ? mentorBookingSaveError(saveBookingSettings.error) : null;
-  const [bookingProvider, setBookingProvider] = useState<MentorBookingProvider>('calendly');
-  const [googleCalendarBookingUrl, setGoogleCalendarBookingUrl] = useState('');
+  const { bookingProvider, googleCalendarBookingUrl, setBookingProvider, setGoogleCalendarBookingUrl, isDirty, confirmLeave, markSaved } = useMentorBookingDraft(query.data, saveBookingSettings.isPending);
   const [drafts, setDrafts] = useState<Record<number, { date: string; status: string; notes: string }>>({});
   const [bookingNotice] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -195,12 +195,6 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
       window.history.replaceState(window.history.state, '', window.location.pathname);
     }
   }, []);
-  useEffect(() => {
-    if (dashboard) {
-      setBookingProvider(dashboard.bookingProvider);
-      setGoogleCalendarBookingUrl(dashboard.googleCalendarBookingUrl || '');
-    }
-  }, [dashboard?.bookingProvider, dashboard?.googleCalendarBookingUrl]);
   const engagements = query.data?.engagements || [];
   const saveBooking = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -209,7 +203,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
       googleCalendarBookingUrl: googleCalendarBookingUrl.trim() || null,
     };
     saveBookingSettings.mutate({ data }, {
-      onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()),
+      onSuccess: saved => { markSaved(saved); invalid(client, getGetMentorDashboardQueryKey()); },
       onError: error => {
         if (mentorBookingSaveError(error).field === 'url') bookingUrlInput.current?.focus();
       },
@@ -224,7 +218,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
     const data: MentorEngagementUpdate = { scheduledDate: values.date || null, status: values.status as MentorEngagementUpdate['status'], notes: values.notes.trim() || null };
     update.mutate({ id, data }, { onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()) });
   };
-  return <RoleFrame role="mentor" name={name} availableRoles={availableRoles} primaryRole={primaryRole}>
+  return <RoleFrame role="mentor" name={name} availableRoles={availableRoles} primaryRole={primaryRole} beforeLeave={confirmLeave}>
     {settingsOnly
       ? <Heading kicker="MENTOR SETTINGS" title="Booking settings" description="Manage your connected booking accounts and appointment-schedule link." />
       : <Heading kicker="FOUNDER ENABLEMENT / MENTOR DESK" title="Support, with context." description="Your assigned engagements and the next useful step for each founder." count={`${engagements.length} engagements`} />}
@@ -250,28 +244,28 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
             <button
               type="button"
               className="button button-outline"
-              disabled={connectCalendly.isPending}
-              onClick={() => connectCalendly.mutate({ data: {} }, {
+               disabled={connectCalendly.isPending || saveBookingSettings.isPending}
+               onClick={() => { if (!confirmLeave()) return; connectCalendly.mutate({ data: {} }, {
                 onSuccess: result => window.location.assign(result.authorizationUrl),
-              })}
+               }); }}
               data-testid="button-connect-calendly"
             >{connectCalendly.isPending ? t('Connecting…') : dashboard?.calendlyBookingUrl ? t('Reconnect Calendly') : t('Connect Calendly')}</button>
             <button
               type="button"
               className="button button-outline"
-              disabled={connectGoogleCalendar.isPending || disconnectGoogleCalendar.isPending}
-              onClick={() => connectGoogleCalendar.mutate({ data: {} }, {
+               disabled={connectGoogleCalendar.isPending || disconnectGoogleCalendar.isPending || saveBookingSettings.isPending}
+               onClick={() => { if (!confirmLeave()) return; connectGoogleCalendar.mutate({ data: {} }, {
                 onSuccess: result => window.location.assign(result.authorizationUrl),
-              })}
+               }); }}
               data-testid="button-connect-google-calendar"
             >{connectGoogleCalendar.isPending ? t('Connecting…') : dashboard?.googleCalendarConnected ? t('Reconnect Google Calendar') : t('Connect Google Calendar')}</button>
             {dashboard?.googleCalendarConnected && <button
               type="button"
               className="button button-outline"
-              disabled={disconnectGoogleCalendar.isPending || connectGoogleCalendar.isPending}
-              onClick={() => disconnectGoogleCalendar.mutate(undefined, {
-                onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()),
-              })}
+               disabled={disconnectGoogleCalendar.isPending || connectGoogleCalendar.isPending || saveBookingSettings.isPending}
+               onClick={() => { if (!confirmLeave()) return; disconnectGoogleCalendar.mutate(undefined, {
+                 onSuccess: saved => { markSaved(saved); invalid(client, getGetMentorDashboardQueryKey()); },
+               }); }}
               data-testid="button-disconnect-google-calendar"
             >{disconnectGoogleCalendar.isPending ? t('Disconnecting…') : t('Disconnect Google Calendar')}</button>}
           </div>
@@ -279,7 +273,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
         </div>
         {dashboard?.calendlyBookingUrl && <p className="field-wide"><a href={dashboard.calendlyBookingUrl} target="_blank" rel="noreferrer">{t('Open your Calendly booking page')} <ArrowRight size={14} /></a></p>}
         <form className="role-form-grid compact field-wide" onSubmit={saveBooking}>
-          <fieldset className="field field-wide">
+           <fieldset className="field field-wide" disabled={saveBookingSettings.isPending || disconnectGoogleCalendar.isPending}>
             <legend>{t('Founders will book through')}</legend>
             <label className="mentor-booking-choice">
               <input type="radio" name="bookingProvider" value="calendly" checked={bookingProvider === 'calendly'} disabled={!dashboard?.calendlyBookingUrl} onChange={() => { setBookingProvider('calendly'); saveBookingSettings.reset(); }} data-testid="radio-booking-calendly" />
@@ -292,13 +286,13 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
           </fieldset>
           {bookingProvider === 'google_calendar' && <label className="field field-wide">
             {t('Google Calendar appointment-schedule link')}
-            <input ref={bookingUrlInput} className="form-control" type="url" value={googleCalendarBookingUrl} onChange={event => { setGoogleCalendarBookingUrl(event.target.value); saveBookingSettings.reset(); }} aria-invalid={bookingSaveError?.field === 'url' || undefined} aria-describedby={`mentor-booking-url-help${bookingSaveError?.field === 'url' ? ' mentor-booking-url-error' : ''}`} placeholder="https://calendar.google.com/calendar/appointments/schedules/…" required data-testid="input-google-calendar-booking-url" />
+            <input ref={bookingUrlInput} className="form-control" type="url" value={googleCalendarBookingUrl} disabled={saveBookingSettings.isPending || disconnectGoogleCalendar.isPending} onChange={event => { setGoogleCalendarBookingUrl(event.target.value); saveBookingSettings.reset(); }} aria-invalid={bookingSaveError?.field === 'url' || undefined} aria-describedby={`mentor-booking-url-help${bookingSaveError?.field === 'url' ? ' mentor-booking-url-error' : ''}`} placeholder="https://calendar.google.com/calendar/appointments/schedules/…" required data-testid="input-google-calendar-booking-url" />
             <small id="mentor-booking-url-help">{t('Create an appointment schedule in Google Calendar, then paste its public link here.')}</small>
             {bookingSaveError?.field === 'url' && <span id="mentor-booking-url-error" className="form-error" role="alert">{t(bookingSaveError.message)}</span>}
           </label>}
           {bookingSaveError && bookingSaveError.field !== 'url' && <p className="form-error field-wide" role="alert" data-testid="booking-save-error">{t(bookingSaveError.message)}</p>}
           {saveBookingSettings.isSuccess && <p className="form-success field-wide" role="status">{t('Booking platform saved.')}</p>}
-          <div className="field-wide"><button className="button button-primary" disabled={saveBookingSettings.isPending || !dashboard || (bookingProvider === 'google_calendar' && !dashboard.googleCalendarConnected)} data-testid="button-save-booking-settings">{saveBookingSettings.isPending ? t('Saving…') : t('Save booking platform')}</button></div>
+          <div className="field-wide role-button-row"><button className="button button-primary" disabled={saveBookingSettings.isPending || disconnectGoogleCalendar.isPending || !dashboard || (bookingProvider === 'google_calendar' && !dashboard.googleCalendarConnected)} data-testid="button-save-booking-settings">{saveBookingSettings.isPending ? t('Saving…') : t('Save booking platform')}</button>{isDirty && <><span role="status">{t('Unsaved changes')}</span><button type="button" className="button button-quiet" disabled={saveBookingSettings.isPending} onClick={() => { if (confirmLeave()) saveBookingSettings.reset(); }} data-testid="button-discard-booking-draft">{t('Discard changes')}</button></>}</div>
         </form>
       </div>
     </section>}

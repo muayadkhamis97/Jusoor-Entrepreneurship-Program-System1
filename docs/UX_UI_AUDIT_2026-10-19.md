@@ -97,6 +97,14 @@ retryable message for unknown failures. Do not expose tokens or raw server error
 
 ### AUD-04 — Medium priority: unsaved mentor settings can disappear
 
+**Follow-up status:** Remediated in development with dirty-draft protection,
+navigation/discard confirmation, a native unload warning, refresh-safe inputs and
+save-success-only baseline updates. One browser fixture pass plus a focused
+same-document Back/Forward regression passed. See
+[unsaved booking draft QA](QA_MENTOR_BOOKING_UNSAVED_CHANGES.md).
+Actual authenticated mentor persistence remains unverified. Evidence below
+describes the pre-fix behavior.
+
 **Evidence:** `MentorDashboardPage` holds provider and URL edits only in component
 state. Settings/workspace links navigate without a dirty-state guard, and the
 router keys the page by location, causing a new instance on navigation.

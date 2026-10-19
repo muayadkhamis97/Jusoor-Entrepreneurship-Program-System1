@@ -25,7 +25,7 @@ test('connected dashboard replaces setup with status and a settings link', () =>
 
 test('settings preserves existing save, reconnect, disconnect and OAuth notice flows', () => {
   assert.match(surface, /<form[^>]*onSubmit=\{saveBooking\}/);
-  assert.match(surface, /saveBookingSettings\.mutate\(\{ data \}, \{\s*onSuccess: \(\) => invalid\(client, getGetMentorDashboardQueryKey\(\)\)/);
+  assert.match(surface, /saveBookingSettings\.mutate\(\{ data \}, \{\s*onSuccess: saved => \{ markSaved\(saved\); invalid\(client, getGetMentorDashboardQueryKey\(\)\); \}/);
   for (const id of ['button-connect-calendly', 'button-connect-google-calendar', 'button-disconnect-google-calendar', 'input-google-calendar-booking-url', 'button-save-booking-settings']) {
     assert.ok(surface.includes(`data-testid="${id}"`), id);
   }
