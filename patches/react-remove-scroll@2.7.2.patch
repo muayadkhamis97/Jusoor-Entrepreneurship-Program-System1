@@ -1,0 +1,45 @@
+diff --git a/dist/es2015/handleScroll.js b/dist/es2015/handleScroll.js
+index 746e111542669780256c600261172b0274b95124..4807e37c71a55113317a79e85e107a9496b42343 100644
+--- a/dist/es2015/handleScroll.js
++++ b/dist/es2015/handleScroll.js
+@@ -65,6 +65,10 @@ var getDirectionFactor = function (axis, direction) {
+     return axis === 'h' && direction === 'rtl' ? -1 : 1;
+ };
+ export var handleScroll = function (axis, endTarget, event, sourceDelta, noOverscroll) {
++    // The lock ref can be cleared before an in-flight scroll event finishes.
++    if (!(endTarget instanceof Element)) {
++        return true;
++    }
+     var directionFactor = getDirectionFactor(axis, window.getComputedStyle(endTarget).direction);
+     var delta = directionFactor * sourceDelta;
+     // find scrollable target
+diff --git a/dist/es2019/handleScroll.js b/dist/es2019/handleScroll.js
+index ff1e373fb707a0a2d3d46f3a79e4f3116f85079a..3b367af078c1f8b88f35d07aab5295f4cb2d1fd9 100644
+--- a/dist/es2019/handleScroll.js
++++ b/dist/es2019/handleScroll.js
+@@ -53,6 +53,10 @@ const getDirectionFactor = (axis, direction) =>
+  */
+ axis === 'h' && direction === 'rtl' ? -1 : 1;
+ export const handleScroll = (axis, endTarget, event, sourceDelta, noOverscroll) => {
++    // The lock ref can be cleared before an in-flight scroll event finishes.
++    if (!(endTarget instanceof Element)) {
++        return true;
++    }
+     const directionFactor = getDirectionFactor(axis, window.getComputedStyle(endTarget).direction);
+     const delta = directionFactor * sourceDelta;
+     // find scrollable target
+diff --git a/dist/es5/handleScroll.js b/dist/es5/handleScroll.js
+index 7d952d00afa54c42b7f55f3b5a91d471b3e9a324..b93c74d0aa7fa3824057758dd2eab0ddd8350796 100644
+--- a/dist/es5/handleScroll.js
++++ b/dist/es5/handleScroll.js
+@@ -69,6 +69,10 @@ var getDirectionFactor = function (axis, direction) {
+     return axis === 'h' && direction === 'rtl' ? -1 : 1;
+ };
+ var handleScroll = function (axis, endTarget, event, sourceDelta, noOverscroll) {
++    // The lock ref can be cleared before an in-flight scroll event finishes.
++    if (!(endTarget instanceof Element)) {
++        return true;
++    }
+     var directionFactor = getDirectionFactor(axis, window.getComputedStyle(endTarget).direction);
+     var delta = directionFactor * sourceDelta;
+     // find scrollable target

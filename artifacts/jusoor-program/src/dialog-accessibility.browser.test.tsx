@@ -235,6 +235,8 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     });
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    const runtimeErrors: string[] = [];
+    page.on('pageerror', error => runtimeErrors.push(error.message));
     await page.route('**/*', route => {
       const requestUrl = new URL(route.request().url());
       if (requestUrl.origin === `http://127.0.0.1:${port}` && route.request().method() === 'GET') {
@@ -283,6 +285,15 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'fixture-form-input', 'Opening a form should focus its first field.');
     const formBounds = await formDialog.boundingBox();
     assert.ok(formBounds && formBounds.x >= 0 && formBounds.y >= 0 && formBounds.x + formBounds.width <= 390 && formBounds.y + formBounds.height <= 844, 'Dialog should fit the mobile viewport.');
+    await formDialog.evaluate(element => {
+      element.style.maxHeight = '180px';
+      element.style.overflowY = 'auto';
+    });
+    await formDialog.dispatchEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    await formDialog.evaluate(element => {
+      element.style.maxHeight = '';
+      element.style.overflowY = '';
+    });
 
     const field = page.getByLabel('Record name');
     await field.fill('Synthetic value stays here');
@@ -569,6 +580,7 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
         await assertActiveDestination('/sessions');
       }
     }
+    assert.deepEqual(runtimeErrors, [], 'Dialog opening, scrolling, closing, and navigation must not raise browser runtime errors.');
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();
