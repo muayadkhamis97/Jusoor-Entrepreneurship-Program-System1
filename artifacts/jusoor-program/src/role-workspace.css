@@ -49,3 +49,37 @@
   .role-button-row .button,.role-form-grid .button{--program-control-button-height:2.625rem}
   .role-footer{width:100%;padding:13px 15px 18px}
 }
+
+/* Role-only readability: use the shared small-text scale, not legacy 9–10px copy. */
+.role-workspace :is(
+  .role-form-grid .field,
+  .role-form-grid .field small,
+  .role-form-grid legend,
+  .mentor-booking-choice small,
+  .role-heading p,
+  .role-feature p,
+  .role-note span,
+  .role-inline-note,
+  .role-reply,
+  .role-success,
+  .mentor-provider,
+  .answer-meta div > span,
+  .role-row-copy span,
+  .role-row-copy small,
+  .score-submit-row span,
+  .judge-assignment-row > div:first-child span
+) {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  overflow-wrap: anywhere;
+}
+
+.role-workspace :is(.role-user, .role-user b, .role-count, .role-date, .role-chip, .eyebrow, .role-footer) {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+}
+
+html[lang="ar"] .role-workspace :is(.role-form-grid .field, .role-inline-note, .role-reply, .role-note span, .role-feature p) {
+  line-height: 1.75;
+  letter-spacing: normal;
+}

@@ -55,6 +55,13 @@ current workspace, language control and account actions discoverable. Verify
 
 ### AUD-02 — Medium priority: small role-page labels remain outside readability floor
 
+**Follow-up status:** Remediated in development with scoped shared-theme sizes:
+14 px form labels/helper copy and 12 px compact metadata, retaining 16 px phone
+inputs. Computed-style fixture checks passed at three widths in English and
+Arabic. See [role text readability QA](QA_ROLE_TEXT_READABILITY.md). Actual
+signed-in page verification remains outstanding. The evidence below describes
+the pre-fix state.
+
 **Evidence:** `src/role-workspace.css` sets booking helper text to 9 px,
 role form labels to 10 px and role dates to 10 px. The desktop readability
 floor in `src/index.css` is scoped to `.workspace` and `.intake-page`, not
