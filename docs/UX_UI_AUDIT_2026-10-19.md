@@ -77,6 +77,13 @@ line height rather than merely increasing headings.
 
 ### AUD-03 — Medium priority: mentor settings errors are not actionable enough
 
+**Follow-up status:** Remediated in development. The frontend now maps known URL,
+provider-connection, access, rate-limit, service and network failures to translated
+guidance. URL errors are associated with the field and focus it. Tests and
+limitations: [booking-save error QA](QA_MENTOR_BOOKING_SAVE_ERRORS.md).
+The evidence below describes the pre-fix behavior; signed-in browser verification
+remains outstanding.
+
 **Evidence:** `src/role-surfaces.tsx`, `saveBookingSettings.isError`, always shows
 the same message about connection and schedule validity. It does not distinguish
 a rejected URL, expired connection, authorization failure or server outage.

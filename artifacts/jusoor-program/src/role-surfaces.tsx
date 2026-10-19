@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useClerk } from '@clerk/react';
 import { Link, useLocation } from 'wouter';
@@ -21,6 +21,7 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
 import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
+import { mentorBookingSaveError } from './mentor-booking-errors';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
@@ -169,6 +170,8 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   const connectGoogleCalendar = useStartGoogleCalendarConnection();
   const disconnectGoogleCalendar = useDisconnectGoogleCalendar();
   const saveBookingSettings = useUpdateMentorBookingSettings();
+  const bookingUrlInput = useRef<HTMLInputElement>(null);
+  const bookingSaveError = saveBookingSettings.isError ? mentorBookingSaveError(saveBookingSettings.error) : null;
   const [bookingProvider, setBookingProvider] = useState<MentorBookingProvider>('calendly');
   const [googleCalendarBookingUrl, setGoogleCalendarBookingUrl] = useState('');
   const [drafts, setDrafts] = useState<Record<number, { date: string; status: string; notes: string }>>({});
@@ -207,6 +210,9 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
     };
     saveBookingSettings.mutate({ data }, {
       onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()),
+      onError: error => {
+        if (mentorBookingSaveError(error).field === 'url') bookingUrlInput.current?.focus();
+      },
     });
   };
   const save = (event: FormEvent<HTMLFormElement>, id: number) => {
@@ -276,20 +282,21 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
           <fieldset className="field field-wide">
             <legend>{t('Founders will book through')}</legend>
             <label className="mentor-booking-choice">
-              <input type="radio" name="bookingProvider" value="calendly" checked={bookingProvider === 'calendly'} disabled={!dashboard?.calendlyBookingUrl} onChange={() => setBookingProvider('calendly')} data-testid="radio-booking-calendly" />
+              <input type="radio" name="bookingProvider" value="calendly" checked={bookingProvider === 'calendly'} disabled={!dashboard?.calendlyBookingUrl} onChange={() => { setBookingProvider('calendly'); saveBookingSettings.reset(); }} data-testid="radio-booking-calendly" />
               <span><b>Calendly</b><small>{dashboard?.calendlyBookingUrl ? t('Connected') : t('Connect Calendly first')}</small></span>
             </label>
             <label className="mentor-booking-choice">
-              <input type="radio" name="bookingProvider" value="google_calendar" checked={bookingProvider === 'google_calendar'} disabled={!dashboard?.googleCalendarConnected} onChange={() => setBookingProvider('google_calendar')} data-testid="radio-booking-google-calendar" />
+              <input type="radio" name="bookingProvider" value="google_calendar" checked={bookingProvider === 'google_calendar'} disabled={!dashboard?.googleCalendarConnected} onChange={() => { setBookingProvider('google_calendar'); saveBookingSettings.reset(); }} data-testid="radio-booking-google-calendar" />
               <span><b>Google Calendar</b><small>{dashboard?.googleCalendarConnected ? t('Account connected') : t('Connect Google Calendar first')}</small></span>
             </label>
           </fieldset>
           {bookingProvider === 'google_calendar' && <label className="field field-wide">
             {t('Google Calendar appointment-schedule link')}
-            <input className="form-control" type="url" value={googleCalendarBookingUrl} onChange={event => setGoogleCalendarBookingUrl(event.target.value)} placeholder="https://calendar.google.com/calendar/appointments/schedules/…" required data-testid="input-google-calendar-booking-url" />
-            <small>{t('Create an appointment schedule in Google Calendar, then paste its public link here.')}</small>
+            <input ref={bookingUrlInput} className="form-control" type="url" value={googleCalendarBookingUrl} onChange={event => { setGoogleCalendarBookingUrl(event.target.value); saveBookingSettings.reset(); }} aria-invalid={bookingSaveError?.field === 'url' || undefined} aria-describedby={`mentor-booking-url-help${bookingSaveError?.field === 'url' ? ' mentor-booking-url-error' : ''}`} placeholder="https://calendar.google.com/calendar/appointments/schedules/…" required data-testid="input-google-calendar-booking-url" />
+            <small id="mentor-booking-url-help">{t('Create an appointment schedule in Google Calendar, then paste its public link here.')}</small>
+            {bookingSaveError?.field === 'url' && <span id="mentor-booking-url-error" className="form-error" role="alert">{t(bookingSaveError.message)}</span>}
           </label>}
-          {saveBookingSettings.isError && <p className="form-error field-wide" role="alert">{t('Booking settings could not be saved. Confirm the selected account is connected and the schedule link is valid.')}</p>}
+          {bookingSaveError && bookingSaveError.field !== 'url' && <p className="form-error field-wide" role="alert" data-testid="booking-save-error">{t(bookingSaveError.message)}</p>}
           {saveBookingSettings.isSuccess && <p className="form-success field-wide" role="status">{t('Booking platform saved.')}</p>}
           <div className="field-wide"><button className="button button-primary" disabled={saveBookingSettings.isPending || !dashboard || (bookingProvider === 'google_calendar' && !dashboard.googleCalendarConnected)} data-testid="button-save-booking-settings">{saveBookingSettings.isPending ? t('Saving…') : t('Save booking platform')}</button></div>
         </form>
