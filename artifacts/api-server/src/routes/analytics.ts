@@ -815,6 +815,7 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
     res.status(400).json({ error: "Assign this session to a program before recording attendance." });
     return;
   }
+  const programId = register.session.programId;
   const rosterByParticipantId = new Map(register.roster.map((person) => [person.participantId, person]));
   const submittedIds = new Set<number>();
   for (const record of body.data.records) {
@@ -837,6 +838,7 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
           sessionId: params.data.sessionId,
           participantId: record.participantId,
           businessId: rosterByParticipantId.get(record.participantId)!.businessId,
+          programId,
           status: record.status,
           notes: record.notes,
           recordedByStaffId: staff.id,

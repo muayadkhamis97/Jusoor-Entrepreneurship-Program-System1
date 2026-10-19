@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { date, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { programsTable } from "./programs";
 import { staffMembersTable } from "./staff";
@@ -25,7 +25,9 @@ export const sessionsTable = pgTable("jusoor_sessions", {
   recordingVersion: integer("recording_version").notNull().default(0),
   status: text("status").notNull().default("scheduled"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("jusoor_sessions_id_program_uq").on(table.id, table.programId),
+]);
 
 export const insertSessionSchema = createInsertSchema(sessionsTable).omit({
   id: true,

@@ -192,8 +192,9 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
   if (!(await isParticipantAttendanceSchemaReady())) return;
   const [session] = await db.select({ programId: sessionsTable.programId })
     .from(sessionsTable).where(eq(sessionsTable.id, sessionId)).limit(1);
-  if (!session?.programId) return;
-  const roster = await getSessionParticipantRoster(session.programId);
+  if (!session || session.programId === null) return;
+  const programId = session.programId;
+  const roster = await getSessionParticipantRoster(programId);
   const participants = await db.select().from(zoomAttendanceParticipantsTable)
     .where(eq(zoomAttendanceParticipantsTable.sessionId, sessionId));
   const manualRecords = await db.select({
@@ -225,6 +226,7 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
     sessionId: number;
     participantId: number;
     businessId: number;
+    programId: number;
     status: string;
     notes: string | null;
     source: string;
@@ -243,6 +245,7 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
         sessionId,
         participantId: person.participantId,
         businessId: person.businessId,
+        programId,
         status: "present",
         notes: null,
         source: "zoom",
@@ -256,6 +259,7 @@ async function rebuildSessionAttendance(sessionId: number): Promise<void> {
         sessionId,
         participantId: person.participantId,
         businessId: person.businessId,
+        programId,
         status: "absent",
         notes: null,
         source: "zoom",
