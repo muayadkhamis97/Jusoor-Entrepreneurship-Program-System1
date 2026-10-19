@@ -32,6 +32,13 @@ were changed during this audit.
 
 ### AUD-01 — High priority: role header can outgrow narrow screens
 
+**Follow-up status:** Remediated in development. The header/action rows now wrap
+instead of forcing actions outside the viewport. A CSS layout fixture passed
+12 width/direction combinations and keyboard reachability checks.
+See [responsive role navigation QA](QA_ROLE_NAVIGATION_RESPONSIVE.md). Actual
+signed-in page verification remains outstanding. The evidence below describes
+the pre-fix state.
+
 **Evidence:** `src/role-surfaces.tsx`, `RoleFrame`, renders trainer links, other
 role links, operations link, Profile, role badge, language switch and Sign out
 inside one `.role-top-actions` row. `src/role-workspace.css` keeps this row

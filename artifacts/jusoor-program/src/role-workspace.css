@@ -1,7 +1,7 @@
 .role-workspace{min-height:100dvh;background:linear-gradient(145deg,hsl(var(--background)),hsl(39 34% 93%))}
-.role-topbar{min-height:76px;padding:14px max(26px,calc((100vw - 1160px)/2));display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid hsl(var(--border));background:hsl(var(--card) / .86)}
+.role-topbar{min-height:76px;padding:14px max(26px,calc((100vw - 1160px)/2));display:flex;flex-wrap:wrap;gap:calc(var(--spacing) * 3);justify-content:space-between;align-items:center;border-bottom:1px solid hsl(var(--border));background:hsl(var(--card) / .86)}
 .role-topbar .brand-mark{color:hsl(var(--primary));border-color:hsl(var(--primary) / .35)}.role-topbar .brand{color:hsl(var(--foreground))}
-.role-top-actions{display:flex;align-items:center;gap:14px}.role-user{display:flex;align-items:center;gap:8px;color:hsl(var(--primary));font:10px var(--app-font-mono)}.role-user b{color:hsl(var(--foreground));font:600 11px var(--app-font-sans)}
+.role-top-actions{display:flex;flex:1 1 auto;min-width:0;max-width:100%;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:14px}.role-top-actions>*{min-width:0;max-width:100%}.role-topbar .brand{max-width:100%}.role-topbar .brand-mark,.role-topbar .brand-logo{flex-shrink:0}.role-user{display:flex;align-items:center;gap:8px;overflow-wrap:anywhere;color:hsl(var(--primary));font:10px var(--app-font-mono)}.role-user b{min-width:0;color:hsl(var(--foreground));font:600 11px var(--app-font-sans)}
 .role-main{width:min(1080px,100%);margin:auto;padding:42px 28px 28px}.role-heading{display:flex;align-items:end;justify-content:space-between;gap:25px;padding:5px 0 27px;border-bottom:1px solid hsl(var(--border))}
 .role-heading h1{margin:7px 0 6px;font-size:clamp(35px,5vw,53px);line-height:1.04}.role-heading p{margin:0;max-width:650px;color:hsl(var(--muted-foreground));font-size:13px}
 .role-count{display:inline-flex;flex:0 0 auto;align-items:center;border:1px solid hsl(var(--border));border-radius:999px;padding:8px 12px;background:hsl(var(--card));color:hsl(var(--primary));font:10px var(--app-font-mono)}
@@ -34,7 +34,7 @@
   .role-topbar{min-height:64px;padding:10px 14px;gap:10px}
   .role-topbar .brand{min-width:0}
   .role-topbar .brand b{max-width:45vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .role-top-actions{flex:0 0 auto}
+  .role-top-actions{flex:1 1 100%;justify-content:flex-start}
   .role-heading h1{font-size:clamp(31px,9vw,44px);overflow-wrap:anywhere}
   .role-count{max-width:100%;white-space:normal}
   .role-feature,.role-note,.role-assignment-section,.answer-card{min-width:0;padding:16px}
