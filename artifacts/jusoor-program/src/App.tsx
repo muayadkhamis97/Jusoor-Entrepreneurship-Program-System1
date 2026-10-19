@@ -22,6 +22,7 @@ import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
+  getGetTrainerDashboardQueryKey, useGetTrainerDashboard,
    getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, getListParticipantInvitationsQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
   getListSupportQueryKey, getListSupportCalendlyMeetingsQueryKey, getListSupportGoogleCalendarMeetingsQueryKey,
   useListSupportCalendlyMeetings, useListSupportGoogleCalendarMeetings, useCreateBusiness, useCreatePitch, useCreateProgram,
@@ -608,10 +609,15 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   >(null);
   const [zoomCallbackResult] = useState(() => new URLSearchParams(window.location.search).get('zoom'));
   const params = useMemo(() => type ? { type: type as Session['type'] } : undefined, [type]);
-  const query = useListSessions(params, { query: { queryKey: getListSessionsQueryKey(params) } });
-  const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey() } });
-  const programs = programsQuery.data || [];
-  const sessions = query.data || [];
+  const operationsQuery = useListSessions(params, { query: { queryKey: getListSessionsQueryKey(params), enabled: !trainerView } });
+  const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey(), enabled: !trainerView } });
+  // Trainers must use their assigned-session API, not operations-only lists.
+  const trainerQuery = useGetTrainerDashboard({ query: { queryKey: getGetTrainerDashboardQueryKey(), enabled: trainerView, refetchOnWindowFocus: true } });
+  const query = trainerView ? trainerQuery : operationsQuery;
+  const programs = trainerView ? trainerQuery.data?.programs || [] : programsQuery.data || [];
+  const sessions = trainerView
+    ? (trainerQuery.data?.sessions || []).filter(session => !type || session.type === type)
+    : operationsQuery.data || [];
   const displayedSessions = calendarDate ? sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate) : sessions;
   const client = useQueryClient();
   const zoomStatus = useGetZoomStatus({ query: { queryKey: getGetZoomStatusQueryKey(), enabled: coordinator } });
@@ -776,7 +782,7 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label={t('Filter sessions by type')} onChange={e => { setType(e.target.value); setCalendarDate(null); }} data-testid="select-session-type"><option value="">{t('All session types')}</option>{['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{sessions.length}</b> {t('sessions')}</div></div>
     <SessionCalendar sessions={sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />
     {calendarDate && <div className="calendar-date-results" role="status"><span>{t('Showing sessions for')} <b>{dateLabel(calendarDate)}</b></span><span>{displayedSessions.length} {t('scheduled')}</span></div>}
-    {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : sessions.length === 0 ? <EmptyState title="No sessions scheduled." body="Add the next bootcamp, hackathon, online training or pitch event to get the cohort together." action={<button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> {t('Schedule a session')}</button>} /> :
+    {query.isLoading ? <LoadingState /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : sessions.length === 0 ? <EmptyState title="No sessions scheduled." body="Add the next bootcamp, hackathon, online training or pitch event to get the cohort together." action={!trainerView ? <button className="button button-primary" onClick={() => setEditing(null)}><Plus size={15} /> {t('Schedule a session')}</button> : undefined} /> :
     <div className="session-list">{displayedSessions.length === 0 ? <EmptyState title="No sessions on this date." body="Choose another day or clear the calendar selection to see the full schedule." action={<button className="button button-outline" onClick={() => setCalendarDate(null)}>{t('Show all sessions')}</button>} /> : displayedSessions.map((session, i) => {
       const meetingPending = createZoomMeeting.isPending && createZoomMeeting.variables?.id === session.id;
       return <article className="session-card" key={session.id} data-testid={`card-session-${session.id}`}>
@@ -798,10 +804,10 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
         <span className={`session-index mono session-index-${i % 2}`}>{t('SESSION /')} {String(i + 1).padStart(2, '0')}</span>
       </article>;
     })}</div>}
-    {editing !== undefined && <FormDialog
+    {!trainerView && editing !== undefined && <FormDialog
       title={editing ? 'Edit session' : 'Schedule a session'}
        description="Create or update the Zoom meeting here. After staff upload the recording to Drive, paste its share link below to make it available as an in-page player."
-      fields={sessionFields(programs, trainers, coordinator)}
+      fields={sessionFields(programsQuery.data || [], trainers, coordinator)}
       initial={editing ? {
         title: editing.title,
         type: editing.type,

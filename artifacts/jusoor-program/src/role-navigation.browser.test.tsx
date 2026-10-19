@@ -4,6 +4,8 @@ import test from 'node:test';
 import { chromium } from 'playwright-core';
 
 // Layout-only fixture: actual styles, representative header actions, no auth or providers.
+// Protected React/authenticated phone checks are recorded separately in
+// docs/QA_ROLE_NAVIGATION_RESPONSIVE.md; this fixture is not evidence for them.
 const styles = ['workspace.css', 'program-controls.css', 'role-workspace.css', 'language.css']
   .map(file => readFileSync(new URL(`./${file}`, import.meta.url), 'utf8')).join('\n');
 
