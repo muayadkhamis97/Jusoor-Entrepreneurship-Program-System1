@@ -2029,9 +2029,28 @@ export interface MentorMeetingAttendee {
   name: string;
 }
 
+/**
+ * Optional provider for a completed synced meeting; omitted or manual means this is a manually recorded meeting.
+ */
+export type MentorMeetingReportInputMeetingProvider = typeof MentorMeetingReportInputMeetingProvider[keyof typeof MentorMeetingReportInputMeetingProvider];
+
+
+export const MentorMeetingReportInputMeetingProvider = {
+  manual: 'manual',
+  calendly: 'calendly',
+  google_calendar: 'google_calendar',
+} as const;
+
 export interface MentorMeetingReportInput {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   meetingDate: string;
+  /** Optional provider for a completed synced meeting; omitted or manual means this is a manually recorded meeting. */
+  meetingProvider?: MentorMeetingReportInputMeetingProvider;
+  /**
+     * ID of the completed meeting occurrence from the selected provider.
+     * @minimum 1
+     */
+  meetingId?: number;
   /**
      * @minItems 1
      * @items.minimum 1
@@ -2059,8 +2078,20 @@ export interface MentorMeetingReportInput {
   teamRecommendations?: string | null;
 }
 
+export type MentorMeetingReportMeetingProvider = typeof MentorMeetingReportMeetingProvider[keyof typeof MentorMeetingReportMeetingProvider];
+
+
+export const MentorMeetingReportMeetingProvider = {
+  manual: 'manual',
+  calendly: 'calendly',
+  google_calendar: 'google_calendar',
+} as const;
+
 export interface MentorMeetingReport {
   id: number;
+  meetingProvider: MentorMeetingReportMeetingProvider;
+  /** @nullable */
+  meetingId: number | null;
   coachName: string;
   coachEmail: string;
   businessName: string;
@@ -2075,12 +2106,33 @@ export interface MentorMeetingReport {
   submittedAt: string;
 }
 
+export type MentorCompletedMeetingOccurrenceMeetingProvider = typeof MentorCompletedMeetingOccurrenceMeetingProvider[keyof typeof MentorCompletedMeetingOccurrenceMeetingProvider];
+
+
+export const MentorCompletedMeetingOccurrenceMeetingProvider = {
+  calendly: 'calendly',
+  google_calendar: 'google_calendar',
+} as const;
+
+export interface MentorCompletedMeetingOccurrence {
+  meetingProvider: MentorCompletedMeetingOccurrenceMeetingProvider;
+  meetingId: number;
+  eventName: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  timezone: string | null;
+  /** @nullable */
+  reportId: number | null;
+}
+
 export interface MentorMeetingReports {
   coachName: string;
   coachEmail: string;
   businessName: string;
   attendees: MentorMeetingAttendee[];
   reports: MentorMeetingReport[];
+  completedMeetings: MentorCompletedMeetingOccurrence[];
 }
 
 export interface MentorBookingSettings {

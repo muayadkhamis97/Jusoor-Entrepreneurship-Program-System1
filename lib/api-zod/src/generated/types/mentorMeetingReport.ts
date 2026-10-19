@@ -5,9 +5,13 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorMeetingReportMeetingProvider } from './mentorMeetingReportMeetingProvider';
 
 export interface MentorMeetingReport {
   id: number;
+  meetingProvider: MentorMeetingReportMeetingProvider;
+  /** @nullable */
+  meetingId: number | null;
   coachName: string;
   coachEmail: string;
   businessName: string;

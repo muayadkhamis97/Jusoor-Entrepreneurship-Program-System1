@@ -104,6 +104,7 @@ test('mentor meeting report form requires each answer and saves attendance and n
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const report = {
       id: 980, coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 1',
+      meetingProvider: 'calendly', meetingId: 777,
       meetingDate: '2026-10-19', attendees: ['Founder 1'], sessionSummary: 'Topics and highlights',
       smartGrowActions: 'Conduct two customer interviews', achievementsAndOpportunities: 'Identified a new sales channel.',
       teamRecommendations: 'Consider a marketing introduction.', submittedAt: '2026-10-19T10:00:00.000Z',
@@ -112,21 +113,33 @@ test('mentor meeting report form requires each answer and saves attendance and n
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.origin !== origin) return route.abort();
-      if (url.pathname !== '/api/mentor/support/1/meeting-reports') return route.continue();
+      const match = url.pathname.match(/^\/api\/mentor\/support\/(\d+)\/meeting-reports$/);
+      if (!match) return route.continue();
+      if (Number(match[1]) !== 1) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 2',
+        attendees: [], reports: [], completedMeetings: [],
+      }) });
       if (route.request().method() === 'GET') {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
           coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 1',
           attendees: [{ applicationId: 11, name: 'Founder 1' }, { applicationId: 12, name: 'Team member 2' }],
           reports: postBody ? [report] : [],
+          completedMeetings: [{
+            meetingProvider: 'calendly', meetingId: 777, eventName: 'Coaching check-in',
+            startsAt: '2026-10-19T10:00:00.000Z', endsAt: '2026-10-19T11:00:00.000Z',
+            timezone: 'UTC', reportId: postBody ? 980 : null,
+          }],
         }) });
       }
       postBody = route.request().postDataJSON() as Record<string, unknown>;
       return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(report) });
     });
     await page.goto(`${origin}/src/test-fixtures/mentor-engagement-cards.html`);
-    await page.getByTestId('button-open-meeting-report-1').click();
+    await page.getByTestId('meeting-reports-due-1').waitFor();
+    await page.getByTestId('button-report-meeting-calendly-777').click();
     await page.getByTestId('meeting-attendees-1').waitFor();
-    await page.getByLabel('Meeting date').fill('2026-10-19');
+    assert.equal(await page.getByLabel('Meeting date').inputValue(), '2026-10-19');
+    assert.equal(await page.getByTestId('select-meeting-occurrence-1').inputValue(), 'calendly:777');
     await page.getByLabel('Topics, session highlights, connections made, and other notes *').fill('Topics and highlights');
     await page.getByLabel('SMART Grow actions recommended and agreed with the team until the next call *').fill('Conduct two customer interviews');
     await page.getByLabel('Key achievements and opportunities resulting from your coaching *').fill('Identified a new sales channel.');
@@ -140,6 +153,8 @@ test('mentor meeting report form requires each answer and saves attendance and n
     assert.equal((await response).status(), 201);
     assert.deepEqual(postBody, {
       meetingDate: '2026-10-19',
+      meetingProvider: 'calendly',
+      meetingId: 777,
       attendeeApplicationIds: [11],
       sessionSummary: 'Topics and highlights',
       smartGrowActions: 'Conduct two customer interviews',
@@ -149,6 +164,7 @@ test('mentor meeting report form requires each answer and saves attendance and n
     await page.getByTestId('meeting-report-history-980').waitFor();
     assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Founder 1/);
     assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Coach One/);
+    assert.equal(await page.getByTestId('meeting-reports-due-1').count(), 0);
   } finally {
     await browser?.close();
     await server.close();

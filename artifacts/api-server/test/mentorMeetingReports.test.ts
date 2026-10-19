@@ -11,6 +11,7 @@ let restoreInsert: (() => void) | undefined;
 let selectedRows: unknown[][] = [];
 let selectCall = 0;
 let inserted: Record<string, unknown> | undefined;
+let insertFailure: unknown;
 let requestStaff: Record<string, unknown> = {};
 
 const mentor = {
@@ -57,11 +58,14 @@ before(async () => {
     values(values: Record<string, unknown>) {
       inserted = values;
       return {
-        returning: async () => [{
-          id: 302,
-          ...values,
-          submittedAt: new Date("2026-10-19T10:00:00.000Z"),
-        }],
+          returning: async () => {
+            if (insertFailure) throw insertFailure;
+            return [{
+              id: 302,
+              ...values,
+              submittedAt: new Date("2026-10-19T10:00:00.000Z"),
+            }];
+          },
       };
     },
   })) as (...args: never[]) => unknown);
@@ -90,6 +94,7 @@ beforeEach(() => {
   selectedRows = [];
   selectCall = 0;
   inserted = undefined;
+  insertFailure = undefined;
 });
 
 async function postReport(supportId = 42, payload: Record<string, unknown> = {}) {
@@ -136,6 +141,105 @@ test("submits a report with server-derived coach and business details and accept
   assert.equal(inserted?.coachName, "Coach One");
   assert.equal(inserted?.businessName, "North Star");
   assert.equal(inserted?.sessionSummary, "Topics and coaching highlights");
+  assert.equal(report.meetingProvider, "manual");
+  assert.equal(report.meetingId, null);
+  assert.equal(inserted?.calendlyMeetingId, null);
+  assert.equal(inserted?.googleCalendarMeetingId, null);
+});
+
+test("links a completed Calendly occurrence to one report", async () => {
+  withAllowedEngagement();
+  selectedRows = [
+    ...selectedRows.slice(0, 2),
+    [{ id: 77, startsAt: new Date("2026-10-19T10:00:00.000Z"), timezone: "UTC" }],
+    ...selectedRows.slice(2),
+  ];
+  const response = await postReport(42, { meetingProvider: "calendly", meetingId: 77 });
+  assert.equal(response.status, 201);
+  const report = await response.json() as Record<string, unknown>;
+  assert.equal(report.meetingProvider, "calendly");
+  assert.equal(report.meetingId, 77);
+  assert.equal(inserted?.calendlyMeetingId, 77);
+  assert.equal(inserted?.googleCalendarMeetingId, null);
+});
+
+test("returns a conflict when two submissions race to report the same occurrence", async () => {
+  withAllowedEngagement();
+  selectedRows = [
+    ...selectedRows.slice(0, 2),
+    [{ id: 77, startsAt: new Date("2026-10-19T10:00:00.000Z"), timezone: "UTC" }],
+    ...selectedRows.slice(2),
+  ];
+  insertFailure = Object.assign(new Error("duplicate report"), { code: "23505" });
+  const response = await postReport(42, { meetingProvider: "calendly", meetingId: 77 });
+  assert.equal(response.status, 409);
+  assert.match((await response.json() as { error: string }).error, /already been submitted/);
+});
+
+test("rejects reports for canceled or rescheduled occurrences", async () => {
+  withAllowedEngagement();
+  selectedRows = [
+    ...selectedRows.slice(0, 2),
+    [],
+    ...selectedRows.slice(2),
+  ];
+  const response = await postReport(42, { meetingProvider: "calendly", meetingId: 77 });
+  assert.equal(response.status, 409);
+  assert.equal(inserted, undefined);
+});
+
+test("lists ended confirmed meeting occurrences with and without their own report", async () => {
+  selectedRows = [
+    [{ id: 7 }],
+    [{ id: 42, businessId: 8, businessName: "North Star", programId: 7 }],
+    [{ clerkUserId: "clerk-coach", displayName: "Coach One" }],
+    [{ applicationId: 100, name: "Founder One" }],
+    [{
+      id: 303,
+      calendlyMeetingId: null,
+      googleCalendarMeetingId: 202,
+      coachName: "Coach One",
+      coachEmail: mentor.email,
+      businessName: "North Star",
+      meetingDate: "2026-10-18",
+      attendees: ["Founder One"],
+      sessionSummary: "Session topics",
+      smartGrowActions: "Next steps",
+      achievementsAndOpportunities: "New opportunity",
+      teamRecommendations: null,
+      submittedAt: new Date("2026-10-18T12:00:00.000Z"),
+    }],
+    [{
+      id: 101,
+      eventName: "Coaching check-in",
+      startsAt: new Date("2026-10-18T10:00:00.000Z"),
+      endsAt: new Date("2026-10-18T11:00:00.000Z"),
+      timezone: "Asia/Amman",
+    }],
+    [{
+      id: 202,
+      startsAt: new Date("2026-10-17T10:00:00.000Z"),
+      endsAt: new Date("2026-10-17T11:00:00.000Z"),
+      timezone: "UTC",
+    }],
+  ];
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/mentor/support/42/meeting-reports`);
+  assert.equal(response.status, 200);
+  const result = await response.json() as {
+    reports: Array<{ meetingProvider: string; meetingId: number | null }>;
+    completedMeetings: Array<{ meetingProvider: string; meetingId: number; reportId: number | null }>;
+  };
+  assert.deepEqual(result.reports.map(({ meetingProvider, meetingId }) => ({ meetingProvider, meetingId })), [
+    { meetingProvider: "google_calendar", meetingId: 202 },
+  ]);
+  assert.deepEqual(result.completedMeetings.map(({ meetingProvider, meetingId, reportId }) => ({
+    meetingProvider, meetingId, reportId,
+  })), [
+    { meetingProvider: "calendly", meetingId: 101, reportId: null },
+    { meetingProvider: "google_calendar", meetingId: 202, reportId: 303 },
+  ]);
 });
 
 test("rejects attendees who are not on the accepted business roster", async () => {

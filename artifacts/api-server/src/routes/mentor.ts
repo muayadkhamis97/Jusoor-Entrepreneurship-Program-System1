@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte, or } from "drizzle-orm";
 import { clerkClient } from "@clerk/express";
 import {
   DisconnectGoogleCalendarResponse,
@@ -19,6 +19,8 @@ import {
   applicationsTable,
   businessesTable,
   db,
+  calendlyMeetingsTable,
+  googleCalendarMeetingsTable,
   mentorMeetingReportsTable,
   participantBusinessMembershipsTable,
   programsTable,
@@ -37,6 +39,36 @@ type AssignedMeetingBusiness = { id: number; businessId: number; businessName: s
 function isCalendarDate(value: string): boolean {
   const date = new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function meetingCalendarDate(value: Date, timezone: string | null): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone ?? undefined,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(value);
+    const dateParts = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
+  } catch {
+    return value.toISOString().slice(0, 10);
+  }
+}
+
+function reportProvider(report: { calendlyMeetingId: number | null; googleCalendarMeetingId: number | null }) {
+  if (report.calendlyMeetingId !== null) return "calendly" as const;
+  if (report.googleCalendarMeetingId !== null) return "google_calendar" as const;
+  return "manual" as const;
+}
+
+function reportMeetingId(report: { calendlyMeetingId: number | null; googleCalendarMeetingId: number | null }) {
+  return report.calendlyMeetingId ?? report.googleCalendarMeetingId;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error &&
+    (error as { code?: unknown }).code === "23505";
 }
 
 async function findAssignedMeetingBusiness(id: number, staff: StaffAccess, programIds: number[]): Promise<AssignedMeetingBusiness | null> {
@@ -116,11 +148,14 @@ router.get("/support/:id/meeting-reports", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Engagement is not assigned to this mentor." });
     return;
   }
-  const [identity, attendees, reports] = await Promise.all([
+  const now = new Date();
+  const [identity, attendees, reports, calendlyMeetings, googleCalendarMeetings] = await Promise.all([
     coachIdentity(staff, req),
     assignedBusinessMembers(business),
     db.select({
       id: mentorMeetingReportsTable.id,
+      calendlyMeetingId: mentorMeetingReportsTable.calendlyMeetingId,
+      googleCalendarMeetingId: mentorMeetingReportsTable.googleCalendarMeetingId,
       coachName: mentorMeetingReportsTable.coachName,
       coachEmail: mentorMeetingReportsTable.coachEmail,
       businessName: mentorMeetingReportsTable.businessName,
@@ -137,12 +172,69 @@ router.get("/support/:id/meeting-reports", async (req, res): Promise<void> => {
         eq(mentorMeetingReportsTable.coachStaffId, staff.id),
       ))
       .orderBy(desc(mentorMeetingReportsTable.meetingDate), desc(mentorMeetingReportsTable.id)),
+    db.select({
+      id: calendlyMeetingsTable.id,
+      eventName: calendlyMeetingsTable.eventName,
+      startsAt: calendlyMeetingsTable.startsAt,
+      endsAt: calendlyMeetingsTable.endsAt,
+      timezone: calendlyMeetingsTable.timezone,
+    }).from(calendlyMeetingsTable)
+      .where(and(
+        eq(calendlyMeetingsTable.businessId, business.businessId),
+        eq(calendlyMeetingsTable.mentorStaffId, staff.id),
+        eq(calendlyMeetingsTable.status, "confirmed"),
+        lte(calendlyMeetingsTable.endsAt, now),
+      ))
+      .orderBy(desc(calendlyMeetingsTable.startsAt)),
+    db.select({
+      id: googleCalendarMeetingsTable.id,
+      startsAt: googleCalendarMeetingsTable.startsAt,
+      endsAt: googleCalendarMeetingsTable.endsAt,
+      timezone: googleCalendarMeetingsTable.timezone,
+    }).from(googleCalendarMeetingsTable)
+      .where(and(
+        eq(googleCalendarMeetingsTable.businessId, business.businessId),
+        eq(googleCalendarMeetingsTable.mentorStaffId, staff.id),
+        eq(googleCalendarMeetingsTable.status, "confirmed"),
+        lte(googleCalendarMeetingsTable.endsAt, now),
+      ))
+      .orderBy(desc(googleCalendarMeetingsTable.startsAt)),
   ]);
+  const calendlyReports = new Map(reports
+    .filter((report) => report.calendlyMeetingId !== null)
+    .map((report) => [report.calendlyMeetingId!, report.id]));
+  const googleCalendarReports = new Map(reports
+    .filter((report) => report.googleCalendarMeetingId !== null)
+    .map((report) => [report.googleCalendarMeetingId!, report.id]));
   res.json(GetMentorMeetingReportsResponse.parse({
     ...identity,
     businessName: business.businessName,
     attendees,
-    reports,
+    reports: reports.map((report) => ({
+      ...report,
+      meetingProvider: reportProvider(report),
+      meetingId: reportMeetingId(report),
+    })),
+    completedMeetings: [
+      ...calendlyMeetings.map((meeting) => ({
+        meetingProvider: "calendly" as const,
+        meetingId: meeting.id,
+        eventName: meeting.eventName,
+        startsAt: meeting.startsAt,
+        endsAt: meeting.endsAt,
+        timezone: meeting.timezone,
+        reportId: calendlyReports.get(meeting.id) ?? null,
+      })),
+      ...googleCalendarMeetings.map((meeting) => ({
+        meetingProvider: "google_calendar" as const,
+        meetingId: meeting.id,
+        eventName: "Google Calendar meeting",
+        startsAt: meeting.startsAt,
+        endsAt: meeting.endsAt,
+        timezone: meeting.timezone,
+        reportId: googleCalendarReports.get(meeting.id) ?? null,
+      })),
+    ].sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()),
   }));
 });
 
@@ -163,6 +255,62 @@ router.post("/support/:id/meeting-reports", async (req, res): Promise<void> => {
   if (!isCalendarDate(body.data.meetingDate)) {
     res.status(400).json({ error: "Enter a valid meeting date." });
     return;
+  }
+  const meetingProvider = body.data.meetingProvider ?? "manual";
+  const meetingId = body.data.meetingId;
+  if (
+    (meetingProvider === "manual" && meetingId !== undefined) ||
+    (meetingProvider !== "manual" && (!meetingId || !Number.isInteger(meetingId)))
+  ) {
+    res.status(400).json({ error: "Choose a valid completed meeting or record a manual meeting." });
+    return;
+  }
+  if (meetingProvider === "calendly" && meetingId) {
+    const [meeting] = await db.select({
+      id: calendlyMeetingsTable.id,
+      startsAt: calendlyMeetingsTable.startsAt,
+      timezone: calendlyMeetingsTable.timezone,
+    })
+      .from(calendlyMeetingsTable)
+      .where(and(
+        eq(calendlyMeetingsTable.id, meetingId),
+        eq(calendlyMeetingsTable.businessId, business.businessId),
+        eq(calendlyMeetingsTable.mentorStaffId, staff.id),
+        eq(calendlyMeetingsTable.status, "confirmed"),
+        lte(calendlyMeetingsTable.endsAt, new Date()),
+      ))
+      .limit(1);
+    if (!meeting) {
+      res.status(409).json({ error: "This meeting is not a completed, active occurrence for this engagement." });
+      return;
+    }
+    if (body.data.meetingDate !== meetingCalendarDate(meeting.startsAt, meeting.timezone)) {
+      res.status(400).json({ error: "The report date must match the selected meeting occurrence." });
+      return;
+    }
+  } else if (meetingProvider === "google_calendar" && meetingId) {
+    const [meeting] = await db.select({
+      id: googleCalendarMeetingsTable.id,
+      startsAt: googleCalendarMeetingsTable.startsAt,
+      timezone: googleCalendarMeetingsTable.timezone,
+    })
+      .from(googleCalendarMeetingsTable)
+      .where(and(
+        eq(googleCalendarMeetingsTable.id, meetingId),
+        eq(googleCalendarMeetingsTable.businessId, business.businessId),
+        eq(googleCalendarMeetingsTable.mentorStaffId, staff.id),
+        eq(googleCalendarMeetingsTable.status, "confirmed"),
+        lte(googleCalendarMeetingsTable.endsAt, new Date()),
+      ))
+      .limit(1);
+    if (!meeting) {
+      res.status(409).json({ error: "This meeting is not a completed, active occurrence for this engagement." });
+      return;
+    }
+    if (body.data.meetingDate !== meetingCalendarDate(meeting.startsAt, meeting.timezone)) {
+      res.status(400).json({ error: "The report date must match the selected meeting occurrence." });
+      return;
+    }
   }
   if (
     body.data.sessionSummary.trim().length < 3 ||
@@ -187,31 +335,47 @@ router.post("/support/:id/meeting-reports", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Choose attending team members from the assigned business." });
     return;
   }
-  const [report] = await db.insert(mentorMeetingReportsTable).values({
-    supportId: business.id,
-    coachStaffId: staff.id,
-    ...identity,
-    businessName: business.businessName,
-    meetingDate: body.data.meetingDate,
-    attendees: attendees as string[],
-    sessionSummary: body.data.sessionSummary.trim(),
-    smartGrowActions: body.data.smartGrowActions.trim(),
-    achievementsAndOpportunities: body.data.achievementsAndOpportunities.trim(),
-    teamRecommendations: body.data.teamRecommendations?.trim() || null,
-  }).returning({
-    id: mentorMeetingReportsTable.id,
-    coachName: mentorMeetingReportsTable.coachName,
-    coachEmail: mentorMeetingReportsTable.coachEmail,
-    businessName: mentorMeetingReportsTable.businessName,
-    meetingDate: mentorMeetingReportsTable.meetingDate,
-    attendees: mentorMeetingReportsTable.attendees,
-    sessionSummary: mentorMeetingReportsTable.sessionSummary,
-    smartGrowActions: mentorMeetingReportsTable.smartGrowActions,
-    achievementsAndOpportunities: mentorMeetingReportsTable.achievementsAndOpportunities,
-    teamRecommendations: mentorMeetingReportsTable.teamRecommendations,
-    submittedAt: mentorMeetingReportsTable.submittedAt,
-  });
-  res.status(201).json(SubmitMentorMeetingReportResponse.parse(report));
+  try {
+    const [report] = await db.insert(mentorMeetingReportsTable).values({
+      supportId: business.id,
+      calendlyMeetingId: meetingProvider === "calendly" ? meetingId! : null,
+      googleCalendarMeetingId: meetingProvider === "google_calendar" ? meetingId! : null,
+      coachStaffId: staff.id,
+      ...identity,
+      businessName: business.businessName,
+      meetingDate: body.data.meetingDate,
+      attendees: attendees as string[],
+      sessionSummary: body.data.sessionSummary.trim(),
+      smartGrowActions: body.data.smartGrowActions.trim(),
+      achievementsAndOpportunities: body.data.achievementsAndOpportunities.trim(),
+      teamRecommendations: body.data.teamRecommendations?.trim() || null,
+    }).returning({
+      id: mentorMeetingReportsTable.id,
+      calendlyMeetingId: mentorMeetingReportsTable.calendlyMeetingId,
+      googleCalendarMeetingId: mentorMeetingReportsTable.googleCalendarMeetingId,
+      coachName: mentorMeetingReportsTable.coachName,
+      coachEmail: mentorMeetingReportsTable.coachEmail,
+      businessName: mentorMeetingReportsTable.businessName,
+      meetingDate: mentorMeetingReportsTable.meetingDate,
+      attendees: mentorMeetingReportsTable.attendees,
+      sessionSummary: mentorMeetingReportsTable.sessionSummary,
+      smartGrowActions: mentorMeetingReportsTable.smartGrowActions,
+      achievementsAndOpportunities: mentorMeetingReportsTable.achievementsAndOpportunities,
+      teamRecommendations: mentorMeetingReportsTable.teamRecommendations,
+      submittedAt: mentorMeetingReportsTable.submittedAt,
+    });
+    res.status(201).json(SubmitMentorMeetingReportResponse.parse({
+      ...report,
+      meetingProvider,
+      meetingId: reportMeetingId(report),
+    }));
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      res.status(409).json({ error: "A report has already been submitted for this meeting." });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.get("/dashboard", async (_req, res): Promise<void> => {

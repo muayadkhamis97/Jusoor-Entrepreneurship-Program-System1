@@ -4,9 +4,9 @@ import {
   getGetMentorMeetingReportsQueryKey, useGetMentorMeetingReports,
   useSubmitMentorMeetingReport,
 } from '@workspace/api-client-react';
-import type { MentorMeetingReportInput } from '@workspace/api-client-react';
+import type { MentorCompletedMeetingOccurrence, MentorMeetingReportInput } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
-import { t } from './language';
+import { currentLanguage, t } from './language';
 
 function todayLocalDate() {
   const local = new Date();
@@ -14,14 +14,52 @@ function todayLocalDate() {
   return local.toISOString().slice(0, 10);
 }
 
+function dateForMeeting(startsAt: string, timezone: string | null) {
+  const date = new Date(startsAt);
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone || undefined,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function meetingLabel(meeting: MentorCompletedMeetingOccurrence) {
+  const locale = currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB';
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+  let dateLabel: string;
+  try {
+    dateLabel = new Intl.DateTimeFormat(locale, {
+      ...options,
+      timeZone: meeting.timezone || undefined,
+    }).format(new Date(meeting.startsAt));
+  } catch {
+    dateLabel = new Intl.DateTimeFormat(locale, options).format(new Date(meeting.startsAt));
+  }
+  return `${dateLabel} · ${meeting.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}`;
+}
+
 export function MentorMeetingReportForm({ engagementId }: { engagementId: number }) {
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const reportQuery = useGetMentorMeetingReports(engagementId, {
-    query: { queryKey: getGetMentorMeetingReportsQueryKey(engagementId), enabled: open },
+    query: { queryKey: getGetMentorMeetingReportsQueryKey(engagementId) },
   });
   const submit = useSubmitMentorMeetingReport();
   const [meetingDate, setMeetingDate] = useState(todayLocalDate);
+  const [meetingChoice, setMeetingChoice] = useState('manual');
   const [attendeeIds, setAttendeeIds] = useState<number[]>([]);
   const [sessionSummary, setSessionSummary] = useState('');
   const [smartGrowActions, setSmartGrowActions] = useState('');
@@ -30,6 +68,7 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
   const [validationMessage, setValidationMessage] = useState('');
   const resetForm = () => {
     setMeetingDate(todayLocalDate());
+    setMeetingChoice('manual');
     setAttendeeIds([]);
     setSessionSummary('');
     setSmartGrowActions('');
@@ -48,8 +87,13 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
       return;
     }
     setValidationMessage('');
+    const selectedMeeting = completedMeetings.find(meeting =>
+      meetingChoice === `${meeting.meetingProvider}:${meeting.meetingId}`,
+    );
     const data: MentorMeetingReportInput = {
       meetingDate,
+      meetingProvider: selectedMeeting?.meetingProvider ?? 'manual',
+      ...(selectedMeeting ? { meetingId: selectedMeeting.meetingId } : {}),
       attendeeApplicationIds: attendeeIds,
       sessionSummary: sessionSummary.trim(),
       smartGrowActions: smartGrowActions.trim(),
@@ -65,6 +109,13 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
   };
   const changeAttendee = (id: number, selected: boolean) =>
     setAttendeeIds(current => selected ? [...new Set([...current, id])] : current.filter(value => value !== id));
+  const completedMeetings = reportQuery.data?.completedMeetings ?? [];
+  const meetingsNeedingReports = completedMeetings.filter(meeting => meeting.reportId === null);
+  const chooseMeeting = (meeting: MentorCompletedMeetingOccurrence) => {
+    setMeetingChoice(`${meeting.meetingProvider}:${meeting.meetingId}`);
+    setMeetingDate(dateForMeeting(meeting.startsAt, meeting.timezone));
+    setOpen(true);
+  };
 
   return <section className="mentor-meeting-report-panel" data-testid={`meeting-reports-${engagementId}`}>
     <div className="role-button-row">
@@ -72,6 +123,21 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
         {open ? t('Hide meeting reports') : t('Record meeting report')}
       </Button>
     </div>
+    {!open && reportQuery.isError && <p role="alert">
+      {t('Meeting reports could not load.')} {' '}
+      <Button type="button" className="button button-quiet" onClick={() => void reportQuery.refetch()}>{t('Retry meeting reports')}</Button>
+    </p>}
+    {meetingsNeedingReports.length > 0 && <aside className="mentor-report-due" role="status" data-testid={`meeting-reports-due-${engagementId}`}>
+      <p><strong>{meetingsNeedingReports.length} {t(meetingsNeedingReports.length === 1 ? 'completed meeting still needs a report.' : 'completed meetings still need reports.')}</strong></p>
+      <ul>
+        {meetingsNeedingReports.map(meeting => <li key={`${meeting.meetingProvider}:${meeting.meetingId}`}>
+          <span>{meetingLabel(meeting)}</span>
+          <Button type="button" className="button button-quiet" onClick={() => chooseMeeting(meeting)} data-testid={`button-report-meeting-${meeting.meetingProvider}-${meeting.meetingId}`}>
+            {t('Write report')}
+          </Button>
+        </li>)}
+      </ul>
+    </aside>}
     {open && <div id={`meeting-report-content-${engagementId}`}>
       <p>{t('Complete a separate report after each meeting. Reports are visible only for this assigned business.')}</p>
       {reportQuery.isLoading && <p role="status">{t('Loading meeting reports…')}</p>}
@@ -85,8 +151,24 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
           <div><dt>{t('Business name')}</dt><dd>{reportQuery.data.businessName}</dd></div>
         </dl>
         <form className="role-form-grid compact" onSubmit={onSubmit} aria-busy={submit.isPending}>
+          <label className="field field-wide">{t('Meeting occurrence')}
+            <select className="form-control" value={meetingChoice} disabled={submit.isPending} onChange={event => {
+              setMeetingChoice(event.target.value);
+              const selected = completedMeetings.find(meeting => `${meeting.meetingProvider}:${meeting.meetingId}` === event.target.value);
+              if (selected) setMeetingDate(dateForMeeting(selected.startsAt, selected.timezone));
+            }} data-testid={`select-meeting-occurrence-${engagementId}`}>
+              <option value="manual">{t('Manual meeting (not on a connected calendar)')}</option>
+              {completedMeetings.map(meeting => <option
+                key={`${meeting.meetingProvider}:${meeting.meetingId}`}
+                value={`${meeting.meetingProvider}:${meeting.meetingId}`}
+                disabled={meeting.reportId !== null}
+              >
+                {meetingLabel(meeting)} — {meeting.reportId === null ? t('Report needed') : t('Report submitted')}
+              </option>)}
+            </select>
+          </label>
           <label className="field">{t('Meeting date')}
-            <input className="form-control" type="date" value={meetingDate} onChange={event => setMeetingDate(event.target.value)} required disabled={submit.isPending} data-testid={`input-meeting-date-${engagementId}`} />
+            <input className="form-control" type="date" value={meetingDate} onChange={event => setMeetingDate(event.target.value)} required disabled={submit.isPending || meetingChoice !== 'manual'} data-testid={`input-meeting-date-${engagementId}`} />
           </label>
           <fieldset className="field field-wide" disabled={submit.isPending} data-testid={`meeting-attendees-${engagementId}`}>
             <legend>{t('Team members who attended the session')} *</legend>
@@ -124,6 +206,7 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
             <h5>{report.meetingDate} · {report.businessName}</h5>
             <p>{t('Coach name')}: {report.coachName} · {t('Coach email')}: {report.coachEmail}</p>
             <p>{t('Team members who attended the session')}: {report.attendees.join(', ')}</p>
+            <p>{t('Meeting occurrence')}: {report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</p>
             <p><b>{t('Topics, session highlights, connections made, and other notes')}:</b> {report.sessionSummary}</p>
             <p><b>{t('SMART Grow actions recommended and agreed with the team until the next call')}:</b> {report.smartGrowActions}</p>
             <p><b>{t('Key achievements and opportunities resulting from your coaching')}:</b> {report.achievementsAndOpportunities}</p>

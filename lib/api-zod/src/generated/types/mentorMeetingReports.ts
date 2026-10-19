@@ -5,6 +5,7 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorCompletedMeetingOccurrence } from './mentorCompletedMeetingOccurrence';
 import type { MentorMeetingAttendee } from './mentorMeetingAttendee';
 import type { MentorMeetingReport } from './mentorMeetingReport';
 
@@ -14,4 +15,5 @@ export interface MentorMeetingReports {
   businessName: string;
   attendees: MentorMeetingAttendee[];
   reports: MentorMeetingReport[];
+  completedMeetings: MentorCompletedMeetingOccurrence[];
 }

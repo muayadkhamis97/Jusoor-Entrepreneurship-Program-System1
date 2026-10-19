@@ -5,10 +5,18 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorMeetingReportInputMeetingProvider } from './mentorMeetingReportInputMeetingProvider';
 
 export interface MentorMeetingReportInput {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   meetingDate: string;
+  /** Optional provider for a completed synced meeting; omitted or manual means this is a manually recorded meeting. */
+  meetingProvider?: MentorMeetingReportInputMeetingProvider;
+  /**
+     * ID of the completed meeting occurrence from the selected provider.
+     * @minimum 1
+     */
+  meetingId?: number;
   /**
      * @minItems 1
      * @items.minimum 1
