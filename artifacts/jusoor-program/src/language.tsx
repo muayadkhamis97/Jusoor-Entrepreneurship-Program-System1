@@ -867,6 +867,7 @@ const arabic: Record<string, string> = {
   'Working notes': 'ملاحظات العمل',
   'Capture agreed actions and useful context.': 'سجّل الخطوات المتفق عليها والسياق المهم.',
   'Could not update this engagement.': 'تعذّر تحديث جلسة الدعم.',
+  'Engagement saved.': 'تم حفظ جلسة الدعم.',
   'Save engagement': 'حفظ جلسة الدعم',
   'Add module': 'إضافة وحدة',
   'Course schedule': 'جدول إتاحة الوحدات',

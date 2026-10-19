@@ -6,14 +6,14 @@ import {
   getGetTrainerDashboardQueryKey, getGetMentorDashboardQueryKey, getGetJudgeDashboardQueryKey,
   getGetTrainerAttendanceReportsQueryKey, useGetTrainerAttendanceReports,
   useGetTrainerDashboard, useCreateTrainingAssignment, useReviewTrainingAnswer,
-  useReplyTrainingQuestion, useGetMentorDashboard, useUpdateAssignedMentoring,
+  useReplyTrainingQuestion, useGetMentorDashboard,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
   useStartGoogleCalendarConnection, useUpdateMentorBookingSettings, useDisconnectGoogleCalendar,
   getGetProgramBrandingQueryKey, useGetProgramBranding,
 } from '@workspace/api-client-react';
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
-  MentorEngagementUpdate, JudgeScorecardInput, StaffMember,
+  JudgeScorecardInput, StaffMember,
   MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
@@ -23,6 +23,7 @@ import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage
 import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
 import { mentorBookingSaveError } from './mentor-booking-errors';
 import { useMentorBookingDraft } from './use-mentor-booking-draft';
+import { MentorEngagementCard, type MentorEngagementDraft } from './mentor-engagement-card';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
@@ -166,7 +167,6 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   useAppLanguage();
   const query = useGetMentorDashboard({ query: { queryKey: getGetMentorDashboardQueryKey(), refetchOnWindowFocus: true } });
   const client = useQueryClient();
-  const update = useUpdateAssignedMentoring();
   const connectCalendly = useStartCalendlyConnection();
   const connectGoogleCalendar = useStartGoogleCalendarConnection();
   const disconnectGoogleCalendar = useDisconnectGoogleCalendar();
@@ -174,7 +174,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   const bookingUrlInput = useRef<HTMLInputElement>(null);
   const bookingSaveError = saveBookingSettings.isError ? mentorBookingSaveError(saveBookingSettings.error) : null;
   const { bookingProvider, googleCalendarBookingUrl, setBookingProvider, setGoogleCalendarBookingUrl, isDirty, confirmLeave, markSaved } = useMentorBookingDraft(query.data, saveBookingSettings.isPending);
-  const [drafts, setDrafts] = useState<Record<number, { date: string; status: string; notes: string }>>({});
+  const [drafts, setDrafts] = useState<Record<number, MentorEngagementDraft>>({});
   const [bookingNotice] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const calendly = params.get('calendly');
@@ -208,15 +208,6 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
         if (mentorBookingSaveError(error).field === 'url') bookingUrlInput.current?.focus();
       },
     });
-  };
-  const save = (event: FormEvent<HTMLFormElement>, id: number) => {
-    event.preventDefault();
-    const values = drafts[id] || (() => {
-      const current = engagements.find(item => item.id === id);
-      return { date: current?.scheduledDate || '', status: current?.status || 'requested', notes: current?.notes || '' };
-    })();
-    const data: MentorEngagementUpdate = { scheduledDate: values.date || null, status: values.status as MentorEngagementUpdate['status'], notes: values.notes.trim() || null };
-    update.mutate({ id, data }, { onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()) });
   };
   return <RoleFrame role="mentor" name={name} availableRoles={availableRoles} primaryRole={primaryRole} beforeLeave={confirmLeave}>
     {settingsOnly
@@ -298,7 +289,7 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
     </section>}
     {!settingsOnly && query.data && (engagements.length === 0 ? <div className="empty-panel"><span className="empty-icon">J</span><h3>{t('No engagements assigned yet.')}</h3><p>{t('Your admin will connect you with a founder when the right support need comes into view.')}</p></div> : <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('YOUR FOUNDER ENGAGEMENTS')}</div><h2>{t('Keep the next step visible')}</h2></div></div><div className="answer-list">{engagements.map(item => {
       const draft = drafts[item.id] || { date: item.scheduledDate || '', status: item.status, notes: item.notes || '' };
-      return <article className="answer-card mentor-card" key={item.id} data-testid={`card-mentor-engagement-${item.id}`}><div className="answer-meta"><div><b>{item.founderName} · {item.businessName}</b><span>{item.programName} · {word(item.type)}</span></div><span className={`badge badge-${item.status === 'completed' ? 'good' : 'warm'}`}><span />{word(item.status)}</span></div><h3>{item.topic}</h3><p className="mentor-provider">{item.provider}</p><form className="role-form-grid compact" onSubmit={event => save(event, item.id)}><label className="field">{t('Next meeting')}<input className="form-control" type="date" value={draft.date} onChange={event => setDrafts(old => ({ ...old, [item.id]: { ...draft, date: event.target.value } }))} data-testid={`input-mentor-date-${item.id}`} /></label><label className="field">{t('Engagement status')}<select className="form-control" value={draft.status} onChange={event => setDrafts(old => ({ ...old, [item.id]: { ...draft, status: event.target.value } }))} data-testid={`select-mentor-status-${item.id}`}><option value="requested">{t('Requested')}</option><option value="matched">{t('Matched')}</option><option value="scheduled">{t('Scheduled')}</option><option value="completed">{t('Completed')}</option></select></label><label className="field field-wide">{t('Working notes')}<textarea className="form-control" rows={3} value={draft.notes} onChange={event => setDrafts(old => ({ ...old, [item.id]: { ...draft, notes: event.target.value } }))} placeholder={t('Capture agreed actions and useful context.')} data-testid={`input-mentor-notes-${item.id}`} /></label><div className="field-wide">{update.isError && <span className="form-error">{t('Could not update this engagement.')}</span>}<button className="button button-primary" disabled={update.isPending} data-testid={`button-save-mentor-${item.id}`}>{update.isPending ? t('Saving…') : t('Save engagement')}</button></div></form></article>;
+      return <MentorEngagementCard key={item.id} item={item} draft={draft} onDraftChange={next => setDrafts(old => ({ ...old, [item.id]: next }))} />;
     })}</div></section>)}
   </RoleFrame>;
 }

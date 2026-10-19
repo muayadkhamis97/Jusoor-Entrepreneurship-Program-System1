@@ -121,6 +121,14 @@ successful save or an explicit discard.
 
 ### AUD-05 — Medium priority: mentor engagement feedback is shared across cards
 
+**Follow-up status:** Remediated in development. Each keyed card now owns its
+mutation and feedback, while drafts remain keyed by engagement. A browser
+regression verified concurrent, out-of-order success/failure, duplicate submit
+protection and card-local retry feedback. See
+[engagement feedback QA](QA_MENTOR_ENGAGEMENT_FEEDBACK.md).
+Evidence below describes the pre-fix behavior; authenticated persistence was not
+re-tested.
+
 **Evidence:** `MentorDashboardPage` uses one `useUpdateAssignedMentoring`
 mutation. Every engagement card reads that same mutation's `isError` and
 `isPending`.
