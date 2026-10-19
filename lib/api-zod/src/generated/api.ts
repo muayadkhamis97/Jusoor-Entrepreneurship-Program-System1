@@ -3221,11 +3221,16 @@ export const SubmitMentorMeetingReportResponse = zod.object({
  */
 
 
+export const getStaffMentorMeetingReportsQueryMeetingDateFromRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getStaffMentorMeetingReportsQueryMeetingDateToRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const GetStaffMentorMeetingReportsQueryParams = zod.object({
   "programId": zod.coerce.number().int().min(1),
-  "businessId": zod.coerce.number().int().min(1).optional()
+  "businessId": zod.coerce.number().int().min(1).optional(),
+  "coachEmail": zod.coerce.string().email().optional(),
+  "meetingDateFrom": zod.coerce.string().regex(getStaffMentorMeetingReportsQueryMeetingDateFromRegExp).optional(),
+  "meetingDateTo": zod.coerce.string().regex(getStaffMentorMeetingReportsQueryMeetingDateToRegExp).optional()
 })
 
 export const getStaffMentorMeetingReportsResponseOneMeetingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
@@ -3251,6 +3256,25 @@ export const GetStaffMentorMeetingReportsResponseItem = zod.object({
   "businessId": zod.number().int()
 }))
 export const GetStaffMentorMeetingReportsResponse = zod.array(GetStaffMentorMeetingReportsResponseItem)
+
+
+/**
+ * @summary List coaches with submitted reports in an authorized program
+ */
+
+
+
+
+export const GetStaffMentorMeetingReportCoachesQueryParams = zod.object({
+  "programId": zod.coerce.number().int().min(1),
+  "businessId": zod.coerce.number().int().min(1).optional()
+})
+
+export const GetStaffMentorMeetingReportCoachesResponseItem = zod.object({
+  "coachName": zod.string(),
+  "coachEmail": zod.string().email()
+})
+export const GetStaffMentorMeetingReportCoachesResponse = zod.array(GetStaffMentorMeetingReportCoachesResponseItem)
 
 
 /**

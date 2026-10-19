@@ -10,13 +10,14 @@ import {
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
   useStartGoogleCalendarConnection, useUpdateMentorBookingSettings, useDisconnectGoogleCalendar,
   getGetProgramBrandingQueryKey, getGetStaffMentorMeetingReportsQueryKey,
+  getGetStaffMentorMeetingReportCoachesQueryKey, useGetStaffMentorMeetingReportCoaches,
   getListBusinessesQueryKey, getListProgramsQueryKey, useGetProgramBranding,
   useGetStaffMentorMeetingReports, useListBusinesses, useListPrograms,
 } from '@workspace/api-client-react';
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
   JudgeScorecardInput, StaffMember,
-  GetStaffMentorMeetingReportsParams, MentorBookingSettingsInput,
+  GetStaffMentorMeetingReportsParams, GetStaffMentorMeetingReportCoachesParams, MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
@@ -71,6 +72,9 @@ export function StaffMentorMeetingReportsPage() {
   useAppLanguage();
   const [selectedProgramId, setSelectedProgramId] = useState<number | ''>('');
   const [selectedBusinessId, setSelectedBusinessId] = useState<number | ''>('');
+  const [selectedCoachEmail, setSelectedCoachEmail] = useState('');
+  const [meetingDateFrom, setMeetingDateFrom] = useState('');
+  const [meetingDateTo, setMeetingDateTo] = useState('');
   const programsQuery = useListPrograms(undefined, {
     query: { queryKey: getListProgramsQueryKey(), refetchOnWindowFocus: true },
   });
@@ -86,9 +90,22 @@ export function StaffMentorMeetingReportsPage() {
       enabled: businessParams !== undefined,
     },
   });
-  const reportParams: GetStaffMentorMeetingReportsParams = {
+  const coachOptionsParams: GetStaffMentorMeetingReportCoachesParams = {
     programId: selectedProgramId === '' ? 0 : selectedProgramId,
     ...(selectedBusinessId === '' ? {} : { businessId: selectedBusinessId }),
+  };
+  const coachOptionsQuery = useGetStaffMentorMeetingReportCoaches(coachOptionsParams, {
+    query: {
+      queryKey: getGetStaffMentorMeetingReportCoachesQueryKey(coachOptionsParams),
+      enabled: selectedProgramId !== '',
+      refetchOnWindowFocus: true,
+    },
+  });
+  const reportParams: GetStaffMentorMeetingReportsParams = {
+    ...coachOptionsParams,
+    ...(selectedCoachEmail ? { coachEmail: selectedCoachEmail } : {}),
+    ...(meetingDateFrom ? { meetingDateFrom } : {}),
+    ...(meetingDateTo ? { meetingDateTo } : {}),
   };
   const reportsQuery = useGetStaffMentorMeetingReports(reportParams, {
     query: {
@@ -100,6 +117,7 @@ export function StaffMentorMeetingReportsPage() {
   const retry = () => {
     void programsQuery.refetch();
     void businessesQuery.refetch();
+    void coachOptionsQuery.refetch();
     void reportsQuery.refetch();
   };
 
@@ -107,11 +125,11 @@ export function StaffMentorMeetingReportsPage() {
     <Heading
       kicker="COACHING / REPORTS"
       title="Coach meeting reports"
-      description="Review submitted session notes, agreed actions, achievements and recommendations by program and business."
+      description="Review submitted session notes, agreed actions, achievements and recommendations by program, business, coach and meeting date."
       count={reportsQuery.data ? `${reportsQuery.data.length} reports` : undefined}
     />
     <section className="role-section role-assignment-section" data-testid="staff-mentor-meeting-report-filters">
-      <div className="role-section-title"><div><div className="eyebrow">{t('FIND REPORTS')}</div><h2>{t('Choose a program and business')}</h2></div></div>
+      <div className="role-section-title"><div><div className="eyebrow">{t('FIND REPORTS')}</div><h2>{t('Choose a program, business, coach and date range')}</h2></div></div>
       {programsQuery.isLoading ? <p role="status">{t('Loading programs…')}</p> : programsQuery.isError ? <div className="role-inline-note" role="alert">
         <p>{t('Programs could not load.')}</p>
         <Button type="button" className="button button-quiet" onClick={() => void programsQuery.refetch()}>{t('Retry')}</Button>
@@ -120,12 +138,16 @@ export function StaffMentorMeetingReportsPage() {
           <select className="form-control" value={selectedProgramId} onChange={event => {
             setSelectedProgramId(event.currentTarget.value ? Number(event.currentTarget.value) : '');
             setSelectedBusinessId('');
+            setSelectedCoachEmail('');
           }} data-testid="select-staff-report-program">
             {programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}
           </select>
         </label>
         <label className="field">{t('Business')}
-          <select className="form-control" value={selectedBusinessId} onChange={event => setSelectedBusinessId(event.currentTarget.value ? Number(event.currentTarget.value) : '')}
+          <select className="form-control" value={selectedBusinessId} onChange={event => {
+            setSelectedBusinessId(event.currentTarget.value ? Number(event.currentTarget.value) : '');
+            setSelectedCoachEmail('');
+          }}
             disabled={selectedProgramId === '' || businessesQuery.isLoading || businessesQuery.isError}
             data-testid="select-staff-report-business">
             <option value="">{t('All businesses')}</option>
@@ -134,6 +156,26 @@ export function StaffMentorMeetingReportsPage() {
           {businessesQuery.isError && <span role="alert">{t('Business choices could not load.')}{' '}
             <Button type="button" className="button button-quiet" onClick={() => void businessesQuery.refetch()}>{t('Retry')}</Button>
           </span>}
+        </label>
+        <label className="field">{t('Coach')}
+          <select className="form-control" value={selectedCoachEmail} onChange={event => setSelectedCoachEmail(event.currentTarget.value)}
+            disabled={selectedProgramId === '' || coachOptionsQuery.isLoading || coachOptionsQuery.isError}
+            data-testid="select-staff-report-coach">
+            <option value="">{t('All coaches')}</option>
+            {(coachOptionsQuery.data ?? []).map(coach => <option key={coach.coachEmail} value={coach.coachEmail}>{coach.coachName}</option>)}
+          </select>
+          {coachOptionsQuery.isLoading && <span role="status">{t('Loading coach choices…')}</span>}
+          {coachOptionsQuery.isError && <span role="alert">{t('Coach choices could not load.')}{' '}
+            <Button type="button" className="button button-quiet" onClick={() => void coachOptionsQuery.refetch()}>{t('Retry')}</Button>
+          </span>}
+        </label>
+        <label className="field">{t('Meeting date from')}
+          <input className="form-control" type="date" value={meetingDateFrom} max={meetingDateTo || undefined}
+            onChange={event => setMeetingDateFrom(event.currentTarget.value)} data-testid="input-staff-report-date-from" />
+        </label>
+        <label className="field">{t('Meeting date to')}
+          <input className="form-control" type="date" value={meetingDateTo} min={meetingDateFrom || undefined}
+            onChange={event => setMeetingDateTo(event.currentTarget.value)} data-testid="input-staff-report-date-to" />
         </label>
       </div>}
     </section>
@@ -144,7 +186,7 @@ export function StaffMentorMeetingReportsPage() {
         <Button type="button" className="button button-quiet" onClick={retry}>{t('Retry')}</Button>
       </div>
       : reportsQuery.data && (reportsQuery.data.length === 0
-        ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try another business or check again after a coach submits a report.')}</p></div>
+        ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try changing the coach, business or meeting-date range.')}</p></div>
         : <section className="role-section" aria-label={t('Submitted coach meeting reports')} data-testid="staff-mentor-meeting-reports">
           <div className="role-section-title"><div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2></div><span className="role-count">{reportsQuery.data.length}</span></div>
           <div className="answer-list">{reportsQuery.data.map(report => <article className="answer-card" key={report.id} data-testid={`staff-meeting-report-${report.id}`}>

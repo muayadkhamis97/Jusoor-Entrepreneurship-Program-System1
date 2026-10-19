@@ -15,4 +15,13 @@ programId: number;
  * @minimum 1
  */
 businessId?: number;
+coachEmail?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+meetingDateFrom?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+meetingDateTo?: string;
 };

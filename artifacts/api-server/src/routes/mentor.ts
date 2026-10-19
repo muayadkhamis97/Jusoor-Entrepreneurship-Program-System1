@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, desc, eq, inArray, lte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import { clerkClient } from "@clerk/express";
 import {
   DisconnectGoogleCalendarResponse,
@@ -11,6 +11,8 @@ import {
   UpdateAssignedMentoringResponse,
   GetMentorMeetingReportsParams,
   GetMentorMeetingReportsResponse,
+  GetStaffMentorMeetingReportCoachesQueryParams,
+  GetStaffMentorMeetingReportCoachesResponse,
   GetStaffMentorMeetingReportsQueryParams,
   GetStaffMentorMeetingReportsResponse,
   SubmitMentorMeetingReportBody,
@@ -138,8 +140,8 @@ async function coachIdentity(staff: StaffAccess, req: Request) {
   return { coachName: name || staff.email.split("@")[0] || staff.email, coachEmail: staff.email };
 }
 
-staffMentorMeetingReportsRouter.get("/mentor-meeting-reports", async (req, res): Promise<void> => {
-  const query = GetStaffMentorMeetingReportsQueryParams.safeParse(req.query);
+staffMentorMeetingReportsRouter.get("/mentor-meeting-report-coaches", async (req, res): Promise<void> => {
+  const query = GetStaffMentorMeetingReportCoachesQueryParams.safeParse(req.query);
   if (!query.success) {
     res.status(400).json({ error: query.error.message });
     return;
@@ -157,6 +159,56 @@ staffMentorMeetingReportsRouter.get("/mentor-meeting-reports", async (req, res):
   ];
   if (query.data.businessId !== undefined) {
     filters.push(eq(businessesTable.id, query.data.businessId));
+  }
+  const coaches = await db.selectDistinct({
+    coachName: mentorMeetingReportsTable.coachName,
+    coachEmail: mentorMeetingReportsTable.coachEmail,
+  }).from(mentorMeetingReportsTable)
+    .innerJoin(supportTable, eq(supportTable.id, mentorMeetingReportsTable.supportId))
+    .innerJoin(businessesTable, eq(businessesTable.id, supportTable.businessId))
+    .innerJoin(programsTable, eq(programsTable.id, businessesTable.programId))
+    .where(and(...filters))
+    .orderBy(asc(mentorMeetingReportsTable.coachName), asc(mentorMeetingReportsTable.coachEmail));
+  res.json(GetStaffMentorMeetingReportCoachesResponse.parse(coaches));
+});
+
+staffMentorMeetingReportsRouter.get("/mentor-meeting-reports", async (req, res): Promise<void> => {
+  const query = GetStaffMentorMeetingReportsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.includes(query.data.programId)) {
+    res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
+  if (
+    (query.data.meetingDateFrom !== undefined && !isCalendarDate(query.data.meetingDateFrom)) ||
+    (query.data.meetingDateTo !== undefined && !isCalendarDate(query.data.meetingDateTo)) ||
+    (query.data.meetingDateFrom !== undefined && query.data.meetingDateTo !== undefined &&
+      query.data.meetingDateFrom > query.data.meetingDateTo)
+  ) {
+    res.status(400).json({ error: "Meeting date range is invalid." });
+    return;
+  }
+  const filters = [
+    eq(programsTable.id, query.data.programId),
+    eq(supportTable.type, "mentor"),
+    inArray(businessesTable.programId, programIds),
+  ];
+  if (query.data.businessId !== undefined) {
+    filters.push(eq(businessesTable.id, query.data.businessId));
+  }
+  if (query.data.coachEmail !== undefined) {
+    filters.push(eq(mentorMeetingReportsTable.coachEmail, query.data.coachEmail));
+  }
+  if (query.data.meetingDateFrom !== undefined) {
+    filters.push(gte(mentorMeetingReportsTable.meetingDate, query.data.meetingDateFrom));
+  }
+  if (query.data.meetingDateTo !== undefined) {
+    filters.push(lte(mentorMeetingReportsTable.meetingDate, query.data.meetingDateTo));
   }
   const reports = await db.select({
     id: mentorMeetingReportsTable.id,

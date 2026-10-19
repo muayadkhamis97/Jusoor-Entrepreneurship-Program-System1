@@ -2141,6 +2141,11 @@ export type StaffMentorMeetingReport = MentorMeetingReport & {
   businessId: number;
 };
 
+export interface StaffMentorMeetingReportCoach {
+  coachName: string;
+  coachEmail: string;
+}
+
 export interface MentorBookingSettings {
   bookingProvider: MentorBookingProvider;
   /** @nullable */
@@ -3720,6 +3725,26 @@ registration?: string;
 };
 
 export type GetStaffMentorMeetingReportsParams = {
+/**
+ * @minimum 1
+ */
+programId: number;
+/**
+ * @minimum 1
+ */
+businessId?: number;
+coachEmail?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+meetingDateFrom?: string;
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+meetingDateTo?: string;
+};
+
+export type GetStaffMentorMeetingReportCoachesParams = {
 /**
  * @minimum 1
  */

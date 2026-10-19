@@ -79,6 +79,7 @@ import type {
   GetProgramAnalyticsParams,
   GetProgramSessionInteractionAnalyticsParams,
   GetStaffAssignmentHistoryParams,
+  GetStaffMentorMeetingReportCoachesParams,
   GetStaffMentorMeetingReportsParams,
   GetXapiActivityState200,
   GetXapiActivityStateParams,
@@ -182,6 +183,7 @@ import type {
   StaffInput,
   StaffMember,
   StaffMentorMeetingReport,
+  StaffMentorMeetingReportCoach,
   StaffUpdate,
   SupportCalendlyMeeting,
   SupportEngagement,
@@ -7836,6 +7838,90 @@ export function useGetStaffMentorMeetingReports<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetStaffMentorMeetingReportsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStaffMentorMeetingReportCoachesUrl = (params: GetStaffMentorMeetingReportCoachesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/mentor-meeting-report-coaches?${stringifiedParams}` : `/api/staff/mentor-meeting-report-coaches`
+}
+
+/**
+ * @summary List coaches with submitted reports in an authorized program
+ */
+export const getStaffMentorMeetingReportCoaches = async (params: GetStaffMentorMeetingReportCoachesParams, options?: Parameters<typeof customFetch>[1]): Promise<StaffMentorMeetingReportCoach[]> => {
+
+  return customFetch<StaffMentorMeetingReportCoach[]>(getGetStaffMentorMeetingReportCoachesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffMentorMeetingReportCoachesQueryKey = (params?: GetStaffMentorMeetingReportCoachesParams,) => {
+    return [
+    `/api/staff/mentor-meeting-report-coaches`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStaffMentorMeetingReportCoachesQueryOptions = <TData = Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>, TError = ErrorType<void>>(params: GetStaffMentorMeetingReportCoachesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffMentorMeetingReportCoachesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>> = ({ signal }) => getStaffMentorMeetingReportCoaches(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffMentorMeetingReportCoachesQueryResult = NonNullable<Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>>
+export type GetStaffMentorMeetingReportCoachesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List coaches with submitted reports in an authorized program
+ */
+
+export function useGetStaffMentorMeetingReportCoaches<TData = Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>, TError = ErrorType<void>>(
+ params: GetStaffMentorMeetingReportCoachesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffMentorMeetingReportCoaches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffMentorMeetingReportCoachesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
