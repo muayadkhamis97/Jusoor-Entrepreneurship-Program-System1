@@ -19,7 +19,7 @@ import type {
   JudgeScorecardInput, StaffMember,
   MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
-import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
+import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, Download, LogOut, MessageCircle, Printer, Video } from 'lucide-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { SessionRecordingPlayer } from './session-recording-player';
@@ -35,6 +35,7 @@ import {
   selectStaffMentorMeetingReportProgram,
   type StaffMentorMeetingReportSelection,
 } from './staff-mentor-meeting-report-filters';
+import { downloadStaffMentorMeetingReportsCsv } from './mentor-meeting-reports-export';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
@@ -104,6 +105,8 @@ export function StaffMentorMeetingReportsPage() {
     },
   });
   const { coachOptionsParams, reportParams } = getStaffMentorMeetingReportFilterParams(selection, meetingDateFrom, meetingDateTo);
+  const selectedProgramName = programs.find(program => program.id === selectedProgramId)?.name ?? '';
+  const selectedBusinessName = (businessesQuery.data ?? []).find(business => business.id === selectedBusinessId)?.businessName;
   const coachOptionsQuery = useGetStaffMentorMeetingReportCoaches(coachOptionsParams, {
     query: {
       queryKey: getGetStaffMentorMeetingReportCoachesQueryKey(coachOptionsParams),
@@ -111,6 +114,7 @@ export function StaffMentorMeetingReportsPage() {
       refetchOnWindowFocus: true,
     },
   });
+  const selectedCoachName = (coachOptionsQuery.data ?? []).find(coach => coach.coachEmail === selectedCoachEmail)?.coachName;
   const reportsQuery = useGetStaffMentorMeetingReports(reportParams, {
     query: {
       queryKey: getGetStaffMentorMeetingReportsQueryKey(reportParams),
@@ -191,23 +195,57 @@ export function StaffMentorMeetingReportsPage() {
       : reportsQuery.data && (reportsQuery.data.length === 0
         ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try changing the coach, business or meeting-date range.')}</p></div>
         : <section className="role-section" aria-label={t('Submitted coach meeting reports')} data-testid="staff-mentor-meeting-reports">
-          <div className="role-section-title"><div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2></div><span className="role-count">{reportsQuery.data.length}</span></div>
-          <div className="answer-list">{reportsQuery.data.map(report => <article className="answer-card" key={report.id} data-testid={`staff-meeting-report-${report.id}`}>
-            <div className="answer-meta"><div>
-              <Typography variant="heading" as="h3">{dateText(report.meetingDate)} · {report.businessName}</Typography>
-              <span>{report.programName} · {t('Submitted')} {dateText(report.submittedAt)}</span>
-            </div></div>
-            <dl className="mentor-meeting-report-identity">
-              <div><dt>{t('Coach name')}</dt><dd>{report.coachName}</dd></div>
-              <div><dt>{t('Coach email')}</dt><dd>{report.coachEmail}</dd></div>
-              <div><dt>{t('Team members who attended the session')}</dt><dd>{report.attendees.length ? report.attendees.join(', ') : t('No attendees recorded')}</dd></div>
-            </dl>
-            <p><b>{t('Meeting occurrence')}:</b> {report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</p>
-            <p><b>{t('Topics, session highlights, connections made, and other notes')}:</b><br />{report.sessionSummary}</p>
-            <p><b>{t('SMART Grow actions recommended and agreed with the team until the next call')}:</b><br />{report.smartGrowActions}</p>
-            <p><b>{t('Key achievements and opportunities resulting from your coaching')}:</b><br />{report.achievementsAndOpportunities}</p>
-            {report.teamRecommendations && <p><b>{t('Recommendations to the program team for further support')}:</b><br />{report.teamRecommendations}</p>}
-          </article>)}</div>
+           <div className="role-section-title meeting-report-sheet-heading">
+             <div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2><p>{t('One row per report. Scroll horizontally to see every field.')}</p></div>
+             <div className="meeting-report-export-actions">
+               <span className="role-count">{reportsQuery.data.length}</span>
+               <Button type="button" className="button button-quiet" onClick={() => { if (selectedProgramId !== '') downloadStaffMentorMeetingReportsCsv(selectedProgramId, reportsQuery.data); }} data-testid="button-export-coach-reports-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</Button>
+               <Button type="button" className="button button-quiet" onClick={() => window.print()} data-testid="button-export-coach-reports-pdf"><Printer size={14} />{t('Print / Save PDF')}</Button>
+             </div>
+           </div>
+           <div className="meeting-report-sheet-scroll" role="region" aria-label={t('Meeting report spreadsheet')} tabIndex={0} data-testid="meeting-report-sheet">
+             <table className="meeting-report-sheet">
+               <thead><tr>
+                 <th scope="col">{t('Meeting date')}</th><th scope="col">{t('Program')}</th><th scope="col">{t('Business')}</th>
+                 <th scope="col">{t('Coach name')}</th><th scope="col">{t('Coach email')}</th>
+                 <th scope="col">{t('Team members who attended the session')}</th><th scope="col">{t('Meeting occurrence')}</th>
+                 <th scope="col">{t('Topics, session highlights, connections made, and other notes')}</th>
+                 <th scope="col">{t('SMART Grow actions recommended and agreed with the team until the next call')}</th>
+                 <th scope="col">{t('Key achievements and opportunities resulting from your coaching')}</th>
+                 <th scope="col">{t('Recommendations to the program team for further support')}</th>
+                 <th scope="col">{t('Submitted')}</th>
+               </tr></thead>
+               <tbody>{reportsQuery.data.map(report => <tr key={report.id} data-testid={`staff-meeting-report-${report.id}`}>
+                 <td>{dateText(report.meetingDate)}</td><td>{report.programName}</td><td>{report.businessName}</td>
+                 <td>{report.coachName}</td><td>{report.coachEmail}</td>
+                 <td>{report.attendees.length ? report.attendees.join(', ') : t('No attendees recorded')}</td>
+                 <td>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</td>
+                 <td>{report.sessionSummary}</td><td>{report.smartGrowActions}</td><td>{report.achievementsAndOpportunities}</td>
+                 <td>{report.teamRecommendations || '—'}</td><td>{dateText(report.submittedAt)}</td>
+               </tr>)}</tbody>
+             </table>
+           </div>
+           <section className="meeting-report-print-sheet" aria-hidden="true">
+             <header>
+               <p className="eyebrow">{t('SUBMITTED REPORTS')}</p>
+               <h1>{t('Coach meeting reports')}</h1>
+               <p>{t('Program')}: {selectedProgramName || '—'} · {t('Business')}: {selectedBusinessName ?? t('All businesses')} · {t('Coach')}: {selectedCoachName ?? t('All coaches')}</p>
+               <p>{t('Meeting date from')}: {meetingDateFrom || '—'} · {t('Meeting date to')}: {meetingDateTo || '—'} · {reportsQuery.data.length} {t('reports')}</p>
+             </header>
+             {reportsQuery.data.map(report => <article className="meeting-report-print-record" key={report.id}>
+               <h2>{dateText(report.meetingDate)} · {report.businessName}</h2>
+               <p>{report.programName} · {report.coachName} · {report.coachEmail}</p>
+               <dl>
+                 <div><dt>{t('Team members who attended the session')}</dt><dd dir="auto">{report.attendees.join(', ') || t('No attendees recorded')}</dd></div>
+                 <div><dt>{t('Meeting occurrence')}</dt><dd>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</dd></div>
+                 <div><dt>{t('Topics, session highlights, connections made, and other notes')}</dt><dd dir="auto">{report.sessionSummary}</dd></div>
+                 <div><dt>{t('SMART Grow actions recommended and agreed with the team until the next call')}</dt><dd dir="auto">{report.smartGrowActions}</dd></div>
+                 <div><dt>{t('Key achievements and opportunities resulting from your coaching')}</dt><dd dir="auto">{report.achievementsAndOpportunities}</dd></div>
+                 <div><dt>{t('Recommendations to the program team for further support')}</dt><dd dir="auto">{report.teamRecommendations || '—'}</dd></div>
+               </dl>
+               <footer>{t('Submitted')} {dateText(report.submittedAt)}</footer>
+             </article>)}
+           </section>
         </section>)}
   </>;
 }
