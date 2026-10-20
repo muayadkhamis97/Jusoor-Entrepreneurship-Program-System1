@@ -113,10 +113,11 @@ html[lang="ar"] .role-workspace :is(.role-form-grid .field, .role-inline-note, .
 @media(max-width:700px){.mentor-meeting-report-identity{grid-template-columns:1fr}}
 
 @media print{
-  @page{size:A4 portrait;margin:12mm}
-  body *{visibility:hidden!important}
-  .meeting-report-print-sheet,.meeting-report-print-sheet *{visibility:visible!important}
-  .meeting-report-print-sheet{display:block!important;position:absolute;inset:0 auto auto 0;width:100%;color:hsl(var(--foreground));background:hsl(var(--background));font-family:var(--app-font-sans);font-size:10pt;line-height:1.45}
+  @page coachReports{size:A4 portrait;margin:12mm}
+  body.print-coach-meeting-reports{page:coachReports}
+  body.print-coach-meeting-reports *{visibility:hidden!important}
+  body.print-coach-meeting-reports .meeting-report-print-sheet,body.print-coach-meeting-reports .meeting-report-print-sheet *{visibility:visible!important}
+  body.print-coach-meeting-reports .meeting-report-print-sheet{display:block!important;position:absolute;inset:0 auto auto 0;width:100%;color:hsl(var(--foreground));background:hsl(var(--background));font-family:var(--app-font-sans);font-size:10pt;line-height:1.45}
   .meeting-report-print-sheet>header{margin-bottom:6mm;padding-bottom:4mm;border-bottom:1px solid hsl(var(--border))}
   .meeting-report-print-sheet>header .eyebrow{margin:0 0 2mm;color:hsl(var(--muted-foreground))}
   .meeting-report-print-sheet>header h1{margin:0 0 3mm;font-size:20pt}

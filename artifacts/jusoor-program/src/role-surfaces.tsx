@@ -29,6 +29,8 @@ import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-
 import { mentorBookingSaveError } from './mentor-booking-errors';
 import { useMentorBookingDraft } from './use-mentor-booking-draft';
 import { MentorEngagementCard, type MentorEngagementDraft } from './mentor-engagement-card';
+import { buildTrainerAttendanceSheetRows, downloadTrainerAttendanceCsv } from './trainer-attendance-export';
+import { printReportSheet } from './print-report-sheet';
 import {
   getStaffMentorMeetingReportFilterParams,
   selectStaffMentorMeetingReportBusiness,
@@ -40,6 +42,7 @@ import { downloadStaffMentorMeetingReportsCsv } from './mentor-meeting-reports-e
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
 const dateText = (date?: string | null) => date ? new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('Not scheduled');
+const dateTimeText = (date?: string | null) => date ? new Date(date).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
 export function RoleFrame({ role, name, children, availableRoles = [], primaryRole, beforeLeave }: { role: string; name: string; children: ReactNode; availableRoles?: string[]; primaryRole?: string; beforeLeave?: () => boolean }) {
   useAppLanguage();
@@ -128,6 +131,7 @@ export function StaffMentorMeetingReportsPage() {
     void coachOptionsQuery.refetch();
     void reportsQuery.refetch();
   };
+  const printCoachReports = () => printReportSheet('print-coach-meeting-reports');
 
   return <>
     <Heading
@@ -200,7 +204,7 @@ export function StaffMentorMeetingReportsPage() {
              <div className="meeting-report-export-actions">
                <span className="role-count">{reportsQuery.data.length}</span>
                <Button type="button" className="button button-quiet" onClick={() => { if (selectedProgramId !== '') downloadStaffMentorMeetingReportsCsv(selectedProgramId, reportsQuery.data); }} data-testid="button-export-coach-reports-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</Button>
-               <Button type="button" className="button button-quiet" onClick={() => window.print()} data-testid="button-export-coach-reports-pdf"><Printer size={14} />{t('Print / Save PDF')}</Button>
+               <Button type="button" className="button button-quiet" onClick={printCoachReports} data-testid="button-export-coach-reports-pdf"><Printer size={14} />{t('Print / Save PDF')}</Button>
              </div>
            </div>
            <div className="meeting-report-sheet-scroll" role="region" aria-label={t('Meeting report spreadsheet')} tabIndex={0} data-testid="meeting-report-sheet">
@@ -295,6 +299,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
     const data: TrainingQuestionReply = { reply: answer };
     reply.mutate({ id, data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); setReplies(current => ({ ...current, [id]: '' })); } });
   };
+  const printAttendanceReports = () => printReportSheet('print-trainer-attendance-reports');
   return <RoleFrame role="trainer" name={name} availableRoles={availableRoles} primaryRole={primaryRole}>
     <Heading kicker="COHORT DELIVERY / TRAINER DESK" title="The work, in motion." description="Your sessions, participant answers and open questions — together." count={`${sessions.length} assigned sessions`} />
     <LoadOrError loading={query.isLoading} error={query.isError || !dashboard} retry={() => void query.refetch()} />
@@ -307,24 +312,64 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
          {sessions.length === 0 ? <div className="empty-panel"><h3>{t('No sessions assigned.')}</h3><p>{t('Your admin will attach you to a cohort session.')}</p></div> : <div className="role-list">{sessions.map(session => <article className="role-row" key={session.id} data-testid={`trainer-session-${session.id}`}><span className="role-date"><CalendarDays size={17} /></span><div className="role-row-copy"><b>{session.title}</b><span>{dateText(session.scheduledDate)} · {word(session.type)} · {session.startTime || t('Time TBD')}</span>{session.recordingUrl && <SessionRecordingPlayer url={session.recordingUrl} title={session.title} />}</div><span className={`badge badge-${session.status === 'scheduled' ? 'good' : 'neutral'}`}><span />{word(session.status)}</span>{session.zoomUrl && <a href={session.zoomUrl} target="_blank" rel="noreferrer" className="text-link">{t('Join')} <ArrowRight size={13} /></a>}</article>)}</div>}
       </section>
       <section className="role-section" data-testid="trainer-attendance-reports">
-         <div className="role-section-title"><div><div className="eyebrow">{t('SESSION REPORTS')}</div><h2>{t('Training attendance')}</h2></div></div>
+          <div className="role-section-title attendance-sheet-heading">
+            <div><div className="eyebrow">{t('SESSION REPORTS')}</div><h2>{t('Training attendance')}</h2></div>
+            {attendanceQuery.data?.length ? <div className="attendance-sheet-actions">
+              <span className="role-count">{attendanceQuery.data.length} {t('sessions')}</span>
+              <Button type="button" className="button button-quiet" onClick={() => { if (attendanceQuery.data) downloadTrainerAttendanceCsv(attendanceQuery.data); }} data-testid="button-export-attendance-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</Button>
+              <Button type="button" className="button button-quiet" onClick={printAttendanceReports} data-testid="button-export-attendance-pdf"><Printer size={14} />{t('Print / Save PDF')}</Button>
+            </div> : null}
+          </div>
          <p>{t('Zoom attendance is limited to sessions assigned to you. Unmatched attendees are flagged for admin review.')}</p>
         {attendanceQuery.isLoading ? <div className="role-inline-note">{t('Loading attendance reports…')}</div> : attendanceQuery.isError ? <div className="role-inline-note" role="alert">{t('Attendance reports could not be loaded. Refresh the page to try again.')}</div> : attendanceQuery.data?.length ? <div className="role-list">
-          {attendanceQuery.data.map(report => {
-            const present = report.attendance.filter(person => person.status === 'present').length;
-            const unknown = report.unmatchedParticipants.length;
-            return <article className="role-row role-attendance-row" key={report.sessionId} data-testid={`trainer-attendance-${report.sessionId}`}>
-              <span className="role-date"><Clock3 size={17} /></span>
-              <div className="role-row-copy">
-                <b>{report.sessionTitle}</b>
-                <span>{dateText(report.scheduledDate)} · {present} {t('businesses present')}</span>
-                {report.zoomSync ? <small>{t('Zoom sync')}: {word(report.zoomSync.status)} · {report.zoomSync.matchedCount} {t('matched')} · {report.zoomSync.unmatchedCount} {t('to review')}</small> : <small>{t('Waiting for a Zoom attendance report.')}</small>}
-                {unknown > 0 && <div className="role-unmatched-list"><b>{unknown} {t(unknown === 1 ? 'attendee needs review' : 'attendees need review')}</b>{report.unmatchedParticipants.map(attendee => <span key={attendee.id}>{attendee.displayName}{attendee.email ? ` · ${attendee.email}` : ''} · {Math.round(attendee.durationSeconds / 60)} {t('min')}</span>)}</div>}
-              </div>
-              <span className={`badge badge-${report.zoomSync?.status === 'completed' && unknown === 0 ? 'good' : 'neutral'}`}><span />{report.zoomSync ? word(report.zoomSync.status) : t('Waiting')}</span>
-            </article>;
-          })}
-        </div> : <div className="empty-panel"><h3>{t('No assigned training sessions.')}</h3><p>{t('Attendance reports appear after a Zoom session is assigned to you.')}</p></div>}
+           <div className="attendance-sheet-scroll" role="region" aria-label={t('Attendance report spreadsheet')} tabIndex={0} data-testid="trainer-attendance-sheet">
+             <table className="attendance-sheet">
+               <thead><tr>
+                 <th scope="col">{t('Session ID')}</th><th scope="col">{t('Session')}</th><th scope="col">{t('Scheduled date')}</th><th scope="col">{t('Record type')}</th>
+                 <th scope="col">{t('Business')}</th><th scope="col">{t('Participant')}</th><th scope="col">{t('Unmatched attendee email')}</th>
+                 <th scope="col">{t('Attendance status')}</th><th scope="col">{t('Attendance source')}</th><th scope="col">{t('Minutes attended')}</th>
+                 <th scope="col">{t('First joined at')}</th><th scope="col">{t('Last left at')}</th><th scope="col">{t('Attendance notes')}</th>
+                 <th scope="col">{t('Zoom sync status')}</th><th scope="col">{t('Zoom participants')}</th><th scope="col">{t('Matched Zoom participants')}</th>
+                 <th scope="col">{t('Unmatched Zoom participants')}</th><th scope="col">{t('Sync attempts')}</th><th scope="col">{t('Last Zoom sync attempt')}</th><th scope="col">{t('Zoom synced at')}</th>
+               </tr></thead>
+               <tbody>{buildTrainerAttendanceSheetRows(attendanceQuery.data).map((row, index) => {
+                 const status = row.status === 'present' ? t('Present')
+                   : row.status === 'absent' ? t('Absent')
+                     : row.status === 'excused' ? t('Excused')
+                       : row.status === 'Needs review' ? t('Needs review')
+                         : row.status === 'Not recorded' ? t('Not recorded') : '—';
+                 return <tr key={`${row.sessionId}-${row.recordType}-${index}`} data-testid={`trainer-attendance-row-${row.sessionId}-${index}`}>
+                   <td>{row.sessionId}</td><td>{row.sessionTitle}</td><td>{dateText(row.scheduledDate)}</td><td>{t(row.recordType)}</td>
+                   <td>{row.businessName || '—'}</td><td>{row.participantName || '—'}</td><td dir="auto">{row.unmatchedEmail || '—'}</td>
+                   <td>{status}</td><td>{row.source === 'zoom' ? t('Zoom') : row.source === 'manual' ? t('Manual') : '—'}</td>
+                   <td>{row.minutesAttended === '' ? '—' : row.minutesAttended}</td><td>{dateTimeText(row.firstJoinedAt)}</td><td>{dateTimeText(row.lastLeftAt)}</td>
+                   <td dir="auto">{row.notes || '—'}</td><td>{row.zoomSyncStatus ? word(row.zoomSyncStatus) : t('Waiting')}</td>
+                   <td>{row.zoomParticipantCount === '' ? '—' : row.zoomParticipantCount}</td><td>{row.zoomMatchedCount === '' ? '—' : row.zoomMatchedCount}</td>
+                   <td>{row.zoomUnmatchedCount === '' ? '—' : row.zoomUnmatchedCount}</td><td>{row.zoomSyncAttempts === '' ? '—' : row.zoomSyncAttempts}</td><td>{dateTimeText(row.zoomLastAttemptAt)}</td><td>{dateTimeText(row.zoomSyncedAt)}</td>
+                 </tr>;
+               })}</tbody>
+             </table>
+           </div>
+           <section className="trainer-attendance-print-sheet" aria-hidden="true">
+             <header>
+               <p className="eyebrow">{t('SESSION REPORTS')}</p><h1>{t('Training attendance')}</h1>
+               <p>{attendanceQuery.data.length} {t('sessions')} · {buildTrainerAttendanceSheetRows(attendanceQuery.data).length} {t('attendance rows')}</p>
+             </header>
+             {attendanceQuery.data.map(report => <article className="trainer-attendance-print-session" key={report.sessionId}>
+               <h2>{report.sessionTitle} · {dateText(report.scheduledDate)}</h2>
+               <p>{t('Session ID')}: {report.sessionId} · {t('Zoom sync')}: {report.zoomSync ? word(report.zoomSync.status) : t('Waiting')} · {report.zoomSync?.participantCount ?? 0} {t('Zoom participants')} · {report.zoomSync?.matchedCount ?? 0} {t('matched')} · {report.zoomSync?.unmatchedCount ?? report.unmatchedParticipants.length} {t('to review')} · {t('Sync attempts')}: {report.zoomSync?.attempts ?? 0} · {t('Last Zoom sync attempt')}: {dateTimeText(report.zoomSync?.lastAttemptAt)} · {t('Zoom synced at')}: {dateTimeText(report.zoomSync?.syncedAt)}</p>
+               <table>
+                 <thead><tr><th>{t('Record type')}</th><th>{t('Business')}</th><th>{t('Participant')}</th><th>{t('Unmatched attendee email')}</th><th>{t('Attendance status')}</th><th>{t('Minutes attended')}</th><th>{t('Attendance source')}</th><th>{t('First joined at')}</th><th>{t('Last left at')}</th><th>{t('Attendance notes')}</th></tr></thead>
+                 <tbody>{buildTrainerAttendanceSheetRows([report]).map((row, index) => <tr key={`${row.recordType}-${index}`}>
+                   <td>{t(row.recordType)}</td><td>{row.businessName || '—'}</td><td>{row.participantName || '—'}</td><td dir="auto">{row.unmatchedEmail || '—'}</td>
+                   <td>{row.status === 'present' ? t('Present') : row.status === 'absent' ? t('Absent') : row.status === 'excused' ? t('Excused') : row.status === 'Needs review' ? t('Needs review') : row.status === 'Not recorded' ? t('Not recorded') : '—'}</td>
+                   <td>{row.minutesAttended === '' ? '—' : row.minutesAttended}</td><td>{row.source === 'zoom' ? t('Zoom') : row.source === 'manual' ? t('Manual') : '—'}</td>
+                   <td>{dateTimeText(row.firstJoinedAt)}</td><td>{dateTimeText(row.lastLeftAt)}</td><td dir="auto">{row.notes || '—'}</td>
+                 </tr>)}</tbody>
+               </table>
+             </article>)}
+           </section>
+         </div> : <div className="empty-panel"><h3>{t('No assigned training sessions.')}</h3><p>{t('Attendance reports appear after a Zoom session is assigned to you.')}</p></div>}
       </section>
       <section className="role-section role-assignment-section"><div className="role-section-title"><div><div className="eyebrow">{t('MAKE THE LEARNING PRACTICAL')}</div><h2>{t('Create a cohort assignment')}</h2></div></div>
         {programs.length === 0 ? <div className="role-inline-note">{t('Assignments become available after a program is assigned to your trainer account.')}</div> : <form className="role-form-grid" onSubmit={submitAssignment}>
