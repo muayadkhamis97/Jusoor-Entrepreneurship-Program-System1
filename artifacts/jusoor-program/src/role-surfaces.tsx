@@ -17,7 +17,7 @@ import {
 import type {
   TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
   JudgeScorecardInput, StaffMember,
-  GetStaffMentorMeetingReportsParams, GetStaffMentorMeetingReportCoachesParams, MentorBookingSettingsInput,
+  MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
 import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, LogOut, MessageCircle, Video } from 'lucide-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
@@ -29,6 +29,12 @@ import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-
 import { mentorBookingSaveError } from './mentor-booking-errors';
 import { useMentorBookingDraft } from './use-mentor-booking-draft';
 import { MentorEngagementCard, type MentorEngagementDraft } from './mentor-engagement-card';
+import {
+  getStaffMentorMeetingReportFilterParams,
+  selectStaffMentorMeetingReportBusiness,
+  selectStaffMentorMeetingReportProgram,
+  type StaffMentorMeetingReportSelection,
+} from './staff-mentor-meeting-report-filters';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())) : '—';
@@ -70,9 +76,12 @@ const invalid = (client: ReturnType<typeof useQueryClient>, key: readonly unknow
 
 export function StaffMentorMeetingReportsPage() {
   useAppLanguage();
-  const [selectedProgramId, setSelectedProgramId] = useState<number | ''>('');
-  const [selectedBusinessId, setSelectedBusinessId] = useState<number | ''>('');
-  const [selectedCoachEmail, setSelectedCoachEmail] = useState('');
+  const [selection, setSelection] = useState<StaffMentorMeetingReportSelection>({
+    programId: '',
+    businessId: '',
+    coachEmail: '',
+  });
+  const { programId: selectedProgramId, businessId: selectedBusinessId, coachEmail: selectedCoachEmail } = selection;
   const [meetingDateFrom, setMeetingDateFrom] = useState('');
   const [meetingDateTo, setMeetingDateTo] = useState('');
   const programsQuery = useListPrograms(undefined, {
@@ -80,7 +89,11 @@ export function StaffMentorMeetingReportsPage() {
   });
   const programs = programsQuery.data ?? [];
   useEffect(() => {
-    if (selectedProgramId === '' && programs.length > 0) setSelectedProgramId(programs[0].id);
+    if (selectedProgramId === '' && programs.length > 0) {
+      setSelection(current => current.programId === ''
+        ? selectStaffMentorMeetingReportProgram(programs[0].id)
+        : current);
+    }
   }, [programs, selectedProgramId]);
 
   const businessParams = selectedProgramId === '' ? undefined : { programId: selectedProgramId };
@@ -90,10 +103,7 @@ export function StaffMentorMeetingReportsPage() {
       enabled: businessParams !== undefined,
     },
   });
-  const coachOptionsParams: GetStaffMentorMeetingReportCoachesParams = {
-    programId: selectedProgramId === '' ? 0 : selectedProgramId,
-    ...(selectedBusinessId === '' ? {} : { businessId: selectedBusinessId }),
-  };
+  const { coachOptionsParams, reportParams } = getStaffMentorMeetingReportFilterParams(selection, meetingDateFrom, meetingDateTo);
   const coachOptionsQuery = useGetStaffMentorMeetingReportCoaches(coachOptionsParams, {
     query: {
       queryKey: getGetStaffMentorMeetingReportCoachesQueryKey(coachOptionsParams),
@@ -101,12 +111,6 @@ export function StaffMentorMeetingReportsPage() {
       refetchOnWindowFocus: true,
     },
   });
-  const reportParams: GetStaffMentorMeetingReportsParams = {
-    ...coachOptionsParams,
-    ...(selectedCoachEmail ? { coachEmail: selectedCoachEmail } : {}),
-    ...(meetingDateFrom ? { meetingDateFrom } : {}),
-    ...(meetingDateTo ? { meetingDateTo } : {}),
-  };
   const reportsQuery = useGetStaffMentorMeetingReports(reportParams, {
     query: {
       queryKey: getGetStaffMentorMeetingReportsQueryKey(reportParams),
@@ -136,17 +140,16 @@ export function StaffMentorMeetingReportsPage() {
       </div> : programs.length === 0 ? <p className="role-inline-note">{t('No active programs are assigned to this account.')}</p> : <div className="role-form-grid">
         <label className="field">{t('Program')}
           <select className="form-control" value={selectedProgramId} onChange={event => {
-            setSelectedProgramId(event.currentTarget.value ? Number(event.currentTarget.value) : '');
-            setSelectedBusinessId('');
-            setSelectedCoachEmail('');
+            const programId = event.currentTarget.value ? Number(event.currentTarget.value) : '';
+            setSelection(() => selectStaffMentorMeetingReportProgram(programId));
           }} data-testid="select-staff-report-program">
             {programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}
           </select>
         </label>
         <label className="field">{t('Business')}
           <select className="form-control" value={selectedBusinessId} onChange={event => {
-            setSelectedBusinessId(event.currentTarget.value ? Number(event.currentTarget.value) : '');
-            setSelectedCoachEmail('');
+            const businessId = event.currentTarget.value ? Number(event.currentTarget.value) : '';
+            setSelection(current => selectStaffMentorMeetingReportBusiness(current, businessId));
           }}
             disabled={selectedProgramId === '' || businessesQuery.isLoading || businessesQuery.isError}
             data-testid="select-staff-report-business">
@@ -158,7 +161,7 @@ export function StaffMentorMeetingReportsPage() {
           </span>}
         </label>
         <label className="field">{t('Coach')}
-          <select className="form-control" value={selectedCoachEmail} onChange={event => setSelectedCoachEmail(event.currentTarget.value)}
+          <select className="form-control" value={selectedCoachEmail} onChange={event => setSelection(current => ({ ...current, coachEmail: event.currentTarget.value }))}
             disabled={selectedProgramId === '' || coachOptionsQuery.isLoading || coachOptionsQuery.isError}
             data-testid="select-staff-report-coach">
             <option value="">{t('All coaches')}</option>
