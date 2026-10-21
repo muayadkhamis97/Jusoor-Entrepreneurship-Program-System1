@@ -3256,6 +3256,8 @@ export const createMentorAdditionalSessionRequestResponseReportedSessionsAtReque
 
 export const createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin = 0;
 
+export const createMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax = 1000;
+
 
 
 export const CreateMentorAdditionalSessionRequestResponse = zod.object({
@@ -3268,8 +3270,11 @@ export const CreateMentorAdditionalSessionRequestResponse = zod.object({
   "mentorEmail": zod.string().email(),
   "reportedSessionsAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseReportedSessionsAtRequestMin),
   "sessionTargetAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin),
+  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal(null)]).nullable(),
+  "approvedAdditionalSessions": zod.number().int().min(1).max(createMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
   "status": zod.enum(['open', 'resolved']),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
+  "canRetryEmail": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -3288,6 +3293,8 @@ export const getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsA
 
 export const getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin = 0;
 
+export const getStaffMentorAdditionalSessionRequestsResponseOneApprovedAdditionalSessionsMax = 1000;
+
 
 
 export const GetStaffMentorAdditionalSessionRequestsResponseItem = zod.object({
@@ -3300,8 +3307,11 @@ export const GetStaffMentorAdditionalSessionRequestsResponseItem = zod.object({
   "mentorEmail": zod.string().email(),
   "reportedSessionsAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsAtRequestMin),
   "sessionTargetAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin),
+  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal(null)]).nullable(),
+  "approvedAdditionalSessions": zod.number().int().min(1).max(getStaffMentorAdditionalSessionRequestsResponseOneApprovedAdditionalSessionsMax).nullable(),
   "status": zod.enum(['open', 'resolved']),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
+  "canRetryEmail": zod.boolean(),
   "createdAt": zod.coerce.date()
 }).and(zod.object({
   "programName": zod.string()
@@ -3310,16 +3320,44 @@ export const GetStaffMentorAdditionalSessionRequestsResponse = zod.array(GetStaf
 
 
 /**
- * @summary Mark an additional-session request as reviewed
+ * @summary Approve or decline an additional-session request
  */
 export const ResolveStaffMentorAdditionalSessionRequestParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const resolveStaffMentorAdditionalSessionRequestBodyApprovedAdditionalSessionsMax = 1000;
+
+
+
+export const ResolveStaffMentorAdditionalSessionRequestBody = zod.object({
+  "decision": zod.enum(['approved', 'declined']),
+  "approvedAdditionalSessions": zod.number().int().min(1).max(resolveStaffMentorAdditionalSessionRequestBodyApprovedAdditionalSessionsMax).optional()
+})
+
+export const resolveStaffMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax = 1000;
+
+
+
 export const ResolveStaffMentorAdditionalSessionRequestResponse = zod.object({
   "id": zod.number().int(),
   "status": zod.enum(['resolved']),
+  "decision": zod.enum(['approved', 'declined']),
+  "approvedAdditionalSessions": zod.number().int().min(1).max(resolveStaffMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
   "resolvedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Retry a failed additional-session request notification
+ */
+export const RetryStaffMentorAdditionalSessionRequestEmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RetryStaffMentorAdditionalSessionRequestEmailResponse = zod.object({
+  "id": zod.number().int(),
+  "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed'])
 })
 
 

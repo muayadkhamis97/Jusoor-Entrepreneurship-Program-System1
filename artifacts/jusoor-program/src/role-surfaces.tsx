@@ -13,7 +13,7 @@ import {
   getGetStaffMentorMeetingReportCoachesQueryKey, useGetStaffMentorMeetingReportCoaches,
   getGetStaffMentorAdditionalSessionRequestsQueryKey,
   useGetStaffMentorAdditionalSessionRequests, useResolveStaffMentorAdditionalSessionRequest,
-  useCreateMentorAdditionalSessionRequest,
+  useRetryStaffMentorAdditionalSessionRequestEmail, useCreateMentorAdditionalSessionRequest,
   getListBusinessesQueryKey, getListProgramsQueryKey, useGetProgramBranding,
   useGetStaffMentorMeetingReports, useListBusinesses, useListPrograms,
 } from '@workspace/api-client-react';
@@ -81,13 +81,23 @@ function LoadOrError({ loading, error, retry }: { loading: boolean; error: boole
   return null;
 }
 const invalid = (client: ReturnType<typeof useQueryClient>, key: readonly unknown[]) => void client.invalidateQueries({ queryKey: key });
+const withId = (current: Set<number>, id: number, included: boolean) => {
+  const next = new Set(current);
+  if (included) next.add(id);
+  else next.delete(id);
+  return next;
+};
 
 export function StaffMentorMeetingReportsPage() {
   useAppLanguage();
   const client = useQueryClient();
   const resolveAdditionalSessionRequest = useResolveStaffMentorAdditionalSessionRequest();
-  const [resolvingAdditionalSessionRequestId, setResolvingAdditionalSessionRequestId] = useState<number | null>(null);
-  const [additionalSessionRequestResolveErrorId, setAdditionalSessionRequestResolveErrorId] = useState<number | null>(null);
+  const retryAdditionalSessionRequestEmail = useRetryStaffMentorAdditionalSessionRequestEmail();
+  const [approvedSessionCounts, setApprovedSessionCounts] = useState<Record<number, string>>({});
+  const [resolvingAdditionalSessionRequestIds, setResolvingAdditionalSessionRequestIds] = useState<Set<number>>(() => new Set());
+  const [additionalSessionRequestResolveErrorIds, setAdditionalSessionRequestResolveErrorIds] = useState<Set<number>>(() => new Set());
+  const [retryingAdditionalSessionRequestIds, setRetryingAdditionalSessionRequestIds] = useState<Set<number>>(() => new Set());
+  const [additionalSessionEmailRetryErrorIds, setAdditionalSessionEmailRetryErrorIds] = useState<Set<number>>(() => new Set());
   const [selection, setSelection] = useState<StaffMentorMeetingReportSelection>({
     programId: '',
     businessId: '',
@@ -215,21 +225,62 @@ export function StaffMentorMeetingReportsPage() {
         : additionalSessionRequestsQuery.isLoading ? <p className="role-inline-note" role="status">{t('Loading session requests…')}</p>
           : additionalSessionRequestsQuery.isError ? <div className="role-inline-note" role="alert"><p>{t('Session requests could not load.')}</p><Button type="button" className="button button-quiet" onClick={() => void additionalSessionRequestsQuery.refetch()}>{t('Retry')}</Button></div>
             : (additionalSessionRequestsQuery.data ?? []).length === 0 ? <div className="empty-panel"><h3>{t('No open requests.')}</h3><p>{t('New requests from assigned mentors will appear here.')}</p></div>
-              : <div className="answer-list">{additionalSessionRequestsQuery.data?.map(request => <article className="answer-card" key={request.id} data-testid={`additional-session-request-${request.id}`}>
-                <div className="answer-meta"><div><b>{request.businessName}</b><span>{request.mentorName} · {request.mentorEmail} · {request.programName}</span></div><span className="role-date">{dateText(request.createdAt)}</span></div>
-                <p>{t('Reported sessions')}: {request.reportedSessionsAtRequest} / {request.sessionTargetAtRequest}</p>
-                <p className={request.emailNotificationStatus === 'delivered' ? 'form-success' : 'form-error'} role="status">{request.emailNotificationStatus === 'delivered' ? t('Email notification sent.') : t('The request is recorded, but its email notification failed.')}</p>
-                <Button type="button" className="button button-quiet" disabled={resolvingAdditionalSessionRequestId === request.id} onClick={() => {
-                  setAdditionalSessionRequestResolveErrorId(null);
-                  setResolvingAdditionalSessionRequestId(request.id);
-                  resolveAdditionalSessionRequest.mutate({ id: request.id }, {
-                    onSuccess: () => void client.invalidateQueries({ queryKey: getGetStaffMentorAdditionalSessionRequestsQueryKey(additionalSessionRequestParams) }),
-                    onError: () => setAdditionalSessionRequestResolveErrorId(request.id),
-                    onSettled: () => setResolvingAdditionalSessionRequestId(current => current === request.id ? null : current),
+              : <div className="answer-list">{additionalSessionRequestsQuery.data?.map(request => {
+                const approvedCount = Number(approvedSessionCounts[request.id] ?? 1);
+                const validApprovedCount = Number.isInteger(approvedCount) && approvedCount >= 1 && approvedCount <= 1000;
+                const resolveRequest = (decision: 'approved' | 'declined') => {
+                  setAdditionalSessionRequestResolveErrorIds(current => withId(current, request.id, false));
+                  setResolvingAdditionalSessionRequestIds(current => withId(current, request.id, true));
+                  resolveAdditionalSessionRequest.mutate({
+                    id: request.id,
+                    data: {
+                      decision,
+                      ...(decision === 'approved' ? { approvedAdditionalSessions: approvedCount } : {}),
+                    },
+                  }, {
+                    onSuccess: () => {
+                      setAdditionalSessionRequestResolveErrorIds(current => withId(current, request.id, false));
+                      void client.invalidateQueries({ queryKey: getGetStaffMentorAdditionalSessionRequestsQueryKey(additionalSessionRequestParams) });
+                      void client.invalidateQueries({ queryKey: getGetMentorDashboardQueryKey() });
+                    },
+                    onError: () => setAdditionalSessionRequestResolveErrorIds(current => withId(current, request.id, true)),
+                    onSettled: () => setResolvingAdditionalSessionRequestIds(current => withId(current, request.id, false)),
                   });
-                }}>{resolvingAdditionalSessionRequestId === request.id ? t('Saving…') : t('Mark reviewed')}</Button>
-                {additionalSessionRequestResolveErrorId === request.id && <p className="form-error" role="alert">{t('The request could not be updated. Please retry.')}</p>}
-              </article>)}</div>}
+                };
+                return <article className="answer-card" key={request.id} data-testid={`additional-session-request-${request.id}`}>
+                  <div className="answer-meta"><div><b>{request.businessName}</b><span>{request.mentorName} · {request.mentorEmail} · {request.programName}</span></div><span className="role-date">{dateText(request.createdAt)}</span></div>
+                  <p>{t('Reported sessions')}: {request.reportedSessionsAtRequest} / {request.sessionTargetAtRequest}</p>
+                  <p className={request.emailNotificationStatus === 'delivered' ? 'form-success' : request.emailNotificationStatus === 'failed' ? 'form-error' : ''} role="status">
+                    {request.emailNotificationStatus === 'delivered' ? t('Email notification sent.') : request.emailNotificationStatus === 'pending' ? t('Notification is being sent.') : t('The request is recorded, but its email notification failed.')}
+                  </p>
+                  {request.canRetryEmail && <div className="role-button-row">
+                    <Button type="button" className="button button-quiet" disabled={retryingAdditionalSessionRequestIds.has(request.id)} onClick={() => {
+                      setAdditionalSessionEmailRetryErrorIds(current => withId(current, request.id, false));
+                      setRetryingAdditionalSessionRequestIds(current => withId(current, request.id, true));
+                      retryAdditionalSessionRequestEmail.mutate({ id: request.id }, {
+                        onSuccess: () => void client.invalidateQueries({ queryKey: getGetStaffMentorAdditionalSessionRequestsQueryKey(additionalSessionRequestParams) }),
+                        onError: () => setAdditionalSessionEmailRetryErrorIds(current => withId(current, request.id, true)),
+                        onSettled: () => setRetryingAdditionalSessionRequestIds(current => withId(current, request.id, false)),
+                      });
+                    }}>{retryingAdditionalSessionRequestIds.has(request.id) ? t('Retrying email…') : t('Retry email notification')}</Button>
+                    {additionalSessionEmailRetryErrorIds.has(request.id) && <p className="form-error" role="alert">{t('The email retry could not be completed. Please retry.')}</p>}
+                  </div>}
+                  <label className="field">{t('Additional sessions to approve')}
+                    <input className="form-control" type="number" min={1} max={1000} step={1} value={approvedSessionCounts[request.id] ?? '1'}
+                      onChange={event => setApprovedSessionCounts(current => ({ ...current, [request.id]: event.currentTarget.value }))}
+                      aria-label={`${t('Additional sessions to approve')} — ${request.businessName}`} />
+                  </label>
+                  <div className="role-button-row">
+                    <Button type="button" className="button button-primary" disabled={resolvingAdditionalSessionRequestIds.has(request.id) || !validApprovedCount} onClick={() => resolveRequest('approved')}>
+                      {resolvingAdditionalSessionRequestIds.has(request.id) ? t('Saving…') : t('Approve additional sessions')}
+                    </Button>
+                    <Button type="button" className="button button-quiet" disabled={resolvingAdditionalSessionRequestIds.has(request.id)} onClick={() => resolveRequest('declined')}>
+                      {t('Decline request')}
+                    </Button>
+                  </div>
+                  {additionalSessionRequestResolveErrorIds.has(request.id) && <p className="form-error" role="alert">{t('The request could not be updated. Please retry.')}</p>}
+                </article>;
+              })}</div>}
     </section>
     {selectedProgramId !== '' && (reportsQuery.isLoading || businessesQuery.isLoading)
       ? <p className="role-inline-note" role="status">{t('Loading coach meeting reports…')}</p>
@@ -441,8 +492,8 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   const query = useGetMentorDashboard({ query: { queryKey: getGetMentorDashboardQueryKey(), refetchOnWindowFocus: true } });
   const client = useQueryClient();
   const createAdditionalSessionRequest = useCreateMentorAdditionalSessionRequest();
-  const [additionalSessionRequestPendingForId, setAdditionalSessionRequestPendingForId] = useState<number | null>(null);
-  const [additionalSessionRequestErrorForId, setAdditionalSessionRequestErrorForId] = useState<number | null>(null);
+  const [additionalSessionRequestPendingIds, setAdditionalSessionRequestPendingIds] = useState<Set<number>>(() => new Set());
+  const [additionalSessionRequestErrorIds, setAdditionalSessionRequestErrorIds] = useState<Set<number>>(() => new Set());
   const connectCalendly = useStartCalendlyConnection();
   const connectGoogleCalendar = useStartGoogleCalendarConnection();
   const disconnectGoogleCalendar = useDisconnectGoogleCalendar();
@@ -576,19 +627,19 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
           <p>{target > 0 ? t('Reports submitted for this business compared with its program target.') : t('The session target has not been set for this program.')}</p>
           {targetReached && (hasOpenRequest
             ? <p className={item.openAdditionalSessionsEmailStatus === 'delivered' ? 'form-success' : 'form-error'} role="status">{item.openAdditionalSessionsEmailStatus === 'delivered' ? t('The team has been notified and will review your request.') : t('Your request is recorded, but the email notification failed. The team can still see it in the requests list.')}</p>
-            : <Button type="button" className="button button-quiet" disabled={additionalSessionRequestPendingForId === item.id} data-testid={`button-request-more-sessions-${item.businessId}`} onClick={() => {
-              setAdditionalSessionRequestErrorForId(null);
-              setAdditionalSessionRequestPendingForId(item.id);
+            : <Button type="button" className="button button-quiet" disabled={additionalSessionRequestPendingIds.has(item.id)} data-testid={`button-request-more-sessions-${item.businessId}`} onClick={() => {
+              setAdditionalSessionRequestErrorIds(current => withId(current, item.id, false));
+              setAdditionalSessionRequestPendingIds(current => withId(current, item.id, true));
               createAdditionalSessionRequest.mutate({ id: item.id }, {
                 onSuccess: () => {
-                  setAdditionalSessionRequestErrorForId(null);
+                  setAdditionalSessionRequestErrorIds(current => withId(current, item.id, false));
                   invalid(client, getGetMentorDashboardQueryKey());
                 },
-                onError: () => setAdditionalSessionRequestErrorForId(item.id),
-                onSettled: () => setAdditionalSessionRequestPendingForId(current => current === item.id ? null : current),
+                onError: () => setAdditionalSessionRequestErrorIds(current => withId(current, item.id, true)),
+                onSettled: () => setAdditionalSessionRequestPendingIds(current => withId(current, item.id, false)),
               });
-            }}>{additionalSessionRequestPendingForId === item.id ? t('Sending request…') : t('Request additional sessions')}</Button>)}
-          {additionalSessionRequestErrorForId === item.id && <p className="form-error" role="alert">{t('Your request could not be sent. Check the connection and try again.')}</p>}
+            }}>{additionalSessionRequestPendingIds.has(item.id) ? t('Sending request…') : t('Request additional sessions')}</Button>)}
+          {additionalSessionRequestErrorIds.has(item.id) && <p className="form-error" role="alert">{t('Your request could not be sent. Check the connection and try again.')}</p>}
         </section>
         <MentorEngagementCard item={item} draft={draft} onDraftChange={next => setDrafts(old => ({ ...old, [item.id]: next }))} />
       </div>;

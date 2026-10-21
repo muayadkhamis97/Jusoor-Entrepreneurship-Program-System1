@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, count, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lte, or, sum } from "drizzle-orm";
 import { clerkClient } from "@clerk/express";
 import {
   DisconnectGoogleCalendarResponse,
@@ -19,8 +19,11 @@ import {
   CreateMentorAdditionalSessionRequestResponse,
   GetStaffMentorAdditionalSessionRequestsQueryParams,
   GetStaffMentorAdditionalSessionRequestsResponse,
+  ResolveStaffMentorAdditionalSessionRequestBody,
   ResolveStaffMentorAdditionalSessionRequestParams,
   ResolveStaffMentorAdditionalSessionRequestResponse,
+  RetryStaffMentorAdditionalSessionRequestEmailParams,
+  RetryStaffMentorAdditionalSessionRequestEmailResponse,
   SubmitMentorMeetingReportBody,
   SubmitMentorMeetingReportParams,
   SubmitMentorMeetingReportResponse,
@@ -44,7 +47,13 @@ import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 import { sendPlatformEmail } from "../lib/platform-email";
-import { additionalSessionRequestEligibility } from "../lib/mentor-session-quota";
+import {
+  additionalSessionRequestEligibility,
+  canRetryMentorSessionRequestEmail,
+  effectiveMentorSessionTarget,
+  isValidAdditionalSessionDecision,
+  MENTOR_SESSION_EMAIL_RETRY_STALE_MS,
+} from "../lib/mentor-session-quota";
 
 const router: IRouter = Router();
 export const staffMentorMeetingReportsRouter: IRouter = Router();
@@ -155,6 +164,45 @@ function escapeEmailHtml(value: string): string {
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
+async function notifyAdditionalSessionsTeam(req: Request, input: {
+  requestId: number;
+  businessName: string;
+  programId: number;
+  programName: string;
+  mentorName: string;
+  mentorEmail: string;
+  reportedSessions: number;
+  sessionTarget: number;
+}): Promise<void> {
+  const [coordinators, programStaff] = await Promise.all([
+    db.select({ email: staffMembersTable.email }).from(staffMembersTable)
+      .where(and(
+        eq(staffMembersTable.role, "coordinator"),
+        eq(staffMembersTable.status, "active"),
+      )),
+    db.select({ email: staffMembersTable.email }).from(staffMembersTable)
+      .innerJoin(staffProgramAssignmentsTable, eq(staffProgramAssignmentsTable.staffId, staffMembersTable.id))
+      .where(and(
+        eq(staffProgramAssignmentsTable.programId, input.programId),
+        eq(staffMembersTable.role, "staff"),
+        eq(staffMembersTable.status, "active"),
+      )),
+  ]);
+  const recipients = [...new Set([...coordinators, ...programStaff].map(({ email }) => email))];
+  if (!recipients.length) {
+    req.log.warn({ requestId: input.requestId, programId: input.programId }, "No active program team recipients for additional mentor sessions");
+    throw new Error("No active program team recipients.");
+  }
+  const summary = `${input.mentorName} requested additional one-to-one sessions for ${input.businessName}. ${input.reportedSessions} session reports have been submitted; the effective target is ${input.sessionTarget}.`;
+  await sendPlatformEmail({
+    recipients,
+    subject: `Additional one-to-one sessions requested: ${input.businessName}`,
+    text: `${summary}\nProgram: ${input.programName}\nMentor: ${input.mentorName} (${input.mentorEmail})`,
+    html: `<p>${escapeEmailHtml(summary)}</p><p><strong>Program:</strong> ${escapeEmailHtml(input.programName)}<br><strong>Mentor:</strong> ${escapeEmailHtml(input.mentorName)} (${escapeEmailHtml(input.mentorEmail)})</p>`,
+    idempotencyKey: `mentor-additional-sessions-${input.requestId}`,
+  });
+}
+
 staffMentorMeetingReportsRouter.get("/mentor-additional-session-requests", async (req, res): Promise<void> => {
   const query = GetStaffMentorAdditionalSessionRequestsQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -177,8 +225,11 @@ staffMentorMeetingReportsRouter.get("/mentor-additional-session-requests", async
     mentorEmail: staffMembersTable.email,
     reportedSessionsAtRequest: mentorSessionRequestsTable.reportedSessionsAtRequest,
     sessionTargetAtRequest: mentorSessionRequestsTable.sessionTargetAtRequest,
+    decision: mentorSessionRequestsTable.decision,
+    approvedAdditionalSessions: mentorSessionRequestsTable.approvedAdditionalSessions,
     status: mentorSessionRequestsTable.status,
     emailNotificationStatus: mentorSessionRequestsTable.emailNotificationStatus,
+    emailNotificationUpdatedAt: mentorSessionRequestsTable.emailNotificationUpdatedAt,
     createdAt: mentorSessionRequestsTable.createdAt,
     programName: programsTable.name,
   }).from(mentorSessionRequestsTable)
@@ -195,6 +246,10 @@ staffMentorMeetingReportsRouter.get("/mentor-additional-session-requests", async
   res.json(GetStaffMentorAdditionalSessionRequestsResponse.parse(requests.map((request) => ({
     ...request,
     mentorName: request.mentorName?.trim() || request.mentorEmail.split("@")[0] || request.mentorEmail,
+    canRetryEmail: canRetryMentorSessionRequestEmail(
+      request.emailNotificationStatus,
+      request.emailNotificationUpdatedAt,
+    ),
   }))));
 });
 
@@ -204,10 +259,24 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
     res.status(400).json({ error: params.error.message });
     return;
   }
+  const body = ResolveStaffMentorAdditionalSessionRequestBody.safeParse(req.body);
+  if (!body.success || (body.success && !isValidAdditionalSessionDecision(
+    body.data.decision,
+    body.data.approvedAdditionalSessions,
+  ))) {
+    res.status(400).json({ error: "Approved requests need an additional-session count from 1 to 1000; declined requests must not include a count." });
+    return;
+  }
   const staff = res.locals.staff as StaffAccess;
   const programIds = await activeProgramIdsFor(staff);
   const [request] = await db.update(mentorSessionRequestsTable)
-    .set({ status: "resolved", resolvedAt: new Date(), resolvedByStaffId: staff.id })
+    .set({
+      status: "resolved",
+      decision: body.data.decision,
+      approvedAdditionalSessions: body.data.decision === "approved" ? body.data.approvedAdditionalSessions! : null,
+      resolvedAt: new Date(),
+      resolvedByStaffId: staff.id,
+    })
     .where(and(
       eq(mentorSessionRequestsTable.id, params.data.id),
       eq(mentorSessionRequestsTable.status, "open"),
@@ -216,6 +285,8 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
     .returning({
       id: mentorSessionRequestsTable.id,
       status: mentorSessionRequestsTable.status,
+      decision: mentorSessionRequestsTable.decision,
+      approvedAdditionalSessions: mentorSessionRequestsTable.approvedAdditionalSessions,
       resolvedAt: mentorSessionRequestsTable.resolvedAt,
     });
   if (!request?.resolvedAt) {
@@ -223,6 +294,84 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
     return;
   }
   res.json(ResolveStaffMentorAdditionalSessionRequestResponse.parse(request));
+});
+
+staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/retry-email", async (req, res): Promise<void> => {
+  const params = RetryStaffMentorAdditionalSessionRequestEmailParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  const [details] = await db.select({
+    id: mentorSessionRequestsTable.id,
+    programId: mentorSessionRequestsTable.programId,
+    businessName: businessesTable.businessName,
+    programName: programsTable.name,
+    mentorName: userProfilesTable.displayName,
+    mentorEmail: staffMembersTable.email,
+    reportedSessions: mentorSessionRequestsTable.reportedSessionsAtRequest,
+    sessionTarget: mentorSessionRequestsTable.sessionTargetAtRequest,
+  }).from(mentorSessionRequestsTable)
+    .innerJoin(programsTable, eq(programsTable.id, mentorSessionRequestsTable.programId))
+    .innerJoin(businessesTable, eq(businessesTable.id, mentorSessionRequestsTable.businessId))
+    .innerJoin(staffMembersTable, eq(staffMembersTable.id, mentorSessionRequestsTable.mentorStaffId))
+    .leftJoin(userProfilesTable, eq(userProfilesTable.userId, staffMembersTable.clerkUserId))
+    .where(and(
+      eq(mentorSessionRequestsTable.id, params.data.id),
+      eq(mentorSessionRequestsTable.status, "open"),
+      inArray(mentorSessionRequestsTable.programId, programIds),
+    ))
+    .limit(1);
+  if (!details) {
+    res.status(404).json({ error: "Open request is not available to this staff member." });
+    return;
+  }
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - MENTOR_SESSION_EMAIL_RETRY_STALE_MS);
+  const [claimed] = await db.update(mentorSessionRequestsTable)
+    .set({ emailNotificationStatus: "pending", emailNotificationUpdatedAt: now })
+    .where(and(
+      eq(mentorSessionRequestsTable.id, details.id),
+      eq(mentorSessionRequestsTable.status, "open"),
+      inArray(mentorSessionRequestsTable.programId, programIds),
+      or(
+        eq(mentorSessionRequestsTable.emailNotificationStatus, "failed"),
+        and(
+          eq(mentorSessionRequestsTable.emailNotificationStatus, "pending"),
+          lte(mentorSessionRequestsTable.emailNotificationUpdatedAt, staleBefore),
+        ),
+      ),
+    ))
+    .returning({ id: mentorSessionRequestsTable.id });
+  if (!claimed) {
+    res.status(409).json({ error: "This notification is already delivered or currently retrying." });
+    return;
+  }
+  let emailNotificationStatus: "delivered" | "failed" = "failed";
+  try {
+    await notifyAdditionalSessionsTeam(req, {
+      requestId: details.id,
+      businessName: details.businessName,
+      programId: details.programId,
+      programName: details.programName,
+      mentorName: details.mentorName?.trim() || details.mentorEmail.split("@")[0] || details.mentorEmail,
+      mentorEmail: details.mentorEmail,
+      reportedSessions: details.reportedSessions,
+      sessionTarget: details.sessionTarget,
+    });
+    emailNotificationStatus = "delivered";
+  } catch (error) {
+    req.log.error({ err: error, requestId: details.id }, "Additional mentor-session request email retry failed");
+  }
+  await db.update(mentorSessionRequestsTable)
+    .set({ emailNotificationStatus, emailNotificationUpdatedAt: new Date() })
+    .where(eq(mentorSessionRequestsTable.id, details.id));
+  res.json(RetryStaffMentorAdditionalSessionRequestEmailResponse.parse({
+    id: details.id,
+    emailNotificationStatus,
+  }));
 });
 
 router.post("/support/:id/additional-session-requests", async (req, res): Promise<void> => {
@@ -248,6 +397,17 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     res.status(404).json({ error: "Program not found." });
     return;
   }
+  const [approvedRow] = await db.select({
+    approvedAdditionalSessions: sum(mentorSessionRequestsTable.approvedAdditionalSessions),
+  }).from(mentorSessionRequestsTable)
+    .where(and(
+      eq(mentorSessionRequestsTable.businessId, business.businessId),
+      eq(mentorSessionRequestsTable.decision, "approved"),
+    ));
+  const sessionTarget = effectiveMentorSessionTarget(
+    program.sessionTarget,
+    Number(approvedRow?.approvedAdditionalSessions ?? 0),
+  );
   const [reportedRow] = await db.select({
     reportedSessions: count(mentorMeetingReportsTable.id),
   }).from(mentorMeetingReportsTable)
@@ -266,7 +426,7 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     .limit(1);
   const eligibility = additionalSessionRequestEligibility({
     reportedSessions,
-    sessionTarget: program.sessionTarget,
+    sessionTarget,
     hasOpenRequest: Boolean(existing),
   });
   if (eligibility === "target_not_configured") {
@@ -290,7 +450,7 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
       programId: business.programId,
       mentorStaffId: staff.id,
       reportedSessionsAtRequest: reportedSessions,
-      sessionTargetAtRequest: program.sessionTarget,
+      sessionTargetAtRequest: sessionTarget,
     }).returning();
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -302,41 +462,22 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
   const identity = await coachIdentity(staff, req);
   let emailNotificationStatus: "delivered" | "failed" = "failed";
   try {
-    const [coordinators, programStaff] = await Promise.all([
-      db.select({ email: staffMembersTable.email }).from(staffMembersTable)
-        .where(and(
-          eq(staffMembersTable.role, "coordinator"),
-          eq(staffMembersTable.status, "active"),
-        )),
-      db.select({ email: staffMembersTable.email }).from(staffMembersTable)
-        .innerJoin(staffProgramAssignmentsTable, eq(staffProgramAssignmentsTable.staffId, staffMembersTable.id))
-        .where(and(
-          eq(staffProgramAssignmentsTable.programId, business.programId),
-          eq(staffMembersTable.role, "staff"),
-          eq(staffMembersTable.status, "active"),
-        )),
-    ]);
-    const recipients = [...new Set([...coordinators, ...programStaff].map(({ email }) => email))];
-    if (!recipients.length) {
-      req.log.warn({ requestId: request.id, programId: business.programId }, "No active program team recipients for additional mentor sessions");
-    } else {
-      const safeProgramName = escapeEmailHtml(program.name);
-      const safeMentorName = escapeEmailHtml(identity.coachName);
-      const summary = `${identity.coachName} requested additional one-to-one sessions for ${business.businessName}. ${reportedSessions} session reports have been submitted; the program target is ${program.sessionTarget}.`;
-      await sendPlatformEmail({
-        recipients,
-        subject: `Additional one-to-one sessions requested: ${business.businessName}`,
-        text: `${summary}\nProgram: ${program.name}\nMentor: ${identity.coachName} (${identity.coachEmail})`,
-      html: `<p>${escapeEmailHtml(summary)}</p><p><strong>Program:</strong> ${safeProgramName}<br><strong>Mentor:</strong> ${safeMentorName} (${escapeEmailHtml(identity.coachEmail)})</p>`,
-        idempotencyKey: `mentor-additional-sessions-${request.id}`,
-      });
-      emailNotificationStatus = "delivered";
-    }
+    await notifyAdditionalSessionsTeam(req, {
+      requestId: request.id,
+      businessName: business.businessName,
+      programId: business.programId,
+      programName: program.name,
+      mentorName: identity.coachName,
+      mentorEmail: identity.coachEmail,
+      reportedSessions,
+      sessionTarget,
+    });
+    emailNotificationStatus = "delivered";
   } catch (error) {
     req.log.error({ err: error, requestId: request.id }, "Additional mentor-session request email failed");
   }
   await db.update(mentorSessionRequestsTable)
-    .set({ emailNotificationStatus })
+    .set({ emailNotificationStatus, emailNotificationUpdatedAt: new Date() })
     .where(eq(mentorSessionRequestsTable.id, request.id));
   res.status(201).json(CreateMentorAdditionalSessionRequestResponse.parse({
     id: request.id,
@@ -348,6 +489,8 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     mentorEmail: identity.coachEmail,
     reportedSessionsAtRequest: request.reportedSessionsAtRequest,
     sessionTargetAtRequest: request.sessionTargetAtRequest,
+    decision: request.decision,
+    approvedAdditionalSessions: request.approvedAdditionalSessions,
     status: request.status,
     emailNotificationStatus,
     createdAt: request.createdAt,
@@ -731,7 +874,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       inArray(businessesTable.programId, programIds),
     ))
     .orderBy(asc(supportTable.scheduledDate));
-  const [reportedRows, openRequests] = await Promise.all([
+  const [reportedRows, openRequests, approvedSessionRows] = await Promise.all([
     db.select({
       businessId: supportTable.businessId,
       reportedSessions: count(mentorMeetingReportsTable.id),
@@ -751,6 +894,15 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
         inArray(mentorSessionRequestsTable.programId, programIds),
         eq(mentorSessionRequestsTable.status, "open"),
       )),
+    db.select({
+      businessId: mentorSessionRequestsTable.businessId,
+      approvedAdditionalSessions: sum(mentorSessionRequestsTable.approvedAdditionalSessions),
+    }).from(mentorSessionRequestsTable)
+      .where(and(
+        inArray(mentorSessionRequestsTable.programId, programIds),
+        eq(mentorSessionRequestsTable.decision, "approved"),
+      ))
+      .groupBy(mentorSessionRequestsTable.businessId),
   ]);
   const reportedSessionsByBusiness = new Map(reportedRows.map((row) => [
     row.businessId,
@@ -760,9 +912,17 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     request.businessId,
     request.emailNotificationStatus,
   ]));
+  const approvedSessionsByBusiness = new Map(approvedSessionRows.map((request) => [
+    request.businessId,
+    Number(request.approvedAdditionalSessions ?? 0),
+  ]));
   res.json(GetMentorDashboardResponse.parse({
     engagements: engagements.map((engagement) => ({
       ...engagement,
+      mentorSessionsPerBusiness: effectiveMentorSessionTarget(
+        engagement.mentorSessionsPerBusiness,
+        approvedSessionsByBusiness.get(engagement.businessId) ?? 0,
+      ),
       reportedOneToOneSessions: reportedSessionsByBusiness.get(engagement.businessId) ?? 0,
       openAdditionalSessionsEmailStatus: openRequestByBusiness.get(engagement.businessId) ?? null,
     })),

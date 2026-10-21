@@ -8,10 +8,14 @@ test('engagement list delegates feedback ownership to keyed card components', ()
   const component = readFileSync(new URL('./mentor-engagement-card.tsx', import.meta.url), 'utf8');
   assert.match(parent, /<MentorEngagementCard item=\{item\}/);
   assert.match(parent, /className="mentor-session-progress"/);
-  assert.match(parent, /additionalSessionRequestPendingForId === item\.id/);
-  assert.match(parent, /additionalSessionRequestErrorForId === item\.id/);
-  assert.match(parent, /resolvingAdditionalSessionRequestId === request\.id/);
-  assert.match(parent, /additionalSessionRequestResolveErrorId === request\.id/);
+  assert.match(parent, /additionalSessionRequestPendingIds\.has\(item\.id\)/);
+  assert.match(parent, /additionalSessionRequestErrorIds\.has\(item\.id\)/);
+  assert.match(parent, /resolvingAdditionalSessionRequestIds\.has\(request\.id\)/);
+  assert.match(parent, /additionalSessionRequestResolveErrorIds\.has\(request\.id\)/);
+  assert.match(parent, /resolveRequest\('approved'\)/);
+  assert.match(parent, /resolveRequest\('declined'\)/);
+  assert.match(parent, /request\.canRetryEmail/);
+  assert.match(parent, /Retry email notification/);
   assert.doesNotMatch(parent, /useUpdateAssignedMentoring/);
   assert.match(component, /const update = useUpdateAssignedMentoring\(\)/);
   assert.match(component, /update.mutate\(\{ id: item.id, data \}/);

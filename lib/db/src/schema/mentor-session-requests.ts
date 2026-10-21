@@ -17,6 +17,7 @@ import { supportTable } from "./support";
 
 export const mentorSessionRequestStatuses = ["open", "resolved"] as const;
 export const mentorSessionRequestEmailStatuses = ["pending", "delivered", "failed"] as const;
+export const mentorSessionRequestDecisions = ["approved", "declined"] as const;
 
 export const mentorSessionRequestsTable = pgTable("mentor_session_requests", {
   id: serial("id").primaryKey(),
@@ -26,8 +27,11 @@ export const mentorSessionRequestsTable = pgTable("mentor_session_requests", {
   mentorStaffId: integer("mentor_staff_id").notNull().references(() => staffMembersTable.id, { onDelete: "cascade" }),
   reportedSessionsAtRequest: integer("reported_sessions_at_request").notNull(),
   sessionTargetAtRequest: integer("session_target_at_request").notNull(),
+  decision: text("decision", { enum: mentorSessionRequestDecisions }),
+  approvedAdditionalSessions: integer("approved_additional_sessions"),
   status: text("status", { enum: mentorSessionRequestStatuses }).notNull().default("open"),
   emailNotificationStatus: text("email_notification_status", { enum: mentorSessionRequestEmailStatuses }).notNull().default("pending"),
+  emailNotificationUpdatedAt: timestamp("email_notification_updated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   resolvedByStaffId: integer("resolved_by_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
@@ -35,6 +39,11 @@ export const mentorSessionRequestsTable = pgTable("mentor_session_requests", {
   check("mentor_session_requests_reported_check", sql`${table.reportedSessionsAtRequest} >= 0`),
   check("mentor_session_requests_target_check", sql`${table.sessionTargetAtRequest} >= 0`),
   check("mentor_session_requests_status_check", sql`${table.status} IN ('open', 'resolved')`),
+  check("mentor_session_requests_approval_check", sql`
+    (${table.decision} IS NULL AND ${table.approvedAdditionalSessions} IS NULL)
+    OR (${table.decision} = 'approved' AND ${table.approvedAdditionalSessions} BETWEEN 1 AND 1000)
+    OR (${table.decision} = 'declined' AND ${table.approvedAdditionalSessions} IS NULL)
+  `),
   check("mentor_session_requests_email_status_check", sql`${table.emailNotificationStatus} IN ('pending', 'delivered', 'failed')`),
   index("mentor_session_requests_program_status_created_idx").on(table.programId, table.status, table.createdAt),
   index("mentor_session_requests_business_created_idx").on(table.businessId, table.createdAt),

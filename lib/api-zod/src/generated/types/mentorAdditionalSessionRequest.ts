@@ -5,6 +5,7 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorAdditionalSessionRequestDecision } from './mentorAdditionalSessionRequestDecision';
 import type { MentorAdditionalSessionRequestEmailNotificationStatus } from './mentorAdditionalSessionRequestEmailNotificationStatus';
 import type { MentorAdditionalSessionRequestStatus } from './mentorAdditionalSessionRequestStatus';
 
@@ -20,7 +21,16 @@ export interface MentorAdditionalSessionRequest {
   reportedSessionsAtRequest: number;
   /** @minimum 0 */
   sessionTargetAtRequest: number;
+  /** @nullable */
+  decision: MentorAdditionalSessionRequestDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     * @nullable
+     */
+  approvedAdditionalSessions: number | null;
   status: MentorAdditionalSessionRequestStatus;
   emailNotificationStatus: MentorAdditionalSessionRequestEmailNotificationStatus;
+  canRetryEmail: boolean;
   createdAt: Date;
 }

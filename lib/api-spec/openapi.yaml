@@ -1935,17 +1935,39 @@ paths:
     post:
       operationId: resolveStaffMentorAdditionalSessionRequest
       tags: [support]
-      summary: Mark an additional-session request as reviewed
+      summary: Approve or decline an additional-session request
       parameters:
         - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResolveMentorAdditionalSessionRequestInput" }
       responses:
         "200":
-          description: Request marked as reviewed
+          description: Request decision recorded
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ResolveMentorAdditionalSessionRequestResponse" }
         "404":
           description: Open request is not available to this staff member
+  /staff/mentor-additional-session-requests/{id}/retry-email:
+    post:
+      operationId: retryStaffMentorAdditionalSessionRequestEmail
+      tags: [support]
+      summary: Retry a failed additional-session request notification
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Notification retry completed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetryMentorAdditionalSessionRequestEmailResponse" }
+        "404":
+          description: Open request is not available to this staff member
+        "409":
+          description: Notification is already delivered or currently retrying
   /staff/mentor-meeting-reports:
     get:
       operationId: getStaffMentorMeetingReports
@@ -5342,10 +5364,13 @@ components:
         mentorEmail: { type: string, format: email }
         reportedSessionsAtRequest: { type: integer, minimum: 0 }
         sessionTargetAtRequest: { type: integer, minimum: 0 }
+        decision: { type: ["string", "null"], enum: [approved, declined, null] }
+        approvedAdditionalSessions: { type: ["integer", "null"], minimum: 1, maximum: 1000 }
         status: { type: string, enum: [open, resolved] }
         emailNotificationStatus: { type: string, enum: [pending, delivered, failed] }
+        canRetryEmail: { type: boolean }
         createdAt: { type: string, format: date-time }
-      required: [id, supportId, businessId, programId, businessName, mentorName, mentorEmail, reportedSessionsAtRequest, sessionTargetAtRequest, status, emailNotificationStatus, createdAt]
+      required: [id, supportId, businessId, programId, businessName, mentorName, mentorEmail, reportedSessionsAtRequest, sessionTargetAtRequest, decision, approvedAdditionalSessions, status, emailNotificationStatus, canRetryEmail, createdAt]
     StaffMentorAdditionalSessionRequest:
       allOf:
         - $ref: "#/components/schemas/MentorAdditionalSessionRequest"
@@ -5353,13 +5378,27 @@ components:
           properties:
             programName: { type: string }
           required: [programName]
+    ResolveMentorAdditionalSessionRequestInput:
+      type: object
+      properties:
+        decision: { type: string, enum: [approved, declined] }
+        approvedAdditionalSessions: { type: integer, minimum: 1, maximum: 1000 }
+      required: [decision]
     ResolveMentorAdditionalSessionRequestResponse:
       type: object
       properties:
         id: { type: integer }
         status: { type: string, enum: [resolved] }
+        decision: { type: string, enum: [approved, declined] }
+        approvedAdditionalSessions: { type: ["integer", "null"], minimum: 1, maximum: 1000 }
         resolvedAt: { type: string, format: date-time }
-      required: [id, status, resolvedAt]
+      required: [id, status, decision, approvedAdditionalSessions, resolvedAt]
+    RetryMentorAdditionalSessionRequestEmailResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        emailNotificationStatus: { type: string, enum: [pending, delivered, failed] }
+      required: [id, emailNotificationStatus]
     MentorBookingProvider:
       type: string
       enum: [calendly, google_calendar]

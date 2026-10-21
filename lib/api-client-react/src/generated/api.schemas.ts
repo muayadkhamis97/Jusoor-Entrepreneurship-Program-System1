@@ -2167,6 +2167,17 @@ export interface StaffMentorMeetingReportCoach {
   coachEmail: string;
 }
 
+/**
+ * @nullable
+ */
+export type MentorAdditionalSessionRequestDecision = typeof MentorAdditionalSessionRequestDecision[keyof typeof MentorAdditionalSessionRequestDecision] | null;
+
+
+export const MentorAdditionalSessionRequestDecision = {
+  approved: 'approved',
+  declined: 'declined',
+} as const;
+
 export type MentorAdditionalSessionRequestStatus = typeof MentorAdditionalSessionRequestStatus[keyof typeof MentorAdditionalSessionRequestStatus];
 
 
@@ -2196,14 +2207,40 @@ export interface MentorAdditionalSessionRequest {
   reportedSessionsAtRequest: number;
   /** @minimum 0 */
   sessionTargetAtRequest: number;
+  /** @nullable */
+  decision: MentorAdditionalSessionRequestDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     * @nullable
+     */
+  approvedAdditionalSessions: number | null;
   status: MentorAdditionalSessionRequestStatus;
   emailNotificationStatus: MentorAdditionalSessionRequestEmailNotificationStatus;
+  canRetryEmail: boolean;
   createdAt: string;
 }
 
 export type StaffMentorAdditionalSessionRequest = MentorAdditionalSessionRequest & {
   programName: string;
 };
+
+export type ResolveMentorAdditionalSessionRequestInputDecision = typeof ResolveMentorAdditionalSessionRequestInputDecision[keyof typeof ResolveMentorAdditionalSessionRequestInputDecision];
+
+
+export const ResolveMentorAdditionalSessionRequestInputDecision = {
+  approved: 'approved',
+  declined: 'declined',
+} as const;
+
+export interface ResolveMentorAdditionalSessionRequestInput {
+  decision: ResolveMentorAdditionalSessionRequestInputDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     */
+  approvedAdditionalSessions?: number;
+}
 
 export type ResolveMentorAdditionalSessionRequestResponseStatus = typeof ResolveMentorAdditionalSessionRequestResponseStatus[keyof typeof ResolveMentorAdditionalSessionRequestResponseStatus];
 
@@ -2212,10 +2249,39 @@ export const ResolveMentorAdditionalSessionRequestResponseStatus = {
   resolved: 'resolved',
 } as const;
 
+export type ResolveMentorAdditionalSessionRequestResponseDecision = typeof ResolveMentorAdditionalSessionRequestResponseDecision[keyof typeof ResolveMentorAdditionalSessionRequestResponseDecision];
+
+
+export const ResolveMentorAdditionalSessionRequestResponseDecision = {
+  approved: 'approved',
+  declined: 'declined',
+} as const;
+
 export interface ResolveMentorAdditionalSessionRequestResponse {
   id: number;
   status: ResolveMentorAdditionalSessionRequestResponseStatus;
+  decision: ResolveMentorAdditionalSessionRequestResponseDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     * @nullable
+     */
+  approvedAdditionalSessions: number | null;
   resolvedAt: string;
+}
+
+export type RetryMentorAdditionalSessionRequestEmailResponseEmailNotificationStatus = typeof RetryMentorAdditionalSessionRequestEmailResponseEmailNotificationStatus[keyof typeof RetryMentorAdditionalSessionRequestEmailResponseEmailNotificationStatus];
+
+
+export const RetryMentorAdditionalSessionRequestEmailResponseEmailNotificationStatus = {
+  pending: 'pending',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
+export interface RetryMentorAdditionalSessionRequestEmailResponse {
+  id: number;
+  emailNotificationStatus: RetryMentorAdditionalSessionRequestEmailResponseEmailNotificationStatus;
 }
 
 export interface MentorBookingSettings {

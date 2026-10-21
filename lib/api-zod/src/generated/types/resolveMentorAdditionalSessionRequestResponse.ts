@@ -5,10 +5,18 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { ResolveMentorAdditionalSessionRequestResponseDecision } from './resolveMentorAdditionalSessionRequestResponseDecision';
 import type { ResolveMentorAdditionalSessionRequestResponseStatus } from './resolveMentorAdditionalSessionRequestResponseStatus';
 
 export interface ResolveMentorAdditionalSessionRequestResponse {
   id: number;
   status: ResolveMentorAdditionalSessionRequestResponseStatus;
+  decision: ResolveMentorAdditionalSessionRequestResponseDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     * @nullable
+     */
+  approvedAdditionalSessions: number | null;
   resolvedAt: Date;
 }
