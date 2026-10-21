@@ -46,3 +46,20 @@ test('the report page uses the reset selection for coach options and report quer
   assert.match(surface, /useGetStaffMentorMeetingReportCoaches\(coachOptionsParams/);
   assert.match(surface, /useGetStaffMentorMeetingReports\(reportParams/);
 });
+
+test('trainer attendance view selects an empty state from both assigned sessions and reports', () => {
+  const surface = read('./role-surfaces.tsx');
+  assert.match(surface, /getTrainerAttendanceEmptyState\(sessions\.length, attendanceQuery\.data\?\.length \|\| 0\)/);
+  assert.match(surface, /trainer-attendance-empty-no-sessions/);
+  assert.match(surface, /trainer-attendance-empty-no-records/);
+  assert.match(surface, /No attendance recorded yet\./);
+});
+
+test('trainer reviews and replies keep pending and error feedback scoped to each card', () => {
+  const surface = read('./role-surfaces.tsx');
+  assert.match(surface, /reviewPendingIds\.has\(answer\.id\)/);
+  assert.match(surface, /reviewErrorIds\.has\(answer\.id\)/);
+  assert.match(surface, /replyPendingIds\.has\(question\.id\)/);
+  assert.match(surface, /replyErrorIds\.has\(question\.id\)/);
+  assert.doesNotMatch(surface, /review\.isPending|review\.isError|reply\.isPending|reply\.isError/);
+});

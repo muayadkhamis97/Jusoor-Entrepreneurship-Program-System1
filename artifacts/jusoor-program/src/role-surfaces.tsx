@@ -36,6 +36,7 @@ import { useMentorBookingDraft } from './use-mentor-booking-draft';
 import { MentorEngagementCard, type MentorEngagementDraft } from './mentor-engagement-card';
 import { buildTrainerAttendanceSheetRows, downloadTrainerAttendanceCsv } from './trainer-attendance-export';
 import { printReportSheet } from './print-report-sheet';
+import { getTrainerAttendanceEmptyState, updateTrainerIdSet } from './trainer-dashboard-state';
 import {
   getStaffMentorMeetingReportFilterParams,
   selectStaffMentorMeetingReportBusiness,
@@ -362,8 +363,13 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   const [assignmentSessionId, setAssignmentSessionId] = useState<number | ''>('');
   const [feedbacks, setFeedbacks] = useState<Record<number, { score: string; feedback: string }>>({});
   const [replies, setReplies] = useState<Record<number, string>>({});
+  const [reviewPendingIds, setReviewPendingIds] = useState<Set<number>>(() => new Set());
+  const [reviewErrorIds, setReviewErrorIds] = useState<Set<number>>(() => new Set());
+  const [replyPendingIds, setReplyPendingIds] = useState<Set<number>>(() => new Set());
+  const [replyErrorIds, setReplyErrorIds] = useState<Set<number>>(() => new Set());
   const dashboard = query.data;
   const sessions = dashboard?.sessions || [];
+  const attendanceEmptyState = getTrainerAttendanceEmptyState(sessions.length, attendanceQuery.data?.length || 0);
   const programs = trainerProgramOptions(dashboard?.programs || [], t('Program name unavailable'));
   const assignmentSessions = trainerSessionOptions(sessions, assignmentProgramId === '' ? null : assignmentProgramId);
   const submitAssignment = (event: FormEvent<HTMLFormElement>) => {
@@ -377,20 +383,39 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
     const data: TrainingAssignmentInput = { programId, title, instructions, dueDate: String(form.get('dueDate') || '') || null, sessionId: form.get('sessionId') ? Number(form.get('sessionId')) : null };
     create.mutate({ data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); formElement.reset(); setAssignmentProgramId(''); setAssignmentSessionId(''); setAssignmentError(''); } });
   };
-  const saveReview = (event: FormEvent<HTMLFormElement>, id: number) => {
+  const saveReview = async (event: FormEvent<HTMLFormElement>, id: number) => {
     event.preventDefault();
     const values = feedbacks[id] || { score: '', feedback: '' };
     const score = values.score === '' ? null : Number(values.score);
     if (score !== null && (score < 0 || score > 100)) return;
     const data: TrainingAnswerReview = { score, feedback: values.feedback.trim() || null };
-    review.mutate({ id, data }, { onSuccess: () => invalid(client, getGetTrainerDashboardQueryKey()) });
+    setReviewPendingIds(current => updateTrainerIdSet(current, id, true));
+    setReviewErrorIds(current => updateTrainerIdSet(current, id, false));
+    try {
+      await review.mutateAsync({ id, data });
+      invalid(client, getGetTrainerDashboardQueryKey());
+    } catch {
+      setReviewErrorIds(current => updateTrainerIdSet(current, id, true));
+    } finally {
+      setReviewPendingIds(current => updateTrainerIdSet(current, id, false));
+    }
   };
-  const sendReply = (event: FormEvent<HTMLFormElement>, id: number) => {
+  const sendReply = async (event: FormEvent<HTMLFormElement>, id: number) => {
     event.preventDefault();
     const answer = (replies[id] || '').trim();
     if (!answer) return;
     const data: TrainingQuestionReply = { reply: answer };
-    reply.mutate({ id, data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); setReplies(current => ({ ...current, [id]: '' })); } });
+    setReplyPendingIds(current => updateTrainerIdSet(current, id, true));
+    setReplyErrorIds(current => updateTrainerIdSet(current, id, false));
+    try {
+      await reply.mutateAsync({ id, data });
+      invalid(client, getGetTrainerDashboardQueryKey());
+      setReplies(current => ({ ...current, [id]: '' }));
+    } catch {
+      setReplyErrorIds(current => updateTrainerIdSet(current, id, true));
+    } finally {
+      setReplyPendingIds(current => updateTrainerIdSet(current, id, false));
+    }
   };
   const printAttendanceReports = () => printReportSheet('print-trainer-attendance-reports');
   return <RoleFrame role="trainer" name={name} availableRoles={availableRoles} primaryRole={primaryRole}>
@@ -462,7 +487,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
                </table>
              </article>)}
            </section>
-         </div> : <div className="empty-panel"><h3>{t('No assigned training sessions.')}</h3><p>{t('Attendance reports appear after a Zoom session is assigned to you.')}</p></div>}
+         </div> : attendanceEmptyState === 'no-assigned-sessions' ? <div className="empty-panel" data-testid="trainer-attendance-empty-no-sessions"><h3>{t('No assigned training sessions.')}</h3><p>{t('Attendance reports appear after a session is assigned to you.')}</p></div> : <div className="empty-panel" data-testid="trainer-attendance-empty-no-records"><h3>{t('No attendance recorded yet.')}</h3><p>{t('Attendance reports will appear when attendance is recorded for one of your assigned sessions.')}</p></div>}
       </section>
       <section className="role-section role-assignment-section"><div className="role-section-title"><div><div className="eyebrow">{t('MAKE THE LEARNING PRACTICAL')}</div><h2>{t('Create a cohort assignment')}</h2></div></div>
         {programs.length === 0 ? <div className="role-inline-note">{t('Assignments become available after a program is assigned to your trainer account.')}</div> : <form className="role-form-grid" onSubmit={submitAssignment}>
@@ -478,11 +503,15 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
       <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('PARTICIPANT WORK')}</div><h2>{t('Answers to review')}</h2></div><span className="role-count">{dashboard.submissions.length}</span></div>
         {!dashboard.submissions.length ? <div className="empty-panel"><h3>{t('No answers waiting.')}</h3><p>{t('Participant responses appear here as they submit cohort assignments.')}</p></div> : <div className="answer-list">{dashboard.submissions.map(answer => {
           const value = feedbacks[answer.id] || { score: answer.score == null ? '' : String(answer.score), feedback: answer.feedback || '' };
-          return <article className="answer-card" key={answer.id} data-testid={`card-trainer-answer-${answer.id}`}><div className="answer-meta"><div><b>{answer.founderName}</b><span>{answer.businessName} · {answer.programName} · {answer.assignmentTitle}</span></div><span className={`badge badge-${answer.status === 'reviewed' ? 'good' : 'warm'}`}><span />{word(answer.status)}</span></div><blockquote>{answer.answer}</blockquote><form className="role-form-grid compact" onSubmit={event => saveReview(event, answer.id)}><label className="field">{t('Score / 100')}<input className="form-control" type="number" min="0" max="100" value={value.score} onChange={event => setFeedbacks(old => ({ ...old, [answer.id]: { ...value, score: event.target.value } }))} required data-testid={`input-answer-score-${answer.id}`} /></label><label className="field field-wide">{t('Feedback')}<textarea className="form-control" rows={2} value={value.feedback} onChange={event => setFeedbacks(old => ({ ...old, [answer.id]: { ...value, feedback: event.target.value } }))} placeholder={t('A clear next step will help this founder move forward.')} data-testid={`input-answer-feedback-${answer.id}`} /></label><div className="field-wide">{review.isError && <span className="form-error">{t('Review not saved. Please retry.')}</span>}<button className="button button-primary" disabled={review.isPending} data-testid={`button-review-answer-${answer.id}`}>{review.isPending ? t('Saving…') : t('Save review')}</button></div></form></article>;
+           const isPending = reviewPendingIds.has(answer.id);
+           return <article className="answer-card" key={answer.id} data-testid={`card-trainer-answer-${answer.id}`}><div className="answer-meta"><div><b>{answer.founderName}</b><span>{answer.businessName} · {answer.programName} · {answer.assignmentTitle}</span></div><span className={`badge badge-${answer.status === 'reviewed' ? 'good' : 'warm'}`}><span />{word(answer.status)}</span></div><blockquote>{answer.answer}</blockquote><form className="role-form-grid compact" onSubmit={event => saveReview(event, answer.id)}><label className="field">{t('Score / 100')}<input className="form-control" type="number" min="0" max="100" value={value.score} onChange={event => setFeedbacks(old => ({ ...old, [answer.id]: { ...value, score: event.target.value } }))} required data-testid={`input-answer-score-${answer.id}`} /></label><label className="field field-wide">{t('Feedback')}<textarea className="form-control" rows={2} value={value.feedback} onChange={event => setFeedbacks(old => ({ ...old, [answer.id]: { ...value, feedback: event.target.value } }))} placeholder={t('A clear next step will help this founder move forward.')} data-testid={`input-answer-feedback-${answer.id}`} /></label><div className="field-wide">{reviewErrorIds.has(answer.id) && <span className="form-error" role="alert" data-testid={`error-review-answer-${answer.id}`}>{t('Review not saved. Please retry.')}</span>}<button className="button button-primary" disabled={isPending} data-testid={`button-review-answer-${answer.id}`}>{isPending ? t('Saving…') : t('Save review')}</button></div></form></article>;
         })}</div>}
       </section>
       <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('OPEN CHANNEL')}</div><h2>{t('Participant questions')}</h2></div><MessageCircle size={18} /></div>
-        {!dashboard.questions.length ? <div className="empty-panel"><h3>{t('Nothing needs a reply.')}</h3><p>{t('Participant questions related to your cohorts will appear here.')}</p></div> : <div className="answer-list">{dashboard.questions.map(question => <article className="answer-card question-card" key={question.id} data-testid={`card-trainer-question-${question.id}`}><div className="answer-meta"><div><b>{question.founderName} · {question.businessName}</b><span>{question.programName}{question.sessionTitle ? ` · ${question.sessionTitle}` : ''}{question.assignmentTitle ? ` · ${question.assignmentTitle}` : ''}</span></div><span className={`badge badge-${question.reply ? 'good' : 'warm'}`}><span />{question.reply ? t('Answered') : t('Needs reply')}</span></div><blockquote>{question.question}</blockquote>{question.reply && <p className="role-reply"><b>{t('Your reply')}</b>{question.reply}</p>}{!question.reply && <form className="role-reply-form" onSubmit={event => sendReply(event, question.id)}><label className="sr-only" htmlFor={`reply-${question.id}`}>{t('Reply to')} {question.founderName}</label><textarea id={`reply-${question.id}`} className="form-control" rows={2} value={replies[question.id] || ''} onChange={event => setReplies(old => ({ ...old, [question.id]: event.target.value }))} required maxLength={3000} placeholder={t('Write a thoughtful reply…')} data-testid={`input-reply-question-${question.id}`} /><button className="button button-primary" disabled={reply.isPending} data-testid={`button-send-reply-${question.id}`}>{reply.isPending ? t('Sending…') : t('Send reply')}</button></form>}</article>)}</div>}
+         {!dashboard.questions.length ? <div className="empty-panel"><h3>{t('Nothing needs a reply.')}</h3><p>{t('Participant questions related to your cohorts will appear here.')}</p></div> : <div className="answer-list">{dashboard.questions.map(question => {
+           const isPending = replyPendingIds.has(question.id);
+           return <article className="answer-card question-card" key={question.id} data-testid={`card-trainer-question-${question.id}`}><div className="answer-meta"><div><b>{question.founderName} · {question.businessName}</b><span>{question.programName}{question.sessionTitle ? ` · ${question.sessionTitle}` : ''}{question.assignmentTitle ? ` · ${question.assignmentTitle}` : ''}</span></div><span className={`badge badge-${question.reply ? 'good' : 'warm'}`}><span />{question.reply ? t('Answered') : t('Needs reply')}</span></div><blockquote>{question.question}</blockquote>{question.reply && <p className="role-reply"><b>{t('Your reply')}</b>{question.reply}</p>}{!question.reply && <form className="role-reply-form" onSubmit={event => sendReply(event, question.id)}><label className="sr-only" htmlFor={`reply-${question.id}`}>{t('Reply to')} {question.founderName}</label><textarea id={`reply-${question.id}`} className="form-control" rows={2} value={replies[question.id] || ''} onChange={event => setReplies(old => ({ ...old, [question.id]: event.target.value }))} required maxLength={3000} placeholder={t('Write a thoughtful reply…')} data-testid={`input-reply-question-${question.id}`} />{replyErrorIds.has(question.id) && <p className="form-error field-wide" role="alert" data-testid={`error-reply-question-${question.id}`}>{t('Reply not sent. Please retry.')}</p>}<button className="button button-primary" disabled={isPending} data-testid={`button-send-reply-${question.id}`}>{isPending ? t('Sending…') : t('Send reply')}</button></form>}</article>;
+         })}</div>}
       </section>
     </>}
   </RoleFrame>;
