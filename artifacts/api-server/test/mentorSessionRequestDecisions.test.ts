@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 import express from "express";
+import { getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { requireOperationsStaff } from "../src/middlewares/staffAccess";
 
@@ -10,6 +11,7 @@ let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
 let restoreUpdate: (() => void) | undefined;
+let restoreInsert: (() => void) | undefined;
 let selectedProgramRows: unknown[] = [];
 let selectedMentorRows: unknown[] = [];
 let databaseSelectCalls = 0;
@@ -24,6 +26,12 @@ let dashboardMode = false;
 let dashboardHistoryRows: Record<string, unknown>[] = [];
 let dashboardHistoryWhereQueries: ReturnType<PgDialect["sqlToQuery"]>[] = [];
 let dashboardEngagementRows: Record<string, unknown>[] = [];
+let creatingRequests = false;
+let createRequestRows: Record<string, unknown>[] = [];
+let createInsertAttempts = 0;
+let expectedCreateInsertAttempts = 0;
+let finishCreateInsertBarrier!: () => void;
+let createInsertBarrier: Promise<void> = Promise.resolve();
 
 const assignedStaff = {
   id: 71,
@@ -80,6 +88,53 @@ function makeDashboardQuery(projection: Record<string, unknown>) {
     limit: async () => rows,
     orderBy: () => query,
     groupBy: () => query,
+  };
+  query.then = (resolve, reject) => Promise.resolve(rows).then(resolve as never, reject as never);
+  return query;
+}
+
+function makeCreateRequestQuery(projection: Record<string, unknown>) {
+  const keys = Object.keys(projection);
+  let tableName = "";
+  let rows: Record<string, unknown>[] = [];
+  const query: Record<string, (...args: unknown[]) => unknown> = {
+    from: (table) => {
+      tableName = getTableName(table as never);
+      if (tableName === "jusoor_programs") {
+        rows = keys.includes("sessionTarget")
+          ? [{ id: 12, name: "Test program", sessionTarget: 1 }]
+          : [{ id: 12 }];
+      } else if (tableName === "mentor_session_requests" && keys.includes("approvedAdditionalSessions")) {
+        rows = [{ approvedAdditionalSessions: null }];
+      } else if (tableName === "jusoor_mentor_meeting_reports") {
+        rows = [{ reportedSessions: 1 }];
+      } else if (tableName === "jusoor_staff_members") {
+        rows = keys.includes("clerkUserId") ? [{ clerkUserId: null, displayName: null }] : [];
+      }
+      return query;
+    },
+    where: (condition) => {
+      const params = new PgDialect().sqlToQuery(condition as never).params;
+      if (tableName === "jusoor_support") {
+        const supportId = params.find((param) => param === 301 || param === 302);
+        const businessId = supportId === 302 ? 901 : 900;
+        rows = [{
+          id: supportId,
+          businessId,
+          businessName: `Business ${businessId}`,
+          programId: 12,
+        }];
+      } else if (tableName === "mentor_session_requests" && keys.includes("id")) {
+        const businessId = params.find((param) => param === 900 || param === 901);
+        rows = createRequestRows.filter((row) =>
+          row.businessId === businessId && row.status === "open",
+        );
+      }
+      return query;
+    },
+    innerJoin: () => query,
+    leftJoin: () => query,
+    limit: async (limit) => rows.slice(0, Number(limit)),
   };
   query.then = (resolve, reject) => Promise.resolve(rows).then(resolve as never, reject as never);
   return query;
@@ -152,8 +207,10 @@ before(async () => {
   Object.defineProperty(db, "select", {
     configurable: true,
     writable: true,
-    value: (projection?: Record<string, unknown>) =>
-      dashboardMode ? makeDashboardQuery(projection ?? {}) : makeProgramScopeQuery(),
+    value: (projection?: Record<string, unknown>) => {
+      if (creatingRequests) return makeCreateRequestQuery(projection ?? {});
+      return dashboardMode ? makeDashboardQuery(projection ?? {}) : makeProgramScopeQuery();
+    },
   });
   restoreSelect = () => {
     if (originalSelect) Object.defineProperty(db, "select", originalSelect);
@@ -168,6 +225,43 @@ before(async () => {
   restoreUpdate = () => {
     if (originalUpdate) Object.defineProperty(db, "update", originalUpdate);
     else Reflect.deleteProperty(db, "update");
+  };
+  const originalInsert = Object.getOwnPropertyDescriptor(db, "insert");
+  Object.defineProperty(db, "insert", {
+    configurable: true,
+    writable: true,
+    value: () => ({
+      values: (values: Record<string, unknown>) => ({
+        returning: async () => {
+          createInsertAttempts += 1;
+          if (createInsertAttempts === expectedCreateInsertAttempts) finishCreateInsertBarrier();
+          await createInsertBarrier;
+          if (createRequestRows.some((row) =>
+            row.businessId === values.businessId && row.status === "open",
+          )) {
+            throw Object.assign(new Error("duplicate open mentor-session request"), { code: "23505" });
+          }
+          const request = {
+            ...values,
+            id: 800 + createRequestRows.length,
+            decision: null,
+            approvedAdditionalSessions: null,
+            status: "open",
+            emailNotificationStatus: "pending",
+            emailNotificationUpdatedAt: new Date("2026-10-21T12:00:00.000Z"),
+            createdAt: new Date("2026-10-21T12:00:00.000Z"),
+            resolvedAt: null,
+            resolvedByStaffId: null,
+          };
+          createRequestRows.push(request);
+          return [request];
+        },
+      }),
+    }),
+  });
+  restoreInsert = () => {
+    if (originalInsert) Object.defineProperty(db, "insert", originalInsert);
+    else Reflect.deleteProperty(db, "insert");
   };
   const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
   Object.defineProperty(db, "transaction", {
@@ -197,6 +291,7 @@ after(async () => {
   restoreSelect?.();
   restoreTransaction?.();
   restoreUpdate?.();
+  restoreInsert?.();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
@@ -217,6 +312,12 @@ beforeEach(() => {
   dashboardHistoryRows = [];
   dashboardHistoryWhereQueries = [];
   dashboardEngagementRows = [];
+  creatingRequests = false;
+  createRequestRows = [];
+  createInsertAttempts = 0;
+  expectedCreateInsertAttempts = 0;
+  createInsertBarrier = Promise.resolve();
+  finishCreateInsertBarrier = () => undefined;
 });
 
 async function decide(body: Record<string, unknown>) {
@@ -242,6 +343,65 @@ async function withdraw(requestId: number) {
     method: "POST",
   });
 }
+
+async function requestAdditionalSessions(supportId: number) {
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return fetch(`http://127.0.0.1:${address.port}/api/mentor/support/${supportId}/additional-session-requests`, {
+    method: "POST",
+  });
+}
+
+function beginConcurrentRequestCreates(expectedInsertions: number) {
+  creatingRequests = true;
+  expectedCreateInsertAttempts = expectedInsertions;
+  createInsertBarrier = new Promise<void>((resolve) => {
+    finishCreateInsertBarrier = resolve;
+  });
+}
+
+test("simultaneous extra-session requests keep one open request per business", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  beginConcurrentRequestCreates(2);
+
+  const responses = await Promise.all([
+    requestAdditionalSessions(301),
+    requestAdditionalSessions(301),
+  ]);
+
+  assert.deepEqual(
+    responses.map(({ status }) => status).sort(),
+    [201, 409],
+    JSON.stringify(await Promise.all(responses.map((response) => response.clone().json()))),
+  );
+  const conflict = responses.find(({ status }) => status === 409);
+  assert.ok(conflict);
+  assert.match(
+    (await conflict.json() as { error: string }).error,
+    /already open for this business/i,
+  );
+  assert.equal(createRequestRows.filter(({ businessId, status }) => businessId === 900 && status === "open").length, 1);
+});
+
+test("simultaneous extra-session requests for separate businesses remain independent", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  beginConcurrentRequestCreates(2);
+
+  const responses = await Promise.all([
+    requestAdditionalSessions(301),
+    requestAdditionalSessions(302),
+  ]);
+
+  assert.deepEqual(
+    responses.map(({ status }) => status),
+    [201, 201],
+    JSON.stringify(await Promise.all(responses.map((response) => response.clone().json()))),
+  );
+  assert.deepEqual(createRequestRows.map(({ businessId, status }) => ({ businessId, status })), [
+    { businessId: 900, status: "open" },
+    { businessId: 901, status: "open" },
+  ]);
+});
 
 test("assigned program staff can approve an extra-session count atomically", async () => {
   const response = await decide({ decision: "approved", approvedAdditionalSessions: 3 });
