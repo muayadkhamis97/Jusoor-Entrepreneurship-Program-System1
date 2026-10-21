@@ -5246,7 +5246,10 @@ components:
             mentorSessionsPerBusiness: { type: integer, minimum: 0 }
             reportedOneToOneSessions: { type: integer, minimum: 0 }
             openAdditionalSessionsEmailStatus: { type: ["string", "null"], enum: [pending, delivered, failed, null] }
-          required: [mentorSessionsPerBusiness, reportedOneToOneSessions, openAdditionalSessionsEmailStatus]
+            additionalSessionRequests:
+              type: array
+              items: { $ref: "#/components/schemas/MentorAdditionalSessionRequestHistory" }
+          required: [mentorSessionsPerBusiness, reportedOneToOneSessions, openAdditionalSessionsEmailStatus, additionalSessionRequests]
     MentorEngagementUpdate:
       type: object
       properties:
@@ -5371,6 +5374,17 @@ components:
         canRetryEmail: { type: boolean }
         createdAt: { type: string, format: date-time }
       required: [id, supportId, businessId, programId, businessName, mentorName, mentorEmail, reportedSessionsAtRequest, sessionTargetAtRequest, decision, approvedAdditionalSessions, status, emailNotificationStatus, canRetryEmail, createdAt]
+    MentorAdditionalSessionRequestHistory:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [open, resolved] }
+        decision: { type: ["string", "null"], enum: [approved, declined, null] }
+        approvedAdditionalSessions: { type: ["integer", "null"], minimum: 1, maximum: 1000 }
+        emailNotificationStatus: { type: string, enum: [pending, delivered, failed] }
+        createdAt: { type: string, format: date-time }
+        resolvedAt: { type: ["string", "null"], format: date-time }
+      required: [id, status, decision, approvedAdditionalSessions, emailNotificationStatus, createdAt, resolvedAt]
     StaffMentorAdditionalSessionRequest:
       allOf:
         - $ref: "#/components/schemas/MentorAdditionalSessionRequest"

@@ -2004,6 +2004,51 @@ export const MentorDashboardEngagementOpenAdditionalSessionsEmailStatus = {
   failed: 'failed',
 } as const;
 
+export type MentorAdditionalSessionRequestHistoryStatus = typeof MentorAdditionalSessionRequestHistoryStatus[keyof typeof MentorAdditionalSessionRequestHistoryStatus];
+
+
+export const MentorAdditionalSessionRequestHistoryStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+/**
+ * @nullable
+ */
+export type MentorAdditionalSessionRequestHistoryDecision = typeof MentorAdditionalSessionRequestHistoryDecision[keyof typeof MentorAdditionalSessionRequestHistoryDecision] | null;
+
+
+export const MentorAdditionalSessionRequestHistoryDecision = {
+  approved: 'approved',
+  declined: 'declined',
+} as const;
+
+export type MentorAdditionalSessionRequestHistoryEmailNotificationStatus = typeof MentorAdditionalSessionRequestHistoryEmailNotificationStatus[keyof typeof MentorAdditionalSessionRequestHistoryEmailNotificationStatus];
+
+
+export const MentorAdditionalSessionRequestHistoryEmailNotificationStatus = {
+  pending: 'pending',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
+export interface MentorAdditionalSessionRequestHistory {
+  id: number;
+  status: MentorAdditionalSessionRequestHistoryStatus;
+  /** @nullable */
+  decision: MentorAdditionalSessionRequestHistoryDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     * @nullable
+     */
+  approvedAdditionalSessions: number | null;
+  emailNotificationStatus: MentorAdditionalSessionRequestHistoryEmailNotificationStatus;
+  createdAt: string;
+  /** @nullable */
+  resolvedAt: string | null;
+}
+
 export type MentorDashboardEngagement = MentorEngagement & {
   /** @minimum 0 */
   mentorSessionsPerBusiness: number;
@@ -2011,6 +2056,7 @@ export type MentorDashboardEngagement = MentorEngagement & {
   reportedOneToOneSessions: number;
   /** @nullable */
   openAdditionalSessionsEmailStatus: MentorDashboardEngagementOpenAdditionalSessionsEmailStatus;
+  additionalSessionRequests: MentorAdditionalSessionRequestHistory[];
 };
 
 export interface MentorEngagementUpdate {

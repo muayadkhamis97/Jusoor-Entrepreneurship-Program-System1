@@ -16,6 +16,8 @@ test('engagement list delegates feedback ownership to keyed card components', ()
   assert.match(parent, /resolveRequest\('declined'\)/);
   assert.match(parent, /request\.canRetryEmail/);
   assert.match(parent, /Retry email notification/);
+  assert.match(parent, /item\.additionalSessionRequests\.map/);
+  assert.match(parent, /request\.decision/);
   assert.doesNotMatch(parent, /useUpdateAssignedMentoring/);
   assert.match(component, /const update = useUpdateAssignedMentoring\(\)/);
   assert.match(component, /update.mutate\(\{ id: item.id, data \}/);

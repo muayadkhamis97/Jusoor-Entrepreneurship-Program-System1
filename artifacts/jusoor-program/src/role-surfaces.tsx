@@ -641,6 +641,18 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
             }}>{additionalSessionRequestPendingIds.has(item.id) ? t('Sending request…') : t('Request additional sessions')}</Button>)}
           {additionalSessionRequestErrorIds.has(item.id) && <p className="form-error" role="alert">{t('Your request could not be sent. Check the connection and try again.')}</p>}
         </section>
+        {item.additionalSessionRequests.length > 0 && <section className="mentor-session-progress" aria-label={t('Additional session request history')} data-testid={`additional-session-history-${item.businessId}`}>
+          <div className="mentor-session-progress-heading"><b>{t('Additional session request history')}</b></div>
+          {item.additionalSessionRequests.map(request => <p key={request.id} data-testid={`additional-session-history-item-${request.id}`}>
+            {dateTimeText(request.createdAt)} · {request.decision === 'approved'
+              ? `${t('Approved')}: ${request.approvedAdditionalSessions} ${t('additional sessions')}`
+              : request.decision === 'declined'
+                ? t('Request declined.')
+                : request.status === 'open'
+                  ? t('Request awaiting review.')
+                  : t('Request reviewed.')}
+          </p>)}
+        </section>}
         <MentorEngagementCard item={item} draft={draft} onDraftChange={next => setDrafts(old => ({ ...old, [item.id]: next }))} />
       </div>;
     })}</div></section>)}

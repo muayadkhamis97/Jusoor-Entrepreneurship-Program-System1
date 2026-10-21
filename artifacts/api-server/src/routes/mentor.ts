@@ -269,26 +269,40 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
   }
   const staff = res.locals.staff as StaffAccess;
   const programIds = await activeProgramIdsFor(staff);
-  const [request] = await db.update(mentorSessionRequestsTable)
-    .set({
-      status: "resolved",
-      decision: body.data.decision,
-      approvedAdditionalSessions: body.data.decision === "approved" ? body.data.approvedAdditionalSessions! : null,
-      resolvedAt: new Date(),
-      resolvedByStaffId: staff.id,
-    })
-    .where(and(
-      eq(mentorSessionRequestsTable.id, params.data.id),
-      eq(mentorSessionRequestsTable.status, "open"),
-      inArray(mentorSessionRequestsTable.programId, programIds),
-    ))
-    .returning({
+  const request = await db.transaction(async (tx) => {
+    const [openRequest] = await tx.select({
       id: mentorSessionRequestsTable.id,
-      status: mentorSessionRequestsTable.status,
-      decision: mentorSessionRequestsTable.decision,
-      approvedAdditionalSessions: mentorSessionRequestsTable.approvedAdditionalSessions,
-      resolvedAt: mentorSessionRequestsTable.resolvedAt,
-    });
+    }).from(mentorSessionRequestsTable)
+      .where(and(
+        eq(mentorSessionRequestsTable.id, params.data.id),
+        eq(mentorSessionRequestsTable.status, "open"),
+        inArray(mentorSessionRequestsTable.programId, programIds),
+      ))
+      .for("update")
+      .limit(1);
+    if (!openRequest) return null;
+    const [resolved] = await tx.update(mentorSessionRequestsTable)
+      .set({
+        status: "resolved",
+        decision: body.data.decision,
+        approvedAdditionalSessions: body.data.decision === "approved" ? body.data.approvedAdditionalSessions! : null,
+        resolvedAt: new Date(),
+        resolvedByStaffId: staff.id,
+      })
+      .where(and(
+        eq(mentorSessionRequestsTable.id, openRequest.id),
+        eq(mentorSessionRequestsTable.status, "open"),
+        inArray(mentorSessionRequestsTable.programId, programIds),
+      ))
+      .returning({
+        id: mentorSessionRequestsTable.id,
+        status: mentorSessionRequestsTable.status,
+        decision: mentorSessionRequestsTable.decision,
+        approvedAdditionalSessions: mentorSessionRequestsTable.approvedAdditionalSessions,
+        resolvedAt: mentorSessionRequestsTable.resolvedAt,
+      });
+    return resolved ?? null;
+  });
   if (!request?.resolvedAt) {
     res.status(404).json({ error: "Open request is not available to this staff member." });
     return;
@@ -493,6 +507,7 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     approvedAdditionalSessions: request.approvedAdditionalSessions,
     status: request.status,
     emailNotificationStatus,
+    canRetryEmail: canRetryMentorSessionRequestEmail(emailNotificationStatus, new Date()),
     createdAt: request.createdAt,
   }));
 });
@@ -874,7 +889,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       inArray(businessesTable.programId, programIds),
     ))
     .orderBy(asc(supportTable.scheduledDate));
-  const [reportedRows, openRequests, approvedSessionRows] = await Promise.all([
+  const [reportedRows, openRequests, approvedSessionRows, requestHistory] = await Promise.all([
     db.select({
       businessId: supportTable.businessId,
       reportedSessions: count(mentorMeetingReportsTable.id),
@@ -903,6 +918,21 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
         eq(mentorSessionRequestsTable.decision, "approved"),
       ))
       .groupBy(mentorSessionRequestsTable.businessId),
+    db.select({
+      id: mentorSessionRequestsTable.id,
+      businessId: mentorSessionRequestsTable.businessId,
+      status: mentorSessionRequestsTable.status,
+      decision: mentorSessionRequestsTable.decision,
+      approvedAdditionalSessions: mentorSessionRequestsTable.approvedAdditionalSessions,
+      emailNotificationStatus: mentorSessionRequestsTable.emailNotificationStatus,
+      createdAt: mentorSessionRequestsTable.createdAt,
+      resolvedAt: mentorSessionRequestsTable.resolvedAt,
+    }).from(mentorSessionRequestsTable)
+      .where(and(
+        eq(mentorSessionRequestsTable.mentorStaffId, staff.id),
+        inArray(mentorSessionRequestsTable.programId, programIds),
+      ))
+      .orderBy(desc(mentorSessionRequestsTable.createdAt), desc(mentorSessionRequestsTable.id)),
   ]);
   const reportedSessionsByBusiness = new Map(reportedRows.map((row) => [
     row.businessId,
@@ -916,6 +946,12 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     request.businessId,
     Number(request.approvedAdditionalSessions ?? 0),
   ]));
+  const requestHistoryByBusiness = new Map<number, typeof requestHistory>();
+  for (const request of requestHistory) {
+    const history = requestHistoryByBusiness.get(request.businessId) ?? [];
+    history.push(request);
+    requestHistoryByBusiness.set(request.businessId, history);
+  }
   res.json(GetMentorDashboardResponse.parse({
     engagements: engagements.map((engagement) => ({
       ...engagement,
@@ -925,6 +961,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       ),
       reportedOneToOneSessions: reportedSessionsByBusiness.get(engagement.businessId) ?? 0,
       openAdditionalSessionsEmailStatus: openRequestByBusiness.get(engagement.businessId) ?? null,
+      additionalSessionRequests: requestHistoryByBusiness.get(engagement.businessId) ?? [],
     })),
     bookingProvider: staff.bookingProvider,
     calendlyBookingUrl: staff.calendlyBookingUrl,

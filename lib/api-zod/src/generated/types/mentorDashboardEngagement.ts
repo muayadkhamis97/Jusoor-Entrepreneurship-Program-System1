@@ -5,6 +5,7 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { MentorAdditionalSessionRequestHistory } from './mentorAdditionalSessionRequestHistory';
 import type { MentorDashboardEngagementOpenAdditionalSessionsEmailStatus } from './mentorDashboardEngagementOpenAdditionalSessionsEmailStatus';
 import type { MentorEngagement } from './mentorEngagement';
 
@@ -15,4 +16,5 @@ export type MentorDashboardEngagement = MentorEngagement & {
   reportedOneToOneSessions: number;
   /** @nullable */
   openAdditionalSessionsEmailStatus: MentorDashboardEngagementOpenAdditionalSessionsEmailStatus;
+  additionalSessionRequests: MentorAdditionalSessionRequestHistory[];
 };

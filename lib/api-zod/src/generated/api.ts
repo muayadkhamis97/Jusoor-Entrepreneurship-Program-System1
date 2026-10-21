@@ -3118,6 +3118,8 @@ export const getMentorDashboardResponseEngagementsItemTwoMentorSessionsPerBusine
 
 export const getMentorDashboardResponseEngagementsItemTwoReportedOneToOneSessionsMin = 0;
 
+export const getMentorDashboardResponseEngagementsItemTwoAdditionalSessionRequestsItemApprovedAdditionalSessionsMax = 1000;
+
 
 
 export const GetMentorDashboardResponse = zod.object({
@@ -3136,7 +3138,16 @@ export const GetMentorDashboardResponse = zod.object({
 }).and(zod.object({
   "mentorSessionsPerBusiness": zod.number().int().min(getMentorDashboardResponseEngagementsItemTwoMentorSessionsPerBusinessMin),
   "reportedOneToOneSessions": zod.number().int().min(getMentorDashboardResponseEngagementsItemTwoReportedOneToOneSessionsMin),
-  "openAdditionalSessionsEmailStatus": zod.union([zod.literal('pending'),zod.literal('delivered'),zod.literal('failed'),zod.literal(null)]).nullable()
+  "openAdditionalSessionsEmailStatus": zod.union([zod.literal('pending'),zod.literal('delivered'),zod.literal('failed'),zod.literal(null)]).nullable(),
+  "additionalSessionRequests": zod.array(zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['open', 'resolved']),
+  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal(null)]).nullable(),
+  "approvedAdditionalSessions": zod.number().int().min(1).max(getMentorDashboardResponseEngagementsItemTwoAdditionalSessionRequestsItemApprovedAdditionalSessionsMax).nullable(),
+  "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable()
+}))
 }))),
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyBookingUrl": zod.string().url().nullable(),
