@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MentorBookingProvider } from './mentorBookingProvider';
-import type { MentorEngagement } from './mentorEngagement';
+import type { MentorDashboardEngagement } from './mentorDashboardEngagement';
 
 export interface MentorDashboard {
-  engagements: MentorEngagement[];
+  engagements: MentorDashboardEngagement[];
   bookingProvider: MentorBookingProvider;
   /** @nullable */
   calendlyBookingUrl: string | null;

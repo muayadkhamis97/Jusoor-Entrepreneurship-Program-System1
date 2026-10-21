@@ -29,6 +29,8 @@ export interface Program {
      * @pattern ^\d{4}-\d{2}-\d{2}$
      */
   applicationDeadline?: string | null;
+  /** @minimum 0 */
+  mentorSessionsPerBusiness: number;
   status: ProgramStatus;
   /** @nullable */
   archivedAt: Date | null;

@@ -1098,6 +1098,8 @@ export const ListProgramsQueryParams = zod.object({
 export const listProgramsResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listProgramsResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listProgramsResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listProgramsResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const ListProgramsResponseItem = zod.object({
@@ -1108,6 +1110,7 @@ export const ListProgramsResponseItem = zod.object({
   "startDate": zod.string().regex(listProgramsResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(listProgramsResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(listProgramsResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(listProgramsResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1122,6 +1125,8 @@ export const ListProgramsResponse = zod.array(ListProgramsResponseItem)
 export const createProgramBodyStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const createProgramBodyEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const createProgramBodyApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createProgramBodyMentorSessionsPerBusinessMin = 0;
+
 
 
 export const CreateProgramBody = zod.object({
@@ -1131,12 +1136,15 @@ export const CreateProgramBody = zod.object({
   "startDate": zod.string().regex(createProgramBodyStartDateRegExp).nullish(),
   "endDate": zod.string().regex(createProgramBodyEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(createProgramBodyApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(createProgramBodyMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
 })
 
 export const createProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const createProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const createProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createProgramResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const CreateProgramResponse = zod.object({
@@ -1147,6 +1155,7 @@ export const CreateProgramResponse = zod.object({
   "startDate": zod.string().regex(createProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(createProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(createProgramResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(createProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1161,6 +1170,8 @@ export const UpdateProgramParams = zod.object({
 })
 
 
+export const updateProgramBodyMentorSessionsPerBusinessMin = 0;
+
 
 
 export const UpdateProgramBody = zod.object({
@@ -1170,12 +1181,15 @@ export const UpdateProgramBody = zod.object({
   "startDate": zod.coerce.date().nullish(),
   "endDate": zod.coerce.date().nullish(),
   "applicationDeadline": zod.coerce.date().nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(updateProgramBodyMentorSessionsPerBusinessMin).optional(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
 })
 
 export const updateProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const updateProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const updateProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateProgramResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const UpdateProgramResponse = zod.object({
@@ -1186,6 +1200,7 @@ export const UpdateProgramResponse = zod.object({
   "startDate": zod.string().regex(updateProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(updateProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(updateProgramResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(updateProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1242,6 +1257,8 @@ export const ArchiveProgramParams = zod.object({
 export const archiveProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const archiveProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const archiveProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const archiveProgramResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const ArchiveProgramResponse = zod.object({
@@ -1252,6 +1269,7 @@ export const ArchiveProgramResponse = zod.object({
   "startDate": zod.string().regex(archiveProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(archiveProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(archiveProgramResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(archiveProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1268,6 +1286,8 @@ export const RestoreProgramParams = zod.object({
 export const restoreProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const restoreProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const restoreProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const restoreProgramResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const RestoreProgramResponse = zod.object({
@@ -1278,6 +1298,7 @@ export const RestoreProgramResponse = zod.object({
   "startDate": zod.string().regex(restoreProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(restoreProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(restoreProgramResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(restoreProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -3092,7 +3113,11 @@ export const ReplyTrainingQuestionResponse = zod.object({
 /**
  * @summary Get the mentor's assigned business support
  */
-export const getMentorDashboardResponseEngagementsItemScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getMentorDashboardResponseEngagementsItemOneScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getMentorDashboardResponseEngagementsItemTwoMentorSessionsPerBusinessMin = 0;
+
+export const getMentorDashboardResponseEngagementsItemTwoReportedOneToOneSessionsMin = 0;
+
 
 
 export const GetMentorDashboardResponse = zod.object({
@@ -3105,10 +3130,14 @@ export const GetMentorDashboardResponse = zod.object({
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
   "topic": zod.string(),
-  "scheduledDate": zod.string().regex(getMentorDashboardResponseEngagementsItemScheduledDateRegExp).nullable(),
+  "scheduledDate": zod.string().regex(getMentorDashboardResponseEngagementsItemOneScheduledDateRegExp).nullable(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
   "notes": zod.string().nullable()
-})),
+}).and(zod.object({
+  "mentorSessionsPerBusiness": zod.number().int().min(getMentorDashboardResponseEngagementsItemTwoMentorSessionsPerBusinessMin),
+  "reportedOneToOneSessions": zod.number().int().min(getMentorDashboardResponseEngagementsItemTwoReportedOneToOneSessionsMin),
+  "openAdditionalSessionsEmailStatus": zod.union([zod.literal('pending'),zod.literal('delivered'),zod.literal('failed'),zod.literal(null)]).nullable()
+}))),
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyBookingUrl": zod.string().url().nullable(),
   "googleCalendarBookingUrl": zod.string().url().nullable(),
@@ -3213,6 +3242,84 @@ export const SubmitMentorMeetingReportResponse = zod.object({
   "achievementsAndOpportunities": zod.string(),
   "teamRecommendations": zod.string().nullable(),
   "submittedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Notify the program team that a business needs additional mentor sessions
+ */
+export const CreateMentorAdditionalSessionRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const createMentorAdditionalSessionRequestResponseReportedSessionsAtRequestMin = 0;
+
+export const createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin = 0;
+
+
+
+export const CreateMentorAdditionalSessionRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "supportId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "programId": zod.number().int(),
+  "businessName": zod.string(),
+  "mentorName": zod.string(),
+  "mentorEmail": zod.string().email(),
+  "reportedSessionsAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseReportedSessionsAtRequestMin),
+  "sessionTargetAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin),
+  "status": zod.enum(['open', 'resolved']),
+  "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List open requests for additional mentor sessions in an authorized program
+ */
+
+
+
+export const GetStaffMentorAdditionalSessionRequestsQueryParams = zod.object({
+  "programId": zod.coerce.number().int().min(1)
+})
+
+export const getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsAtRequestMin = 0;
+
+export const getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin = 0;
+
+
+
+export const GetStaffMentorAdditionalSessionRequestsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "supportId": zod.number().int(),
+  "businessId": zod.number().int(),
+  "programId": zod.number().int(),
+  "businessName": zod.string(),
+  "mentorName": zod.string(),
+  "mentorEmail": zod.string().email(),
+  "reportedSessionsAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsAtRequestMin),
+  "sessionTargetAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin),
+  "status": zod.enum(['open', 'resolved']),
+  "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "programName": zod.string()
+}))
+export const GetStaffMentorAdditionalSessionRequestsResponse = zod.array(GetStaffMentorAdditionalSessionRequestsResponseItem)
+
+
+/**
+ * @summary Mark an additional-session request as reviewed
+ */
+export const ResolveStaffMentorAdditionalSessionRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ResolveStaffMentorAdditionalSessionRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['resolved']),
+  "resolvedAt": zod.coerce.date()
 })
 
 
@@ -5673,6 +5780,8 @@ export const GetExternalProgramParams = zod.object({
 export const getExternalProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getExternalProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getExternalProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getExternalProgramResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const GetExternalProgramResponse = zod.object({
@@ -5683,6 +5792,7 @@ export const GetExternalProgramResponse = zod.object({
   "startDate": zod.string().regex(getExternalProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(getExternalProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(getExternalProgramResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(getExternalProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -5697,6 +5807,8 @@ export const UpdateExternalProgramParams = zod.object({
 })
 
 
+export const updateExternalProgramBodyMentorSessionsPerBusinessMin = 0;
+
 
 
 export const UpdateExternalProgramBody = zod.object({
@@ -5706,12 +5818,15 @@ export const UpdateExternalProgramBody = zod.object({
   "startDate": zod.coerce.date().nullish(),
   "endDate": zod.coerce.date().nullish(),
   "applicationDeadline": zod.coerce.date().nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(updateExternalProgramBodyMentorSessionsPerBusinessMin).optional(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
 })
 
 export const updateExternalProgramResponseStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const updateExternalProgramResponseEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const updateExternalProgramResponseApplicationDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateExternalProgramResponseMentorSessionsPerBusinessMin = 0;
+
 
 
 export const UpdateExternalProgramResponse = zod.object({
@@ -5722,6 +5837,7 @@ export const UpdateExternalProgramResponse = zod.object({
   "startDate": zod.string().regex(updateExternalProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(updateExternalProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(updateExternalProgramResponseApplicationDeadlineRegExp).nullish(),
+  "mentorSessionsPerBusiness": zod.number().int().min(updateExternalProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()

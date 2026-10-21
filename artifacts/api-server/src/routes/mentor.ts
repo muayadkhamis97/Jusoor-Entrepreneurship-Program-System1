@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import { clerkClient } from "@clerk/express";
 import {
   DisconnectGoogleCalendarResponse,
@@ -15,6 +15,12 @@ import {
   GetStaffMentorMeetingReportCoachesResponse,
   GetStaffMentorMeetingReportsQueryParams,
   GetStaffMentorMeetingReportsResponse,
+  CreateMentorAdditionalSessionRequestParams,
+  CreateMentorAdditionalSessionRequestResponse,
+  GetStaffMentorAdditionalSessionRequestsQueryParams,
+  GetStaffMentorAdditionalSessionRequestsResponse,
+  ResolveStaffMentorAdditionalSessionRequestParams,
+  ResolveStaffMentorAdditionalSessionRequestResponse,
   SubmitMentorMeetingReportBody,
   SubmitMentorMeetingReportParams,
   SubmitMentorMeetingReportResponse,
@@ -26,15 +32,19 @@ import {
   calendlyMeetingsTable,
   googleCalendarMeetingsTable,
   mentorMeetingReportsTable,
+  mentorSessionRequestsTable,
   participantBusinessMembershipsTable,
   programsTable,
   staffMembersTable,
+  staffProgramAssignmentsTable,
   supportTable,
   userProfilesTable,
 } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
+import { sendPlatformEmail } from "../lib/platform-email";
+import { additionalSessionRequestEligibility } from "../lib/mentor-session-quota";
 
 const router: IRouter = Router();
 export const staffMentorMeetingReportsRouter: IRouter = Router();
@@ -139,6 +149,210 @@ async function coachIdentity(staff: StaffAccess, req: Request) {
   }
   return { coachName: name || staff.email.split("@")[0] || staff.email, coachEmail: staff.email };
 }
+
+function escapeEmailHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+staffMentorMeetingReportsRouter.get("/mentor-additional-session-requests", async (req, res): Promise<void> => {
+  const query = GetStaffMentorAdditionalSessionRequestsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.includes(query.data.programId)) {
+    res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
+  const requests = await db.select({
+    id: mentorSessionRequestsTable.id,
+    supportId: mentorSessionRequestsTable.supportId,
+    businessId: mentorSessionRequestsTable.businessId,
+    programId: mentorSessionRequestsTable.programId,
+    businessName: businessesTable.businessName,
+    mentorName: userProfilesTable.displayName,
+    mentorEmail: staffMembersTable.email,
+    reportedSessionsAtRequest: mentorSessionRequestsTable.reportedSessionsAtRequest,
+    sessionTargetAtRequest: mentorSessionRequestsTable.sessionTargetAtRequest,
+    status: mentorSessionRequestsTable.status,
+    emailNotificationStatus: mentorSessionRequestsTable.emailNotificationStatus,
+    createdAt: mentorSessionRequestsTable.createdAt,
+    programName: programsTable.name,
+  }).from(mentorSessionRequestsTable)
+    .innerJoin(programsTable, eq(programsTable.id, mentorSessionRequestsTable.programId))
+    .innerJoin(businessesTable, eq(businessesTable.id, mentorSessionRequestsTable.businessId))
+    .innerJoin(staffMembersTable, eq(staffMembersTable.id, mentorSessionRequestsTable.mentorStaffId))
+    .leftJoin(userProfilesTable, eq(userProfilesTable.userId, staffMembersTable.clerkUserId))
+    .where(and(
+      eq(mentorSessionRequestsTable.programId, query.data.programId),
+      eq(mentorSessionRequestsTable.status, "open"),
+      inArray(mentorSessionRequestsTable.programId, programIds),
+    ))
+    .orderBy(desc(mentorSessionRequestsTable.createdAt), desc(mentorSessionRequestsTable.id));
+  res.json(GetStaffMentorAdditionalSessionRequestsResponse.parse(requests.map((request) => ({
+    ...request,
+    mentorName: request.mentorName?.trim() || request.mentorEmail.split("@")[0] || request.mentorEmail,
+  }))));
+});
+
+staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/resolve", async (req, res): Promise<void> => {
+  const params = ResolveStaffMentorAdditionalSessionRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  const [request] = await db.update(mentorSessionRequestsTable)
+    .set({ status: "resolved", resolvedAt: new Date(), resolvedByStaffId: staff.id })
+    .where(and(
+      eq(mentorSessionRequestsTable.id, params.data.id),
+      eq(mentorSessionRequestsTable.status, "open"),
+      inArray(mentorSessionRequestsTable.programId, programIds),
+    ))
+    .returning({
+      id: mentorSessionRequestsTable.id,
+      status: mentorSessionRequestsTable.status,
+      resolvedAt: mentorSessionRequestsTable.resolvedAt,
+    });
+  if (!request?.resolvedAt) {
+    res.status(404).json({ error: "Open request is not available to this staff member." });
+    return;
+  }
+  res.json(ResolveStaffMentorAdditionalSessionRequestResponse.parse(request));
+});
+
+router.post("/support/:id/additional-session-requests", async (req, res): Promise<void> => {
+  const params = CreateMentorAdditionalSessionRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  const business = await findAssignedMeetingBusiness(params.data.id, staff, programIds);
+  if (!business) {
+    res.status(404).json({ error: "Engagement is not assigned to this mentor." });
+    return;
+  }
+
+  const [program] = await db.select({
+    id: programsTable.id,
+    name: programsTable.name,
+    sessionTarget: programsTable.mentorSessionsPerBusiness,
+  }).from(programsTable).where(eq(programsTable.id, business.programId)).limit(1);
+  if (!program) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  const [reportedRow] = await db.select({
+    reportedSessions: count(mentorMeetingReportsTable.id),
+  }).from(mentorMeetingReportsTable)
+    .innerJoin(supportTable, eq(supportTable.id, mentorMeetingReportsTable.supportId))
+    .where(and(
+      eq(supportTable.businessId, business.businessId),
+      eq(supportTable.type, "mentor"),
+    ));
+  const reportedSessions = Number(reportedRow?.reportedSessions ?? 0);
+  const [existing] = await db.select({ id: mentorSessionRequestsTable.id })
+    .from(mentorSessionRequestsTable)
+    .where(and(
+      eq(mentorSessionRequestsTable.businessId, business.businessId),
+      eq(mentorSessionRequestsTable.status, "open"),
+    ))
+    .limit(1);
+  const eligibility = additionalSessionRequestEligibility({
+    reportedSessions,
+    sessionTarget: program.sessionTarget,
+    hasOpenRequest: Boolean(existing),
+  });
+  if (eligibility === "target_not_configured") {
+    res.status(409).json({ error: "The program session target has not been set." });
+    return;
+  }
+  if (eligibility === "target_not_reached") {
+    res.status(409).json({ error: "The business has not reached its planned mentor-session target." });
+    return;
+  }
+  if (eligibility === "request_already_open") {
+    res.status(409).json({ error: "An additional-session request is already open for this business." });
+    return;
+  }
+
+  let request: typeof mentorSessionRequestsTable.$inferSelect;
+  try {
+    [request] = await db.insert(mentorSessionRequestsTable).values({
+      supportId: business.id,
+      businessId: business.businessId,
+      programId: business.programId,
+      mentorStaffId: staff.id,
+      reportedSessionsAtRequest: reportedSessions,
+      sessionTargetAtRequest: program.sessionTarget,
+    }).returning();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      res.status(409).json({ error: "An additional-session request is already open for this business." });
+      return;
+    }
+    throw error;
+  }
+  const identity = await coachIdentity(staff, req);
+  let emailNotificationStatus: "delivered" | "failed" = "failed";
+  try {
+    const [coordinators, programStaff] = await Promise.all([
+      db.select({ email: staffMembersTable.email }).from(staffMembersTable)
+        .where(and(
+          eq(staffMembersTable.role, "coordinator"),
+          eq(staffMembersTable.status, "active"),
+        )),
+      db.select({ email: staffMembersTable.email }).from(staffMembersTable)
+        .innerJoin(staffProgramAssignmentsTable, eq(staffProgramAssignmentsTable.staffId, staffMembersTable.id))
+        .where(and(
+          eq(staffProgramAssignmentsTable.programId, business.programId),
+          eq(staffMembersTable.role, "staff"),
+          eq(staffMembersTable.status, "active"),
+        )),
+    ]);
+    const recipients = [...new Set([...coordinators, ...programStaff].map(({ email }) => email))];
+    if (!recipients.length) {
+      req.log.warn({ requestId: request.id, programId: business.programId }, "No active program team recipients for additional mentor sessions");
+    } else {
+      const safeProgramName = escapeEmailHtml(program.name);
+      const safeMentorName = escapeEmailHtml(identity.coachName);
+      const summary = `${identity.coachName} requested additional one-to-one sessions for ${business.businessName}. ${reportedSessions} session reports have been submitted; the program target is ${program.sessionTarget}.`;
+      await sendPlatformEmail({
+        recipients,
+        subject: `Additional one-to-one sessions requested: ${business.businessName}`,
+        text: `${summary}\nProgram: ${program.name}\nMentor: ${identity.coachName} (${identity.coachEmail})`,
+      html: `<p>${escapeEmailHtml(summary)}</p><p><strong>Program:</strong> ${safeProgramName}<br><strong>Mentor:</strong> ${safeMentorName} (${escapeEmailHtml(identity.coachEmail)})</p>`,
+        idempotencyKey: `mentor-additional-sessions-${request.id}`,
+      });
+      emailNotificationStatus = "delivered";
+    }
+  } catch (error) {
+    req.log.error({ err: error, requestId: request.id }, "Additional mentor-session request email failed");
+  }
+  await db.update(mentorSessionRequestsTable)
+    .set({ emailNotificationStatus })
+    .where(eq(mentorSessionRequestsTable.id, request.id));
+  res.status(201).json(CreateMentorAdditionalSessionRequestResponse.parse({
+    id: request.id,
+    supportId: request.supportId,
+    businessId: request.businessId,
+    programId: request.programId,
+    businessName: business.businessName,
+    mentorName: identity.coachName,
+    mentorEmail: identity.coachEmail,
+    reportedSessionsAtRequest: request.reportedSessionsAtRequest,
+    sessionTargetAtRequest: request.sessionTargetAtRequest,
+    status: request.status,
+    emailNotificationStatus,
+    createdAt: request.createdAt,
+  }));
+});
 
 staffMentorMeetingReportsRouter.get("/mentor-meeting-report-coaches", async (req, res): Promise<void> => {
   const query = GetStaffMentorMeetingReportCoachesQueryParams.safeParse(req.query);
@@ -502,6 +716,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     businessName: businessesTable.businessName,
     founderName: businessesTable.founderName,
     programName: programsTable.name,
+    mentorSessionsPerBusiness: programsTable.mentorSessionsPerBusiness,
     type: supportTable.type,
     provider: supportTable.provider,
     topic: supportTable.topic,
@@ -516,8 +731,41 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       inArray(businessesTable.programId, programIds),
     ))
     .orderBy(asc(supportTable.scheduledDate));
+  const [reportedRows, openRequests] = await Promise.all([
+    db.select({
+      businessId: supportTable.businessId,
+      reportedSessions: count(mentorMeetingReportsTable.id),
+    }).from(mentorMeetingReportsTable)
+      .innerJoin(supportTable, eq(supportTable.id, mentorMeetingReportsTable.supportId))
+      .innerJoin(businessesTable, eq(businessesTable.id, supportTable.businessId))
+      .where(and(
+        eq(supportTable.type, "mentor"),
+        inArray(businessesTable.programId, programIds),
+      ))
+      .groupBy(supportTable.businessId),
+    db.select({
+      businessId: mentorSessionRequestsTable.businessId,
+      emailNotificationStatus: mentorSessionRequestsTable.emailNotificationStatus,
+    }).from(mentorSessionRequestsTable)
+      .where(and(
+        inArray(mentorSessionRequestsTable.programId, programIds),
+        eq(mentorSessionRequestsTable.status, "open"),
+      )),
+  ]);
+  const reportedSessionsByBusiness = new Map(reportedRows.map((row) => [
+    row.businessId,
+    Number(row.reportedSessions),
+  ]));
+  const openRequestByBusiness = new Map(openRequests.map((request) => [
+    request.businessId,
+    request.emailNotificationStatus,
+  ]));
   res.json(GetMentorDashboardResponse.parse({
-    engagements,
+    engagements: engagements.map((engagement) => ({
+      ...engagement,
+      reportedOneToOneSessions: reportedSessionsByBusiness.get(engagement.businessId) ?? 0,
+      openAdditionalSessionsEmailStatus: openRequestByBusiness.get(engagement.businessId) ?? null,
+    })),
     bookingProvider: staff.bookingProvider,
     calendlyBookingUrl: staff.calendlyBookingUrl,
     googleCalendarBookingUrl: staff.googleCalendarBookingUrl,

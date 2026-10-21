@@ -11,6 +11,9 @@ import {
   useStartGoogleCalendarConnection, useUpdateMentorBookingSettings, useDisconnectGoogleCalendar,
   getGetProgramBrandingQueryKey, getGetStaffMentorMeetingReportsQueryKey,
   getGetStaffMentorMeetingReportCoachesQueryKey, useGetStaffMentorMeetingReportCoaches,
+  getGetStaffMentorAdditionalSessionRequestsQueryKey,
+  useGetStaffMentorAdditionalSessionRequests, useResolveStaffMentorAdditionalSessionRequest,
+  useCreateMentorAdditionalSessionRequest,
   getListBusinessesQueryKey, getListProgramsQueryKey, useGetProgramBranding,
   useGetStaffMentorMeetingReports, useListBusinesses, useListPrograms,
 } from '@workspace/api-client-react';
@@ -24,6 +27,7 @@ import { Button } from '@workspace/program-editorial/components/ui/button';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
+import './mentor-session-progress.css';
 import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
 import { mentorBookingSaveError } from './mentor-booking-errors';
@@ -80,6 +84,10 @@ const invalid = (client: ReturnType<typeof useQueryClient>, key: readonly unknow
 
 export function StaffMentorMeetingReportsPage() {
   useAppLanguage();
+  const client = useQueryClient();
+  const resolveAdditionalSessionRequest = useResolveStaffMentorAdditionalSessionRequest();
+  const [resolvingAdditionalSessionRequestId, setResolvingAdditionalSessionRequestId] = useState<number | null>(null);
+  const [additionalSessionRequestResolveErrorId, setAdditionalSessionRequestResolveErrorId] = useState<number | null>(null);
   const [selection, setSelection] = useState<StaffMentorMeetingReportSelection>({
     programId: '',
     businessId: '',
@@ -125,11 +133,20 @@ export function StaffMentorMeetingReportsPage() {
       refetchOnWindowFocus: true,
     },
   });
+  const additionalSessionRequestParams = { programId: selectedProgramId || programs[0]?.id || 1 };
+  const additionalSessionRequestsQuery = useGetStaffMentorAdditionalSessionRequests(additionalSessionRequestParams, {
+    query: {
+      queryKey: getGetStaffMentorAdditionalSessionRequestsQueryKey(additionalSessionRequestParams),
+      enabled: selectedProgramId !== '',
+      refetchOnWindowFocus: true,
+    },
+  });
   const retry = () => {
     void programsQuery.refetch();
     void businessesQuery.refetch();
     void coachOptionsQuery.refetch();
     void reportsQuery.refetch();
+    void additionalSessionRequestsQuery.refetch();
   };
   const printCoachReports = () => printReportSheet('print-coach-meeting-reports');
 
@@ -189,6 +206,30 @@ export function StaffMentorMeetingReportsPage() {
             onChange={event => setMeetingDateTo(event.currentTarget.value)} data-testid="input-staff-report-date-to" />
         </label>
       </div>}
+    </section>
+    <section className="role-section" data-testid="staff-additional-session-requests">
+      <div className="role-section-title"><div><div className="eyebrow">{t('SESSION CAPACITY')}</div><h2>{t('Requests for additional 1:1 sessions')}</h2></div>
+        <span>{additionalSessionRequestsQuery.data?.length ?? 0} {t('open requests')}</span>
+      </div>
+      {selectedProgramId === '' ? <p className="role-inline-note">{t('Choose a program to review session requests.')}</p>
+        : additionalSessionRequestsQuery.isLoading ? <p className="role-inline-note" role="status">{t('Loading session requests…')}</p>
+          : additionalSessionRequestsQuery.isError ? <div className="role-inline-note" role="alert"><p>{t('Session requests could not load.')}</p><Button type="button" className="button button-quiet" onClick={() => void additionalSessionRequestsQuery.refetch()}>{t('Retry')}</Button></div>
+            : (additionalSessionRequestsQuery.data ?? []).length === 0 ? <div className="empty-panel"><h3>{t('No open requests.')}</h3><p>{t('New requests from assigned mentors will appear here.')}</p></div>
+              : <div className="answer-list">{additionalSessionRequestsQuery.data?.map(request => <article className="answer-card" key={request.id} data-testid={`additional-session-request-${request.id}`}>
+                <div className="answer-meta"><div><b>{request.businessName}</b><span>{request.mentorName} · {request.mentorEmail} · {request.programName}</span></div><span className="role-date">{dateText(request.createdAt)}</span></div>
+                <p>{t('Reported sessions')}: {request.reportedSessionsAtRequest} / {request.sessionTargetAtRequest}</p>
+                <p className={request.emailNotificationStatus === 'delivered' ? 'form-success' : 'form-error'} role="status">{request.emailNotificationStatus === 'delivered' ? t('Email notification sent.') : t('The request is recorded, but its email notification failed.')}</p>
+                <Button type="button" className="button button-quiet" disabled={resolvingAdditionalSessionRequestId === request.id} onClick={() => {
+                  setAdditionalSessionRequestResolveErrorId(null);
+                  setResolvingAdditionalSessionRequestId(request.id);
+                  resolveAdditionalSessionRequest.mutate({ id: request.id }, {
+                    onSuccess: () => void client.invalidateQueries({ queryKey: getGetStaffMentorAdditionalSessionRequestsQueryKey(additionalSessionRequestParams) }),
+                    onError: () => setAdditionalSessionRequestResolveErrorId(request.id),
+                    onSettled: () => setResolvingAdditionalSessionRequestId(current => current === request.id ? null : current),
+                  });
+                }}>{resolvingAdditionalSessionRequestId === request.id ? t('Saving…') : t('Mark reviewed')}</Button>
+                {additionalSessionRequestResolveErrorId === request.id && <p className="form-error" role="alert">{t('The request could not be updated. Please retry.')}</p>}
+              </article>)}</div>}
     </section>
     {selectedProgramId !== '' && (reportsQuery.isLoading || businessesQuery.isLoading)
       ? <p className="role-inline-note" role="status">{t('Loading coach meeting reports…')}</p>
@@ -399,6 +440,9 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   useAppLanguage();
   const query = useGetMentorDashboard({ query: { queryKey: getGetMentorDashboardQueryKey(), refetchOnWindowFocus: true } });
   const client = useQueryClient();
+  const createAdditionalSessionRequest = useCreateMentorAdditionalSessionRequest();
+  const [additionalSessionRequestPendingForId, setAdditionalSessionRequestPendingForId] = useState<number | null>(null);
+  const [additionalSessionRequestErrorForId, setAdditionalSessionRequestErrorForId] = useState<number | null>(null);
   const connectCalendly = useStartCalendlyConnection();
   const connectGoogleCalendar = useStartGoogleCalendarConnection();
   const disconnectGoogleCalendar = useDisconnectGoogleCalendar();
@@ -521,7 +565,33 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
     </section>}
     {!settingsOnly && query.data && (engagements.length === 0 ? <div className="empty-panel"><span className="empty-icon">J</span><h3>{t('No engagements assigned yet.')}</h3><p>{t('Your admin will connect you with a founder when the right support need comes into view.')}</p></div> : <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('YOUR FOUNDER ENGAGEMENTS')}</div><h2>{t('Keep the next step visible')}</h2></div></div><div className="answer-list">{engagements.map(item => {
       const draft = drafts[item.id] || { date: item.scheduledDate || '', status: item.status, notes: item.notes || '' };
-      return <MentorEngagementCard key={item.id} item={item} draft={draft} onDraftChange={next => setDrafts(old => ({ ...old, [item.id]: next }))} />;
+      const reported = item.reportedOneToOneSessions;
+      const target = item.mentorSessionsPerBusiness;
+      const targetReached = target > 0 && reported >= target;
+      const hasOpenRequest = item.openAdditionalSessionsEmailStatus !== null;
+      return <div className="mentor-engagement-progress-wrap" key={item.id}>
+        <section className="mentor-session-progress" aria-label={`${t('1:1 session report progress')} — ${item.businessName}`} data-testid={`mentor-session-progress-${item.businessId}`}>
+          <div className="mentor-session-progress-heading"><b>{t('1:1 session reports')}</b><span>{reported} / {target}</span></div>
+          <progress value={target > 0 ? Math.min(reported, target) : 0} max={target || 1} aria-label={t('Reported sessions compared with the program target')} />
+          <p>{target > 0 ? t('Reports submitted for this business compared with its program target.') : t('The session target has not been set for this program.')}</p>
+          {targetReached && (hasOpenRequest
+            ? <p className={item.openAdditionalSessionsEmailStatus === 'delivered' ? 'form-success' : 'form-error'} role="status">{item.openAdditionalSessionsEmailStatus === 'delivered' ? t('The team has been notified and will review your request.') : t('Your request is recorded, but the email notification failed. The team can still see it in the requests list.')}</p>
+            : <Button type="button" className="button button-quiet" disabled={additionalSessionRequestPendingForId === item.id} data-testid={`button-request-more-sessions-${item.businessId}`} onClick={() => {
+              setAdditionalSessionRequestErrorForId(null);
+              setAdditionalSessionRequestPendingForId(item.id);
+              createAdditionalSessionRequest.mutate({ id: item.id }, {
+                onSuccess: () => {
+                  setAdditionalSessionRequestErrorForId(null);
+                  invalid(client, getGetMentorDashboardQueryKey());
+                },
+                onError: () => setAdditionalSessionRequestErrorForId(item.id),
+                onSettled: () => setAdditionalSessionRequestPendingForId(current => current === item.id ? null : current),
+              });
+            }}>{additionalSessionRequestPendingForId === item.id ? t('Sending request…') : t('Request additional sessions')}</Button>)}
+          {additionalSessionRequestErrorForId === item.id && <p className="form-error" role="alert">{t('Your request could not be sent. Check the connection and try again.')}</p>}
+        </section>
+        <MentorEngagementCard item={item} draft={draft} onDraftChange={next => setDrafts(old => ({ ...old, [item.id]: next }))} />
+      </div>;
     })}</div></section>)}
   </RoleFrame>;
 }

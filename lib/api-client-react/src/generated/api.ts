@@ -79,6 +79,7 @@ import type {
   GetProgramAnalyticsParams,
   GetProgramSessionInteractionAnalyticsParams,
   GetStaffAssignmentHistoryParams,
+  GetStaffMentorAdditionalSessionRequestsParams,
   GetStaffMentorMeetingReportCoachesParams,
   GetStaffMentorMeetingReportsParams,
   GetXapiActivityState200,
@@ -112,6 +113,7 @@ import type {
   ListProgramsParams,
   ListSessionsParams,
   ListSupportParams,
+  MentorAdditionalSessionRequest,
   MentorBookingFollowUpUpdate,
   MentorBookingSettings,
   MentorBookingSettingsInput,
@@ -166,6 +168,7 @@ import type {
   PutXapiActivityStateParams,
   PutXapiStatementParams,
   RecordingNoticeReceipts,
+  ResolveMentorAdditionalSessionRequestResponse,
   RetryCourseReminder,
   ScormCommitResult,
   Session,
@@ -182,6 +185,7 @@ import type {
   StaffAssignmentAuditHistory,
   StaffInput,
   StaffMember,
+  StaffMentorAdditionalSessionRequest,
   StaffMentorMeetingReport,
   StaffMentorMeetingReportCoach,
   StaffUpdate,
@@ -7764,6 +7768,238 @@ export const useSubmitMentorMeetingReport = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSubmitMentorMeetingReportMutationOptions(options));
+    }
+
+export const getCreateMentorAdditionalSessionRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/mentor/support/${id}/additional-session-requests`
+}
+
+/**
+ * @summary Notify the program team that a business needs additional mentor sessions
+ */
+export const createMentorAdditionalSessionRequest = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<MentorAdditionalSessionRequest> => {
+
+  return customFetch<MentorAdditionalSessionRequest>(getCreateMentorAdditionalSessionRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateMentorAdditionalSessionRequestMutationKey = () => ['createMentorAdditionalSessionRequest'] as const;
+
+export const getCreateMentorAdditionalSessionRequestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMentorAdditionalSessionRequest>>, TError,CreateMentorAdditionalSessionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMentorAdditionalSessionRequest>>, TError,CreateMentorAdditionalSessionRequestMutationVariables, TContext> => {
+
+const mutationKey = getCreateMentorAdditionalSessionRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMentorAdditionalSessionRequest>>, CreateMentorAdditionalSessionRequestMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  createMentorAdditionalSessionRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMentorAdditionalSessionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createMentorAdditionalSessionRequest>>>
+
+    export type CreateMentorAdditionalSessionRequestMutationError = ErrorType<void>
+    export type CreateMentorAdditionalSessionRequestMutationVariables = {id: number}
+
+    /**
+ * @summary Notify the program team that a business needs additional mentor sessions
+ */
+export const useCreateMentorAdditionalSessionRequest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMentorAdditionalSessionRequest>>, TError,CreateMentorAdditionalSessionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMentorAdditionalSessionRequest>>,
+        TError,
+        CreateMentorAdditionalSessionRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMentorAdditionalSessionRequestMutationOptions(options));
+    }
+
+export const getGetStaffMentorAdditionalSessionRequestsUrl = (params: GetStaffMentorAdditionalSessionRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/mentor-additional-session-requests?${stringifiedParams}` : `/api/staff/mentor-additional-session-requests`
+}
+
+/**
+ * @summary List open requests for additional mentor sessions in an authorized program
+ */
+export const getStaffMentorAdditionalSessionRequests = async (params: GetStaffMentorAdditionalSessionRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<StaffMentorAdditionalSessionRequest[]> => {
+
+  return customFetch<StaffMentorAdditionalSessionRequest[]>(getGetStaffMentorAdditionalSessionRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStaffMentorAdditionalSessionRequestsQueryKey = (params?: GetStaffMentorAdditionalSessionRequestsParams,) => {
+    return [
+    `/api/staff/mentor-additional-session-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetStaffMentorAdditionalSessionRequestsQueryOptions = <TData = Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>, TError = ErrorType<void>>(params: GetStaffMentorAdditionalSessionRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStaffMentorAdditionalSessionRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>> = ({ signal }) => getStaffMentorAdditionalSessionRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStaffMentorAdditionalSessionRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>>
+export type GetStaffMentorAdditionalSessionRequestsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List open requests for additional mentor sessions in an authorized program
+ */
+
+export function useGetStaffMentorAdditionalSessionRequests<TData = Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>, TError = ErrorType<void>>(
+ params: GetStaffMentorAdditionalSessionRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStaffMentorAdditionalSessionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStaffMentorAdditionalSessionRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveStaffMentorAdditionalSessionRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/staff/mentor-additional-session-requests/${id}/resolve`
+}
+
+/**
+ * @summary Mark an additional-session request as reviewed
+ */
+export const resolveStaffMentorAdditionalSessionRequest = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ResolveMentorAdditionalSessionRequestResponse> => {
+
+  return customFetch<ResolveMentorAdditionalSessionRequestResponse>(getResolveStaffMentorAdditionalSessionRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResolveStaffMentorAdditionalSessionRequestMutationKey = () => ['resolveStaffMentorAdditionalSessionRequest'] as const;
+
+export const getResolveStaffMentorAdditionalSessionRequestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveStaffMentorAdditionalSessionRequest>>, TError,ResolveStaffMentorAdditionalSessionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveStaffMentorAdditionalSessionRequest>>, TError,ResolveStaffMentorAdditionalSessionRequestMutationVariables, TContext> => {
+
+const mutationKey = getResolveStaffMentorAdditionalSessionRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveStaffMentorAdditionalSessionRequest>>, ResolveStaffMentorAdditionalSessionRequestMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  resolveStaffMentorAdditionalSessionRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveStaffMentorAdditionalSessionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof resolveStaffMentorAdditionalSessionRequest>>>
+
+    export type ResolveStaffMentorAdditionalSessionRequestMutationError = ErrorType<void>
+    export type ResolveStaffMentorAdditionalSessionRequestMutationVariables = {id: number}
+
+    /**
+ * @summary Mark an additional-session request as reviewed
+ */
+export const useResolveStaffMentorAdditionalSessionRequest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveStaffMentorAdditionalSessionRequest>>, TError,ResolveStaffMentorAdditionalSessionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveStaffMentorAdditionalSessionRequest>>,
+        TError,
+        ResolveStaffMentorAdditionalSessionRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveStaffMentorAdditionalSessionRequestMutationOptions(options));
     }
 
 export const getGetStaffMentorMeetingReportsUrl = (params: GetStaffMentorMeetingReportsParams,) => {

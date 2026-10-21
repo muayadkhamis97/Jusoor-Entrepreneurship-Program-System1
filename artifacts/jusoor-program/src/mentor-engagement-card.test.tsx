@@ -6,7 +6,12 @@ import { translate } from './language';
 test('engagement list delegates feedback ownership to keyed card components', () => {
   const parent = readFileSync(new URL('./role-surfaces.tsx', import.meta.url), 'utf8');
   const component = readFileSync(new URL('./mentor-engagement-card.tsx', import.meta.url), 'utf8');
-  assert.match(parent, /<MentorEngagementCard key=\{item.id\}/);
+  assert.match(parent, /<MentorEngagementCard item=\{item\}/);
+  assert.match(parent, /className="mentor-session-progress"/);
+  assert.match(parent, /additionalSessionRequestPendingForId === item\.id/);
+  assert.match(parent, /additionalSessionRequestErrorForId === item\.id/);
+  assert.match(parent, /resolvingAdditionalSessionRequestId === request\.id/);
+  assert.match(parent, /additionalSessionRequestResolveErrorId === request\.id/);
   assert.doesNotMatch(parent, /useUpdateAssignedMentoring/);
   assert.match(component, /const update = useUpdateAssignedMentoring\(\)/);
   assert.match(component, /update.mutate\(\{ id: item.id, data \}/);

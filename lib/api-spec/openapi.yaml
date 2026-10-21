@@ -1889,6 +1889,63 @@ paths:
           description: Required report fields are invalid or an attendee is not an accepted business member
         "404":
           description: Engagement is not assigned to this mentor
+  /mentor/support/{id}/additional-session-requests:
+    post:
+      operationId: createMentorAdditionalSessionRequest
+      tags: [support]
+      summary: Notify the program team that a business needs additional mentor sessions
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201":
+          description: Request recorded and the program team notified by email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorAdditionalSessionRequest"
+        "404":
+          description: Engagement is not assigned to this mentor
+        "409":
+          description: The business has not reached its session target or already has an open request
+  /staff/mentor-additional-session-requests:
+    get:
+      operationId: getStaffMentorAdditionalSessionRequests
+      tags: [support]
+      summary: List open requests for additional mentor sessions in an authorized program
+      parameters:
+        - name: programId
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Open requests for the selected authorized program
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StaffMentorAdditionalSessionRequest" }
+        "400":
+          description: Program filter is invalid
+        "404":
+          description: Program is not available to this staff member
+  /staff/mentor-additional-session-requests/{id}/resolve:
+    post:
+      operationId: resolveStaffMentorAdditionalSessionRequest
+      tags: [support]
+      summary: Mark an additional-session request as reviewed
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Request marked as reviewed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResolveMentorAdditionalSessionRequestResponse" }
+        "404":
+          description: Open request is not available to this staff member
   /staff/mentor-meeting-reports:
     get:
       operationId: getStaffMentorMeetingReports
@@ -5159,6 +5216,15 @@ components:
         status: { $ref: "#/components/schemas/SupportStatus" }
         notes: { type: ["string", "null"] }
       required: [id, businessId, businessName, founderName, programName, type, provider, topic, scheduledDate, status, notes]
+    MentorDashboardEngagement:
+      allOf:
+        - $ref: "#/components/schemas/MentorEngagement"
+        - type: object
+          properties:
+            mentorSessionsPerBusiness: { type: integer, minimum: 0 }
+            reportedOneToOneSessions: { type: integer, minimum: 0 }
+            openAdditionalSessionsEmailStatus: { type: ["string", "null"], enum: [pending, delivered, failed, null] }
+          required: [mentorSessionsPerBusiness, reportedOneToOneSessions, openAdditionalSessionsEmailStatus]
     MentorEngagementUpdate:
       type: object
       properties:
@@ -5171,7 +5237,7 @@ components:
       properties:
         engagements:
           type: array
-          items: { $ref: "#/components/schemas/MentorEngagement" }
+          items: { $ref: "#/components/schemas/MentorDashboardEngagement" }
         bookingProvider: { $ref: "#/components/schemas/MentorBookingProvider" }
         calendlyBookingUrl: { type: ["string", "null"], format: uri }
         googleCalendarBookingUrl: { type: ["string", "null"], format: uri }
@@ -5264,6 +5330,36 @@ components:
         coachName: { type: string }
         coachEmail: { type: string, format: email }
       required: [coachName, coachEmail]
+    MentorAdditionalSessionRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        supportId: { type: integer }
+        businessId: { type: integer }
+        programId: { type: integer }
+        businessName: { type: string }
+        mentorName: { type: string }
+        mentorEmail: { type: string, format: email }
+        reportedSessionsAtRequest: { type: integer, minimum: 0 }
+        sessionTargetAtRequest: { type: integer, minimum: 0 }
+        status: { type: string, enum: [open, resolved] }
+        emailNotificationStatus: { type: string, enum: [pending, delivered, failed] }
+        createdAt: { type: string, format: date-time }
+      required: [id, supportId, businessId, programId, businessName, mentorName, mentorEmail, reportedSessionsAtRequest, sessionTargetAtRequest, status, emailNotificationStatus, createdAt]
+    StaffMentorAdditionalSessionRequest:
+      allOf:
+        - $ref: "#/components/schemas/MentorAdditionalSessionRequest"
+        - type: object
+          properties:
+            programName: { type: string }
+          required: [programName]
+    ResolveMentorAdditionalSessionRequestResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [resolved] }
+        resolvedAt: { type: string, format: date-time }
+      required: [id, status, resolvedAt]
     MentorBookingProvider:
       type: string
       enum: [calendly, google_calendar]
@@ -5657,10 +5753,11 @@ components:
         startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        mentorSessionsPerBusiness: { type: integer, minimum: 0 }
         status: { type: string, enum: [planning, outreach, active, completed] }
         archivedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
-      required: [id, name, format, status, archivedAt, createdAt]
+      required: [id, name, format, mentorSessionsPerBusiness, status, archivedAt, createdAt]
     ProgramLifecycleEvent:
       type: object
       properties:
@@ -5688,8 +5785,9 @@ components:
         startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        mentorSessionsPerBusiness: { type: integer, minimum: 0 }
         status: { type: string, enum: [planning, outreach, active, completed] }
-      required: [name, format]
+      required: [name, format, mentorSessionsPerBusiness]
     ProgramUpdate:
       type: object
       properties:
@@ -5699,6 +5797,7 @@ components:
         startDate: { type: ["string", "null"], format: date }
         endDate: { type: ["string", "null"], format: date }
         applicationDeadline: { type: ["string", "null"], format: date }
+        mentorSessionsPerBusiness: { type: integer, minimum: 0 }
         status: { type: string, enum: [planning, outreach, active, completed] }
     Business:
       type: object

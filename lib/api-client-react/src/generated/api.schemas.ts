@@ -1992,6 +1992,27 @@ export interface MentorEngagement {
   notes: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type MentorDashboardEngagementOpenAdditionalSessionsEmailStatus = typeof MentorDashboardEngagementOpenAdditionalSessionsEmailStatus[keyof typeof MentorDashboardEngagementOpenAdditionalSessionsEmailStatus] | null;
+
+
+export const MentorDashboardEngagementOpenAdditionalSessionsEmailStatus = {
+  pending: 'pending',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
+export type MentorDashboardEngagement = MentorEngagement & {
+  /** @minimum 0 */
+  mentorSessionsPerBusiness: number;
+  /** @minimum 0 */
+  reportedOneToOneSessions: number;
+  /** @nullable */
+  openAdditionalSessionsEmailStatus: MentorDashboardEngagementOpenAdditionalSessionsEmailStatus;
+};
+
 export interface MentorEngagementUpdate {
   /**
      * @nullable
@@ -2015,7 +2036,7 @@ export const MentorBookingProvider = {
 } as const;
 
 export interface MentorDashboard {
-  engagements: MentorEngagement[];
+  engagements: MentorDashboardEngagement[];
   bookingProvider: MentorBookingProvider;
   /** @nullable */
   calendlyBookingUrl: string | null;
@@ -2144,6 +2165,57 @@ export type StaffMentorMeetingReport = MentorMeetingReport & {
 export interface StaffMentorMeetingReportCoach {
   coachName: string;
   coachEmail: string;
+}
+
+export type MentorAdditionalSessionRequestStatus = typeof MentorAdditionalSessionRequestStatus[keyof typeof MentorAdditionalSessionRequestStatus];
+
+
+export const MentorAdditionalSessionRequestStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+export type MentorAdditionalSessionRequestEmailNotificationStatus = typeof MentorAdditionalSessionRequestEmailNotificationStatus[keyof typeof MentorAdditionalSessionRequestEmailNotificationStatus];
+
+
+export const MentorAdditionalSessionRequestEmailNotificationStatus = {
+  pending: 'pending',
+  delivered: 'delivered',
+  failed: 'failed',
+} as const;
+
+export interface MentorAdditionalSessionRequest {
+  id: number;
+  supportId: number;
+  businessId: number;
+  programId: number;
+  businessName: string;
+  mentorName: string;
+  mentorEmail: string;
+  /** @minimum 0 */
+  reportedSessionsAtRequest: number;
+  /** @minimum 0 */
+  sessionTargetAtRequest: number;
+  status: MentorAdditionalSessionRequestStatus;
+  emailNotificationStatus: MentorAdditionalSessionRequestEmailNotificationStatus;
+  createdAt: string;
+}
+
+export type StaffMentorAdditionalSessionRequest = MentorAdditionalSessionRequest & {
+  programName: string;
+};
+
+export type ResolveMentorAdditionalSessionRequestResponseStatus = typeof ResolveMentorAdditionalSessionRequestResponseStatus[keyof typeof ResolveMentorAdditionalSessionRequestResponseStatus];
+
+
+export const ResolveMentorAdditionalSessionRequestResponseStatus = {
+  resolved: 'resolved',
+} as const;
+
+export interface ResolveMentorAdditionalSessionRequestResponse {
+  id: number;
+  status: ResolveMentorAdditionalSessionRequestResponseStatus;
+  resolvedAt: string;
 }
 
 export interface MentorBookingSettings {
@@ -2624,6 +2696,8 @@ export interface Program {
      * @pattern ^\d{4}-\d{2}-\d{2}$
      */
   applicationDeadline?: string | null;
+  /** @minimum 0 */
+  mentorSessionsPerBusiness: number;
   status: ProgramStatus;
   /** @nullable */
   archivedAt: string | null;
@@ -2703,6 +2777,8 @@ export interface ProgramInput {
      * @pattern ^\d{4}-\d{2}-\d{2}$
      */
   applicationDeadline?: string | null;
+  /** @minimum 0 */
+  mentorSessionsPerBusiness: number;
   status?: ProgramInputStatus;
 }
 
@@ -2736,6 +2812,8 @@ export interface ProgramUpdate {
   endDate?: string | null;
   /** @nullable */
   applicationDeadline?: string | null;
+  /** @minimum 0 */
+  mentorSessionsPerBusiness?: number;
   status?: ProgramUpdateStatus;
 }
 
@@ -3722,6 +3800,13 @@ activityId: string;
 agent: string;
 stateId?: string;
 registration?: string;
+};
+
+export type GetStaffMentorAdditionalSessionRequestsParams = {
+/**
+ * @minimum 1
+ */
+programId: number;
 };
 
 export type GetStaffMentorMeetingReportsParams = {

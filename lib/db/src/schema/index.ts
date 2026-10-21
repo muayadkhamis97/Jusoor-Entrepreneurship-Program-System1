@@ -28,6 +28,7 @@ export * from "./session-attendance";
 export * from "./session-participant-attendance";
 export * from "./support";
 export * from "./mentor-meeting-reports";
+export * from "./mentor-session-requests";
 export * from "./impact-kpis";
 export * from "./impact-kpi-values";
 export * from "./analytics-report-layouts";
