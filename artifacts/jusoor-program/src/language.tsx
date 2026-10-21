@@ -889,6 +889,7 @@ const arabic: Record<string, string> = {
   'Reply not sent. Please retry.': 'لم يُرسل الرد. يُرجى المحاولة مرة أخرى.',
   'MAKE THE LEARNING PRACTICAL': 'اجعل التعلّم عملياً',
   'Create a cohort assignment': 'إنشاء مهمة للمجموعة',
+  'Choose a cohort and add a title and clear instructions.': 'اختر مجموعة وأضف عنواناً وتعليمات واضحة.',
   'Assignments become available after a program is assigned to your trainer account.': 'تتوفر المهام بعد تخصيص برنامج لحسابك كمدرب.',
   'Cohort': 'المجموعة',
   'Choose cohort': 'اختر مجموعة',

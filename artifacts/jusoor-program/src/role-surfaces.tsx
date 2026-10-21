@@ -5,7 +5,7 @@ import { Link, useLocation } from 'wouter';
 import {
   getGetTrainerDashboardQueryKey, getGetMentorDashboardQueryKey, getGetJudgeDashboardQueryKey,
   getGetTrainerAttendanceReportsQueryKey, useGetTrainerAttendanceReports,
-  useGetTrainerDashboard, useCreateTrainingAssignment, useReviewTrainingAnswer,
+  useGetTrainerDashboard, useReviewTrainingAnswer,
   useReplyTrainingQuestion, useGetMentorDashboard,
   useGetJudgeDashboard, useSubmitJudgeScorecard, useStartCalendlyConnection,
   useStartGoogleCalendarConnection, useUpdateMentorBookingSettings, useDisconnectGoogleCalendar,
@@ -19,7 +19,7 @@ import {
   useGetStaffMentorMeetingReports, useListBusinesses, useListPrograms,
 } from '@workspace/api-client-react';
 import type {
-  TrainingAssignmentInput, TrainingAnswerReview, TrainingQuestionReply,
+  TrainingAnswerReview, TrainingQuestionReply,
   JudgeScorecardInput, StaffMember,
   MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
@@ -31,7 +31,6 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
 import './mentor-session-progress.css';
 import { getDisplayBrandName, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
-import { trainerProgramOptions, trainerSessionOptions } from './trainer-program-options';
 import { mentorBookingSaveError } from './mentor-booking-errors';
 import { useMentorBookingDraft } from './use-mentor-booking-draft';
 import { MentorEngagementCard, type MentorEngagementDraft } from './mentor-engagement-card';
@@ -376,13 +375,8 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
     query: { queryKey: getGetTrainerAttendanceReportsQueryKey(), refetchOnWindowFocus: true, refetchInterval: 15_000 },
   });
   const client = useQueryClient();
-  const create = useCreateTrainingAssignment();
   const review = useReviewTrainingAnswer();
   const reply = useReplyTrainingQuestion();
-  const [assignmentError, setAssignmentError] = useState('');
-  const [assignmentPublished, setAssignmentPublished] = useState(false);
-  const [assignmentProgramId, setAssignmentProgramId] = useState<number | ''>('');
-  const [assignmentSessionId, setAssignmentSessionId] = useState<number | ''>('');
   const [feedbacks, setFeedbacks] = useState<Record<number, { score: string; feedback: string }>>({});
   const [replies, setReplies] = useState<Record<number, string>>({});
   const [reviewPendingIds, setReviewPendingIds] = useState<Set<number>>(() => new Set());
@@ -392,8 +386,6 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   const dashboard = query.data;
   const sessions = dashboard?.sessions || [];
   const attendanceEmptyState = getTrainerAttendanceEmptyState(sessions.length, attendanceQuery.data?.length || 0);
-  const programs = trainerProgramOptions(dashboard?.programs || [], t('Program name unavailable'));
-  const assignmentSessions = trainerSessionOptions(sessions, assignmentProgramId === '' ? null : assignmentProgramId);
   const attendanceRows = attendanceQuery.data ? buildTrainerAttendanceSheetRows(attendanceQuery.data) : [];
   const attendanceStatusText = (status: string) => status === 'present' ? t('Present')
     : status === 'absent' ? t('Absent')
@@ -402,18 +394,6 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
           : status === 'Not recorded' ? t('Not recorded') : '—';
   const attendanceStatusTone = (status: string) => status === 'present' ? 'good'
     : status === 'absent' || status === 'Needs review' ? 'warm' : 'neutral';
-  const submitAssignment = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setAssignmentPublished(false);
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const programId = Number(form.get('programId'));
-    const title = String(form.get('title') || '').trim();
-    const instructions = String(form.get('instructions') || '').trim();
-    if (!programId || title.length < 2 || instructions.length < 10) { setAssignmentError('Choose a cohort and add a title and clear instructions.'); return; }
-    const data: TrainingAssignmentInput = { programId, title, instructions, dueDate: String(form.get('dueDate') || '') || null, sessionId: form.get('sessionId') ? Number(form.get('sessionId')) : null };
-    create.mutate({ data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); formElement.reset(); setAssignmentProgramId(''); setAssignmentSessionId(''); setAssignmentError(''); setAssignmentPublished(true); } });
-  };
   const saveReview = async (event: FormEvent<HTMLFormElement>, id: number) => {
     event.preventDefault();
     const values = feedbacks[id] || { score: '', feedback: '' };
@@ -542,18 +522,6 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
              </article>)}
            </section>
          </div> : attendanceEmptyState === 'no-assigned-sessions' ? <div className="empty-panel" data-testid="trainer-attendance-empty-no-sessions"><h3>{t('No assigned training sessions.')}</h3><p>{t('Attendance reports appear after a session is assigned to you.')}</p></div> : <div className="empty-panel" data-testid="trainer-attendance-empty-no-records"><h3>{t('No attendance recorded yet.')}</h3><p>{t('Attendance reports will appear when attendance is recorded for one of your assigned sessions.')}</p></div>}
-      </section>
-      <section className="role-section role-assignment-section"><div className="role-section-title"><div><div className="eyebrow">{t('MAKE THE LEARNING PRACTICAL')}</div><h2>{t('Create a cohort assignment')}</h2></div></div>
-        {programs.length === 0 ? <div className="role-inline-note">{t('Assignments become available after a program is assigned to your trainer account.')}</div> : <form className="role-form-grid" onSubmit={submitAssignment}>
-          <label className="field">{t('Cohort')}<select className="form-control" name="programId" value={assignmentProgramId} onChange={event => { setAssignmentProgramId(event.currentTarget.value ? Number(event.currentTarget.value) : ''); setAssignmentSessionId(''); }} required data-testid="select-assignment-cohort"><option value="">{t('Choose cohort')}</option>{programs.map(program => <option key={program.id} value={program.id}>{program.label}</option>)}</select></label>
-          <label className="field">{t('Linked session')}<select className="form-control" name="sessionId" value={assignmentSessionId} onChange={event => setAssignmentSessionId(event.currentTarget.value ? Number(event.currentTarget.value) : '')} data-testid="select-assignment-session"><option value="">{t('No specific session')}</option>{assignmentSessions.map(session => <option key={session.id} value={session.id}>{session.title}</option>)}</select></label>
-          <label className="field">{t('Assignment title')}<input className="form-control" name="title" minLength={2} required placeholder={t('e.g. Customer discovery notes')} data-testid="input-assignment-title" /></label>
-          <label className="field">{t('Due date')}<input className="form-control" name="dueDate" type="date" data-testid="input-assignment-due-date" /></label>
-          <label className="field field-wide">{t('Instructions')}<textarea className="form-control" name="instructions" minLength={10} required rows={4} placeholder={t('What should participants explore, prepare or share?')} data-testid="input-assignment-instructions" /></label>
-          {(assignmentError || create.isError) && <p className="form-error field-wide" role="alert">{assignmentError || t('Assignment could not be created. Try again.')}</p>}
-          {assignmentPublished && <p className="form-success field-wide" role="status" data-testid="assignment-publish-success">{t('Assignment published successfully.')}</p>}
-          <div className="field-wide"><button className="button button-primary" disabled={create.isPending} data-testid="button-create-assignment">{create.isPending ? t('Publishing…') : t('Publish assignment')}</button></div>
-        </form>}
       </section>
       <section className="role-section"><div className="role-section-title"><div><div className="eyebrow">{t('PARTICIPANT WORK')}</div><h2>{t('Answers to review')}</h2></div><span className="role-count">{dashboard.submissions.length}</span></div>
         {!dashboard.submissions.length ? <div className="empty-panel"><h3>{t('No answers waiting.')}</h3><p>{t('Participant responses appear here as they submit cohort assignments.')}</p></div> : <div className="answer-list">{dashboard.submissions.map(answer => {

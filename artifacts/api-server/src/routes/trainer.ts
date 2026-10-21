@@ -1,8 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
-  CreateTrainingAssignmentBody,
-  CreateTrainingAssignmentResponse,
   GetTrainerAttendanceReportsResponse,
   GetTrainerDashboardResponse,
   ReplyTrainingQuestionBody,
@@ -156,45 +154,6 @@ router.get("/attendance", async (_req, res): Promise<void> => {
     };
   }));
   res.json(GetTrainerAttendanceReportsResponse.parse(reports.filter((report) => report !== null)));
-});
-
-router.post("/assignments", async (req, res): Promise<void> => {
-  const parsed = CreateTrainingAssignmentBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const staff = res.locals.staff as StaffAccess;
-  const programIds = await getAssignedProgramIds(staff);
-  if (!programIds.includes(parsed.data.programId)) {
-    res.status(403).json({ error: "You are not assigned to this cohort." });
-    return;
-  }
-  if (parsed.data.sessionId !== undefined && parsed.data.sessionId !== null) {
-    const [session] = await db.select().from(sessionsTable)
-      .where(and(
-        eq(sessionsTable.id, parsed.data.sessionId),
-        eq(sessionsTable.trainerStaffId, staff.id),
-        eq(sessionsTable.programId, parsed.data.programId),
-      )).limit(1);
-    if (!session) {
-      res.status(400).json({ error: "Choose a session assigned to you in this cohort." });
-      return;
-    }
-  }
-
-  const [assignment] = await db.insert(trainingAssignmentsTable).values({
-    ...parsed.data,
-    createdByStaffId: staff.id,
-  }).returning();
-  const [session] = assignment.sessionId
-    ? await db.select({ title: sessionsTable.title }).from(sessionsTable)
-      .where(eq(sessionsTable.id, assignment.sessionId)).limit(1)
-    : [];
-  res.status(201).json(CreateTrainingAssignmentResponse.parse({
-    ...assignment,
-    sessionTitle: session?.title ?? null,
-  }));
 });
 
 router.patch("/submissions/:id", async (req, res): Promise<void> => {

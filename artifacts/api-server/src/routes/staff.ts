@@ -7,6 +7,8 @@ import {
   AssignParticipantBusinessResponse,
   CreateStaffBody,
   CreateStaffResponse,
+  CreateTrainingAssignmentBody,
+  CreateTrainingAssignmentResponse,
   DeleteStaffParams,
   GetAuthMeResponse,
   GetMentorBookingStatusResponse,
@@ -34,6 +36,8 @@ import {
   staffAssignmentAuditEventsTable,
   staffProgramAssignmentsTable,
   staffProgramRolesTable,
+  sessionsTable,
+  trainingAssignmentsTable,
   type StaffInvitationEmailStatus,
   type ProgramSpecialistRole,
 } from "@workspace/db";
@@ -43,6 +47,7 @@ import { canManageProgramAssignments } from "../lib/programAssignmentAuthorizati
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
 import { hasPostgresErrorCode } from "../lib/postgres-error-utils";
 import { sendStaffInvitationEmail, type StaffInvitationRole } from "../lib/staff-invitation-email";
+import { activeProgramIdsFor } from "../lib/programScope";
 
 const router: IRouter = Router();
 const mentorFollowUpEditor = alias(staffMembersTable, "mentor_follow_up_editor");
@@ -53,6 +58,47 @@ function isProgramSpecialistRole(role: string): role is ProgramSpecialistRole {
 
 router.get("/auth/me", (_req, res): void => {
   res.json(GetAuthMeResponse.parse(res.locals.staff));
+});
+
+router.post("/training-assignments", requireOperationsStaff, async (req, res): Promise<void> => {
+  const parsed = CreateTrainingAssignmentBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const staff = res.locals.staff as StaffAccess;
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.includes(parsed.data.programId)) {
+    res.status(403).json({ error: "You can create assignments only in programs assigned to you." });
+    return;
+  }
+
+  let sessionTitle: string | null = null;
+  if (parsed.data.sessionId !== undefined && parsed.data.sessionId !== null) {
+    const [session] = await db.select({
+      id: sessionsTable.id,
+      title: sessionsTable.title,
+    }).from(sessionsTable)
+      .where(and(
+        eq(sessionsTable.id, parsed.data.sessionId),
+        eq(sessionsTable.programId, parsed.data.programId),
+      )).limit(1);
+    if (!session) {
+      res.status(400).json({ error: "Choose a session from the selected program." });
+      return;
+    }
+    sessionTitle = session.title;
+  }
+
+  const [assignment] = await db.insert(trainingAssignmentsTable).values({
+    ...parsed.data,
+    createdByStaffId: staff.id,
+  }).returning();
+  res.status(201).json(CreateTrainingAssignmentResponse.parse({
+    ...assignment,
+    sessionTitle,
+  }));
 });
 
 async function withProgramIds<T extends {

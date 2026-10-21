@@ -3017,7 +3017,7 @@ export const GetTrainerAttendanceReportsResponse = zod.array(GetTrainerAttendanc
 
 
 /**
- * @summary Create an activity for a cohort assigned to the trainer
+ * @summary Create a cohort assignment as an admin or assigned program staff member
  */
 export const createTrainingAssignmentBodyTitleMin = 2;
 export const createTrainingAssignmentBodyTitleMax = 180;

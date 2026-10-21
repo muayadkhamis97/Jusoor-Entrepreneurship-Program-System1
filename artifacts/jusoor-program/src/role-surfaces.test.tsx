@@ -64,12 +64,14 @@ test('trainer reviews and replies keep pending and error feedback scoped to each
   assert.doesNotMatch(surface, /review\.isPending|review\.isError|reply\.isPending|reply\.isError/);
 });
 
-test('publishing a trainer assignment shows a success confirmation after clearing the form', () => {
-  const surface = read('./role-surfaces.tsx');
-  assert.match(surface, /setAssignmentPublished\(true\)/);
-  assert.match(surface, /assignmentPublished && <p className="form-success field-wide" role="status" data-testid="assignment-publish-success"/);
-  assert.match(surface, /setAssignmentPublished\(false\)/);
-  assert.match(surface, /formElement\.reset\(\)/);
+test('assignment publishing is in program operations and not in the trainer workspace', () => {
+  const trainerSurface = read('./role-surfaces.tsx');
+  const operationsSurface = read('./App.tsx');
+  assert.doesNotMatch(trainerSurface, /Create a cohort assignment|button-create-assignment|useCreateTrainingAssignment/);
+  assert.match(operationsSurface, /!trainerView && <section className="panel role-section role-assignment-section"/);
+  assert.match(operationsSurface, /useCreateTrainingAssignment/);
+  assert.match(operationsSurface, /createAssignment\.mutate\(\{ data \}/);
+  assert.match(operationsSurface, /data-testid="assignment-publish-success"/);
 });
 
 test('trainer attendance uses compact expandable cards on narrow screens and keeps all report fields', () => {

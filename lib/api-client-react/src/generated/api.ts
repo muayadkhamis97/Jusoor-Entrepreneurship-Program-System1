@@ -7269,11 +7269,11 @@ export const getCreateTrainingAssignmentUrl = () => {
 
 
 
-  return `/api/trainer/assignments`
+  return `/api/training-assignments`
 }
 
 /**
- * @summary Create an activity for a cohort assigned to the trainer
+ * @summary Create a cohort assignment as an admin or assigned program staff member
  */
 export const createTrainingAssignment = async (trainingAssignmentInput: TrainingAssignmentInput, options?: Parameters<typeof customFetch>[1]): Promise<TrainingAssignment> => {
 
@@ -7339,7 +7339,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateTrainingAssignmentMutationVariables = {data: BodyType<TrainingAssignmentInput>}
 
     /**
- * @summary Create an activity for a cohort assigned to the trainer
+ * @summary Create a cohort assignment as an admin or assigned program staff member
  */
 export const useCreateTrainingAssignment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTrainingAssignment>>, TError,CreateTrainingAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

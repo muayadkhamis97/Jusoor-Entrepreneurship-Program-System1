@@ -30,7 +30,8 @@ const archivedStaffId = 15;
 const archivedProgramIds = new Set([44, 55, 66]);
 let activeStaffFixture = true;
 let invitedStaffFixture = false;
-const mutationAttempts: { table: unknown; path: string; role: string }[] = [];
+let coordinatorStaffFixture = false;
+const mutationAttempts: { table: unknown; path: string; role: string; values?: Row }[] = [];
 const trainerSession: Row = {
   id: 110,
   programId: 11,
@@ -264,7 +265,7 @@ function rowsFor(table: unknown): Row[] {
       id: activeStaffFixture ? staffId : archivedStaffId,
       email: activeStaffFixture ? "multi-role@example.com" : "archived-specialist@example.com",
       clerkUserId: activeStaffFixture ? "test-staff-user" : "test-archived-staff-user",
-      role: "staff",
+      role: coordinatorStaffFixture ? "coordinator" : "staff",
       status: invitedStaffFixture ? "invited" : "active",
       invitationEmailStatus: invitedStaffFixture ? "pending" : null,
       bookingProvider: "calendly",
@@ -397,6 +398,7 @@ function selectBuilder() {
   let joinedPrograms = false;
   let excludesArchivedPrograms = false;
   let trainerProgramFilter: number[] | null = null;
+  let assignmentSessionFilter: number[] = [];
   const query: any = {
     from(nextTable: unknown) { table = nextTable; return query; },
     innerJoin(nextTable: unknown) {
@@ -415,6 +417,9 @@ function selectBuilder() {
           "trainer participant-work queries must be scoped to active trainer-role programs",
         );
       }
+      if (requestPath === "/api/training-assignments" && table === sessionsTable) {
+        assignmentSessionFilter = sqlParameterValues(condition).filter((value): value is number => typeof value === "number");
+      }
       return query;
     },
     orderBy() { return query; },
@@ -426,6 +431,13 @@ function selectBuilder() {
     },
   };
   function filteredRows(): Row[] {
+    if (table === sessionsTable && requestPath === "/api/training-assignments") {
+      const otherFilterValues = assignmentSessionFilter.filter(value => value !== trainerSession.id);
+      return assignmentSessionFilter.includes(trainerSession.id)
+        && (!otherFilterValues.length || otherFilterValues.includes(trainerSession.programId))
+        ? [trainerSession]
+        : [];
+    }
     const rows = rowsFor(table);
     if (trainerProgramFilter) return rows.filter(({ programId }) => trainerProgramFilter!.includes(programId));
     if (!excludesArchivedPrograms) return rows;
@@ -444,6 +456,7 @@ const testAuthentication: RequestHandler = (req, _res, next) => {
   const staffFixture = req.get("x-test-staff-fixture");
   activeStaffFixture = staffFixture !== "archived";
   invitedStaffFixture = staffFixture === "invited";
+  coordinatorStaffFixture = staffFixture === "coordinator";
   const userId = activeStaffFixture ? "test-staff-user" : "test-archived-staff-user";
   const authHandler = Object.assign(
     () => ({
@@ -464,14 +477,15 @@ before(async () => {
   replaceDbMethod("selectDistinct", selectBuilder as never);
   replaceDbMethod("insert", ((table: unknown) => {
     let values: Row = {};
-    mutationAttempts.push({ table, path: requestPath, role: requestRole });
+    const attempt = { table, path: requestPath, role: requestRole };
+    mutationAttempts.push(attempt);
     const query: any = {
-      values(nextValues: Row) { values = nextValues; return query; },
+      values(nextValues: Row) { values = nextValues; attempt.values = nextValues; return query; },
       onConflictDoNothing() { return query; },
       returning() {
         return Promise.resolve(table === trainingAssignmentsTable
-          && requestPath === "/api/trainer/assignments"
-          && requestRole === "trainer"
+          && requestPath === "/api/training-assignments"
+          && (requestRole === "staff" || requestRole === "coordinator")
           ? [{
             id: 601,
             ...values,
@@ -527,7 +541,7 @@ after(async () => {
   });
 });
 
-async function request(method: string, path: string, role: string, body?: Row, fixture: "active" | "archived" | "invited" = "active") {
+async function request(method: string, path: string, role: string, body?: Row, fixture: "active" | "archived" | "invited" | "coordinator" = "active") {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return fetch(`http://127.0.0.1:${address.port}${path}`, {
@@ -624,25 +638,49 @@ test("secondary staff roles can use only their assigned program workflows throug
     title: "Customer discovery review",
     instructions: "Review the participant's customer interviews.",
   };
-  const trainerInAssignedProgram = await request("POST", "/api/trainer/assignments", "trainer", {
+  const staffCreatedAssignment = await request("POST", "/api/training-assignments", "staff", {
+    programId: 11,
+    sessionId: 110,
+    ...trainingAssignment,
+  });
+  assert.equal(staffCreatedAssignment.status, 201);
+  assert.equal((await staffCreatedAssignment.json() as Row).programId, 11);
+  assert.equal(mutationAttempts.at(-1)?.values?.createdByStaffId, staffId, "the authenticated staff member is recorded as creator");
+
+  const staffAssignmentWithCrossProgramSession = await request("POST", "/api/training-assignments", "staff", {
+    programId: 33,
+    sessionId: 110,
+    ...trainingAssignment,
+  });
+  assert.equal(staffAssignmentWithCrossProgramSession.status, 400, "a linked session must belong to the assignment program");
+
+  const staffInUnassignedProgram = await request("POST", "/api/training-assignments", "staff", {
+    programId: 44,
+    ...trainingAssignment,
+  });
+  assert.equal(staffInUnassignedProgram.status, 403);
+
+  const mutationsBeforeTrainerCreate = mutationAttempts.length;
+  const trainerAssignmentAttempt = await request("POST", "/api/training-assignments", "trainer", {
     programId: 11,
     ...trainingAssignment,
   });
-  assert.equal(trainerInAssignedProgram.status, 201);
-  assert.equal((await trainerInAssignedProgram.json() as Row).programId, 11);
+  assert.equal(trainerAssignmentAttempt.status, 403, "trainers must not create cohort assignments");
+  assert.equal(mutationAttempts.length, mutationsBeforeTrainerCreate, "denied trainer requests must not reach the database");
 
-  const trainerInAssignedProgramWithoutSession = await request("POST", "/api/trainer/assignments", "trainer", {
+  const adminCreatedAssignment = await request("POST", "/api/training-assignments", "coordinator", {
     programId: 33,
     ...trainingAssignment,
-  });
-  assert.equal(trainerInAssignedProgramWithoutSession.status, 201);
-  assert.equal((await trainerInAssignedProgramWithoutSession.json() as Row).programId, 33);
+  }, "coordinator");
+  assert.equal(adminCreatedAssignment.status, 201, "admins can create assignments across active programs");
+  assert.equal((await adminCreatedAssignment.json() as Row).programId, 33);
+  assert.equal(mutationAttempts.at(-1)?.values?.createdByStaffId, staffId);
 
-  const trainerInUnassignedProgram = await request("POST", "/api/trainer/assignments", "trainer", {
-    programId: 22,
+  const legacyTrainerAssignmentAttempt = await request("POST", "/api/trainer/assignments", "trainer", {
+    programId: 11,
     ...trainingAssignment,
   });
-  assert.equal(trainerInUnassignedProgram.status, 403);
+  assert.equal(legacyTrainerAssignmentAttempt.status, 403, "the former trainer-only create endpoint no longer permits trainers");
 
   const mentorInAssignedProgram = await request("PATCH", "/api/mentor/support/301", "mentor", { status: "completed" });
   assert.equal(mentorInAssignedProgram.status, 200);

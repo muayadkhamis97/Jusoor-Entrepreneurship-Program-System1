@@ -1772,11 +1772,11 @@ paths:
           description: Trainer access required
         "503":
           description: Participant attendance schema update is not applied
-  /trainer/assignments:
+  /training-assignments:
     post:
       operationId: createTrainingAssignment
       tags: [sessions]
-      summary: Create an activity for a cohort assigned to the trainer
+      summary: Create a cohort assignment as an admin or assigned program staff member
       requestBody:
         required: true
         content:
@@ -1790,8 +1790,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TrainingAssignment"
+        "400":
+          description: Invalid assignment details or session outside the selected program
         "403":
-          description: Trainer is not assigned to this cohort
+          description: Admin or program staff access required, or program is not assigned to staff member
   /trainer/submissions/{id}:
     patch:
       operationId: reviewTrainingAnswer

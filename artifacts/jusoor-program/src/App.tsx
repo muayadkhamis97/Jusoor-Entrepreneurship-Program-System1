@@ -10,7 +10,7 @@ import { getAccessibleBrandForeground } from './branding-contrast';
 import { sessionProgramField } from './session-form-requirements';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
-import { lazy, Suspense, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, type ChangeEvent, type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -22,7 +22,7 @@ import { arSA } from '@clerk/localizations';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
-  getGetTrainerDashboardQueryKey, useGetTrainerDashboard,
+  getGetTrainerDashboardQueryKey, useGetTrainerDashboard, useCreateTrainingAssignment,
    getListZoomRecordingAlertsQueryKey, getGetProgramBrandingQueryKey, getGetOwnProfileQueryKey, getListParticipantInvitationsQueryKey, useGetProgramBranding, useGetOwnProfile, useListAllProgramLifecycleEvents,
   getListSupportQueryKey, getListSupportCalendlyMeetingsQueryKey, getListSupportGoogleCalendarMeetingsQueryKey,
   useListSupportCalendlyMeetings, useListSupportGoogleCalendarMeetings, useCreateBusiness, useCreatePitch, useCreateProgram,
@@ -39,7 +39,7 @@ import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
   AllProgramLifecycleEvent, PitchRecord, PitchUpdate, Program, ProgramInput, ProgramLifecycleEvent, ProgramUpdate,
   Session, SessionInput, SessionUpdate, SupportEngagement, SupportInput,
-  StaffInput, StaffMember, StaffUpdate, SupportUpdate,
+  StaffInput, StaffMember, StaffUpdate, SupportUpdate, TrainingAssignmentInput,
 } from '@workspace/api-client-react';
 import {
    Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
@@ -601,6 +601,10 @@ function BusinessesPage({ isAdmin }: { isAdmin: boolean }) {
 function SessionsPage({ coordinator = false, staffId, trainerView = false }: { coordinator?: boolean; staffId?: number; trainerView?: boolean }) {
   const [type, setType] = useState('');
   const [calendarDate, setCalendarDate] = useState<string | null>(null);
+  const [assignmentProgramId, setAssignmentProgramId] = useState<number | ''>('');
+  const [assignmentSessionId, setAssignmentSessionId] = useState<number | ''>('');
+  const [assignmentError, setAssignmentError] = useState('');
+  const [assignmentPublished, setAssignmentPublished] = useState(false);
   const [editing, setEditing] = useState<Session | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<Session | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
@@ -613,6 +617,9 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   const params = useMemo(() => type ? { type: type as Session['type'] } : undefined, [type]);
   const operationsQuery = useListSessions(params, { query: { queryKey: getListSessionsQueryKey(params), enabled: !trainerView } });
   const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey(), enabled: !trainerView } });
+  const assignmentSessionsQuery = useListSessions(undefined, {
+    query: { queryKey: getListSessionsQueryKey(), enabled: !trainerView },
+  });
   // Trainers must use their assigned-session API, not operations-only lists.
   const trainerQuery = useGetTrainerDashboard({ query: { queryKey: getGetTrainerDashboardQueryKey(), enabled: trainerView, refetchOnWindowFocus: true } });
   const query = trainerView ? trainerQuery : operationsQuery;
@@ -631,6 +638,7 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
   const create = useCreateSession();
+  const createAssignment = useCreateTrainingAssignment();
   const update = useUpdateSession();
   const remove = useDeleteSession();
 
@@ -723,6 +731,38 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
     },
     onError: () => trackZoomFailure({ name: 'zoom_recording_alert_retry_failure' }),
   });
+  const publishAssignment = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAssignmentError('');
+    setAssignmentPublished(false);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const programId = Number(form.get('programId'));
+    const title = String(form.get('title') || '').trim();
+    const instructions = String(form.get('instructions') || '').trim();
+    if (!programId || title.length < 2 || instructions.length < 10) {
+      setAssignmentError('Choose a cohort and add a title and clear instructions.');
+      return;
+    }
+    const data: TrainingAssignmentInput = {
+      programId,
+      title,
+      instructions,
+      dueDate: String(form.get('dueDate') || '') || null,
+      sessionId: form.get('sessionId') ? Number(form.get('sessionId')) : null,
+    };
+    createAssignment.mutate({ data }, {
+      onSuccess: () => {
+        void client.invalidateQueries({ queryKey: getGetTrainerDashboardQueryKey() });
+        formElement.reset();
+        setAssignmentProgramId('');
+        setAssignmentSessionId('');
+        setAssignmentError('');
+        setAssignmentPublished(true);
+      },
+      onError: () => setAssignmentError('Assignment could not be created. Try again.'),
+    });
+  };
   const zoomNotice = zoomCallbackResult === 'connected'
     ? 'Zoom authorization is complete.'
     : zoomCallbackResult === 'cancelled'
@@ -781,6 +821,46 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
       </div>
     </section>}
     <div className="calendar-summary"><div className="calendar-icon"><CalendarDays size={20} /></div><div><b>{t('Make each moment count.')}</b><span>{t('Keep joining details and recordings close to the agenda.')}</span></div><span className="calendar-endnote"><Video size={15} /> {t('LIVE + ON-DEMAND')}</span></div>
+    {!trainerView && <section className="panel role-section role-assignment-section" data-testid="staff-training-assignment-create">
+      <div className="role-section-title"><div><div className="eyebrow">{t('PROGRAM LEARNING')}</div><h2>{t('Create a cohort assignment')}</h2></div></div>
+      {programs.length === 0
+        ? <p className="role-inline-note">{t('No active programs are available.')}</p>
+        : <form className="role-form-grid" onSubmit={publishAssignment}>
+          <label className="field">{t('Cohort')}
+            <select className="form-control" name="programId" value={assignmentProgramId}
+              onChange={event => { setAssignmentProgramId(event.currentTarget.value ? Number(event.currentTarget.value) : ''); setAssignmentSessionId(''); }}
+              required data-testid="select-assignment-cohort">
+              <option value="">{t('Choose cohort')}</option>
+              {programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}
+            </select>
+          </label>
+          <label className="field">{t('Linked session')}
+            <select className="form-control" name="sessionId" value={assignmentSessionId}
+              onChange={event => setAssignmentSessionId(event.currentTarget.value ? Number(event.currentTarget.value) : '')}
+              data-testid="select-assignment-session">
+              <option value="">{t('No specific session')}</option>
+              {(assignmentSessionsQuery.data || [])
+                .filter(session => session.programId === assignmentProgramId)
+                .map(session => <option key={session.id} value={session.id}>{session.title}</option>)}
+            </select>
+          </label>
+          <label className="field">{t('Assignment title')}
+            <input className="form-control" name="title" minLength={2} required
+              placeholder={t('e.g. Customer discovery notes')} data-testid="input-assignment-title" />
+          </label>
+          <label className="field">{t('Due date')}
+            <input className="form-control" name="dueDate" type="date" data-testid="input-assignment-due-date" />
+          </label>
+          <label className="field field-wide">{t('Instructions')}
+            <textarea className="form-control" name="instructions" minLength={10} required rows={4}
+              placeholder={t('What should participants explore, prepare or share?')} data-testid="input-assignment-instructions" />
+          </label>
+          {assignmentError && <p className="form-error field-wide" role="alert">{t(assignmentError)}</p>}
+          {assignmentPublished && <p className="form-success field-wide" role="status" data-testid="assignment-publish-success">{t('Assignment published successfully.')}</p>}
+          <div className="field-wide"><button className="button button-primary" disabled={createAssignment.isPending}
+            data-testid="button-create-assignment">{createAssignment.isPending ? t('Publishing…') : t('Publish assignment')}</button></div>
+        </form>}
+    </section>}
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={type} aria-label={t('Filter sessions by type')} onChange={e => { setType(e.target.value); setCalendarDate(null); }} data-testid="select-session-type"><option value="">{t('All session types')}</option>{['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other'].map(v => <option key={v} value={v}>{display(v)}</option>)}</select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{sessions.length}</b> {t('sessions')}</div></div>
     <SessionCalendar sessions={sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />
     {calendarDate && <div className="calendar-date-results" role="status"><span>{t('Showing sessions for')} <b>{dateLabel(calendarDate)}</b></span><span>{displayedSessions.length} {t('scheduled')}</span></div>}
