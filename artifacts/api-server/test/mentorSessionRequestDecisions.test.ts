@@ -5,6 +5,7 @@ import express from "express";
 import { getTableName } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { requireOperationsStaff } from "../src/middlewares/staffAccess";
+import { sendMentorAdditionalSessionWithdrawalEmail } from "../src/lib/mentor-additional-session-email";
 
 let server: Server;
 let db: typeof import("@workspace/db").db;
@@ -511,6 +512,56 @@ test("a mentor can withdraw their own open request within an active program assi
   assert.ok(condition.params.includes(56));
   assert.ok(condition.params.includes(71));
   assert.ok(condition.params.includes(12));
+  assert.equal(databaseSelectCalls, 2, "the withdrawal should trigger a lookup for the staff notice");
+});
+
+test("a withdrawal notice is sent to the program team with the request details", async () => {
+  let sentMessage: {
+    recipients: string[];
+    subject: string;
+    text: string;
+    html: string;
+    idempotencyKey: string;
+  } | undefined;
+
+  await sendMentorAdditionalSessionWithdrawalEmail({
+    requestId: 56,
+    recipients: ["coordinator@example.test", "program-staff@example.test"],
+    mentorName: "Morgan Mentor",
+    mentorEmail: "mentor@example.test",
+    businessName: "Bright <Ideas>",
+    programName: "Jusoor Program",
+  }, async (message) => {
+    sentMessage = message;
+  });
+
+  assert.ok(sentMessage);
+  assert.deepEqual(sentMessage.recipients, ["coordinator@example.test", "program-staff@example.test"]);
+  assert.equal(sentMessage.subject, "Mentor withdrew additional sessions request: Bright <Ideas>");
+  assert.match(sentMessage.text, /Morgan Mentor withdrew the request for additional one-to-one sessions for Bright <Ideas>/);
+  assert.match(sentMessage.text, /Program: Jusoor Program/);
+  assert.match(sentMessage.text, /Mentor: Morgan Mentor \(mentor@example\.test\)/);
+  assert.match(sentMessage.html, /Bright &lt;Ideas&gt;/);
+  assert.equal(sentMessage.idempotencyKey, "mentor-additional-session-withdrawal-56");
+});
+
+test("a failed withdrawal notice does not undo the withdrawal", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  withdrawalReturnedRows = [{
+    id: 56,
+    status: "resolved",
+    decision: "withdrawn",
+    approvedAdditionalSessions: null,
+    resolvedAt: new Date("2026-10-21T12:00:00.000Z"),
+  }];
+  selectedMentorRows = [];
+
+  const response = await withdraw(56);
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json() as { decision: string }).decision, "withdrawn");
+  assert.equal(updateSets[0]?.decision, "withdrawn");
+  assert.equal(databaseSelectCalls, 2, "notification details should be loaded only after the withdrawal is saved");
 });
 
 test("a different mentor assigned to the same program cannot withdraw the request", async () => {

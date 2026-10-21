@@ -49,7 +49,10 @@ import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 import { sendPlatformEmail } from "../lib/platform-email";
-import { sendMentorAdditionalSessionDecisionEmail } from "../lib/mentor-additional-session-email";
+import {
+  sendMentorAdditionalSessionDecisionEmail,
+  sendMentorAdditionalSessionWithdrawalEmail,
+} from "../lib/mentor-additional-session-email";
 import {
   additionalSessionRequestEligibility,
   canRetryMentorSessionRequestEmail,
@@ -177,6 +180,18 @@ async function notifyAdditionalSessionsTeam(req: Request, input: {
   reportedSessions: number;
   sessionTarget: number;
 }): Promise<void> {
+  const recipients = await additionalSessionsTeamRecipients(req, input.requestId, input.programId);
+  const summary = `${input.mentorName} requested additional one-to-one sessions for ${input.businessName}. ${input.reportedSessions} session reports have been submitted; the effective target is ${input.sessionTarget}.`;
+  await sendPlatformEmail({
+    recipients,
+    subject: `Additional one-to-one sessions requested: ${input.businessName}`,
+    text: `${summary}\nProgram: ${input.programName}\nMentor: ${input.mentorName} (${input.mentorEmail})`,
+    html: `<p>${escapeEmailHtml(summary)}</p><p><strong>Program:</strong> ${escapeEmailHtml(input.programName)}<br><strong>Mentor:</strong> ${escapeEmailHtml(input.mentorName)} (${escapeEmailHtml(input.mentorEmail)})</p>`,
+    idempotencyKey: `mentor-additional-sessions-${input.requestId}`,
+  });
+}
+
+async function additionalSessionsTeamRecipients(req: Request, requestId: number, programId: number): Promise<string[]> {
   const [coordinators, programStaff] = await Promise.all([
     db.select({ email: staffMembersTable.email }).from(staffMembersTable)
       .where(and(
@@ -186,23 +201,43 @@ async function notifyAdditionalSessionsTeam(req: Request, input: {
     db.select({ email: staffMembersTable.email }).from(staffMembersTable)
       .innerJoin(staffProgramAssignmentsTable, eq(staffProgramAssignmentsTable.staffId, staffMembersTable.id))
       .where(and(
-        eq(staffProgramAssignmentsTable.programId, input.programId),
+        eq(staffProgramAssignmentsTable.programId, programId),
         eq(staffMembersTable.role, "staff"),
         eq(staffMembersTable.status, "active"),
       )),
   ]);
   const recipients = [...new Set([...coordinators, ...programStaff].map(({ email }) => email))];
   if (!recipients.length) {
-    req.log.warn({ requestId: input.requestId, programId: input.programId }, "No active program team recipients for additional mentor sessions");
+    req.log.warn({ requestId, programId }, "No active program team recipients for additional mentor sessions");
     throw new Error("No active program team recipients.");
   }
-  const summary = `${input.mentorName} requested additional one-to-one sessions for ${input.businessName}. ${input.reportedSessions} session reports have been submitted; the effective target is ${input.sessionTarget}.`;
-  await sendPlatformEmail({
+  return recipients;
+}
+
+async function notifyMentorAdditionalSessionWithdrawal(req: Request, requestId: number): Promise<void> {
+  const [details] = await db.select({
+    programId: mentorSessionRequestsTable.programId,
+    businessName: businessesTable.businessName,
+    programName: programsTable.name,
+    mentorName: userProfilesTable.displayName,
+    mentorEmail: staffMembersTable.email,
+  }).from(mentorSessionRequestsTable)
+    .innerJoin(businessesTable, eq(businessesTable.id, mentorSessionRequestsTable.businessId))
+    .innerJoin(programsTable, eq(programsTable.id, mentorSessionRequestsTable.programId))
+    .innerJoin(staffMembersTable, eq(staffMembersTable.id, mentorSessionRequestsTable.mentorStaffId))
+    .leftJoin(userProfilesTable, eq(userProfilesTable.userId, staffMembersTable.clerkUserId))
+    .where(eq(mentorSessionRequestsTable.id, requestId))
+    .limit(1);
+  if (!details) throw new Error("Mentor details for the withdrawn request were not found.");
+
+  const recipients = await additionalSessionsTeamRecipients(req, requestId, details.programId);
+  await sendMentorAdditionalSessionWithdrawalEmail({
+    requestId,
     recipients,
-    subject: `Additional one-to-one sessions requested: ${input.businessName}`,
-    text: `${summary}\nProgram: ${input.programName}\nMentor: ${input.mentorName} (${input.mentorEmail})`,
-    html: `<p>${escapeEmailHtml(summary)}</p><p><strong>Program:</strong> ${escapeEmailHtml(input.programName)}<br><strong>Mentor:</strong> ${escapeEmailHtml(input.mentorName)} (${escapeEmailHtml(input.mentorEmail)})</p>`,
-    idempotencyKey: `mentor-additional-sessions-${input.requestId}`,
+    mentorName: details.mentorName?.trim() || details.mentorEmail.split("@")[0] || details.mentorEmail,
+    mentorEmail: details.mentorEmail,
+    businessName: details.businessName,
+    programName: details.programName,
   });
 }
 
@@ -461,6 +496,11 @@ router.post("/additional-session-requests/:id/withdraw", async (req, res): Promi
   if (!withdrawn?.resolvedAt) {
     res.status(404).json({ error: "Open request is not available to this mentor." });
     return;
+  }
+  try {
+    await notifyMentorAdditionalSessionWithdrawal(req, withdrawn.id);
+  } catch (error) {
+    req.log.error({ err: error, requestId: withdrawn.id }, "Mentor additional-session withdrawal email failed");
   }
   res.json(WithdrawMentorAdditionalSessionRequestResponse.parse(withdrawn));
 });

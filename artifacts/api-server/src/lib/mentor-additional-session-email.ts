@@ -11,6 +11,15 @@ export type MentorAdditionalSessionDecisionEmailInput = {
   approvedAdditionalSessions: number | null;
 };
 
+export type MentorAdditionalSessionWithdrawalEmailInput = {
+  requestId: number;
+  recipients: string[];
+  mentorName: string;
+  mentorEmail: string;
+  businessName: string;
+  programName: string;
+};
+
 type EmailSender = (message: PlatformEmail) => Promise<void>;
 
 export function buildMentorAdditionalSessionDecisionEmail(
@@ -48,6 +57,27 @@ export async function sendMentorAdditionalSessionDecisionEmail(
   send: EmailSender = sendPlatformEmail,
 ): Promise<void> {
   await send(buildMentorAdditionalSessionDecisionEmail(input));
+}
+
+export function buildMentorAdditionalSessionWithdrawalEmail(
+  input: MentorAdditionalSessionWithdrawalEmailInput,
+): PlatformEmail {
+  const summary = `${input.mentorName} withdrew the request for additional one-to-one sessions for ${input.businessName}.`;
+  const details = `Program: ${input.programName}\nMentor: ${input.mentorName} (${input.mentorEmail})`;
+  return {
+    recipients: input.recipients,
+    subject: `Mentor withdrew additional sessions request: ${input.businessName}`,
+    text: `${summary}\n${details}`,
+    html: `<p>${escapeHtml(summary)}</p><p><strong>Program:</strong> ${escapeHtml(input.programName)}<br><strong>Mentor:</strong> ${escapeHtml(input.mentorName)} (${escapeHtml(input.mentorEmail)})</p>`,
+    idempotencyKey: `mentor-additional-session-withdrawal-${input.requestId}`,
+  };
+}
+
+export async function sendMentorAdditionalSessionWithdrawalEmail(
+  input: MentorAdditionalSessionWithdrawalEmailInput,
+  send: EmailSender = sendPlatformEmail,
+): Promise<void> {
+  await send(buildMentorAdditionalSessionWithdrawalEmail(input));
 }
 
 function escapeHtml(value: string): string {
