@@ -23,9 +23,10 @@ import type {
   JudgeScorecardInput, StaffMember,
   MentorBookingSettingsInput,
 } from '@workspace/api-client-react';
-import { ArrowRight, BookOpen, CalendarDays, CircleAlert, ClipboardList, Clock3, Download, LogOut, MessageCircle, Printer, Video } from 'lucide-react';
+import { ArrowRight, BookOpen, CalendarDays, ChevronDown, CircleAlert, ClipboardList, Clock3, Download, LayoutGrid, LogOut, MessageCircle, Printer, UserRound, Video } from 'lucide-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './components/ui/dropdown-menu';
 import { SessionRecordingPlayer } from './session-recording-player';
 import './attendance-reports.css';
 import './mentor-session-progress.css';
@@ -61,7 +62,27 @@ export function RoleFrame({ role, name, children, availableRoles = [], primaryRo
   return <div className="role-workspace">
     <header className="role-topbar">
       <Link href={`/${role}`} className="brand" data-testid="link-role-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(branding?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(branding?.brandName)}</b><small>{t('PROGRAM HUB')}</small></span></Link>
-       <div className="role-top-actions">{role === 'trainer' && <><Link href={location === '/trainer/sessions' ? '/trainer' : '/trainer/sessions'} className="button button-quiet" data-testid="link-trainer-sessions"><CalendarDays size={14} />{t(location === '/trainer/sessions' ? 'Training workspace' : 'Live sessions')}</Link><Link href={location === '/trainer/courses' ? '/trainer' : '/trainer/courses'} className="button button-quiet" data-testid="link-trainer-learning"><BookOpen size={14} />{t(location === '/trainer/courses' ? 'Training workspace' : 'Course learning')}</Link></>}{otherRoles.map(availableRole => <Link key={availableRole} href={`/${availableRole}`} className="button button-quiet" data-testid={`link-role-${availableRole}`}>{t(`Open ${availableRole} workspace`)}</Link>)}{(primaryRole === 'coordinator' || primaryRole === 'staff') && <Link href="/" className="button button-quiet" data-testid="link-program-operations">{t(primaryRole === 'coordinator' ? 'Admin workspace' : 'Program staff workspace')}</Link>}<Link href="/profile" className="button button-quiet" data-testid="link-role-profile">{t('Profile')}</Link><span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => { if (!beforeLeave || beforeLeave()) void signOut({ redirectUrl: basePath || '/' }); }} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button></div>
+       <div className="role-top-actions">
+         <DropdownMenu>
+           <DropdownMenuTrigger asChild>
+             <button type="button" className="button button-quiet role-navigation-trigger" aria-label={t('Open all pages menu')} data-testid="button-role-navigation-menu">
+               <LayoutGrid size={15} aria-hidden="true" /><span>{t('All pages')}</span><ChevronDown size={14} aria-hidden="true" />
+             </button>
+           </DropdownMenuTrigger>
+           <DropdownMenuContent align="end" side="bottom" className="role-navigation-menu" aria-label={t('All pages')}>
+             <DropdownMenuLabel>{t('All pages')}</DropdownMenuLabel>
+             {role === 'trainer' && <>
+               <DropdownMenuItem asChild><Link href={location === '/trainer/sessions' ? '/trainer' : '/trainer/sessions'} data-testid="link-trainer-sessions"><CalendarDays size={16} aria-hidden="true" /><span>{t(location === '/trainer/sessions' ? 'Training workspace' : 'Live sessions')}</span></Link></DropdownMenuItem>
+               <DropdownMenuItem asChild><Link href={location === '/trainer/courses' ? '/trainer' : '/trainer/courses'} data-testid="link-trainer-learning"><BookOpen size={16} aria-hidden="true" /><span>{t(location === '/trainer/courses' ? 'Training workspace' : 'Course learning')}</span></Link></DropdownMenuItem>
+             </>}
+             {otherRoles.map(availableRole => <DropdownMenuItem asChild key={availableRole}><Link href={`/${availableRole}`} data-testid={`link-role-${availableRole}`}><LayoutGrid size={16} aria-hidden="true" /><span>{t(`Open ${availableRole} workspace`)}</span></Link></DropdownMenuItem>)}
+             {(primaryRole === 'coordinator' || primaryRole === 'staff') && <DropdownMenuItem asChild><Link href="/" data-testid="link-program-operations"><LayoutGrid size={16} aria-hidden="true" /><span>{t(primaryRole === 'coordinator' ? 'Admin workspace' : 'Program staff workspace')}</span></Link></DropdownMenuItem>}
+             <DropdownMenuSeparator />
+             <DropdownMenuItem asChild><Link href="/profile" aria-current={location === '/profile' ? 'page' : undefined} data-testid="link-role-profile"><UserRound size={16} aria-hidden="true" /><span>{t('Profile')}</span></Link></DropdownMenuItem>
+           </DropdownMenuContent>
+         </DropdownMenu>
+         <span className="role-chip">{t(role)}</span><span className="role-user">{initials} <b>{name}</b></span><LanguageToggle /><button className="button button-quiet" onClick={() => { if (!beforeLeave || beforeLeave()) void signOut({ redirectUrl: basePath || '/' }); }} data-testid="button-role-signout"><LogOut size={15} /> {t('Sign out')}</button>
+       </div>
     </header>
     <main className="role-main page-enter">
       {role === 'mentor' && <nav className="role-button-row" aria-label={t('Mentor navigation')}>

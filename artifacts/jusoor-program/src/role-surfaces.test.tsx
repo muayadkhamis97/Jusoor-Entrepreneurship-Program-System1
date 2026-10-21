@@ -99,3 +99,20 @@ test('trainer course page has one page heading and readable trainer-scoped learn
   assert.match(styles, /\.course-hub-readonly \.discussion-body\{font-size:15px/);
   assert.match(styles, /\.course-hub-readonly \.course-quiz-item-main p\{font-size:14px/);
 });
+
+test('role workspace navigation links are grouped in an accessible dropdown', () => {
+  const surfaces = read('./role-surfaces.tsx');
+  const styles = read('./role-workspace.css');
+
+  assert.match(surfaces, /<DropdownMenuTrigger asChild>/);
+  assert.match(surfaces, /data-testid="button-role-navigation-menu"/);
+  assert.match(surfaces, /<DropdownMenuContent align="end" side="bottom"/);
+  for (const destination of [
+    'link-trainer-sessions',
+    'link-trainer-learning',
+    'link-program-operations',
+    'link-role-profile',
+    'button-role-signout',
+  ]) assert.ok(surfaces.includes(destination), `The role navigation is missing ${destination}`);
+  assert.match(styles, /\.role-navigation-menu \[role=menuitem\]\{min-height:40px;gap:9px;[\s\S]*font:500 14px/);
+});
