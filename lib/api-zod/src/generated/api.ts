@@ -3142,7 +3142,7 @@ export const GetMentorDashboardResponse = zod.object({
   "additionalSessionRequests": zod.array(zod.object({
   "id": zod.number().int(),
   "status": zod.enum(['open', 'resolved']),
-  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal(null)]).nullable(),
+  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal('withdrawn'),zod.literal(null)]).nullable(),
   "approvedAdditionalSessions": zod.number().int().min(1).max(getMentorDashboardResponseEngagementsItemTwoAdditionalSessionRequestsItemApprovedAdditionalSessionsMax).nullable(),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
   "createdAt": zod.coerce.date(),
@@ -3281,12 +3281,32 @@ export const CreateMentorAdditionalSessionRequestResponse = zod.object({
   "mentorEmail": zod.string().email(),
   "reportedSessionsAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseReportedSessionsAtRequestMin),
   "sessionTargetAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin),
-  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal(null)]).nullable(),
+  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal('withdrawn'),zod.literal(null)]).nullable(),
   "approvedAdditionalSessions": zod.number().int().min(1).max(createMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
   "status": zod.enum(['open', 'resolved']),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
   "canRetryEmail": zod.boolean(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Withdraw the mentor's own open additional-session request
+ */
+export const WithdrawMentorAdditionalSessionRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const withdrawMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax = 1000;
+
+
+
+export const WithdrawMentorAdditionalSessionRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['resolved']),
+  "decision": zod.enum(['withdrawn']),
+  "approvedAdditionalSessions": zod.number().int().min(1).max(withdrawMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
+  "resolvedAt": zod.coerce.date()
 })
 
 
@@ -3318,7 +3338,7 @@ export const GetStaffMentorAdditionalSessionRequestsResponseItem = zod.object({
   "mentorEmail": zod.string().email(),
   "reportedSessionsAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsAtRequestMin),
   "sessionTargetAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin),
-  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal(null)]).nullable(),
+  "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal('withdrawn'),zod.literal(null)]).nullable(),
   "approvedAdditionalSessions": zod.number().int().min(1).max(getStaffMentorAdditionalSessionRequestsResponseOneApprovedAdditionalSessionsMax).nullable(),
   "status": zod.enum(['open', 'resolved']),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),

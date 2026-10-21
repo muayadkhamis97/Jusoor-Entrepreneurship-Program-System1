@@ -17,7 +17,7 @@ import { supportTable } from "./support";
 
 export const mentorSessionRequestStatuses = ["open", "resolved"] as const;
 export const mentorSessionRequestEmailStatuses = ["pending", "delivered", "failed"] as const;
-export const mentorSessionRequestDecisions = ["approved", "declined"] as const;
+export const mentorSessionRequestDecisions = ["approved", "declined", "withdrawn"] as const;
 
 export const mentorSessionRequestsTable = pgTable("mentor_session_requests", {
   id: serial("id").primaryKey(),
@@ -42,7 +42,7 @@ export const mentorSessionRequestsTable = pgTable("mentor_session_requests", {
   check("mentor_session_requests_approval_check", sql`
     (${table.decision} IS NULL AND ${table.approvedAdditionalSessions} IS NULL)
     OR (${table.decision} = 'approved' AND ${table.approvedAdditionalSessions} BETWEEN 1 AND 1000)
-    OR (${table.decision} = 'declined' AND ${table.approvedAdditionalSessions} IS NULL)
+    OR (${table.decision} IN ('declined', 'withdrawn') AND ${table.approvedAdditionalSessions} IS NULL)
   `),
   check("mentor_session_requests_email_status_check", sql`${table.emailNotificationStatus} IN ('pending', 'delivered', 'failed')`),
   index("mentor_session_requests_program_status_created_idx").on(table.programId, table.status, table.createdAt),

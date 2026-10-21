@@ -9,6 +9,7 @@ let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
+let restoreUpdate: (() => void) | undefined;
 let selectedProgramRows: unknown[] = [];
 let selectedMentorRows: unknown[] = [];
 let databaseSelectCalls = 0;
@@ -16,6 +17,8 @@ let transactionSelectRows: unknown[][] = [];
 let transactionSelectCalls = 0;
 let transactionWhereConditions: unknown[] = [];
 let updateSets: Record<string, unknown>[] = [];
+let withdrawalWhereConditions: unknown[] = [];
+let withdrawalReturnedRows: Record<string, unknown>[] = [];
 let requestStaff: Record<string, unknown>;
 let dashboardMode = false;
 let dashboardHistoryRows: Record<string, unknown>[] = [];
@@ -123,6 +126,22 @@ function makeTransaction() {
   return tx;
 }
 
+function makeUpdate() {
+  const query: Record<string, (...args: unknown[]) => unknown> = {
+    set: (values) => {
+      updateSets.push(values as Record<string, unknown>);
+      return query;
+    },
+    where: (condition) => {
+      withdrawalWhereConditions.push(condition);
+      return query;
+    },
+    returning: async () => withdrawalReturnedRows,
+    then: (resolve, reject) => Promise.resolve([]).then(resolve as never, reject as never),
+  };
+  return query;
+}
+
 before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";
@@ -139,6 +158,16 @@ before(async () => {
   restoreSelect = () => {
     if (originalSelect) Object.defineProperty(db, "select", originalSelect);
     else Reflect.deleteProperty(db, "select");
+  };
+  const originalUpdate = Object.getOwnPropertyDescriptor(db, "update");
+  Object.defineProperty(db, "update", {
+    configurable: true,
+    writable: true,
+    value: () => makeUpdate(),
+  });
+  restoreUpdate = () => {
+    if (originalUpdate) Object.defineProperty(db, "update", originalUpdate);
+    else Reflect.deleteProperty(db, "update");
   };
   const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
   Object.defineProperty(db, "transaction", {
@@ -167,6 +196,7 @@ before(async () => {
 after(async () => {
   restoreSelect?.();
   restoreTransaction?.();
+  restoreUpdate?.();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
@@ -181,6 +211,8 @@ beforeEach(() => {
   transactionSelectCalls = 0;
   transactionWhereConditions = [];
   updateSets = [];
+  withdrawalWhereConditions = [];
+  withdrawalReturnedRows = [];
   dashboardMode = false;
   dashboardHistoryRows = [];
   dashboardHistoryWhereQueries = [];
@@ -201,6 +233,14 @@ async function getMentorDashboard() {
   const address = server.address();
   assert.ok(address && typeof address === "object");
   return fetch(`http://127.0.0.1:${address.port}/api/mentor/dashboard`);
+}
+
+async function withdraw(requestId: number) {
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return fetch(`http://127.0.0.1:${address.port}/api/mentor/additional-session-requests/${requestId}/withdraw`, {
+    method: "POST",
+  });
 }
 
 test("assigned program staff can approve an extra-session count atomically", async () => {
@@ -277,6 +317,69 @@ test("staff cannot decide requests from a program outside their assignment or su
   assert.equal(countOnDecline.status, 400);
 });
 
+test("a mentor can withdraw their own open request within an active program assignment", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  withdrawalReturnedRows = [{
+    id: 56,
+    status: "resolved",
+    decision: "withdrawn",
+    approvedAdditionalSessions: null,
+    resolvedAt: new Date("2026-10-21T12:00:00.000Z"),
+  }];
+
+  const response = await withdraw(56);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    id: 56,
+    status: "resolved",
+    decision: "withdrawn",
+    approvedAdditionalSessions: null,
+    resolvedAt: "2026-10-21T12:00:00.000Z",
+  });
+  assert.deepEqual(updateSets[0], {
+    status: "resolved",
+    decision: "withdrawn",
+    approvedAdditionalSessions: null,
+    resolvedByStaffId: null,
+    resolvedAt: updateSets[0]?.resolvedAt,
+  });
+  assert.ok(updateSets[0]?.resolvedAt instanceof Date);
+  const condition = new PgDialect().sqlToQuery(withdrawalWhereConditions[0] as never);
+  assert.match(condition.sql, /mentor_staff_id/);
+  assert.match(condition.sql, /status/);
+  assert.match(condition.sql, /program_id/);
+  assert.ok(condition.params.includes(56));
+  assert.ok(condition.params.includes(71));
+  assert.ok(condition.params.includes(12));
+});
+
+test("a different mentor assigned to the same program cannot withdraw the request", async () => {
+  requestStaff = { ...assignedStaff, id: 72, role: "mentor" };
+
+  const response = await withdraw(56);
+  assert.equal(response.status, 404);
+  assert.equal(updateSets.length, 1);
+  const condition = new PgDialect().sqlToQuery(withdrawalWhereConditions[0] as never);
+  assert.ok(condition.params.includes(72), "the withdrawal must be scoped to the signed-in mentor");
+  assert.ok(condition.params.includes(12), "the request must also be within the mentor's active program assignment");
+});
+
+test("resolved requests and requests outside active program assignments cannot be withdrawn", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  const resolvedRequest = await withdraw(56);
+  assert.equal(resolvedRequest.status, 404);
+  const resolvedCondition = new PgDialect().sqlToQuery(withdrawalWhereConditions[0] as never);
+  assert.match(resolvedCondition.sql, /status/);
+  assert.ok(resolvedCondition.params.includes("open"));
+
+  updateSets = [];
+  withdrawalWhereConditions = [];
+  requestStaff = { ...assignedStaff, role: "mentor", programIds: [99] };
+  const unassignedRequest = await withdraw(56);
+  assert.equal(unassignedRequest.status, 404);
+  assert.equal(updateSets.length, 0, "no update is attempted without an active matching program assignment");
+});
+
 test("mentor dashboard shows only the requesting mentor's session-request history within assigned programs", async () => {
   dashboardMode = true;
   selectedProgramRows = [{ id: 12 }, { id: 99 }];
@@ -316,6 +419,18 @@ test("mentor dashboard shows only the requesting mentor's session-request histor
       resolvedAt: new Date("2026-10-11T12:00:00.000Z"),
     },
     {
+      id: 504,
+      businessId: 900,
+      programId: 12,
+      mentorStaffId: 71,
+      status: "resolved",
+      decision: "withdrawn",
+      approvedAdditionalSessions: null,
+      emailNotificationStatus: "delivered",
+      createdAt: new Date("2026-10-16T12:00:00.000Z"),
+      resolvedAt: new Date("2026-10-17T12:00:00.000Z"),
+    },
+    {
       id: 502,
       businessId: 900,
       programId: 12,
@@ -344,12 +459,14 @@ test("mentor dashboard shows only the requesting mentor's session-request histor
   const response = await getMentorDashboard();
   assert.equal(response.status, 200);
   const dashboard = await response.json() as {
-    engagements: { businessId: number; additionalSessionRequests: { id: number; decision: string | null }[] }[];
+    engagements: { businessId: number; openAdditionalSessionsEmailStatus: string | null; additionalSessionRequests: { id: number; decision: string | null }[] }[];
   };
   assert.equal(dashboard.engagements.length, 1);
   assert.deepEqual(dashboard.engagements[0]?.additionalSessionRequests.map(({ id, decision }) => ({ id, decision })), [
     { id: 501, decision: "approved" },
+    { id: 504, decision: "withdrawn" },
   ]);
+  assert.equal(dashboard.engagements[0]?.openAdditionalSessionsEmailStatus, null, "the dashboard should allow a replacement request when no open request remains");
 
   const historyQuery = dashboardHistoryWhereQueries[0];
   assert.ok(historyQuery, "the dashboard should query the mentor's request history");

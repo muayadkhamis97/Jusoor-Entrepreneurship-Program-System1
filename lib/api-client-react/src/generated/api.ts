@@ -124,6 +124,7 @@ import type {
   MentorMeetingReport,
   MentorMeetingReportInput,
   MentorMeetingReports,
+  MentorSessionRequestWithdrawalResult,
   ParticipantBusinessMembership,
   ParticipantBusinessMembershipInput,
   ParticipantBusinessPlan,
@@ -7844,6 +7845,80 @@ export const useCreateMentorAdditionalSessionRequest = <TError = ErrorType<void>
         TContext
       > => {
       return useMutation(getCreateMentorAdditionalSessionRequestMutationOptions(options));
+    }
+
+export const getWithdrawMentorAdditionalSessionRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/mentor/additional-session-requests/${id}/withdraw`
+}
+
+/**
+ * @summary Withdraw the mentor's own open additional-session request
+ */
+export const withdrawMentorAdditionalSessionRequest = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<MentorSessionRequestWithdrawalResult> => {
+
+  return customFetch<MentorSessionRequestWithdrawalResult>(getWithdrawMentorAdditionalSessionRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWithdrawMentorAdditionalSessionRequestMutationKey = () => ['withdrawMentorAdditionalSessionRequest'] as const;
+
+export const getWithdrawMentorAdditionalSessionRequestMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawMentorAdditionalSessionRequest>>, TError,WithdrawMentorAdditionalSessionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof withdrawMentorAdditionalSessionRequest>>, TError,WithdrawMentorAdditionalSessionRequestMutationVariables, TContext> => {
+
+const mutationKey = getWithdrawMentorAdditionalSessionRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof withdrawMentorAdditionalSessionRequest>>, WithdrawMentorAdditionalSessionRequestMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  withdrawMentorAdditionalSessionRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WithdrawMentorAdditionalSessionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof withdrawMentorAdditionalSessionRequest>>>
+
+    export type WithdrawMentorAdditionalSessionRequestMutationError = ErrorType<void>
+    export type WithdrawMentorAdditionalSessionRequestMutationVariables = {id: number}
+
+    /**
+ * @summary Withdraw the mentor's own open additional-session request
+ */
+export const useWithdrawMentorAdditionalSessionRequest = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof withdrawMentorAdditionalSessionRequest>>, TError,WithdrawMentorAdditionalSessionRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof withdrawMentorAdditionalSessionRequest>>,
+        TError,
+        WithdrawMentorAdditionalSessionRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWithdrawMentorAdditionalSessionRequestMutationOptions(options));
     }
 
 export const getGetStaffMentorAdditionalSessionRequestsUrl = (params: GetStaffMentorAdditionalSessionRequestsParams,) => {

@@ -1907,6 +1907,22 @@ paths:
           description: Engagement is not assigned to this mentor
         "409":
           description: The business has not reached its session target or already has an open request
+  /mentor/additional-session-requests/{id}/withdraw:
+    post:
+      operationId: withdrawMentorAdditionalSessionRequest
+      tags: [support]
+      summary: Withdraw the mentor's own open additional-session request
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Request withdrawn and retained in the mentor's history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MentorSessionRequestWithdrawalResult"
+        "404":
+          description: Open request is not available to this mentor
   /staff/mentor-additional-session-requests:
     get:
       operationId: getStaffMentorAdditionalSessionRequests
@@ -5367,7 +5383,7 @@ components:
         mentorEmail: { type: string, format: email }
         reportedSessionsAtRequest: { type: integer, minimum: 0 }
         sessionTargetAtRequest: { type: integer, minimum: 0 }
-        decision: { type: ["string", "null"], enum: [approved, declined, null] }
+        decision: { type: ["string", "null"], enum: [approved, declined, withdrawn, null] }
         approvedAdditionalSessions: { type: ["integer", "null"], minimum: 1, maximum: 1000 }
         status: { type: string, enum: [open, resolved] }
         emailNotificationStatus: { type: string, enum: [pending, delivered, failed] }
@@ -5379,7 +5395,7 @@ components:
       properties:
         id: { type: integer }
         status: { type: string, enum: [open, resolved] }
-        decision: { type: ["string", "null"], enum: [approved, declined, null] }
+        decision: { type: ["string", "null"], enum: [approved, declined, withdrawn, null] }
         approvedAdditionalSessions: { type: ["integer", "null"], minimum: 1, maximum: 1000 }
         emailNotificationStatus: { type: string, enum: [pending, delivered, failed] }
         createdAt: { type: string, format: date-time }
@@ -5398,6 +5414,15 @@ components:
         decision: { type: string, enum: [approved, declined] }
         approvedAdditionalSessions: { type: integer, minimum: 1, maximum: 1000 }
       required: [decision]
+    MentorSessionRequestWithdrawalResult:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [resolved] }
+        decision: { type: string, enum: [withdrawn] }
+        approvedAdditionalSessions: { type: ["integer", "null"], minimum: 1, maximum: 1000 }
+        resolvedAt: { type: string, format: date-time }
+      required: [id, status, decision, approvedAdditionalSessions, resolvedAt]
     ResolveMentorAdditionalSessionRequestResponse:
       type: object
       properties:

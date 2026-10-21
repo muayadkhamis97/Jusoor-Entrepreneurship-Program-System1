@@ -11,6 +11,8 @@ import {
   UpdateAssignedMentoringResponse,
   GetMentorMeetingReportsParams,
   GetMentorMeetingReportsResponse,
+  WithdrawMentorAdditionalSessionRequestParams,
+  WithdrawMentorAdditionalSessionRequestResponse,
   GetStaffMentorMeetingReportCoachesQueryParams,
   GetStaffMentorMeetingReportCoachesResponse,
   GetStaffMentorMeetingReportsQueryParams,
@@ -417,6 +419,50 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
     id: details.id,
     emailNotificationStatus,
   }));
+});
+
+router.post("/additional-session-requests/:id/withdraw", async (req, res): Promise<void> => {
+  const params = WithdrawMentorAdditionalSessionRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role !== "mentor" || staff.status !== "active") {
+    res.status(404).json({ error: "Open request is not available to this mentor." });
+    return;
+  }
+  const programIds = await activeProgramIdsFor(staff);
+  if (!programIds.length) {
+    res.status(404).json({ error: "Open request is not available to this mentor." });
+    return;
+  }
+  const [withdrawn] = await db.update(mentorSessionRequestsTable)
+    .set({
+      status: "resolved",
+      decision: "withdrawn",
+      approvedAdditionalSessions: null,
+      resolvedAt: new Date(),
+      resolvedByStaffId: null,
+    })
+    .where(and(
+      eq(mentorSessionRequestsTable.id, params.data.id),
+      eq(mentorSessionRequestsTable.mentorStaffId, staff.id),
+      eq(mentorSessionRequestsTable.status, "open"),
+      inArray(mentorSessionRequestsTable.programId, programIds),
+    ))
+    .returning({
+      id: mentorSessionRequestsTable.id,
+      status: mentorSessionRequestsTable.status,
+      decision: mentorSessionRequestsTable.decision,
+      approvedAdditionalSessions: mentorSessionRequestsTable.approvedAdditionalSessions,
+      resolvedAt: mentorSessionRequestsTable.resolvedAt,
+    });
+  if (!withdrawn?.resolvedAt) {
+    res.status(404).json({ error: "Open request is not available to this mentor." });
+    return;
+  }
+  res.json(WithdrawMentorAdditionalSessionRequestResponse.parse(withdrawn));
 });
 
 router.post("/support/:id/additional-session-requests", async (req, res): Promise<void> => {

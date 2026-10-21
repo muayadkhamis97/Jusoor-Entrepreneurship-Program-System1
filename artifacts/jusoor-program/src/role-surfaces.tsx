@@ -14,6 +14,7 @@ import {
   getGetStaffMentorAdditionalSessionRequestsQueryKey,
   useGetStaffMentorAdditionalSessionRequests, useResolveStaffMentorAdditionalSessionRequest,
   useRetryStaffMentorAdditionalSessionRequestEmail, useCreateMentorAdditionalSessionRequest,
+  useWithdrawMentorAdditionalSessionRequest,
   getListBusinessesQueryKey, getListProgramsQueryKey, useGetProgramBranding,
   useGetStaffMentorMeetingReports, useListBusinesses, useListPrograms,
 } from '@workspace/api-client-react';
@@ -492,8 +493,11 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
   const query = useGetMentorDashboard({ query: { queryKey: getGetMentorDashboardQueryKey(), refetchOnWindowFocus: true } });
   const client = useQueryClient();
   const createAdditionalSessionRequest = useCreateMentorAdditionalSessionRequest();
+  const withdrawAdditionalSessionRequest = useWithdrawMentorAdditionalSessionRequest();
   const [additionalSessionRequestPendingIds, setAdditionalSessionRequestPendingIds] = useState<Set<number>>(() => new Set());
   const [additionalSessionRequestErrorIds, setAdditionalSessionRequestErrorIds] = useState<Set<number>>(() => new Set());
+  const [additionalSessionRequestWithdrawPendingIds, setAdditionalSessionRequestWithdrawPendingIds] = useState<Set<number>>(() => new Set());
+  const [additionalSessionRequestWithdrawErrorIds, setAdditionalSessionRequestWithdrawErrorIds] = useState<Set<number>>(() => new Set());
   const connectCalendly = useStartCalendlyConnection();
   const connectGoogleCalendar = useStartGoogleCalendarConnection();
   const disconnectGoogleCalendar = useDisconnectGoogleCalendar();
@@ -643,15 +647,33 @@ export function MentorDashboardPage({ name, availableRoles, primaryRole, setting
         </section>
         {item.additionalSessionRequests.length > 0 && <section className="mentor-session-progress" aria-label={t('Additional session request history')} data-testid={`additional-session-history-${item.businessId}`}>
           <div className="mentor-session-progress-heading"><b>{t('Additional session request history')}</b></div>
-          {item.additionalSessionRequests.map(request => <p key={request.id} data-testid={`additional-session-history-item-${request.id}`}>
-            {dateTimeText(request.createdAt)} · {request.decision === 'approved'
+          {item.additionalSessionRequests.map(request => <div className="mentor-session-history-entry" key={request.id} data-testid={`additional-session-history-item-${request.id}`}>
+            <span>{dateTimeText(request.createdAt)} · {request.decision === 'approved'
               ? `${t('Approved')}: ${request.approvedAdditionalSessions} ${t('additional sessions')}`
               : request.decision === 'declined'
                 ? t('Request declined.')
+                : request.decision === 'withdrawn'
+                  ? t('Request withdrawn.')
                 : request.status === 'open'
                   ? t('Request awaiting review.')
-                  : t('Request reviewed.')}
-          </p>)}
+                  : t('Request reviewed.')}</span>
+            {request.status === 'open' && request.decision === null && <Button
+              type="button"
+              className="button button-quiet"
+              disabled={additionalSessionRequestWithdrawPendingIds.has(request.id)}
+              data-testid={`button-withdraw-additional-session-request-${request.id}`}
+              onClick={() => {
+                setAdditionalSessionRequestWithdrawErrorIds(current => withId(current, request.id, false));
+                setAdditionalSessionRequestWithdrawPendingIds(current => withId(current, request.id, true));
+                withdrawAdditionalSessionRequest.mutate({ id: request.id }, {
+                  onSuccess: () => invalid(client, getGetMentorDashboardQueryKey()),
+                  onError: () => setAdditionalSessionRequestWithdrawErrorIds(current => withId(current, request.id, true)),
+                  onSettled: () => setAdditionalSessionRequestWithdrawPendingIds(current => withId(current, request.id, false)),
+                });
+              }}
+            >{additionalSessionRequestWithdrawPendingIds.has(request.id) ? t('Withdrawing…') : t('Withdraw request')}</Button>}
+            {additionalSessionRequestWithdrawErrorIds.has(request.id) && <span className="form-error" role="alert">{t('The request could not be withdrawn. It may have already been reviewed. Please refresh and try again.')}</span>}
+          </div>)}
         </section>}
         <MentorEngagementCard item={item} draft={draft} onDraftChange={next => setDrafts(old => ({ ...old, [item.id]: next }))} />
       </div>;

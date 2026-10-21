@@ -15,4 +15,5 @@ export type MentorAdditionalSessionRequestDecision = typeof MentorAdditionalSess
 export const MentorAdditionalSessionRequestDecision = {
   approved: 'approved',
   declined: 'declined',
+  withdrawn: 'withdrawn',
 } as const;

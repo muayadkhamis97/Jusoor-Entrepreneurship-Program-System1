@@ -37,6 +37,19 @@
   color: hsl(var(--muted-foreground));
 }
 
+.mentor-session-history-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 2);
+  flex-wrap: wrap;
+  color: hsl(var(--muted-foreground));
+}
+
+.mentor-session-history-entry .form-error {
+  flex-basis: 100%;
+}
+
 .mentor-session-progress .button {
   justify-self: start;
 }

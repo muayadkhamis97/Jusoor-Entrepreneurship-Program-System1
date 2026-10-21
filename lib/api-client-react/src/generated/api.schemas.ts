@@ -2021,6 +2021,7 @@ export type MentorAdditionalSessionRequestHistoryDecision = typeof MentorAdditio
 export const MentorAdditionalSessionRequestHistoryDecision = {
   approved: 'approved',
   declined: 'declined',
+  withdrawn: 'withdrawn',
 } as const;
 
 export type MentorAdditionalSessionRequestHistoryEmailNotificationStatus = typeof MentorAdditionalSessionRequestHistoryEmailNotificationStatus[keyof typeof MentorAdditionalSessionRequestHistoryEmailNotificationStatus];
@@ -2222,6 +2223,7 @@ export type MentorAdditionalSessionRequestDecision = typeof MentorAdditionalSess
 export const MentorAdditionalSessionRequestDecision = {
   approved: 'approved',
   declined: 'declined',
+  withdrawn: 'withdrawn',
 } as const;
 
 export type MentorAdditionalSessionRequestStatus = typeof MentorAdditionalSessionRequestStatus[keyof typeof MentorAdditionalSessionRequestStatus];
@@ -2286,6 +2288,33 @@ export interface ResolveMentorAdditionalSessionRequestInput {
      * @maximum 1000
      */
   approvedAdditionalSessions?: number;
+}
+
+export type MentorSessionRequestWithdrawalResultStatus = typeof MentorSessionRequestWithdrawalResultStatus[keyof typeof MentorSessionRequestWithdrawalResultStatus];
+
+
+export const MentorSessionRequestWithdrawalResultStatus = {
+  resolved: 'resolved',
+} as const;
+
+export type MentorSessionRequestWithdrawalResultDecision = typeof MentorSessionRequestWithdrawalResultDecision[keyof typeof MentorSessionRequestWithdrawalResultDecision];
+
+
+export const MentorSessionRequestWithdrawalResultDecision = {
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface MentorSessionRequestWithdrawalResult {
+  id: number;
+  status: MentorSessionRequestWithdrawalResultStatus;
+  decision: MentorSessionRequestWithdrawalResultDecision;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     * @nullable
+     */
+  approvedAdditionalSessions: number | null;
+  resolvedAt: string;
 }
 
 export type ResolveMentorAdditionalSessionRequestResponseStatus = typeof ResolveMentorAdditionalSessionRequestResponseStatus[keyof typeof ResolveMentorAdditionalSessionRequestResponseStatus];
