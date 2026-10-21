@@ -30,3 +30,62 @@
 }
 .course-offline-guidance{display:flex;align-items:flex-start;gap:10px;margin:0 0 14px;padding:11px 13px;border:1px solid hsl(var(--primary)/.16);border-radius:8px;background:hsl(var(--primary)/.045);color:hsl(var(--primary))}
 .course-offline-guidance>svg{flex:0 0 auto;margin-top:2px}.course-offline-guidance b,.course-offline-guidance span{display:block}.course-offline-guidance b{font-size:10px}.course-offline-guidance span{margin-top:3px;color:hsl(var(--muted-foreground));font-size:9px;line-height:1.55}
+
+/* Trainer course content follows the design system's readable body and label scale. */
+.course-hub-readonly .course-hero p{font-size:16px;line-height:1.65}
+.course-hub-readonly .course-summary span{font-size:11px}
+.course-hub-readonly .course-select-wrap{font-size:12px}
+.course-hub-readonly .course-module-copy p{font-size:15px;line-height:1.65}
+.course-hub-readonly .course-meta-label{font-size:11px}
+.course-hub-readonly .course-material-copy b{font-size:14px}
+.course-hub-readonly .course-material-copy span{font-size:12px;line-height:1.5}
+.course-hub-readonly .course-material-link{font-size:12px}
+.course-hub-readonly .course-material-empty{font-size:14px}
+.course-hub-readonly .course-aside h3{font-size:18px}
+.course-hub-readonly .course-aside p{font-size:15px;line-height:1.65}
+.course-hub-readonly .course-aside li{font-size:14px;line-height:1.55}
+.course-hub-readonly .course-aside li span{font-size:11px}
+.course-hub-readonly .course-offline-guidance b{font-size:14px}
+.course-hub-readonly .course-offline-guidance span{font-size:14px;line-height:1.6}
+.course-hub-readonly .empty-panel p{font-size:15px}
+.course-hub-readonly .discussion-heading-copy .eyebrow,
+.course-hub-readonly .course-quiz-heading .eyebrow{font-size:11px}
+.course-hub-readonly .discussion-heading-copy p,
+.course-hub-readonly .course-quiz-heading p{font-size:14px;line-height:1.55}
+.course-hub-readonly .discussion-toggle,
+.course-hub-readonly .quiz-action{font-size:12px}
+.course-hub-readonly .discussion-live{font-size:11px}
+.course-hub-readonly .discussion-field{font-size:12px}
+.course-hub-readonly .discussion-field input,
+.course-hub-readonly .discussion-field textarea{font-size:16px}
+.course-hub-readonly .discussion-send,
+.course-hub-readonly .discussion-cancel,
+.course-hub-readonly .discussion-reply-trigger{font-size:13px}
+.course-hub-readonly .discussion-byline,
+.course-hub-readonly .discussion-byline b,
+.course-hub-readonly .discussion-byline time,
+.course-hub-readonly .discussion-role,
+.course-hub-readonly .discussion-reply-count{font-size:11px}
+.course-hub-readonly .discussion-body{font-size:15px;line-height:1.65}
+.course-hub-readonly .discussion-empty b{font-size:14px}
+.course-hub-readonly .discussion-empty p,
+.course-hub-readonly .discussion-error div,
+.course-hub-readonly .discussion-error b,
+.course-hub-readonly .discussion-error button,
+.course-hub-readonly .discussion-post-error{font-size:13px}
+.course-hub-readonly .course-quiz-heading h3{font-size:16px}
+.course-hub-readonly .quiz-status,
+.course-hub-readonly .quiz-item-meta{font-size:11px}
+.course-hub-readonly .course-quiz-item-main h4{font-size:14px}
+.course-hub-readonly .course-quiz-item-main p{font-size:14px;line-height:1.55}
+.course-hub-readonly .quiz-management-empty b,
+.course-hub-readonly .quiz-management-empty small,
+.course-hub-readonly .quiz-empty-attempts,
+.course-hub-readonly .quiz-inline-error,
+.course-hub-readonly .quiz-review-heading b,
+.course-hub-readonly .quiz-review-heading span,
+.course-hub-readonly .quiz-attempt-name b,
+.course-hub-readonly .quiz-review-answer h4,
+.course-hub-readonly .quiz-review-answer p{font-size:13px;line-height:1.55}
+.course-hub-readonly .quiz-attempt-name small,
+.course-hub-readonly .quiz-review-answer>span{font-size:11px}

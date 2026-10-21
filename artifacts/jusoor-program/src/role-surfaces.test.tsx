@@ -88,3 +88,14 @@ test('trainer attendance uses compact expandable cards on narrow screens and kee
   }
   assert.match(styles, /@media\(max-width:700px\)[\s\S]*\.attendance-sheet-scroll\{display:none\}[\s\S]*\.attendance-mobile-cards\{display:grid/);
 });
+
+test('trainer course page has one page heading and readable trainer-scoped learning text', () => {
+  const courses = read('./course-surfaces.tsx');
+  const styles = read('./course-learning.css');
+
+  assert.match(courses, /className=\{`course-hub\$\{readOnly \? ' course-hub-readonly' : ''\}`\}/);
+  assert.match(courses, /\{!readOnly && <div className="page-heading">/);
+  assert.match(styles, /\.course-hub-readonly \.course-module-copy p\{font-size:15px/);
+  assert.match(styles, /\.course-hub-readonly \.discussion-body\{font-size:15px/);
+  assert.match(styles, /\.course-hub-readonly \.course-quiz-item-main p\{font-size:14px/);
+});
