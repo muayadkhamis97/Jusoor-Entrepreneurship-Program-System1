@@ -17,6 +17,10 @@ let transactionSelectCalls = 0;
 let transactionWhereConditions: unknown[] = [];
 let updateSets: Record<string, unknown>[] = [];
 let requestStaff: Record<string, unknown>;
+let dashboardMode = false;
+let dashboardHistoryRows: Record<string, unknown>[] = [];
+let dashboardHistoryWhereQueries: ReturnType<PgDialect["sqlToQuery"]>[] = [];
+let dashboardEngagementRows: Record<string, unknown>[] = [];
 
 const assignedStaff = {
   id: 71,
@@ -34,6 +38,45 @@ function makeProgramScopeQuery() {
     innerJoin: () => query,
     leftJoin: () => query,
     limit: async () => rows,
+    orderBy: () => query,
+    groupBy: () => query,
+  };
+  query.then = (resolve, reject) => Promise.resolve(rows).then(resolve as never, reject as never);
+  return query;
+}
+
+function makeDashboardQuery(projection: Record<string, unknown>) {
+  const keys = Object.keys(projection);
+  let rows: Record<string, unknown>[] = [];
+  const isHistoryQuery = keys.includes("resolvedAt");
+  if (keys.includes("mentorSessionsPerBusiness")) {
+    rows = dashboardEngagementRows;
+  } else if (keys.length === 1 && keys[0] === "id") {
+    rows = selectedProgramRows as Record<string, unknown>[];
+  } else if (isHistoryQuery) {
+    rows = dashboardHistoryRows;
+  }
+
+  const query: Record<string, (...args: unknown[]) => unknown> = {
+    from: () => query,
+    where: (condition) => {
+      if (isHistoryQuery) {
+        const compiled = new PgDialect().sqlToQuery(condition as never);
+        dashboardHistoryWhereQueries.push(compiled);
+        const hasMentorFilter = compiled.sql.includes("mentor_staff_id");
+        const hasProgramFilter = compiled.sql.includes("program_id");
+        rows = dashboardHistoryRows.filter((request) =>
+          (!hasMentorFilter || compiled.params.includes(request.mentorStaffId)) &&
+          (!hasProgramFilter || compiled.params.includes(request.programId)),
+        );
+      }
+      return query;
+    },
+    innerJoin: () => query,
+    leftJoin: () => query,
+    limit: async () => rows,
+    orderBy: () => query,
+    groupBy: () => query,
   };
   query.then = (resolve, reject) => Promise.resolve(rows).then(resolve as never, reject as never);
   return query;
@@ -85,12 +128,13 @@ before(async () => {
   process.env.NODE_ENV = "test";
   const database = await import("@workspace/db");
   db = database.db;
-  const { staffMentorMeetingReportsRouter } = await import("../src/routes/mentor");
+  const { default: mentorRouter, staffMentorMeetingReportsRouter } = await import("../src/routes/mentor");
   const originalSelect = Object.getOwnPropertyDescriptor(db, "select");
   Object.defineProperty(db, "select", {
     configurable: true,
     writable: true,
-    value: () => makeProgramScopeQuery(),
+    value: (projection?: Record<string, unknown>) =>
+      dashboardMode ? makeDashboardQuery(projection ?? {}) : makeProgramScopeQuery(),
   });
   restoreSelect = () => {
     if (originalSelect) Object.defineProperty(db, "select", originalSelect);
@@ -115,6 +159,7 @@ before(async () => {
     next();
   });
   app.use("/api/staff", requireOperationsStaff, staffMentorMeetingReportsRouter);
+  app.use("/api/mentor", mentorRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 });
@@ -136,6 +181,10 @@ beforeEach(() => {
   transactionSelectCalls = 0;
   transactionWhereConditions = [];
   updateSets = [];
+  dashboardMode = false;
+  dashboardHistoryRows = [];
+  dashboardHistoryWhereQueries = [];
+  dashboardEngagementRows = [];
 });
 
 async function decide(body: Record<string, unknown>) {
@@ -146,6 +195,12 @@ async function decide(body: Record<string, unknown>) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+async function getMentorDashboard() {
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return fetch(`http://127.0.0.1:${address.port}/api/mentor/dashboard`);
 }
 
 test("assigned program staff can approve an extra-session count atomically", async () => {
@@ -220,4 +275,87 @@ test("staff cannot decide requests from a program outside their assignment or su
 
   const countOnDecline = await decide({ decision: "declined", approvedAdditionalSessions: 1 });
   assert.equal(countOnDecline.status, 400);
+});
+
+test("mentor dashboard shows only the requesting mentor's session-request history within assigned programs", async () => {
+  dashboardMode = true;
+  selectedProgramRows = [{ id: 12 }, { id: 99 }];
+  requestStaff = {
+    ...assignedStaff,
+    role: "mentor",
+    bookingProvider: "calendly",
+    calendlyBookingUrl: null,
+    googleCalendarBookingUrl: null,
+    googleCalendarAccountEmail: null,
+  };
+  dashboardEngagementRows = [{
+    id: 301,
+    businessId: 900,
+    businessName: "Shared Business",
+    founderName: "Founder",
+    programName: "Assigned Program",
+    mentorSessionsPerBusiness: 3,
+    type: "mentor",
+    provider: "Assigned mentor",
+    topic: "Business support",
+    scheduledDate: null,
+    status: "matched",
+    notes: null,
+  }];
+  dashboardHistoryRows = [
+    {
+      id: 501,
+      businessId: 900,
+      programId: 12,
+      mentorStaffId: 71,
+      status: "resolved",
+      decision: "approved",
+      approvedAdditionalSessions: 2,
+      emailNotificationStatus: "delivered",
+      createdAt: new Date("2026-10-10T12:00:00.000Z"),
+      resolvedAt: new Date("2026-10-11T12:00:00.000Z"),
+    },
+    {
+      id: 502,
+      businessId: 900,
+      programId: 12,
+      mentorStaffId: 72,
+      status: "resolved",
+      decision: "declined",
+      approvedAdditionalSessions: null,
+      emailNotificationStatus: "delivered",
+      createdAt: new Date("2026-10-12T12:00:00.000Z"),
+      resolvedAt: new Date("2026-10-13T12:00:00.000Z"),
+    },
+    {
+      id: 503,
+      businessId: 901,
+      programId: 99,
+      mentorStaffId: 71,
+      status: "resolved",
+      decision: "approved",
+      approvedAdditionalSessions: 4,
+      emailNotificationStatus: "delivered",
+      createdAt: new Date("2026-10-14T12:00:00.000Z"),
+      resolvedAt: new Date("2026-10-15T12:00:00.000Z"),
+    },
+  ];
+
+  const response = await getMentorDashboard();
+  assert.equal(response.status, 200);
+  const dashboard = await response.json() as {
+    engagements: { businessId: number; additionalSessionRequests: { id: number; decision: string | null }[] }[];
+  };
+  assert.equal(dashboard.engagements.length, 1);
+  assert.deepEqual(dashboard.engagements[0]?.additionalSessionRequests.map(({ id, decision }) => ({ id, decision })), [
+    { id: 501, decision: "approved" },
+  ]);
+
+  const historyQuery = dashboardHistoryWhereQueries[0];
+  assert.ok(historyQuery, "the dashboard should query the mentor's request history");
+  assert.match(historyQuery.sql, /mentor_staff_id/);
+  assert.match(historyQuery.sql, /program_id/);
+  assert.ok(historyQuery.params.includes(71), "request history must be filtered to the signed-in mentor");
+  assert.ok(historyQuery.params.includes(12), "request history must stay within the mentor's active program assignments");
+  assert.ok(!historyQuery.params.includes(99), "unassigned programs must not be included in request history");
 });
