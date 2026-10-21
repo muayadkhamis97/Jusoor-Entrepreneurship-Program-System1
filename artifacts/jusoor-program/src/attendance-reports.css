@@ -9,7 +9,26 @@ table.attendance-sheet{width:100%;min-width:1900px;border-collapse:collapse;colo
 .attendance-sheet th{position:sticky;top:0;z-index:1;background:hsl(var(--card));color:hsl(var(--muted-foreground));font-weight:700}
 .attendance-sheet td{white-space:pre-wrap}
 .attendance-sheet td:nth-child(7),.attendance-sheet td:nth-child(13){min-width:180px}
+.attendance-mobile-cards{display:none}
+.attendance-mobile-card{min-width:0;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--card));box-shadow:var(--shadow-card)}
+.attendance-mobile-card>summary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;cursor:pointer;list-style:none}
+.attendance-mobile-card>summary::-webkit-details-marker{display:none}
+.attendance-mobile-primary{display:grid;gap:5px;min-width:0}
+.attendance-mobile-primary>b{font:700 var(--text-base)/1.4 var(--app-font-sans);overflow-wrap:anywhere}
+.attendance-mobile-primary>span{color:hsl(var(--muted-foreground));font-size:var(--text-sm);line-height:var(--text-sm--line-height);overflow-wrap:anywhere}
+.attendance-mobile-card>summary>.badge{flex:0 0 auto}
+.attendance-mobile-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px;margin:0;padding:0 14px 14px;border-top:1px solid hsl(var(--border))}
+.attendance-mobile-details>div{min-width:0;padding:10px 0 0}
+.attendance-mobile-details dt{color:hsl(var(--muted-foreground));font-size:var(--text-xs);line-height:var(--text-xs--line-height);font-weight:600}
+.attendance-mobile-details dd{margin:3px 0 0;font-size:var(--text-sm);line-height:var(--text-sm--line-height);overflow-wrap:anywhere;white-space:pre-wrap}
 .trainer-attendance-print-sheet{display:none}
+
+@media(max-width:700px){
+  .attendance-sheet-scroll{display:none}
+  .attendance-mobile-cards{display:grid;gap:10px}
+  .attendance-mobile-card>summary{flex-direction:column}
+  .attendance-mobile-details{grid-template-columns:minmax(0,1fr)}
+}
 
 @media print{
   @page attendanceReports{size:A4 landscape;margin:10mm}

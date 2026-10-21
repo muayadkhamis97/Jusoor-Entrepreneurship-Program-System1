@@ -71,3 +71,20 @@ test('publishing a trainer assignment shows a success confirmation after clearin
   assert.match(surface, /setAssignmentPublished\(false\)/);
   assert.match(surface, /formElement\.reset\(\)/);
 });
+
+test('trainer attendance uses compact expandable cards on narrow screens and keeps all report fields', () => {
+  const surface = read('./role-surfaces.tsx');
+  const styles = read('./attendance-reports.css');
+  assert.match(surface, /attendance-mobile-cards/);
+  assert.match(surface, /<details className="attendance-mobile-card"/);
+  assert.match(surface, /<summary>/);
+  for (const field of [
+    'Unmatched attendee email', 'Attendance source', 'Minutes attended', 'First joined at',
+    'Last left at', 'Attendance notes', 'Zoom sync status', 'Zoom participants',
+    'Matched Zoom participants', 'Unmatched Zoom participants', 'Sync attempts',
+    'Last Zoom sync attempt', 'Zoom synced at',
+  ]) {
+    assert.ok(surface.includes(`t('${field}')`), `Mobile attendance card is missing ${field}`);
+  }
+  assert.match(styles, /@media\(max-width:700px\)[\s\S]*\.attendance-sheet-scroll\{display:none\}[\s\S]*\.attendance-mobile-cards\{display:grid/);
+});

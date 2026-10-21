@@ -373,6 +373,14 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   const attendanceEmptyState = getTrainerAttendanceEmptyState(sessions.length, attendanceQuery.data?.length || 0);
   const programs = trainerProgramOptions(dashboard?.programs || [], t('Program name unavailable'));
   const assignmentSessions = trainerSessionOptions(sessions, assignmentProgramId === '' ? null : assignmentProgramId);
+  const attendanceRows = attendanceQuery.data ? buildTrainerAttendanceSheetRows(attendanceQuery.data) : [];
+  const attendanceStatusText = (status: string) => status === 'present' ? t('Present')
+    : status === 'absent' ? t('Absent')
+      : status === 'excused' ? t('Excused')
+        : status === 'Needs review' ? t('Needs review')
+          : status === 'Not recorded' ? t('Not recorded') : '—';
+  const attendanceStatusTone = (status: string) => status === 'present' ? 'good'
+    : status === 'absent' || status === 'Needs review' ? 'warm' : 'neutral';
   const submitAssignment = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAssignmentPublished(false);
@@ -452,16 +460,11 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
                  <th scope="col">{t('Zoom sync status')}</th><th scope="col">{t('Zoom participants')}</th><th scope="col">{t('Matched Zoom participants')}</th>
                  <th scope="col">{t('Unmatched Zoom participants')}</th><th scope="col">{t('Sync attempts')}</th><th scope="col">{t('Last Zoom sync attempt')}</th><th scope="col">{t('Zoom synced at')}</th>
                </tr></thead>
-               <tbody>{buildTrainerAttendanceSheetRows(attendanceQuery.data).map((row, index) => {
-                 const status = row.status === 'present' ? t('Present')
-                   : row.status === 'absent' ? t('Absent')
-                     : row.status === 'excused' ? t('Excused')
-                       : row.status === 'Needs review' ? t('Needs review')
-                         : row.status === 'Not recorded' ? t('Not recorded') : '—';
-                 return <tr key={`${row.sessionId}-${row.recordType}-${index}`} data-testid={`trainer-attendance-row-${row.sessionId}-${index}`}>
+                <tbody>{attendanceRows.map((row, index) => {
+                  return <tr key={`${row.sessionId}-${row.recordType}-${index}`} data-testid={`trainer-attendance-row-${row.sessionId}-${index}`}>
                    <td>{row.sessionId}</td><td>{row.sessionTitle}</td><td>{dateText(row.scheduledDate)}</td><td>{t(row.recordType)}</td>
                    <td>{row.businessName || '—'}</td><td>{row.participantName || '—'}</td><td dir="auto">{row.unmatchedEmail || '—'}</td>
-                   <td>{status}</td><td>{row.source === 'zoom' ? t('Zoom') : row.source === 'manual' ? t('Manual') : '—'}</td>
+                    <td>{attendanceStatusText(row.status)}</td><td>{row.source === 'zoom' ? t('Zoom') : row.source === 'manual' ? t('Manual') : '—'}</td>
                    <td>{row.minutesAttended === '' ? '—' : row.minutesAttended}</td><td>{dateTimeText(row.firstJoinedAt)}</td><td>{dateTimeText(row.lastLeftAt)}</td>
                    <td dir="auto">{row.notes || '—'}</td><td>{row.zoomSyncStatus ? word(row.zoomSyncStatus) : t('Waiting')}</td>
                    <td>{row.zoomParticipantCount === '' ? '—' : row.zoomParticipantCount}</td><td>{row.zoomMatchedCount === '' ? '—' : row.zoomMatchedCount}</td>
@@ -470,6 +473,34 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
                })}</tbody>
              </table>
            </div>
+            <div className="attendance-mobile-cards" data-testid="trainer-attendance-mobile-cards">
+              {attendanceRows.map((row, index) => <details className="attendance-mobile-card" key={`mobile-${row.sessionId}-${row.recordType}-${index}`} data-testid={`trainer-attendance-mobile-row-${row.sessionId}-${index}`}>
+                <summary>
+                  <span className="attendance-mobile-primary">
+                    <b>{row.sessionTitle}</b>
+                    <span>{dateText(row.scheduledDate)} · {t(row.recordType)}</span>
+                    <span>{row.businessName || '—'}{row.participantName ? ` · ${row.participantName}` : ''}</span>
+                  </span>
+                  <span className={`badge badge-${attendanceStatusTone(row.status)}`}><span />{attendanceStatusText(row.status)}</span>
+                </summary>
+                <dl className="attendance-mobile-details">
+                  <div><dt>{t('Session ID')}</dt><dd>{row.sessionId}</dd></div>
+                  <div><dt>{t('Unmatched attendee email')}</dt><dd dir="auto">{row.unmatchedEmail || '—'}</dd></div>
+                  <div><dt>{t('Attendance source')}</dt><dd>{row.source === 'zoom' ? t('Zoom') : row.source === 'manual' ? t('Manual') : '—'}</dd></div>
+                  <div><dt>{t('Minutes attended')}</dt><dd>{row.minutesAttended === '' ? '—' : row.minutesAttended}</dd></div>
+                  <div><dt>{t('First joined at')}</dt><dd>{dateTimeText(row.firstJoinedAt)}</dd></div>
+                  <div><dt>{t('Last left at')}</dt><dd>{dateTimeText(row.lastLeftAt)}</dd></div>
+                  <div><dt>{t('Attendance notes')}</dt><dd dir="auto">{row.notes || '—'}</dd></div>
+                  <div><dt>{t('Zoom sync status')}</dt><dd>{row.zoomSyncStatus ? word(row.zoomSyncStatus) : t('Waiting')}</dd></div>
+                  <div><dt>{t('Zoom participants')}</dt><dd>{row.zoomParticipantCount === '' ? '—' : row.zoomParticipantCount}</dd></div>
+                  <div><dt>{t('Matched Zoom participants')}</dt><dd>{row.zoomMatchedCount === '' ? '—' : row.zoomMatchedCount}</dd></div>
+                  <div><dt>{t('Unmatched Zoom participants')}</dt><dd>{row.zoomUnmatchedCount === '' ? '—' : row.zoomUnmatchedCount}</dd></div>
+                  <div><dt>{t('Sync attempts')}</dt><dd>{row.zoomSyncAttempts === '' ? '—' : row.zoomSyncAttempts}</dd></div>
+                  <div><dt>{t('Last Zoom sync attempt')}</dt><dd>{dateTimeText(row.zoomLastAttemptAt)}</dd></div>
+                  <div><dt>{t('Zoom synced at')}</dt><dd>{dateTimeText(row.zoomSyncedAt)}</dd></div>
+                </dl>
+              </details>)}
+            </div>
            <section className="trainer-attendance-print-sheet" aria-hidden="true">
              <header>
                <p className="eyebrow">{t('SESSION REPORTS')}</p><h1>{t('Training attendance')}</h1>
@@ -481,8 +512,8 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
                <table>
                  <thead><tr><th>{t('Record type')}</th><th>{t('Business')}</th><th>{t('Participant')}</th><th>{t('Unmatched attendee email')}</th><th>{t('Attendance status')}</th><th>{t('Minutes attended')}</th><th>{t('Attendance source')}</th><th>{t('First joined at')}</th><th>{t('Last left at')}</th><th>{t('Attendance notes')}</th></tr></thead>
                  <tbody>{buildTrainerAttendanceSheetRows([report]).map((row, index) => <tr key={`${row.recordType}-${index}`}>
-                   <td>{t(row.recordType)}</td><td>{row.businessName || '—'}</td><td>{row.participantName || '—'}</td><td dir="auto">{row.unmatchedEmail || '—'}</td>
-                   <td>{row.status === 'present' ? t('Present') : row.status === 'absent' ? t('Absent') : row.status === 'excused' ? t('Excused') : row.status === 'Needs review' ? t('Needs review') : row.status === 'Not recorded' ? t('Not recorded') : '—'}</td>
+                    <td>{t(row.recordType)}</td><td>{row.businessName || '—'}</td><td>{row.participantName || '—'}</td><td dir="auto">{row.unmatchedEmail || '—'}</td>
+                    <td>{attendanceStatusText(row.status)}</td>
                    <td>{row.minutesAttended === '' ? '—' : row.minutesAttended}</td><td>{row.source === 'zoom' ? t('Zoom') : row.source === 'manual' ? t('Manual') : '—'}</td>
                    <td>{dateTimeText(row.firstJoinedAt)}</td><td>{dateTimeText(row.lastLeftAt)}</td><td dir="auto">{row.notes || '—'}</td>
                  </tr>)}</tbody>
