@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { after, before, beforeEach, test } from "node:test";
 import express from "express";
@@ -9,6 +10,8 @@ import { sendMentorAdditionalSessionWithdrawalEmail } from "../src/lib/mentor-ad
 
 let server: Server;
 let db: typeof import("@workspace/db").db;
+let postgresPool: typeof import("@workspace/db").pool;
+const postgresRaceTestUrl = process.env.TEST_DATABASE_URL;
 let restoreSelect: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
 let restoreUpdate: (() => void) | undefined;
@@ -199,10 +202,15 @@ function makeUpdate() {
 }
 
 before(async () => {
-  process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  if (postgresRaceTestUrl) {
+    process.env.DATABASE_URL = postgresRaceTestUrl;
+  } else {
+    process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  }
   process.env.NODE_ENV = "test";
   const database = await import("@workspace/db");
   db = database.db;
+  postgresPool = database.pool;
   const { default: mentorRouter, staffMentorMeetingReportsRouter } = await import("../src/routes/mentor");
   const originalSelect = Object.getOwnPropertyDescriptor(db, "select");
   Object.defineProperty(db, "select", {
@@ -296,6 +304,7 @@ after(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
+  await postgresPool.end();
 });
 
 beforeEach(() => {
@@ -686,4 +695,176 @@ test("mentor dashboard shows only the requesting mentor's session-request histor
   assert.ok(historyQuery.params.includes(71), "request history must be filtered to the signed-in mentor");
   assert.ok(historyQuery.params.includes(12), "request history must stay within the mentor's active program assignments");
   assert.ok(!historyQuery.params.includes(99), "unassigned programs must not be included in request history");
+});
+
+test("PostgreSQL lets exactly one concurrent staff review or mentor withdrawal finalize an open request", {
+  skip: postgresRaceTestUrl
+    ? false
+    : "Set TEST_DATABASE_URL to a dedicated PostgreSQL test database to run the row-lock integration test.",
+}, async () => {
+  const schemaName = `mentor_request_race_${randomUUID().replaceAll("-", "")}`;
+  const requestsTable = `"${schemaName}".mentor_session_requests`;
+  const staffApplicationName = `${schemaName.slice(0, 18)}_staff`;
+  const mentorApplicationName = `${schemaName.slice(0, 18)}_mentor`;
+  const staffClient = await postgresPool.connect();
+  const mentorClient = await postgresPool.connect();
+  let competingAction: Promise<unknown> | undefined;
+
+  async function waitUntilBlocked(applicationName: string) {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const { rows } = await postgresPool.query<{ wait_event_type: string | null }>(
+        `SELECT wait_event_type
+         FROM pg_stat_activity
+         WHERE application_name = $1`,
+        [applicationName],
+      );
+      if (rows.some((row) => row.wait_event_type === "Lock")) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.fail(`PostgreSQL did not show ${applicationName} waiting on the request row lock.`);
+  }
+
+  async function resetRequest() {
+    await postgresPool.query(
+      `INSERT INTO ${requestsTable} (
+        id, program_id, mentor_staff_id, status, decision, approved_additional_sessions
+      ) VALUES (56, 12, 71, 'open', NULL, NULL)
+      ON CONFLICT (id) DO UPDATE SET
+        program_id = EXCLUDED.program_id,
+        mentor_staff_id = EXCLUDED.mentor_staff_id,
+        status = EXCLUDED.status,
+        decision = EXCLUDED.decision,
+        approved_additional_sessions = EXCLUDED.approved_additional_sessions,
+        resolved_at = NULL,
+        resolved_by_staff_id = NULL`,
+    );
+  }
+
+  async function getFinalState() {
+    const { rows } = await postgresPool.query<{
+      status: string;
+      decision: string | null;
+      approved_additional_sessions: number | null;
+      resolved_by_staff_id: number | null;
+    }>(
+      `SELECT status, decision, approved_additional_sessions, resolved_by_staff_id
+       FROM ${requestsTable}
+       WHERE id = 56`,
+    );
+    assert.equal(rows.length, 1);
+    return rows[0]!;
+  }
+
+  try {
+    await postgresPool.query(`CREATE SCHEMA "${schemaName}"`);
+    await postgresPool.query(
+      `CREATE TABLE ${requestsTable} (
+        id integer PRIMARY KEY,
+        program_id integer NOT NULL,
+        mentor_staff_id integer NOT NULL,
+        status text NOT NULL CHECK (status IN ('open', 'resolved')),
+        decision text,
+        approved_additional_sessions integer,
+        resolved_at timestamptz,
+        resolved_by_staff_id integer,
+        CHECK (
+          (decision IS NULL AND approved_additional_sessions IS NULL)
+          OR (decision = 'approved' AND approved_additional_sessions BETWEEN 1 AND 1000)
+          OR (decision IN ('declined', 'withdrawn') AND approved_additional_sessions IS NULL)
+        )
+      )`,
+    );
+    await resetRequest();
+
+    for (const winner of ["staff", "mentor"] as const) {
+      await resetRequest();
+      await staffClient.query("SELECT set_config('application_name', $1, false)", [staffApplicationName]);
+      await mentorClient.query("SELECT set_config('application_name', $1, false)", [mentorApplicationName]);
+      await staffClient.query("SET statement_timeout = '5000ms'");
+      await mentorClient.query("SET statement_timeout = '5000ms'");
+
+      if (winner === "staff") {
+        await staffClient.query("BEGIN ISOLATION LEVEL READ COMMITTED");
+        const { rows: lockedRequest } = await staffClient.query(
+          `SELECT id FROM ${requestsTable}
+           WHERE id = 56 AND status = 'open' AND program_id = 12
+           FOR UPDATE`,
+        );
+        assert.equal(lockedRequest.length, 1);
+
+        competingAction = mentorClient.query(
+          `UPDATE ${requestsTable}
+           SET status = 'resolved', decision = 'withdrawn',
+               approved_additional_sessions = NULL, resolved_at = now(),
+               resolved_by_staff_id = NULL
+           WHERE id = 56 AND mentor_staff_id = 71
+             AND status = 'open' AND program_id = 12
+           RETURNING id`,
+        );
+        await waitUntilBlocked(mentorApplicationName);
+
+        const { rowCount: staffChanges } = await staffClient.query(
+          `UPDATE ${requestsTable}
+           SET status = 'resolved', decision = 'approved',
+               approved_additional_sessions = 3, resolved_at = now(),
+               resolved_by_staff_id = 71
+           WHERE id = 56 AND status = 'open' AND program_id = 12
+           RETURNING id`,
+        );
+        assert.equal(staffChanges, 1, "the staff review should finalize the still-open request");
+        await staffClient.query("COMMIT");
+
+        const { rowCount: mentorChanges } = await competingAction as { rowCount: number | null };
+        competingAction = undefined;
+        assert.equal(mentorChanges, 0, "withdrawal should lose once staff review resolves the request");
+        assert.deepEqual(await getFinalState(), {
+          status: "resolved",
+          decision: "approved",
+          approved_additional_sessions: 3,
+          resolved_by_staff_id: 71,
+        });
+      } else {
+        await mentorClient.query("BEGIN ISOLATION LEVEL READ COMMITTED");
+        const { rowCount: mentorChanges } = await mentorClient.query(
+          `UPDATE ${requestsTable}
+           SET status = 'resolved', decision = 'withdrawn',
+               approved_additional_sessions = NULL, resolved_at = now(),
+               resolved_by_staff_id = NULL
+           WHERE id = 56 AND mentor_staff_id = 71
+             AND status = 'open' AND program_id = 12
+           RETURNING id`,
+        );
+        assert.equal(mentorChanges, 1);
+
+        await staffClient.query("BEGIN ISOLATION LEVEL READ COMMITTED");
+        competingAction = staffClient.query(
+          `SELECT id FROM ${requestsTable}
+           WHERE id = 56 AND status = 'open' AND program_id = 12
+           FOR UPDATE`,
+        );
+        await waitUntilBlocked(staffApplicationName);
+        await mentorClient.query("COMMIT");
+
+        const { rows: stillOpen } = await competingAction as { rows: unknown[] };
+        competingAction = undefined;
+        assert.deepEqual(stillOpen, [], "staff review should not find a request withdrawn while it waited for the row");
+        await staffClient.query("COMMIT");
+        assert.deepEqual(await getFinalState(), {
+          status: "resolved",
+          decision: "withdrawn",
+          approved_additional_sessions: null,
+          resolved_by_staff_id: null,
+        });
+      }
+    }
+  } finally {
+    await Promise.allSettled([
+      staffClient.query("ROLLBACK"),
+      mentorClient.query("ROLLBACK"),
+    ]);
+    if (competingAction) await competingAction.catch(() => undefined);
+    staffClient.release();
+    mentorClient.release();
+    await postgresPool.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+  }
 });
