@@ -47,6 +47,7 @@ import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 import { sendPlatformEmail } from "../lib/platform-email";
+import { sendMentorAdditionalSessionDecisionEmail } from "../lib/mentor-additional-session-email";
 import {
   additionalSessionRequestEligibility,
   canRetryMentorSessionRequestEmail,
@@ -306,6 +307,36 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
   if (!request?.resolvedAt) {
     res.status(404).json({ error: "Open request is not available to this staff member." });
     return;
+  }
+  try {
+    const decision = request.decision;
+    if (decision !== "approved" && decision !== "declined") {
+      throw new Error("Resolved mentor-session request is missing its decision.");
+    }
+    const [mentor] = await db.select({
+      email: staffMembersTable.email,
+      name: userProfilesTable.displayName,
+      businessName: businessesTable.businessName,
+      programName: programsTable.name,
+    }).from(mentorSessionRequestsTable)
+      .innerJoin(staffMembersTable, eq(staffMembersTable.id, mentorSessionRequestsTable.mentorStaffId))
+      .leftJoin(userProfilesTable, eq(userProfilesTable.userId, staffMembersTable.clerkUserId))
+      .innerJoin(businessesTable, eq(businessesTable.id, mentorSessionRequestsTable.businessId))
+      .innerJoin(programsTable, eq(programsTable.id, mentorSessionRequestsTable.programId))
+      .where(eq(mentorSessionRequestsTable.id, request.id))
+      .limit(1);
+    if (!mentor) throw new Error("Mentor details for the resolved request were not found.");
+    await sendMentorAdditionalSessionDecisionEmail({
+      requestId: request.id,
+      recipientEmail: mentor.email,
+      mentorName: mentor.name?.trim() || mentor.email.split("@")[0] || mentor.email,
+      businessName: mentor.businessName,
+      programName: mentor.programName,
+      decision,
+      approvedAdditionalSessions: request.approvedAdditionalSessions,
+    });
+  } catch (error) {
+    req.log.error({ err: error, requestId: request.id }, "Mentor additional-session decision email failed");
   }
   res.json(ResolveStaffMentorAdditionalSessionRequestResponse.parse(request));
 });

@@ -10,6 +10,8 @@ let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
 let selectedProgramRows: unknown[] = [];
+let selectedMentorRows: unknown[] = [];
+let databaseSelectCalls = 0;
 let transactionSelectRows: unknown[][] = [];
 let transactionSelectCalls = 0;
 let transactionWhereConditions: unknown[] = [];
@@ -25,11 +27,15 @@ const assignedStaff = {
 };
 
 function makeProgramScopeQuery() {
+  const rows = databaseSelectCalls++ === 0 ? selectedProgramRows : selectedMentorRows;
   const query: Record<string, (...args: unknown[]) => unknown> = {
     from: () => query,
     where: () => query,
+    innerJoin: () => query,
+    leftJoin: () => query,
+    limit: async () => rows,
   };
-  query.then = (resolve, reject) => Promise.resolve(selectedProgramRows).then(resolve as never, reject as never);
+  query.then = (resolve, reject) => Promise.resolve(rows).then(resolve as never, reject as never);
   return query;
 }
 
@@ -104,6 +110,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => {
+    (_req as typeof _req & { log: { error: () => void } }).log = { error: () => undefined };
     res.locals.staff = requestStaff;
     next();
   });
@@ -123,6 +130,8 @@ after(async () => {
 beforeEach(() => {
   requestStaff = { ...assignedStaff };
   selectedProgramRows = [{ id: 12 }];
+  selectedMentorRows = [];
+  databaseSelectCalls = 0;
   transactionSelectRows = [[{ id: 56, programId: 12 }]];
   transactionSelectCalls = 0;
   transactionWhereConditions = [];
@@ -181,6 +190,20 @@ test("staff can decline a request without changing the program target", async ()
     approvedAdditionalSessions: null,
     resolvedByStaffId: 71,
   });
+});
+
+test("a notification lookup failure does not undo a saved decision", async () => {
+  const response = await decide({ decision: "approved", approvedAdditionalSessions: 4 });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    id: 56,
+    status: "resolved",
+    decision: "approved",
+    approvedAdditionalSessions: 4,
+    resolvedAt: "2026-10-21T12:00:00.000Z",
+  });
+  assert.equal(updateSets[0]?.decision, "approved");
 });
 
 test("staff cannot decide requests from a program outside their assignment or submit an invalid decision count", async () => {
