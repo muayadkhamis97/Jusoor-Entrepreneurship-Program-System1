@@ -6,6 +6,9 @@
 .program-assignment-panel { padding: 18px 20px 20px; }
 .program-assignment-panel .panel-heading { margin-bottom: 8px; }
 .assignment-history-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.assignment-clear-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.assignment-clear-dialog-error { margin: 0 0 12px; padding: 10px 12px; border: 1px solid hsl(var(--destructive) / .28); border-radius: var(--radius); background: hsl(var(--destructive) / .07); color: hsl(var(--destructive)); font-size: 12px; line-height: 1.5; }
+.assignment-clear-notice { margin: 0 0 12px; padding: 10px 12px; border: 1px solid hsl(var(--primary) / .24); border-radius: var(--radius); background: hsl(var(--primary) / .06); color: hsl(var(--primary)); font-size: 12px; line-height: 1.5; }
 .assignment-section-copy { max-width: 850px; margin: 0 0 16px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.65; }
 .assignment-history-filters { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 1.5fr) minmax(170px, 1fr); gap: 12px; margin: 0 0 16px; }
 .assignment-history-filters .field { margin: 0; }

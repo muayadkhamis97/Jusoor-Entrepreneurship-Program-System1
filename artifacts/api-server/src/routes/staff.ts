@@ -5,6 +5,7 @@ import {
   AssignParticipantBusinessBody,
   AssignParticipantBusinessParams,
   AssignParticipantBusinessResponse,
+  ClearStaffAssignmentHistoryResponse,
   CreateStaffBody,
   CreateStaffResponse,
   CreateTrainingAssignmentBody,
@@ -306,6 +307,17 @@ router.get("/staff/assignment-history", requireCoordinator, async (req, res): Pr
     ...event,
     createdAt: event.createdAt.toISOString(),
   })));
+});
+
+router.delete("/staff/assignment-history", requireCoordinator, async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const deletedEvents = await db.delete(staffAssignmentAuditEventsTable)
+    .returning({ id: staffAssignmentAuditEventsTable.id });
+  req.log.warn(
+    { actorStaffId: staff.id, deletedCount: deletedEvents.length },
+    "Admin cleared assignment-change history",
+  );
+  res.json(ClearStaffAssignmentHistoryResponse.parse({ deletedCount: deletedEvents.length }));
 });
 
 async function canManageProgram(programId: number, staff: StaffAccess): Promise<"allowed" | "missing" | "denied"> {

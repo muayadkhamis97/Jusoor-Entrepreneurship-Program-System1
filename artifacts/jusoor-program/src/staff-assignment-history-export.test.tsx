@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import type { StaffAssignmentAuditHistory } from '@workspace/api-client-react';
 import { buildStaffAssignmentHistoryCsv, downloadStaffAssignmentHistoryCsv } from './program-lifecycle-export';
+
+const assignmentHistoryUi = readFileSync(new URL('./team-assignments.tsx', import.meta.url), 'utf8');
 
 const event: StaffAssignmentAuditHistory[number] = {
   id: 12,
@@ -126,4 +129,14 @@ test('assignment history download creates a CSV file and releases its temporary 
       else Reflect.deleteProperty(target, name);
     }
   }
+});
+
+test('only Admins can clear all assignment history after confirming the permanent deletion', () => {
+  assert.match(assignmentHistoryUi, /isAdmin && <AssignmentAuditHistory/);
+  assert.match(assignmentHistoryUi, /useClearStaffAssignmentHistory/);
+  assert.match(assignmentHistoryUi, /title={t\('Clear assignment-change history\?'\)}/);
+  assert.match(assignmentHistoryUi, /This permanently deletes every assignment-change history record/);
+  assert.match(assignmentHistoryUi, /Existing staff roles and business teams will not change/);
+  assert.match(assignmentHistoryUi, /data-testid="button-confirm-clear-assignment-history"/);
+  assert.match(assignmentHistoryUi, /client\.invalidateQueries\(\{ queryKey: getGetStaffAssignmentHistoryQueryKey\(\) \}\)/);
 });

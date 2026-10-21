@@ -2724,6 +2724,11 @@ export interface StaffAssignmentAuditEvent {
 
 export type StaffAssignmentAuditHistory = StaffAssignmentAuditEvent[];
 
+export interface StaffAssignmentHistoryClearResult {
+  /** @minimum 0 */
+  deletedCount: number;
+}
+
 export interface ParticipantBusinessTeamMember {
   founderName: string;
   isYou: boolean;

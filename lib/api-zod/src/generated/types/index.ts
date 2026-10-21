@@ -317,6 +317,7 @@ export * from './staffAssignmentAuditEventAssignmentType';
 export * from './staffAssignmentAuditEventNewValue';
 export * from './staffAssignmentAuditEventPreviousValue';
 export * from './staffAssignmentAuditHistory';
+export * from './staffAssignmentHistoryClearResult';
 export * from './staffInput';
 export * from './staffInvitationEmailStatus';
 export * from './staffMember';

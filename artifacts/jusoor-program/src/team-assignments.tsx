@@ -6,6 +6,7 @@ import {
   getGetProgramTeamAssignmentsQueryKey,
   getListStaffQueryKey,
   useAssignParticipantBusiness,
+  useClearStaffAssignmentHistory,
   useGetAuthMe,
   useGetProgramTeamAssignments,
   useGetStaffAssignmentHistory,
@@ -14,7 +15,8 @@ import {
   type ProgramSpecialistRole,
   type ProgramTeamAssignments,
 } from '@workspace/api-client-react';
-import { Building2, Check, CircleAlert, Download, History, LoaderCircle, Shield, Users } from 'lucide-react';
+import { Building2, Check, CircleAlert, Download, History, LoaderCircle, Shield, Trash2, Users } from 'lucide-react';
+import { Dialog } from '@workspace/program-editorial/components/ui/dialog';
 import { LanguageToggle, t, useAppLanguage } from './language';
 import { useProgramSelection } from './program-selection';
 import { downloadStaffAssignmentHistoryCsv } from './program-lifecycle-export';
@@ -185,11 +187,16 @@ function AssignmentsSections({
 }
 
 function AssignmentAuditHistory({ programs }: { programs: { id: number; name: string }[] }) {
+  const client = useQueryClient();
   const historyProgramsQuery = useListPrograms({ includeArchived: true });
   const historyPrograms = historyProgramsQuery.data || programs;
   const [programId, setProgramId] = useState('');
   const [subject, setSubject] = useState('');
   const [assignmentType, setAssignmentType] = useState<'' | 'staff_roles' | 'business_team'>('');
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [clearHistoryError, setClearHistoryError] = useState('');
+  const [clearHistoryNotice, setClearHistoryNotice] = useState('');
+  const clearHistory = useClearStaffAssignmentHistory();
   const params = {
     ...(programId ? { programId: Number(programId) } : {}),
     ...(subject.trim() ? { subject: subject.trim() } : {}),
@@ -199,6 +206,22 @@ function AssignmentAuditHistory({ programs }: { programs: { id: number; name: st
     query: { queryKey: getGetStaffAssignmentHistoryQueryKey(params) },
   });
   const events = query.data || [];
+  const beginClearHistory = () => {
+    setClearHistoryError('');
+    setClearHistoryNotice('');
+    setClearDialogOpen(true);
+  };
+  const confirmClearHistory = () => {
+    clearHistory.mutate(undefined, {
+      onSuccess: result => {
+        setClearDialogOpen(false);
+        setClearHistoryError('');
+        setClearHistoryNotice(`${t('Assignment history cleared.')} ${t('Records deleted:')} ${result.deletedCount}`);
+        void client.invalidateQueries({ queryKey: getGetStaffAssignmentHistoryQueryKey() });
+      },
+      onError: () => setClearHistoryError(t('Assignment history could not be cleared. Try again.')),
+    });
+  };
   const summarizeValue = (type: string, value: Record<string, unknown>) => {
     if (type === 'staff_roles') {
       const roles = Array.isArray(value.roles) ? value.roles : [];
@@ -216,6 +239,12 @@ function AssignmentAuditHistory({ programs }: { programs: { id: number; name: st
         <span className="section-meta">{t('Latest 250 matching')}</span>
         <button
           type="button"
+          className="button button-danger"
+          onClick={beginClearHistory}
+          data-testid="button-clear-assignment-history"
+        ><Trash2 size={14} />{t('Clear all history')}</button>
+        <button
+          type="button"
           className="button button-quiet"
           onClick={() => downloadStaffAssignmentHistoryCsv(events)}
           disabled={query.isLoading || query.isError || events.length === 0}
@@ -224,6 +253,7 @@ function AssignmentAuditHistory({ programs }: { programs: { id: number; name: st
       </div>
     </div>
     <p className="assignment-section-copy">{t('Review who changed specialist access or a participant business team, and when.')}</p>
+    {clearHistoryNotice && <p className="assignment-clear-notice" role="status" data-testid="status-assignment-history-cleared">{clearHistoryNotice}</p>}
     <div className="assignment-history-filters">
       <label className="field">
         <span>{t('Program')}</span>
@@ -280,6 +310,37 @@ function AssignmentAuditHistory({ programs }: { programs: { id: number; name: st
               </tr>)}</tbody>
             </table>
           </div>}
+    <Dialog
+      open={clearDialogOpen}
+      onOpenChange={open => {
+        if (!open && clearHistory.isPending) return;
+        setClearDialogOpen(open);
+        if (open) setClearHistoryError('');
+      }}
+      title={t('Clear assignment-change history?')}
+      description={t('This permanently deletes every assignment-change history record. Existing staff roles and business teams will not change.')}
+    >
+      <div className="assignment-clear-dialog">
+        {clearHistoryError && <p className="assignment-clear-dialog-error" role="alert" data-testid="alert-assignment-history-clear-error">{clearHistoryError}</p>}
+        <div className="assignment-clear-dialog-actions">
+          <button
+            type="button"
+            className="button button-quiet"
+            onClick={() => setClearDialogOpen(false)}
+            disabled={clearHistory.isPending}
+            data-testid="button-cancel-clear-assignment-history"
+          >{t('Cancel')}</button>
+          <button
+            type="button"
+            className="button button-danger"
+            onClick={confirmClearHistory}
+            disabled={clearHistory.isPending}
+            data-testid="button-confirm-clear-assignment-history"
+          >{clearHistory.isPending ? <LoaderCircle className="spin" size={14} /> : <Trash2 size={14} />}
+            {clearHistory.isPending ? t('Deleting history…') : t('Clear all history')}</button>
+        </div>
+      </div>
+    </Dialog>
   </section>;
 }
 

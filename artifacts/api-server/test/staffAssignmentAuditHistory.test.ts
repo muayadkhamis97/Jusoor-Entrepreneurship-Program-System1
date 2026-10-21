@@ -11,14 +11,18 @@ process.env.NODE_ENV = "test";
 const { db, staffAssignmentAuditEventsTable } = await import("@workspace/db");
 const { default: staffRouter } = await import("../src/routes/staff");
 
-let role: "coordinator" | "staff" | "participant" = "coordinator";
+let role: "coordinator" | "staff" | "trainer" | "participant" = "coordinator";
 let selectCount = 0;
+let deleteCount = 0;
+let deleteTarget: unknown;
+let deleteReturningCalled = false;
 let whereCount = 0;
 let querySteps: string[] = [];
 let whereSql = "";
 let whereParams: unknown[] = [];
 let server: Server;
 let restoreSelect: () => void;
+let restoreDelete: () => void;
 const nativeFetch = globalThis.fetch;
 const auditRows = [{
   id: 9,
@@ -71,8 +75,30 @@ before(async () => {
     else Reflect.deleteProperty(db, "select");
   };
 
+  const originalDelete = Object.getOwnPropertyDescriptor(db, "delete");
+  Object.defineProperty(db, "delete", {
+    configurable: true,
+    writable: true,
+    value: (table: unknown) => {
+      deleteCount += 1;
+      deleteTarget = table;
+      const query = {
+        returning() {
+          deleteReturningCalled = true;
+          return Promise.resolve([{ id: 10 }, { id: 11 }]);
+        },
+      };
+      return query;
+    },
+  });
+  restoreDelete = () => {
+    if (originalDelete) Object.defineProperty(db, "delete", originalDelete);
+    else Reflect.deleteProperty(db, "delete");
+  };
+
   const app = express();
-  app.use((_req, res, next) => {
+  app.use((req, res, next) => {
+    Object.assign(req, { log: { warn: () => undefined } });
     Object.assign(res.locals, { staff: { id: 2, email: "admin@example.com", role } });
     next();
   });
@@ -83,16 +109,17 @@ before(async () => {
 
 after(async () => {
   restoreSelect();
+  restoreDelete();
   globalThis.fetch = nativeFetch;
   await new Promise<void>((resolve, reject) => {
     server.close(error => error ? reject(error) : resolve());
   });
 });
 
-async function request(path: string): Promise<Response> {
+async function request(path: string, init?: RequestInit): Promise<Response> {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
-  return nativeFetch(`http://127.0.0.1:${address.port}${path}`);
+  return nativeFetch(`http://127.0.0.1:${address.port}${path}`, init);
 }
 
 test("assignment history is not readable by program staff or participants", async () => {
@@ -148,6 +175,29 @@ test("invalid assignment history filters are rejected before querying", async ()
   const response = await request("/api/staff/assignment-history?programId=0&assignmentType=unknown");
   assert.equal(response.status, 400);
   assert.equal(selectCount, 0);
+});
+
+test("only admins can permanently clear assignment history", async () => {
+  for (const deniedRole of ["staff", "trainer", "participant"] as const) {
+    role = deniedRole;
+    deleteCount = 0;
+    const response = await request("/api/staff/assignment-history", { method: "DELETE" });
+    assert.equal(response.status, 403);
+    assert.equal(deleteCount, 0);
+  }
+});
+
+test("admin clear deletes the full audit table and reports the number of removed events", async () => {
+  role = "coordinator";
+  deleteCount = 0;
+  deleteTarget = undefined;
+  deleteReturningCalled = false;
+  const response = await request("/api/staff/assignment-history", { method: "DELETE" });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { deletedCount: 2 });
+  assert.equal(deleteCount, 1);
+  assert.equal(deleteTarget, staffAssignmentAuditEventsTable);
+  assert.equal(deleteReturningCalled, true);
 });
 
 test("the audit migration adds a new table without modifying existing records or schema", async () => {

@@ -3489,6 +3489,19 @@ paths:
                 $ref: "#/components/schemas/StaffAssignmentAuditHistory"
         "403":
           description: Coordinator role required
+    delete:
+      operationId: clearStaffAssignmentHistory
+      tags: [staff]
+      summary: Permanently clear all staff-role and participant business-team assignment changes for admins
+      responses:
+        "200":
+          description: Number of assignment-change history records deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffAssignmentHistoryClearResult"
+        "403":
+          description: Coordinator role required
   /programs/{programId}/staff/{staffId}/roles:
     put:
       operationId: updateProgramStaffRoles
@@ -5708,6 +5721,11 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/StaffAssignmentAuditEvent"
+    StaffAssignmentHistoryClearResult:
+      type: object
+      properties:
+        deletedCount: { type: integer, minimum: 0 }
+      required: [deletedCount]
     StaffAssignmentAuditEvent:
       type: object
       properties:

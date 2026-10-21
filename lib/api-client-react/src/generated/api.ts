@@ -186,6 +186,7 @@ import type {
   SessionQuestionsResponse,
   SessionUpdate,
   StaffAssignmentAuditHistory,
+  StaffAssignmentHistoryClearResult,
   StaffInput,
   StaffMember,
   StaffMentorAdditionalSessionRequest,
@@ -14167,6 +14168,80 @@ export function useGetStaffAssignmentHistory<TData = Awaited<ReturnType<typeof g
 
 
 
+
+export const getClearStaffAssignmentHistoryUrl = () => {
+
+
+
+
+  return `/api/staff/assignment-history`
+}
+
+/**
+ * @summary Permanently clear all staff-role and participant business-team assignment changes for admins
+ */
+export const clearStaffAssignmentHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<StaffAssignmentHistoryClearResult> => {
+
+  return customFetch<StaffAssignmentHistoryClearResult>(getClearStaffAssignmentHistoryUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearStaffAssignmentHistoryMutationKey = () => ['clearStaffAssignmentHistory'] as const;
+
+export const getClearStaffAssignmentHistoryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearStaffAssignmentHistory>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearStaffAssignmentHistory>>, TError,void, TContext> => {
+
+const mutationKey = getClearStaffAssignmentHistoryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearStaffAssignmentHistory>>, void> = () => {
+
+
+          return  clearStaffAssignmentHistory(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearStaffAssignmentHistoryMutationResult = NonNullable<Awaited<ReturnType<typeof clearStaffAssignmentHistory>>>
+
+    export type ClearStaffAssignmentHistoryMutationError = ErrorType<void>
+
+
+    /**
+ * @summary Permanently clear all staff-role and participant business-team assignment changes for admins
+ */
+export const useClearStaffAssignmentHistory = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearStaffAssignmentHistory>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearStaffAssignmentHistory>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getClearStaffAssignmentHistoryMutationOptions(options));
+    }
 
 export const getUpdateProgramStaffRolesUrl = (programId: number,
     staffId: number,) => {

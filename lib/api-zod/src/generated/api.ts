@@ -5336,6 +5336,18 @@ export const GetStaffAssignmentHistoryResponse = zod.array(GetStaffAssignmentHis
 
 
 /**
+ * @summary Permanently clear all staff-role and participant business-team assignment changes for admins
+ */
+export const clearStaffAssignmentHistoryResponseDeletedCountMin = 0;
+
+
+
+export const ClearStaffAssignmentHistoryResponse = zod.object({
+  "deletedCount": zod.number().int().min(clearStaffAssignmentHistoryResponseDeletedCountMin)
+})
+
+
+/**
  * @summary Replace a staff member's specialist roles in one program
  */
 
