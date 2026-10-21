@@ -359,6 +359,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   const review = useReviewTrainingAnswer();
   const reply = useReplyTrainingQuestion();
   const [assignmentError, setAssignmentError] = useState('');
+  const [assignmentPublished, setAssignmentPublished] = useState(false);
   const [assignmentProgramId, setAssignmentProgramId] = useState<number | ''>('');
   const [assignmentSessionId, setAssignmentSessionId] = useState<number | ''>('');
   const [feedbacks, setFeedbacks] = useState<Record<number, { score: string; feedback: string }>>({});
@@ -374,6 +375,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
   const assignmentSessions = trainerSessionOptions(sessions, assignmentProgramId === '' ? null : assignmentProgramId);
   const submitAssignment = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setAssignmentPublished(false);
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const programId = Number(form.get('programId'));
@@ -381,7 +383,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
     const instructions = String(form.get('instructions') || '').trim();
     if (!programId || title.length < 2 || instructions.length < 10) { setAssignmentError('Choose a cohort and add a title and clear instructions.'); return; }
     const data: TrainingAssignmentInput = { programId, title, instructions, dueDate: String(form.get('dueDate') || '') || null, sessionId: form.get('sessionId') ? Number(form.get('sessionId')) : null };
-    create.mutate({ data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); formElement.reset(); setAssignmentProgramId(''); setAssignmentSessionId(''); setAssignmentError(''); } });
+    create.mutate({ data }, { onSuccess: () => { invalid(client, getGetTrainerDashboardQueryKey()); formElement.reset(); setAssignmentProgramId(''); setAssignmentSessionId(''); setAssignmentError(''); setAssignmentPublished(true); } });
   };
   const saveReview = async (event: FormEvent<HTMLFormElement>, id: number) => {
     event.preventDefault();
@@ -497,6 +499,7 @@ export function TrainerDashboardPage({ name, availableRoles, primaryRole }: { na
           <label className="field">{t('Due date')}<input className="form-control" name="dueDate" type="date" data-testid="input-assignment-due-date" /></label>
           <label className="field field-wide">{t('Instructions')}<textarea className="form-control" name="instructions" minLength={10} required rows={4} placeholder={t('What should participants explore, prepare or share?')} data-testid="input-assignment-instructions" /></label>
           {(assignmentError || create.isError) && <p className="form-error field-wide" role="alert">{assignmentError || t('Assignment could not be created. Try again.')}</p>}
+          {assignmentPublished && <p className="form-success field-wide" role="status" data-testid="assignment-publish-success">{t('Assignment published successfully.')}</p>}
           <div className="field-wide"><button className="button button-primary" disabled={create.isPending} data-testid="button-create-assignment">{create.isPending ? t('Publishing…') : t('Publish assignment')}</button></div>
         </form>}
       </section>

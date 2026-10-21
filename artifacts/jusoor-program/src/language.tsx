@@ -900,6 +900,7 @@ const arabic: Record<string, string> = {
   'Instructions': 'التعليمات',
   'What should participants explore, prepare or share?': 'ما الذي ينبغي للمشاركين استكشافه أو إعداده أو مشاركته؟',
   'Assignment could not be created. Try again.': 'تعذّر إنشاء المهمة. حاول مجدداً.',
+  'Assignment published successfully.': 'تم نشر المهمة بنجاح.',
   'Publishing…': 'جارٍ النشر…',
   'Publish assignment': 'نشر المهمة',
   'PARTICIPANT WORK': 'أعمال المشاركين',

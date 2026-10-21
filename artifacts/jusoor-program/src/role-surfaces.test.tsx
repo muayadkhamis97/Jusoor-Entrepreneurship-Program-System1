@@ -63,3 +63,11 @@ test('trainer reviews and replies keep pending and error feedback scoped to each
   assert.match(surface, /replyErrorIds\.has\(question\.id\)/);
   assert.doesNotMatch(surface, /review\.isPending|review\.isError|reply\.isPending|reply\.isError/);
 });
+
+test('publishing a trainer assignment shows a success confirmation after clearing the form', () => {
+  const surface = read('./role-surfaces.tsx');
+  assert.match(surface, /setAssignmentPublished\(true\)/);
+  assert.match(surface, /assignmentPublished && <p className="form-success field-wide" role="status" data-testid="assignment-publish-success"/);
+  assert.match(surface, /setAssignmentPublished\(false\)/);
+  assert.match(surface, /formElement\.reset\(\)/);
+});
