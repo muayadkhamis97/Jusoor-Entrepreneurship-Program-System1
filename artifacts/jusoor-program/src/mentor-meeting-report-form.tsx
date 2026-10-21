@@ -146,8 +146,8 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
       </p>}
       {reportQuery.data && <>
         <dl className="mentor-meeting-report-identity">
-          <div><dt>{t('Coach name')}</dt><dd>{reportQuery.data.coachName}</dd></div>
-          <div><dt>{t('Coach email')}</dt><dd>{reportQuery.data.coachEmail}</dd></div>
+          <div><dt>{t('Mentor name')}</dt><dd>{reportQuery.data.coachName}</dd></div>
+          <div><dt>{t('Mentor email')}</dt><dd>{reportQuery.data.coachEmail}</dd></div>
           <div><dt>{t('Business name')}</dt><dd>{reportQuery.data.businessName}</dd></div>
         </dl>
         <form className="role-form-grid compact" onSubmit={onSubmit} aria-busy={submit.isPending}>
@@ -186,7 +186,7 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
           <label className="field field-wide">{t('SMART Grow actions recommended and agreed with the team until the next call')} *
             <textarea className="form-control" rows={4} minLength={3} maxLength={5000} value={smartGrowActions} onChange={event => setSmartGrowActions(event.target.value)} required disabled={submit.isPending} data-testid={`input-smart-grow-actions-${engagementId}`} />
           </label>
-          <label className="field field-wide">{t('Key achievements and opportunities resulting from your coaching')} *
+          <label className="field field-wide">{t('Key achievements and opportunities resulting from your mentoring')} *
             <textarea className="form-control" rows={3} minLength={3} maxLength={5000} value={achievementsAndOpportunities} onChange={event => setAchievementsAndOpportunities(event.target.value)} required disabled={submit.isPending} data-testid={`input-meeting-achievements-${engagementId}`} />
           </label>
           <label className="field field-wide">{t('Recommendations to the program team for further support')}
@@ -204,12 +204,12 @@ export function MentorMeetingReportForm({ engagementId }: { engagementId: number
           <h4>{t('Previous meeting reports')} ({reportQuery.data.reports.length})</h4>
           {reportQuery.data.reports.map(report => <article className="answer-card" key={report.id} data-testid={`meeting-report-history-${report.id}`}>
             <h5>{report.meetingDate} · {report.businessName}</h5>
-            <p>{t('Coach name')}: {report.coachName} · {t('Coach email')}: {report.coachEmail}</p>
+            <p>{t('Mentor name')}: {report.coachName} · {t('Mentor email')}: {report.coachEmail}</p>
             <p>{t('Team members who attended the session')}: {report.attendees.join(', ')}</p>
             <p>{t('Meeting occurrence')}: {report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</p>
             <p><b>{t('Topics, session highlights, connections made, and other notes')}:</b> {report.sessionSummary}</p>
             <p><b>{t('SMART Grow actions recommended and agreed with the team until the next call')}:</b> {report.smartGrowActions}</p>
-            <p><b>{t('Key achievements and opportunities resulting from your coaching')}:</b> {report.achievementsAndOpportunities}</p>
+            <p><b>{t('Key achievements and opportunities resulting from your mentoring')}:</b> {report.achievementsAndOpportunities}</p>
             {report.teamRecommendations && <p><b>{t('Recommendations to the program team for further support')}:</b> {report.teamRecommendations}</p>}
           </article>)}
           {reportQuery.data.reports.length === 0 && <p>{t('No meeting reports submitted yet.')}</p>}

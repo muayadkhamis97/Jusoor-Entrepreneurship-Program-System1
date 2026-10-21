@@ -103,7 +103,7 @@ test('mentor meeting report form requires each answer and saves attendance and n
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const report = {
-      id: 980, coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 1',
+      id: 980, coachName: 'Mentor One', coachEmail: 'mentor@example.test', businessName: 'Business 1',
       meetingProvider: 'calendly', meetingId: 777,
       meetingDate: '2026-10-19', attendees: ['Founder 1'], sessionSummary: 'Topics and highlights',
       smartGrowActions: 'Conduct two customer interviews', achievementsAndOpportunities: 'Identified a new sales channel.',
@@ -116,16 +116,16 @@ test('mentor meeting report form requires each answer and saves attendance and n
       const match = url.pathname.match(/^\/api\/mentor\/support\/(\d+)\/meeting-reports$/);
       if (!match) return route.continue();
       if (Number(match[1]) !== 1) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-        coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 2',
+        coachName: 'Mentor One', coachEmail: 'mentor@example.test', businessName: 'Business 2',
         attendees: [], reports: [], completedMeetings: [],
       }) });
       if (route.request().method() === 'GET') {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-          coachName: 'Coach One', coachEmail: 'coach@example.test', businessName: 'Business 1',
+          coachName: 'Mentor One', coachEmail: 'mentor@example.test', businessName: 'Business 1',
           attendees: [{ applicationId: 11, name: 'Founder 1' }, { applicationId: 12, name: 'Team member 2' }],
           reports: postBody ? [report] : [],
           completedMeetings: [{
-            meetingProvider: 'calendly', meetingId: 777, eventName: 'Coaching check-in',
+            meetingProvider: 'calendly', meetingId: 777, eventName: 'Mentoring check-in',
             startsAt: '2026-10-19T10:00:00.000Z', endsAt: '2026-10-19T11:00:00.000Z',
             timezone: 'UTC', reportId: postBody ? 980 : null,
           }],
@@ -142,7 +142,7 @@ test('mentor meeting report form requires each answer and saves attendance and n
     assert.equal(await page.getByTestId('select-meeting-occurrence-1').inputValue(), 'calendly:777');
     await page.getByLabel('Topics, session highlights, connections made, and other notes *').fill('Topics and highlights');
     await page.getByLabel('SMART Grow actions recommended and agreed with the team until the next call *').fill('Conduct two customer interviews');
-    await page.getByLabel('Key achievements and opportunities resulting from your coaching *').fill('Identified a new sales channel.');
+    await page.getByLabel('Key achievements and opportunities resulting from your mentoring *').fill('Identified a new sales channel.');
     await page.getByTestId('button-submit-meeting-report-1').click();
     await page.getByRole('alert').filter({ hasText: 'Select at least one' }).waitFor();
     assert.equal(postBody, undefined);
@@ -163,7 +163,7 @@ test('mentor meeting report form requires each answer and saves attendance and n
     });
     await page.getByTestId('meeting-report-history-980').waitFor();
     assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Founder 1/);
-    assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Coach One/);
+    assert.match(await page.getByTestId('meeting-report-history-980').innerText(), /Mentor One/);
     assert.equal(await page.getByTestId('meeting-reports-due-1').count(), 0);
   } finally {
     await browser?.close();

@@ -13,8 +13,8 @@ export function buildStaffMentorMeetingReportsCsv(reports: StaffMentorMeetingRep
       'Program',
       'Business',
       'Meeting date',
-      'Coach name',
-      'Coach email',
+      'Mentor name',
+      'Mentor email',
       'Team members who attended',
       'Meeting provider',
       'Topics, session highlights, connections and notes',
@@ -56,7 +56,7 @@ export function downloadStaffMentorMeetingReportsCsv(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `coach-meeting-reports-${programId}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `mentor-meeting-reports-${programId}-${new Date().toISOString().slice(0, 10)}.csv`;
   link.style.display = 'none';
   document.body.append(link);
   link.click();

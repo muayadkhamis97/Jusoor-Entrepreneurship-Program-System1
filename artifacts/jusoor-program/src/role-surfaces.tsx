@@ -162,13 +162,13 @@ export function StaffMentorMeetingReportsPage() {
 
   return <>
     <Heading
-      kicker="COACHING / REPORTS"
-      title="Coach meeting reports"
-      description="Review submitted session notes, agreed actions, achievements and recommendations by program, business, coach and meeting date."
+      kicker="MENTORING / REPORTS"
+      title="Mentor meeting reports"
+      description="Review submitted session notes, agreed actions, achievements and recommendations by program, business, mentor and meeting date."
       count={reportsQuery.data ? `${reportsQuery.data.length} reports` : undefined}
     />
     <section className="role-section role-assignment-section" data-testid="staff-mentor-meeting-report-filters">
-      <div className="role-section-title"><div><div className="eyebrow">{t('FIND REPORTS')}</div><h2>{t('Choose a program, business, coach and date range')}</h2></div></div>
+      <div className="role-section-title"><div><div className="eyebrow">{t('FIND REPORTS')}</div><h2>{t('Choose a program, business, mentor and date range')}</h2></div></div>
       {programsQuery.isLoading ? <p role="status">{t('Loading programs…')}</p> : programsQuery.isError ? <div className="role-inline-note" role="alert">
         <p>{t('Programs could not load.')}</p>
         <Button type="button" className="button button-quiet" onClick={() => void programsQuery.refetch()}>{t('Retry')}</Button>
@@ -195,15 +195,15 @@ export function StaffMentorMeetingReportsPage() {
             <Button type="button" className="button button-quiet" onClick={() => void businessesQuery.refetch()}>{t('Retry')}</Button>
           </span>}
         </label>
-        <label className="field">{t('Coach')}
+        <label className="field">{t('Mentor')}
           <select className="form-control" value={selectedCoachEmail} onChange={event => setSelection(current => ({ ...current, coachEmail: event.currentTarget.value }))}
             disabled={selectedProgramId === '' || coachOptionsQuery.isLoading || coachOptionsQuery.isError}
             data-testid="select-staff-report-coach">
-            <option value="">{t('All coaches')}</option>
+            <option value="">{t('All mentors')}</option>
             {(coachOptionsQuery.data ?? []).map(coach => <option key={coach.coachEmail} value={coach.coachEmail}>{coach.coachName}</option>)}
           </select>
-          {coachOptionsQuery.isLoading && <span role="status">{t('Loading coach choices…')}</span>}
-          {coachOptionsQuery.isError && <span role="alert">{t('Coach choices could not load.')}{' '}
+          {coachOptionsQuery.isLoading && <span role="status">{t('Loading mentor choices…')}</span>}
+          {coachOptionsQuery.isError && <span role="alert">{t('Mentor choices could not load.')}{' '}
             <Button type="button" className="button button-quiet" onClick={() => void coachOptionsQuery.refetch()}>{t('Retry')}</Button>
           </span>}
         </label>
@@ -283,14 +283,14 @@ export function StaffMentorMeetingReportsPage() {
               })}</div>}
     </section>
     {selectedProgramId !== '' && (reportsQuery.isLoading || businessesQuery.isLoading)
-      ? <p className="role-inline-note" role="status">{t('Loading coach meeting reports…')}</p>
+      ? <p className="role-inline-note" role="status">{t('Loading mentor meeting reports…')}</p>
       : reportsQuery.isError ? <div className="role-inline-note" role="alert">
-        <p>{t('Coach meeting reports could not load.')}</p>
+        <p>{t('Mentor meeting reports could not load.')}</p>
         <Button type="button" className="button button-quiet" onClick={retry}>{t('Retry')}</Button>
       </div>
       : reportsQuery.data && (reportsQuery.data.length === 0
-        ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try changing the coach, business or meeting-date range.')}</p></div>
-        : <section className="role-section" aria-label={t('Submitted coach meeting reports')} data-testid="staff-mentor-meeting-reports">
+        ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try changing the mentor, business or meeting-date range.')}</p></div>
+        : <section className="role-section" aria-label={t('Submitted mentor meeting reports')} data-testid="staff-mentor-meeting-reports">
            <div className="role-section-title meeting-report-sheet-heading">
              <div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2><p>{t('One row per report. Scroll horizontally to see every field.')}</p></div>
              <div className="meeting-report-export-actions">
@@ -303,11 +303,11 @@ export function StaffMentorMeetingReportsPage() {
              <table className="meeting-report-sheet">
                <thead><tr>
                  <th scope="col">{t('Meeting date')}</th><th scope="col">{t('Program')}</th><th scope="col">{t('Business')}</th>
-                 <th scope="col">{t('Coach name')}</th><th scope="col">{t('Coach email')}</th>
+                  <th scope="col">{t('Mentor name')}</th><th scope="col">{t('Mentor email')}</th>
                  <th scope="col">{t('Team members who attended the session')}</th><th scope="col">{t('Meeting occurrence')}</th>
                  <th scope="col">{t('Topics, session highlights, connections made, and other notes')}</th>
                  <th scope="col">{t('SMART Grow actions recommended and agreed with the team until the next call')}</th>
-                 <th scope="col">{t('Key achievements and opportunities resulting from your coaching')}</th>
+                  <th scope="col">{t('Key achievements and opportunities resulting from your mentoring')}</th>
                  <th scope="col">{t('Recommendations to the program team for further support')}</th>
                  <th scope="col">{t('Submitted')}</th>
                </tr></thead>
@@ -324,19 +324,19 @@ export function StaffMentorMeetingReportsPage() {
            <section className="meeting-report-print-sheet" aria-hidden="true">
              <header>
                <p className="eyebrow">{t('SUBMITTED REPORTS')}</p>
-               <h1>{t('Coach meeting reports')}</h1>
-               <p>{t('Program')}: {selectedProgramName || '—'} · {t('Business')}: {selectedBusinessName ?? t('All businesses')} · {t('Coach')}: {selectedCoachName ?? t('All coaches')}</p>
+                <h1>{t('Mentor meeting reports')}</h1>
+                <p>{t('Program')}: {selectedProgramName || '—'} · {t('Business')}: {selectedBusinessName ?? t('All businesses')} · {t('Mentor')}: {selectedCoachName ?? t('All mentors')}</p>
                <p>{t('Meeting date from')}: {meetingDateFrom || '—'} · {t('Meeting date to')}: {meetingDateTo || '—'} · {reportsQuery.data.length} {t('reports')}</p>
              </header>
              {reportsQuery.data.map(report => <article className="meeting-report-print-record" key={report.id}>
                <h2>{dateText(report.meetingDate)} · {report.businessName}</h2>
-               <p>{report.programName} · {report.coachName} · {report.coachEmail}</p>
+                <p>{report.programName} · {report.coachName} · {report.coachEmail}</p>
                <dl>
                  <div><dt>{t('Team members who attended the session')}</dt><dd dir="auto">{report.attendees.join(', ') || t('No attendees recorded')}</dd></div>
                  <div><dt>{t('Meeting occurrence')}</dt><dd>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</dd></div>
                  <div><dt>{t('Topics, session highlights, connections made, and other notes')}</dt><dd dir="auto">{report.sessionSummary}</dd></div>
                  <div><dt>{t('SMART Grow actions recommended and agreed with the team until the next call')}</dt><dd dir="auto">{report.smartGrowActions}</dd></div>
-                 <div><dt>{t('Key achievements and opportunities resulting from your coaching')}</dt><dd dir="auto">{report.achievementsAndOpportunities}</dd></div>
+                  <div><dt>{t('Key achievements and opportunities resulting from your mentoring')}</dt><dd dir="auto">{report.achievementsAndOpportunities}</dd></div>
                  <div><dt>{t('Recommendations to the program team for further support')}</dt><dd dir="auto">{report.teamRecommendations || '—'}</dd></div>
                </dl>
                <footer>{t('Submitted')} {dateText(report.submittedAt)}</footer>

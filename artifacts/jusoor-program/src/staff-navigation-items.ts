@@ -35,7 +35,7 @@ export function getStaffNavigationItems(role: 'coordinator' | 'staff'): StaffNav
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     ...(role === 'coordinator' ? [{ href: '/communications', label: 'Communications', icon: Activity }] : []),
     { href: '/support', label: 'Support', icon: Handshake },
-    { href: '/mentor-meeting-reports', label: 'Coach meeting reports', icon: FileText },
+    { href: '/mentor-meeting-reports', label: 'Mentor meeting reports', icon: FileText },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
     ...(role === 'coordinator' ? [{ href: '/grants', label: 'Grant tracking', icon: CircleDollarSign }] : []),
     ...(role === 'coordinator'

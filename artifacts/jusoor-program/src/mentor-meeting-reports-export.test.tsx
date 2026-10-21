@@ -39,7 +39,7 @@ test('exports all filtered reports and report fields as one spreadsheet-safe CSV
   assert.equal(csv.charCodeAt(0), 0xfeff);
   const lines = csv.slice(1).trimEnd().split('\r\n');
   assert.equal(lines.length, 3, 'one header and one row per report in the same file');
-  assert.match(lines[0], /"Program","Business","Meeting date","Coach name"/);
+  assert.match(lines[0], /"Program","Business","Meeting date","Mentor name"/);
   assert.match(lines[1], /"Northstar Foods","2026-10-19","Sam Coach","sam@example\.org"/);
   assert.match(lines[1], /"Lina Haddad; Omar Saleh","Google Calendar"/);
   assert.match(lines[1], /"Introductions, highlights\nand next steps\."/);
