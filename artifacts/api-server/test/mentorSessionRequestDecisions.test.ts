@@ -34,6 +34,9 @@ let creatingRequests = false;
 let createRequestRows: Record<string, unknown>[] = [];
 let createInsertAttempts = 0;
 let expectedCreateInsertAttempts = 0;
+let createReportedSessions = 1;
+let createSessionTarget = 1;
+let createBusinessLockCount = 0;
 let finishCreateInsertBarrier!: () => void;
 let createInsertBarrier: Promise<void> = Promise.resolve();
 
@@ -185,6 +188,72 @@ function makeTransaction() {
   return tx;
 }
 
+function makeCreateRequestTransaction() {
+  const tx = {
+    select: (projection: Record<string, unknown>) => {
+      const keys = Object.keys(projection);
+      let tableName = "";
+      let rows: Record<string, unknown>[] = [];
+      const query: Record<string, (...args: unknown[]) => unknown> = {
+        from: (table) => {
+          tableName = getTableName(table as never);
+          if (tableName === "jusoor_businesses") {
+            rows = [{ id: 900 }];
+          } else if (tableName === "jusoor_programs") {
+            rows = [{ id: 12, name: "Test program", sessionTarget: createSessionTarget }];
+          } else if (tableName === "mentor_session_requests" && keys.includes("approvedAdditionalSessions")) {
+            rows = [{ approvedAdditionalSessions: null }];
+          } else if (tableName === "jusoor_mentor_meeting_reports") {
+            rows = [{ reportedSessions: createReportedSessions }];
+          } else if (tableName === "mentor_session_requests" && keys.includes("id")) {
+            rows = createRequestRows.filter((row) => row.businessId === 900 && row.status === "open");
+          }
+          return query;
+        },
+        where: () => query,
+        innerJoin: () => query,
+        for: (mode) => {
+          assert.equal(mode, "update", "eligibility should be read while the business row is locked");
+          createBusinessLockCount += 1;
+          return query;
+        },
+        limit: async (limit) => rows.slice(0, Number(limit)),
+      };
+      query.then = (resolve, reject) => Promise.resolve(rows).then(resolve as never, reject as never);
+      return query;
+    },
+    insert: () => ({
+      values: (values: Record<string, unknown>) => ({
+        returning: async () => {
+          createInsertAttempts += 1;
+          if (createInsertAttempts === expectedCreateInsertAttempts) finishCreateInsertBarrier();
+          await createInsertBarrier;
+          if (createRequestRows.some((row) =>
+            row.businessId === values.businessId && row.status === "open",
+          )) {
+            throw Object.assign(new Error("duplicate open mentor-session request"), { code: "23505" });
+          }
+          const request = {
+            ...values,
+            id: 800 + createRequestRows.length,
+            decision: null,
+            approvedAdditionalSessions: null,
+            status: "open",
+            emailNotificationStatus: "pending",
+            emailNotificationUpdatedAt: new Date("2026-10-21T12:00:00.000Z"),
+            createdAt: new Date("2026-10-21T12:00:00.000Z"),
+            resolvedAt: null,
+            resolvedByStaffId: null,
+          };
+          createRequestRows.push(request);
+          return [request];
+        },
+      }),
+    }),
+  };
+  return tx;
+}
+
 function makeUpdate() {
   const query: Record<string, (...args: unknown[]) => unknown> = {
     set: (values) => {
@@ -276,7 +345,10 @@ before(async () => {
   Object.defineProperty(db, "transaction", {
     configurable: true,
     writable: true,
-    value: async (callback: (tx: ReturnType<typeof makeTransaction>) => Promise<unknown>) => callback(makeTransaction()),
+    value: async (callback: (tx: ReturnType<typeof makeTransaction>) => Promise<unknown>) =>
+      callback(creatingRequests
+        ? makeCreateRequestTransaction() as unknown as ReturnType<typeof makeTransaction>
+        : makeTransaction()),
   });
   restoreTransaction = () => {
     if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
@@ -326,6 +398,9 @@ beforeEach(() => {
   createRequestRows = [];
   createInsertAttempts = 0;
   expectedCreateInsertAttempts = 0;
+  createReportedSessions = 1;
+  createSessionTarget = 1;
+  createBusinessLockCount = 0;
   createInsertBarrier = Promise.resolve();
   finishCreateInsertBarrier = () => undefined;
 });
@@ -391,6 +466,7 @@ test("simultaneous extra-session requests keep one open request per business", a
     /already open for this business/i,
   );
   assert.equal(createRequestRows.filter(({ businessId, status }) => businessId === 900 && status === "open").length, 1);
+  assert.equal(createBusinessLockCount, 2);
 });
 
 test("simultaneous extra-session requests for separate businesses remain independent", async () => {
@@ -411,6 +487,40 @@ test("simultaneous extra-session requests for separate businesses remain indepen
     { businessId: 900, status: "open" },
     { businessId: 901, status: "open" },
   ]);
+});
+
+test("an extra-session request stores the report count observed under the business lock", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  creatingRequests = true;
+  createReportedSessions = 3;
+  createSessionTarget = 2;
+
+  const response = await requestAdditionalSessions(301);
+
+  assert.equal(response.status, 201);
+  const body = await response.json() as {
+    reportedSessionsAtRequest: number;
+    sessionTargetAtRequest: number;
+  };
+  assert.equal(body.reportedSessionsAtRequest, 3);
+  assert.equal(body.sessionTargetAtRequest, 2);
+  assert.equal(createRequestRows[0]?.reportedSessionsAtRequest, 3);
+  assert.equal(createRequestRows[0]?.sessionTargetAtRequest, 2);
+  assert.equal(createBusinessLockCount, 1);
+});
+
+test("a request remains ineligible with a clear conflict when its locked report count is below target", async () => {
+  requestStaff = { ...assignedStaff, role: "mentor" };
+  creatingRequests = true;
+  createReportedSessions = 1;
+  createSessionTarget = 2;
+
+  const response = await requestAdditionalSessions(301);
+
+  assert.equal(response.status, 409);
+  assert.match((await response.json() as { error: string }).error, /has not reached.*target/i);
+  assert.equal(createRequestRows.length, 0);
+  assert.equal(createBusinessLockCount, 1);
 });
 
 test("assigned program staff can approve an extra-session count atomically", async () => {

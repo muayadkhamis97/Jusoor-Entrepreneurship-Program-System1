@@ -8,11 +8,13 @@ let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreInsert: (() => void) | undefined;
+let restoreTransaction: (() => void) | undefined;
 let selectedRows: unknown[][] = [];
 let selectCall = 0;
 let inserted: Record<string, unknown> | undefined;
 let insertFailure: unknown;
 let requestStaff: Record<string, unknown> = {};
+let businessRowLocks = 0;
 
 const mentor = {
   id: 71,
@@ -28,6 +30,11 @@ function makeQuery(rows: unknown[]) {
     innerJoin: () => query,
     leftJoin: () => query,
     where: () => query,
+    for: (mode) => {
+      assert.equal(mode, "update");
+      businessRowLocks += 1;
+      return query;
+    },
     orderBy: () => query,
     limit: (limit) => Promise.resolve(rows.slice(0, Number(limit))),
   };
@@ -69,6 +76,19 @@ before(async () => {
       };
     },
   })) as (...args: never[]) => unknown);
+  const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
+  Object.defineProperty(db, "transaction", {
+    configurable: true,
+    writable: true,
+    value: async (callback: (tx: unknown) => Promise<unknown>) => callback({
+      select: (...args: unknown[]) => (db.select as (...args: never[]) => unknown)(...args as never[]),
+      insert: (...args: unknown[]) => (db.insert as (...args: never[]) => unknown)(...args as never[]),
+    }),
+  });
+  restoreTransaction = () => {
+    if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
+    else Reflect.deleteProperty(db, "transaction");
+  };
 
   const app = express();
   app.use(express.json());
@@ -84,6 +104,7 @@ before(async () => {
 after(async () => {
   restoreSelect?.();
   restoreInsert?.();
+  restoreTransaction?.();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
@@ -95,6 +116,7 @@ beforeEach(() => {
   selectCall = 0;
   inserted = undefined;
   insertFailure = undefined;
+  businessRowLocks = 0;
 });
 
 async function postReport(supportId = 42, payload: Record<string, unknown> = {}) {
@@ -122,6 +144,7 @@ function withAllowedEngagement(roster: unknown[] = [{ applicationId: 100, name: 
     [{ id: 42, businessId: 8, businessName: "North Star", programId: 7 }],
     roster,
     [{ clerkUserId: "clerk-coach", displayName: "Coach One" }],
+    [{ id: 8 }],
   ];
 }
 
@@ -145,6 +168,7 @@ test("submits a report with server-derived coach and business details and accept
   assert.equal(report.meetingId, null);
   assert.equal(inserted?.calendlyMeetingId, null);
   assert.equal(inserted?.googleCalendarMeetingId, null);
+  assert.equal(businessRowLocks, 1);
 });
 
 test("links a completed Calendly occurrence to one report", async () => {

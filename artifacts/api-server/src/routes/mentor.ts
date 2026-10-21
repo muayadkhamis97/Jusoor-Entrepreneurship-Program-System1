@@ -519,70 +519,77 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     return;
   }
 
-  const [program] = await db.select({
-    id: programsTable.id,
-    name: programsTable.name,
-    sessionTarget: programsTable.mentorSessionsPerBusiness,
-  }).from(programsTable).where(eq(programsTable.id, business.programId)).limit(1);
-  if (!program) {
-    res.status(404).json({ error: "Program not found." });
-    return;
-  }
-  const [approvedRow] = await db.select({
-    approvedAdditionalSessions: sum(mentorSessionRequestsTable.approvedAdditionalSessions),
-  }).from(mentorSessionRequestsTable)
-    .where(and(
-      eq(mentorSessionRequestsTable.businessId, business.businessId),
-      eq(mentorSessionRequestsTable.decision, "approved"),
-    ));
-  const sessionTarget = effectiveMentorSessionTarget(
-    program.sessionTarget,
-    Number(approvedRow?.approvedAdditionalSessions ?? 0),
-  );
-  const [reportedRow] = await db.select({
-    reportedSessions: count(mentorMeetingReportsTable.id),
-  }).from(mentorMeetingReportsTable)
-    .innerJoin(supportTable, eq(supportTable.id, mentorMeetingReportsTable.supportId))
-    .where(and(
-      eq(supportTable.businessId, business.businessId),
-      eq(supportTable.type, "mentor"),
-    ));
-  const reportedSessions = Number(reportedRow?.reportedSessions ?? 0);
-  const [existing] = await db.select({ id: mentorSessionRequestsTable.id })
-    .from(mentorSessionRequestsTable)
-    .where(and(
-      eq(mentorSessionRequestsTable.businessId, business.businessId),
-      eq(mentorSessionRequestsTable.status, "open"),
-    ))
-    .limit(1);
-  const eligibility = additionalSessionRequestEligibility({
-    reportedSessions,
-    sessionTarget,
-    hasOpenRequest: Boolean(existing),
-  });
-  if (eligibility === "target_not_configured") {
-    res.status(409).json({ error: "The program session target has not been set." });
-    return;
-  }
-  if (eligibility === "target_not_reached") {
-    res.status(409).json({ error: "The business has not reached its planned mentor-session target." });
-    return;
-  }
-  if (eligibility === "request_already_open") {
-    res.status(409).json({ error: "An additional-session request is already open for this business." });
-    return;
-  }
-
-  let request: typeof mentorSessionRequestsTable.$inferSelect;
+  let result: {
+    kind: "created";
+    request: typeof mentorSessionRequestsTable.$inferSelect;
+    programName: string;
+  } | { kind: "target_not_configured" }
+    | { kind: "target_not_reached" }
+    | { kind: "request_already_open" }
+    | { kind: "program_missing" }
+    | { kind: "business_missing" };
   try {
-    [request] = await db.insert(mentorSessionRequestsTable).values({
-      supportId: business.id,
-      businessId: business.businessId,
-      programId: business.programId,
-      mentorStaffId: staff.id,
-      reportedSessionsAtRequest: reportedSessions,
-      sessionTargetAtRequest: sessionTarget,
-    }).returning();
+    result = await db.transaction(async (tx) => {
+      // Reports and requests lock this same business row. Whichever commits first
+      // defines the eligibility snapshot observed by the other transaction.
+      const [lockedBusiness] = await tx.select({ id: businessesTable.id })
+        .from(businessesTable)
+        .where(eq(businessesTable.id, business.businessId))
+        .for("update")
+        .limit(1);
+      if (!lockedBusiness) return { kind: "business_missing" };
+
+      const [program] = await tx.select({
+        id: programsTable.id,
+        name: programsTable.name,
+        sessionTarget: programsTable.mentorSessionsPerBusiness,
+      }).from(programsTable).where(eq(programsTable.id, business.programId)).limit(1);
+      if (!program) return { kind: "program_missing" };
+
+      const [approvedRow] = await tx.select({
+        approvedAdditionalSessions: sum(mentorSessionRequestsTable.approvedAdditionalSessions),
+      }).from(mentorSessionRequestsTable)
+        .where(and(
+          eq(mentorSessionRequestsTable.businessId, business.businessId),
+          eq(mentorSessionRequestsTable.decision, "approved"),
+        ));
+      const sessionTarget = effectiveMentorSessionTarget(
+        program.sessionTarget,
+        Number(approvedRow?.approvedAdditionalSessions ?? 0),
+      );
+      const [reportedRow] = await tx.select({
+        reportedSessions: count(mentorMeetingReportsTable.id),
+      }).from(mentorMeetingReportsTable)
+        .innerJoin(supportTable, eq(supportTable.id, mentorMeetingReportsTable.supportId))
+        .where(and(
+          eq(supportTable.businessId, business.businessId),
+          eq(supportTable.type, "mentor"),
+        ));
+      const reportedSessions = Number(reportedRow?.reportedSessions ?? 0);
+      const [existing] = await tx.select({ id: mentorSessionRequestsTable.id })
+        .from(mentorSessionRequestsTable)
+        .where(and(
+          eq(mentorSessionRequestsTable.businessId, business.businessId),
+          eq(mentorSessionRequestsTable.status, "open"),
+        ))
+        .limit(1);
+      const eligibility = additionalSessionRequestEligibility({
+        reportedSessions,
+        sessionTarget,
+        hasOpenRequest: Boolean(existing),
+      });
+      if (eligibility !== "eligible") return { kind: eligibility };
+
+      const [request] = await tx.insert(mentorSessionRequestsTable).values({
+        supportId: business.id,
+        businessId: business.businessId,
+        programId: business.programId,
+        mentorStaffId: staff.id,
+        reportedSessionsAtRequest: reportedSessions,
+        sessionTargetAtRequest: sessionTarget,
+      }).returning();
+      return { kind: "created", request, programName: program.name };
+    });
   } catch (error) {
     if (isUniqueViolation(error)) {
       res.status(409).json({ error: "An additional-session request is already open for this business." });
@@ -590,6 +597,30 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     }
     throw error;
   }
+  if (result.kind === "business_missing") {
+    res.status(404).json({ error: "Business not found." });
+    return;
+  }
+  if (result.kind === "program_missing") {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  if (result.kind === "target_not_configured") {
+    res.status(409).json({ error: "The program session target has not been set." });
+    return;
+  }
+  if (result.kind === "target_not_reached") {
+    res.status(409).json({ error: "The business has not reached its planned mentor-session target." });
+    return;
+  }
+  if (result.kind === "request_already_open") {
+    res.status(409).json({ error: "An additional-session request is already open for this business." });
+    return;
+  }
+  if (result.kind !== "created") throw new Error("Unexpected additional-session request outcome.");
+  const { request, programName } = result;
+  const reportedSessions = request.reportedSessionsAtRequest;
+  const sessionTarget = request.sessionTargetAtRequest;
   const identity = await coachIdentity(staff, req);
   let emailNotificationStatus: "delivered" | "failed" = "failed";
   try {
@@ -597,7 +628,7 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
       requestId: request.id,
       businessName: business.businessName,
       programId: business.programId,
-      programName: program.name,
+      programName,
       mentorName: identity.coachName,
       mentorEmail: identity.coachEmail,
       reportedSessions,
@@ -930,33 +961,42 @@ router.post("/support/:id/meeting-reports", async (req, res): Promise<void> => {
     return;
   }
   try {
-    const [report] = await db.insert(mentorMeetingReportsTable).values({
-      supportId: business.id,
-      calendlyMeetingId: meetingProvider === "calendly" ? meetingId! : null,
-      googleCalendarMeetingId: meetingProvider === "google_calendar" ? meetingId! : null,
-      coachStaffId: staff.id,
-      ...identity,
-      businessName: business.businessName,
-      meetingDate: body.data.meetingDate,
-      attendees: attendees as string[],
-      sessionSummary: body.data.sessionSummary.trim(),
-      smartGrowActions: body.data.smartGrowActions.trim(),
-      achievementsAndOpportunities: body.data.achievementsAndOpportunities.trim(),
-      teamRecommendations: body.data.teamRecommendations?.trim() || null,
-    }).returning({
-      id: mentorMeetingReportsTable.id,
-      calendlyMeetingId: mentorMeetingReportsTable.calendlyMeetingId,
-      googleCalendarMeetingId: mentorMeetingReportsTable.googleCalendarMeetingId,
-      coachName: mentorMeetingReportsTable.coachName,
-      coachEmail: mentorMeetingReportsTable.coachEmail,
-      businessName: mentorMeetingReportsTable.businessName,
-      meetingDate: mentorMeetingReportsTable.meetingDate,
-      attendees: mentorMeetingReportsTable.attendees,
-      sessionSummary: mentorMeetingReportsTable.sessionSummary,
-      smartGrowActions: mentorMeetingReportsTable.smartGrowActions,
-      achievementsAndOpportunities: mentorMeetingReportsTable.achievementsAndOpportunities,
-      teamRecommendations: mentorMeetingReportsTable.teamRecommendations,
-      submittedAt: mentorMeetingReportsTable.submittedAt,
+    // Use the same business-row lock as extra-session requests so the report
+    // commit and the eligibility count have a consistent order.
+    const [report] = await db.transaction(async (tx) => {
+      await tx.select({ id: businessesTable.id })
+        .from(businessesTable)
+        .where(eq(businessesTable.id, business.businessId))
+        .for("update")
+        .limit(1);
+      return tx.insert(mentorMeetingReportsTable).values({
+        supportId: business.id,
+        calendlyMeetingId: meetingProvider === "calendly" ? meetingId! : null,
+        googleCalendarMeetingId: meetingProvider === "google_calendar" ? meetingId! : null,
+        coachStaffId: staff.id,
+        ...identity,
+        businessName: business.businessName,
+        meetingDate: body.data.meetingDate,
+        attendees: attendees as string[],
+        sessionSummary: body.data.sessionSummary.trim(),
+        smartGrowActions: body.data.smartGrowActions.trim(),
+        achievementsAndOpportunities: body.data.achievementsAndOpportunities.trim(),
+        teamRecommendations: body.data.teamRecommendations?.trim() || null,
+      }).returning({
+        id: mentorMeetingReportsTable.id,
+        calendlyMeetingId: mentorMeetingReportsTable.calendlyMeetingId,
+        googleCalendarMeetingId: mentorMeetingReportsTable.googleCalendarMeetingId,
+        coachName: mentorMeetingReportsTable.coachName,
+        coachEmail: mentorMeetingReportsTable.coachEmail,
+        businessName: mentorMeetingReportsTable.businessName,
+        meetingDate: mentorMeetingReportsTable.meetingDate,
+        attendees: mentorMeetingReportsTable.attendees,
+        sessionSummary: mentorMeetingReportsTable.sessionSummary,
+        smartGrowActions: mentorMeetingReportsTable.smartGrowActions,
+        achievementsAndOpportunities: mentorMeetingReportsTable.achievementsAndOpportunities,
+        teamRecommendations: mentorMeetingReportsTable.teamRecommendations,
+        submittedAt: mentorMeetingReportsTable.submittedAt,
+      });
     });
     res.status(201).json(SubmitMentorMeetingReportResponse.parse({
       ...report,
