@@ -21,6 +21,7 @@
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
 - [Mentor session targets](mentor-session-targets.md) — Each program sets a per-business 1:1 target; reports count toward it, and mentors can request more from authorized staff.
+- [Coaching and mentoring terminology](coaching-mentoring-terminology.md) — Coaching and mentoring refer to one service, not separate program categories.
 - [Schema drift and publishing](schema-drift-publishing.md) — Compare actual schemas with source; inspect composite-FK dependency order and stage prerequisite keys first if necessary.
 - [Editorial palette contrast](editorial-palette-contrast.md) — Preserve source colors for large emphasis, but measure small-text pairings when applying the extracted design system.
 - [pnpm audit fixes](pnpm-audit-fix.md) — Review auto-generated overrides for major-version drift and preserve workspace safeguards and comments.
