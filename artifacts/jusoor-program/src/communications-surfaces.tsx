@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { businessesForProgram, buildAnnouncementAudienceTarget, type AnnouncementAudienceMode } from './announcement-audience';
 import { AnnouncementEmailDelivery } from './announcement-email-status';
+import { AnnouncementReplies } from './announcement-replies';
 import './calendar-communications.css';
 
 const fmtDate = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -120,6 +121,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
           : announcementsQuery.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><AlertCircle size={20} /></span><h3>{t('Messages could not load.')}</h3><p>{t('Your cohort notices are unchanged. Try again.')}</p><button className="button button-outline" onClick={() => void announcementsQuery.refetch()} data-testid="button-retry-announcements">{t('Retry messages')}</button></div>
           : !visible.length ? <div className="empty-panel communications-empty" data-testid="announcement-empty-state"><span className="empty-icon"><Megaphone size={20} /></span><h3>{t(announcements.length ? 'Nothing in this view.' : 'No messages have been sent yet.')}</h3><p>{t(announcements.length ? 'Switch the filter to see other messages.' : 'Published and scheduled messages will appear here.')}</p></div>
           : <div className="announcement-list">{visible.map(item => {
+            const canManageAnnouncement = !staffOnly || item.programId !== null;
             const receiptPanelOpen = openReceiptId === item.id && item.isCurrentRecordingNotice;
             const receiptData = receiptsQuery.data?.announcementId === item.id ? receiptsQuery.data : undefined;
             return <article className="announcement-card" key={item.id} data-testid={`card-announcement-${item.id}`}>
@@ -128,8 +130,9 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
                 <div className="announcement-meta"><span className={`announcement-status ${item.status}`}>{item.status === 'scheduled' ? t('Scheduled') : t('Published')}</span><span>{item.sessionId ? t('Recording') : item.kind === 'reminder' ? t('Reminder') : t('Update')}</span><span>{item.businessName ? `${item.businessName} · ${item.programName}` : item.programName || t('All cohorts')}</span></div>
                 <h3>{item.title}</h3><p>{item.body}</p>
                 <small><Clock3 size={12} />{item.status === 'scheduled' ? t('Goes live') + ' ' : t('Shared') + ' '}{fmtDate(item.scheduledFor)}</small>
-                <AnnouncementEmailDelivery id={item.id} email={item.email} />
-                {item.sessionId !== null && item.isCurrentRecordingNotice && item.status === 'published' && <div className="recording-receipt-actions">
+                {!canManageAnnouncement && <p className="empty-inline">{t('All-program message — reply access only.')}</p>}
+                {canManageAnnouncement && <AnnouncementEmailDelivery id={item.id} email={item.email} />}
+                {canManageAnnouncement && item.sessionId !== null && item.isCurrentRecordingNotice && item.status === 'published' && <div className="recording-receipt-actions">
                   <button
                     type="button"
                     className="button button-outline"
@@ -161,10 +164,11 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
                     </>}
                   </section>}
                 </div>}
-                {confirmingDelete === item.id && <div className="announcement-confirm" role="group" aria-label={`Confirm removing ${item.title}`}><span>{t('Remove this announcement?')}</span><button type="button" className="button button-quiet" onClick={() => setConfirmingDelete(null)}>{t('Keep')}</button><button type="button" className="button button-danger" onClick={() => deleteAnnouncement(item)} disabled={remove.isPending} data-testid={`button-confirm-delete-announcement-${item.id}`}>{remove.isPending ? t('Removing…') : t('Remove')}</button></div>}
+                {item.status === 'published' && <AnnouncementReplies announcementId={item.id} viewer="staff" />}
+                {canManageAnnouncement && confirmingDelete === item.id && <div className="announcement-confirm" role="group" aria-label={`Confirm removing ${item.title}`}><span>{t('Remove this announcement?')}</span><button type="button" className="button button-quiet" onClick={() => setConfirmingDelete(null)}>{t('Keep')}</button><button type="button" className="button button-danger" onClick={() => deleteAnnouncement(item)} disabled={remove.isPending} data-testid={`button-confirm-delete-announcement-${item.id}`}>{remove.isPending ? t('Removing…') : t('Remove')}</button></div>}
                 {remove.isError && confirmingDelete === item.id && <div className="form-error" role="alert">{t('Could not remove this message. Please try again.')}</div>}
               </div>
-              {confirmingDelete !== item.id && <button type="button" className="icon-button icon-danger announcement-delete" onClick={() => setConfirmingDelete(item.id)} aria-label={`${t('Remove')} ${item.title}`} data-testid={`button-delete-announcement-${item.id}`}><Trash2 size={15} /></button>}
+              {canManageAnnouncement && confirmingDelete !== item.id && <button type="button" className="icon-button icon-danger announcement-delete" onClick={() => setConfirmingDelete(item.id)} aria-label={`${t('Remove')} ${item.title}`} data-testid={`button-delete-announcement-${item.id}`}><Trash2 size={15} /></button>}
             </article>;
           })}</div>}
       </section>
@@ -203,6 +207,7 @@ export function ParticipantAnnouncements({ announcements }: { announcements: Par
             </button>
             {openRecordingId === item.id && <SessionRecordingPlayer url={item.recordingUrl} title={item.sessionTitle} />}
           </div>}
+          <AnnouncementReplies announcementId={item.id} viewer="participant" />
         </div>
         {item.readAt ? <span className="read-indicator"><Check size={14} /> {t('Read')}</span> : <button type="button" className="button button-quiet mark-read-button" onClick={() => readOne(item)} disabled={markRead.isPending} data-testid={`button-mark-announcement-read-${item.id}`}>{markRead.isPending ? t('Saving…') : t('Mark as read')}</button>}
       </article>)}</div>}

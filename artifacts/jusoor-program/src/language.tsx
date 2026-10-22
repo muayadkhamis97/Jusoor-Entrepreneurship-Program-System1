@@ -6,6 +6,7 @@ let activeLanguage: AppLanguage = 'en';
 export const currentLanguage = () => activeLanguage;
 
 const arabic: Record<string, string> = {
+  'All-program message — reply access only.': 'رسالة لجميع البرامج — الصلاحية للرد فقط.',
   'No accepted participants matched this audience at publication. No emails were sent.': 'لم يكن هناك مشاركون مقبولون ضمن هذا الجمهور عند النشر. لم تُرسَل أي رسائل بريد.',
   'Email paused: the author no longer has access to this active program. An Admin must review their access.': 'أُوقف البريد مؤقتاً: لم يعد لدى الناشر صلاحية لهذا البرنامج النشط. يجب على المسؤول مراجعة صلاحياته.',
   'Removing an announcement stops queued emails, but cannot recall emails already sending or sent.': 'تؤدي إزالة الإعلان إلى إيقاف البريد المنتظر، لكن لا يمكن استرجاع الرسائل الجاري إرسالها أو المرسلة بالفعل.',
@@ -2516,6 +2517,27 @@ const arabic: Record<string, string> = {
   'Accepting responses': 'يستقبل الردود',
   'Your total score': 'مجموع درجاتك',
   'selected': 'محدد',
+  'Private replies': 'الردود الخاصة',
+  'Only this participant and the program team can see each conversation.': 'لا يرى كل محادثة إلا هذا المشارك وفريق البرنامج.',
+  'Only you and your program team can see your replies.': 'لا يرى ردودك إلا أنت وفريق برنامجك.',
+  'Loading replies': 'جارٍ تحميل الردود',
+  'Replies could not load.': 'تعذر تحميل الردود.',
+  'No participant has replied privately yet.': 'لم يرد أي مشارك بشكل خاص بعد.',
+  'Replies are not available for this announcement.': 'الردود غير متاحة لهذا الإعلان.',
+  'Start a private reply': 'ابدأ رداً خاصاً',
+  'No messages': 'لا توجد رسائل',
+  'Seen': 'تمت المشاهدة',
+  'Replied': 'تم الرد',
+  'Close conversation': 'إغلاق المحادثة',
+  'Reply privately': 'رد بشكل خاص',
+  'Conversation messages': 'رسائل المحادثة',
+  'No messages yet. Write the first private reply.': 'لا توجد رسائل بعد. اكتب أول رد خاص.',
+  'We couldn’t update read status. It will retry on the next refresh.': 'تعذر تحديث حالة القراءة. ستتم إعادة المحاولة عند التحديث التالي.',
+  'Private reply': 'رد خاص',
+  'Write a private reply…': 'اكتب رداً خاصاً…',
+  'Your reply could not be sent. Your draft is still here; try again.': 'تعذر إرسال ردك. لا تزال المسودة هنا؛ حاول مرة أخرى.',
+  'Reply sent.': 'تم إرسال الرد.',
+  'Send private reply': 'إرسال رد خاص',
 };
 
 export function translate(text: string, language: AppLanguage): string {

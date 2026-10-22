@@ -52,6 +52,7 @@ import { createCorsOptionsDelegate } from "./lib/corsPolicy";
 import programBrandingRouter from "./routes/programBranding";
 import externalIntegrationApiRouter from "./routes/externalIntegrationApi";
 import integrationApiKeysRouter from "./routes/integrationApiKeys";
+import { createAnnouncementRepliesRouter } from "./routes/announcementReplies";
 
 export function createApp(options: {
   authenticationMiddleware?: RequestHandler;
@@ -104,6 +105,7 @@ app.use("/api/v1", externalIntegrationApiRouter);
 app.use("/api", integrationApiKeysRouter);
 const participantAccess = options.participantMiddleware ?? requireParticipant;
 app.use("/api/participant/chat", participantAccess, createChatRouter("participant"));
+app.use("/api/participant/announcements", participantAccess, createAnnouncementRepliesRouter("participant"));
 app.use("/api/staff/chat", requireStaff, requireOperationsStaff, createChatRouter("staff"));
 app.use("/api/participant/profile", participantAccess, participantProfileRouter);
  app.use("/api/participant", participantAccess, participantRouter);

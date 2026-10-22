@@ -25,10 +25,14 @@ import type {
   AnalyticsReportLayoutInput,
   AnalyticsReportLayoutUpdate,
   Announcement,
+  AnnouncementConversation,
   AnnouncementDeleteResult,
   AnnouncementEmailStatus,
   AnnouncementInput,
   AnnouncementReadResult,
+  AnnouncementReply,
+  AnnouncementReplyInput,
+  AnnouncementReplyReadInput,
   AnnouncementsList,
   ApiError,
   ApplicationProgram,
@@ -269,6 +273,488 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListParticipantAnnouncementRepliesUrl = (id: number,) => {
+
+
+
+
+  return `/api/participant/announcements/${id}/replies`
+}
+
+export const listParticipantAnnouncementReplies = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementConversation[]> => {
+
+  return customFetch<AnnouncementConversation[]>(getListParticipantAnnouncementRepliesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListParticipantAnnouncementRepliesQueryKey = (id: number,) => {
+    return [
+    `/api/participant/announcements/${id}/replies`
+    ] as const;
+    }
+
+
+export const getListParticipantAnnouncementRepliesQueryOptions = <TData = Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListParticipantAnnouncementRepliesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>> = ({ signal }) => listParticipantAnnouncementReplies(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListParticipantAnnouncementRepliesQueryResult = NonNullable<Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>>
+export type ListParticipantAnnouncementRepliesQueryError = ErrorType<unknown>
+
+
+
+export function useListParticipantAnnouncementReplies<TData = Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listParticipantAnnouncementReplies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListParticipantAnnouncementRepliesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListStaffAnnouncementRepliesUrl = (id: number,) => {
+
+
+
+
+  return `/api/communications/${id}/replies`
+}
+
+export const listStaffAnnouncementReplies = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementConversation[]> => {
+
+  return customFetch<AnnouncementConversation[]>(getListStaffAnnouncementRepliesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStaffAnnouncementRepliesQueryKey = (id: number,) => {
+    return [
+    `/api/communications/${id}/replies`
+    ] as const;
+    }
+
+
+export const getListStaffAnnouncementRepliesQueryOptions = <TData = Awaited<ReturnType<typeof listStaffAnnouncementReplies>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStaffAnnouncementReplies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStaffAnnouncementRepliesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStaffAnnouncementReplies>>> = ({ signal }) => listStaffAnnouncementReplies(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStaffAnnouncementReplies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStaffAnnouncementRepliesQueryResult = NonNullable<Awaited<ReturnType<typeof listStaffAnnouncementReplies>>>
+export type ListStaffAnnouncementRepliesQueryError = ErrorType<unknown>
+
+
+
+export function useListStaffAnnouncementReplies<TData = Awaited<ReturnType<typeof listStaffAnnouncementReplies>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStaffAnnouncementReplies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStaffAnnouncementRepliesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendParticipantAnnouncementReplyUrl = (id: number,
+    applicationId: number,) => {
+
+
+
+
+  return `/api/participant/announcements/${id}/replies/${applicationId}`
+}
+
+export const sendParticipantAnnouncementReply = async (id: number,
+    applicationId: number,
+    announcementReplyInput: AnnouncementReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementReply> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AnnouncementReply>(getSendParticipantAnnouncementReplyUrl(id,applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(announcementReplyInput)
+  }
+);}
+
+
+
+
+
+export const getSendParticipantAnnouncementReplyMutationKey = () => ['sendParticipantAnnouncementReply'] as const;
+
+export const getSendParticipantAnnouncementReplyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>, TError,SendParticipantAnnouncementReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>, TError,SendParticipantAnnouncementReplyMutationVariables, TContext> => {
+
+const mutationKey = getSendParticipantAnnouncementReplyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>, SendParticipantAnnouncementReplyMutationVariables> = (props) => {
+          const {id,applicationId,data} = props ?? {};
+
+          return  sendParticipantAnnouncementReply(id,applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendParticipantAnnouncementReplyMutationResult = NonNullable<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>>
+    export type SendParticipantAnnouncementReplyMutationBody = BodyType<AnnouncementReplyInput>
+    export type SendParticipantAnnouncementReplyMutationError = ErrorType<unknown>
+    export type SendParticipantAnnouncementReplyMutationVariables = {id: number;applicationId: number;data: BodyType<AnnouncementReplyInput>}
+
+    export const useSendParticipantAnnouncementReply = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>, TError,SendParticipantAnnouncementReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>,
+        TError,
+        SendParticipantAnnouncementReplyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendParticipantAnnouncementReplyMutationOptions(options));
+    }
+
+export const getSendStaffAnnouncementReplyUrl = (id: number,
+    applicationId: number,) => {
+
+
+
+
+  return `/api/communications/${id}/replies/${applicationId}`
+}
+
+export const sendStaffAnnouncementReply = async (id: number,
+    applicationId: number,
+    announcementReplyInput: AnnouncementReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementReply> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AnnouncementReply>(getSendStaffAnnouncementReplyUrl(id,applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(announcementReplyInput)
+  }
+);}
+
+
+
+
+
+export const getSendStaffAnnouncementReplyMutationKey = () => ['sendStaffAnnouncementReply'] as const;
+
+export const getSendStaffAnnouncementReplyMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendStaffAnnouncementReply>>, TError,SendStaffAnnouncementReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendStaffAnnouncementReply>>, TError,SendStaffAnnouncementReplyMutationVariables, TContext> => {
+
+const mutationKey = getSendStaffAnnouncementReplyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendStaffAnnouncementReply>>, SendStaffAnnouncementReplyMutationVariables> = (props) => {
+          const {id,applicationId,data} = props ?? {};
+
+          return  sendStaffAnnouncementReply(id,applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendStaffAnnouncementReplyMutationResult = NonNullable<Awaited<ReturnType<typeof sendStaffAnnouncementReply>>>
+    export type SendStaffAnnouncementReplyMutationBody = BodyType<AnnouncementReplyInput>
+    export type SendStaffAnnouncementReplyMutationError = ErrorType<unknown>
+    export type SendStaffAnnouncementReplyMutationVariables = {id: number;applicationId: number;data: BodyType<AnnouncementReplyInput>}
+
+    export const useSendStaffAnnouncementReply = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendStaffAnnouncementReply>>, TError,SendStaffAnnouncementReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendStaffAnnouncementReply>>,
+        TError,
+        SendStaffAnnouncementReplyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendStaffAnnouncementReplyMutationOptions(options));
+    }
+
+export const getReadParticipantAnnouncementRepliesUrl = (id: number,
+    applicationId: number,) => {
+
+
+
+
+  return `/api/participant/announcements/${id}/replies/${applicationId}/read`
+}
+
+export const readParticipantAnnouncementReplies = async (id: number,
+    applicationId: number,
+    announcementReplyReadInput: AnnouncementReplyReadInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReadParticipantAnnouncementRepliesUrl(id,applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(announcementReplyReadInput)
+  }
+);}
+
+
+
+
+
+export const getReadParticipantAnnouncementRepliesMutationKey = () => ['readParticipantAnnouncementReplies'] as const;
+
+export const getReadParticipantAnnouncementRepliesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readParticipantAnnouncementReplies>>, TError,ReadParticipantAnnouncementRepliesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof readParticipantAnnouncementReplies>>, TError,ReadParticipantAnnouncementRepliesMutationVariables, TContext> => {
+
+const mutationKey = getReadParticipantAnnouncementRepliesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof readParticipantAnnouncementReplies>>, ReadParticipantAnnouncementRepliesMutationVariables> = (props) => {
+          const {id,applicationId,data} = props ?? {};
+
+          return  readParticipantAnnouncementReplies(id,applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReadParticipantAnnouncementRepliesMutationResult = NonNullable<Awaited<ReturnType<typeof readParticipantAnnouncementReplies>>>
+    export type ReadParticipantAnnouncementRepliesMutationBody = BodyType<AnnouncementReplyReadInput>
+    export type ReadParticipantAnnouncementRepliesMutationError = ErrorType<unknown>
+    export type ReadParticipantAnnouncementRepliesMutationVariables = {id: number;applicationId: number;data: BodyType<AnnouncementReplyReadInput>}
+
+    export const useReadParticipantAnnouncementReplies = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readParticipantAnnouncementReplies>>, TError,ReadParticipantAnnouncementRepliesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof readParticipantAnnouncementReplies>>,
+        TError,
+        ReadParticipantAnnouncementRepliesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReadParticipantAnnouncementRepliesMutationOptions(options));
+    }
+
+export const getReadStaffAnnouncementRepliesUrl = (id: number,
+    applicationId: number,) => {
+
+
+
+
+  return `/api/communications/${id}/replies/${applicationId}/read`
+}
+
+export const readStaffAnnouncementReplies = async (id: number,
+    applicationId: number,
+    announcementReplyReadInput: AnnouncementReplyReadInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReadStaffAnnouncementRepliesUrl(id,applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(announcementReplyReadInput)
+  }
+);}
+
+
+
+
+
+export const getReadStaffAnnouncementRepliesMutationKey = () => ['readStaffAnnouncementReplies'] as const;
+
+export const getReadStaffAnnouncementRepliesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readStaffAnnouncementReplies>>, TError,ReadStaffAnnouncementRepliesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof readStaffAnnouncementReplies>>, TError,ReadStaffAnnouncementRepliesMutationVariables, TContext> => {
+
+const mutationKey = getReadStaffAnnouncementRepliesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof readStaffAnnouncementReplies>>, ReadStaffAnnouncementRepliesMutationVariables> = (props) => {
+          const {id,applicationId,data} = props ?? {};
+
+          return  readStaffAnnouncementReplies(id,applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReadStaffAnnouncementRepliesMutationResult = NonNullable<Awaited<ReturnType<typeof readStaffAnnouncementReplies>>>
+    export type ReadStaffAnnouncementRepliesMutationBody = BodyType<AnnouncementReplyReadInput>
+    export type ReadStaffAnnouncementRepliesMutationError = ErrorType<unknown>
+    export type ReadStaffAnnouncementRepliesMutationVariables = {id: number;applicationId: number;data: BodyType<AnnouncementReplyReadInput>}
+
+    export const useReadStaffAnnouncementReplies = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readStaffAnnouncementReplies>>, TError,ReadStaffAnnouncementRepliesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof readStaffAnnouncementReplies>>,
+        TError,
+        ReadStaffAnnouncementRepliesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReadStaffAnnouncementRepliesMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

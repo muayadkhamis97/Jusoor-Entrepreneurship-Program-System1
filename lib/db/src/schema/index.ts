@@ -55,6 +55,7 @@ export * from "./course-progress";
 export * from "./session-interactions";
 export * from "./zoom-connections";
 export * from "./announcements";
+export * from "./announcement-replies";
 export * from "./calendly-meetings";
 export * from "./google-calendar-meetings";
 export * from "./zoom-recording-alerts";

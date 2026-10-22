@@ -31,6 +31,92 @@ tags:
   - name: staff
     description: Coordinator-managed team access
 paths:
+  /participant/announcements/{id}/replies:
+    get:
+      operationId: listParticipantAnnouncementReplies
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Private conversations owned by the signed-in participant
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AnnouncementConversation" }
+  /communications/{id}/replies:
+    get:
+      operationId: listStaffAnnouncementReplies
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Private conversations in assigned active programs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AnnouncementConversation" }
+  /participant/announcements/{id}/replies/{applicationId}:
+    post:
+      operationId: sendParticipantAnnouncementReply
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: applicationId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementReplyInput" }
+      responses:
+        "201":
+          description: Reply saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnnouncementReply" }
+  /communications/{id}/replies/{applicationId}:
+    post:
+      operationId: sendStaffAnnouncementReply
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: applicationId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementReplyInput" }
+      responses:
+        "201":
+          description: Response saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnnouncementReply" }
+  /participant/announcements/{id}/replies/{applicationId}/read:
+    post:
+      operationId: readParticipantAnnouncementReplies
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: applicationId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementReplyReadInput" }
+      responses:
+        "204": { description: Visible staff responses marked read }
+  /communications/{id}/replies/{applicationId}/read:
+    post:
+      operationId: readStaffAnnouncementReplies
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: applicationId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementReplyReadInput" }
+      responses:
+        "204": { description: Visible participant replies marked read for the program team }
   /healthz:
     get:
       operationId: healthCheck
@@ -4167,6 +4253,38 @@ components:
       scheme: bearer
       bearerFormat: Program integration key
   schemas:
+    AnnouncementReplyInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 5000 }
+    AnnouncementReplyReadInput:
+      type: object
+      required: [throughId]
+      properties:
+        throughId: { type: integer, minimum: 1 }
+    AnnouncementReply:
+      type: object
+      required: [id, sender, body, createdAt, readAt]
+      properties:
+        id: { type: integer }
+        sender: { type: string, enum: [participant, staff] }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: ["string", "null"], format: date-time }
+    AnnouncementConversation:
+      type: object
+      required: [applicationId, programName, participantName, businessName, unreadCount, messages]
+      properties:
+        applicationId: { type: integer }
+        programName: { type: string }
+        participantName: { type: string }
+        businessName: { type: ["string", "null"] }
+        unreadCount: { type: integer }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/AnnouncementReply" }
     ProgramGoogleSheetsStatus:
       type: object
       required:

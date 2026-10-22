@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, type SQL } from "drizzle-orm";
 import {
   CreateAnnouncementBody,
   CreateAnnouncementResponse,
@@ -29,14 +29,22 @@ import {
 } from "../lib/announcement-targeting";
 import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
 import { announcementEmailStatuses, emptyEmailStatus } from "../lib/announcement-email";
+import { createAnnouncementRepliesRouter } from "./announcementReplies";
 
 const router: IRouter = Router();
 router.use("/communications", requireOperationsStaff);
+router.use("/communications", createAnnouncementRepliesRouter("staff"));
 
-async function announcementScope(staff: StaffAccess): Promise<SQL | undefined> {
-  return staff.role === "coordinator"
-    ? undefined
-    : inArray(programAnnouncementsTable.programId, await activeProgramIdsFor(staff));
+async function announcementScope(staff: StaffAccess, includePublishedGlobal = false): Promise<SQL | undefined> {
+  if (staff.role === "coordinator") return undefined;
+  const activeIds = await activeProgramIdsFor(staff);
+  const assigned = inArray(programAnnouncementsTable.programId, activeIds);
+  // Global announcements are readable so the program team can discover its
+  // private replies. Mutation/receipt callers deliberately retain assigned-only
+  // scope; publication to all programs remains Admin-only.
+  return includePublishedGlobal && activeIds.length
+    ? or(assigned, and(isNull(programAnnouncementsTable.programId), lte(programAnnouncementsTable.scheduledFor, new Date())))
+    : assigned;
 }
 
 type AnnouncementListRow = {
@@ -108,13 +116,15 @@ async function listAnnouncementRows(scope?: SQL): Promise<AnnouncementListRow[]>
 
 router.get("/communications", async (_req, res): Promise<void> => {
   const now = new Date();
-  const scope = await announcementScope(res.locals.staff as StaffAccess);
+  const staff = res.locals.staff as StaffAccess;
+  const scope = await announcementScope(staff, true);
   const rows = await listAnnouncementRows(scope);
   let emailStatuses: Awaited<ReturnType<typeof announcementEmailStatuses>> | undefined;
-  try { emailStatuses = await announcementEmailStatuses(rows.map(row => row.id)); }
+  try { emailStatuses = await announcementEmailStatuses(rows.filter(row => staff.role === "coordinator" || row.programId !== null).map(row => row.id)); }
   catch { _req.log.warn("Announcement email status unavailable"); }
   const announcements = rows.map(announcement => ({
-    email: emailStatuses?.get(announcement.id) ?? emptyEmailStatus(emailStatuses ? "not_requested" : "unavailable"),
+    email: staff.role !== "coordinator" && announcement.programId === null ? undefined
+      : emailStatuses?.get(announcement.id) ?? emptyEmailStatus(emailStatuses ? "not_requested" : "unavailable"),
     id: announcement.id,
     sessionId: announcement.sessionId,
     isCurrentRecordingNotice: isCurrentRecordingNotice({

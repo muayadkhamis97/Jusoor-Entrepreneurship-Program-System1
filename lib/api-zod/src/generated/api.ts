@@ -8,6 +8,144 @@
 import * as zod from 'zod';
 
 
+
+
+
+export const ListParticipantAnnouncementRepliesParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const ListParticipantAnnouncementRepliesResponseItem = zod.object({
+  "applicationId": zod.number().int(),
+  "programName": zod.string(),
+  "participantName": zod.string(),
+  "businessName": zod.string().nullable(),
+  "unreadCount": zod.number().int(),
+  "messages": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sender": zod.enum(['participant', 'staff']),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}))
+})
+export const ListParticipantAnnouncementRepliesResponse = zod.array(ListParticipantAnnouncementRepliesResponseItem)
+
+
+
+
+
+export const ListStaffAnnouncementRepliesParams = zod.object({
+  "id": zod.coerce.number().int().min(1)
+})
+
+export const ListStaffAnnouncementRepliesResponseItem = zod.object({
+  "applicationId": zod.number().int(),
+  "programName": zod.string(),
+  "participantName": zod.string(),
+  "businessName": zod.string().nullable(),
+  "unreadCount": zod.number().int(),
+  "messages": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sender": zod.enum(['participant', 'staff']),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+}))
+})
+export const ListStaffAnnouncementRepliesResponse = zod.array(ListStaffAnnouncementRepliesResponseItem)
+
+
+
+
+
+
+export const SendParticipantAnnouncementReplyParams = zod.object({
+  "id": zod.coerce.number().int().min(1),
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+export const sendParticipantAnnouncementReplyBodyBodyMax = 5000;
+
+
+
+export const SendParticipantAnnouncementReplyBody = zod.object({
+  "body": zod.string().min(1).max(sendParticipantAnnouncementReplyBodyBodyMax)
+})
+
+export const SendParticipantAnnouncementReplyResponse = zod.object({
+  "id": zod.number().int(),
+  "sender": zod.enum(['participant', 'staff']),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+
+
+
+
+
+
+export const SendStaffAnnouncementReplyParams = zod.object({
+  "id": zod.coerce.number().int().min(1),
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+export const sendStaffAnnouncementReplyBodyBodyMax = 5000;
+
+
+
+export const SendStaffAnnouncementReplyBody = zod.object({
+  "body": zod.string().min(1).max(sendStaffAnnouncementReplyBodyBodyMax)
+})
+
+export const SendStaffAnnouncementReplyResponse = zod.object({
+  "id": zod.number().int(),
+  "sender": zod.enum(['participant', 'staff']),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable()
+})
+
+
+
+
+
+
+export const ReadParticipantAnnouncementRepliesParams = zod.object({
+  "id": zod.coerce.number().int().min(1),
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const ReadParticipantAnnouncementRepliesBody = zod.object({
+  "throughId": zod.number().int().min(1)
+})
+
+export const ReadParticipantAnnouncementRepliesResponse = zod.void()
+
+
+
+
+
+
+export const ReadStaffAnnouncementRepliesParams = zod.object({
+  "id": zod.coerce.number().int().min(1),
+  "applicationId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const ReadStaffAnnouncementRepliesBody = zod.object({
+  "throughId": zod.number().int().min(1)
+})
+
+export const ReadStaffAnnouncementRepliesResponse = zod.void()
+
+
 /**
  * Returns server health status
  * @summary Health check

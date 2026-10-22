@@ -41,7 +41,9 @@ function matches(row: Record<string, any>, condition: any): boolean {
   const programScope = query.sql.match(/"program_id" in \(([^)]+)\)/);
   if (programScope) {
     const ids = [...programScope[1].matchAll(/\$(\d+)/g)].map(match => query.params[Number(match[1]) - 1]);
-    if (!ids.includes(row.programId)) return false;
+    const readableGlobal = row.programId === null && /"program_id" is null/.test(query.sql)
+      && /"scheduled_for" <=/.test(query.sql);
+    if (!ids.includes(row.programId) && !readableGlobal) return false;
   }
   return true;
 }
@@ -117,12 +119,14 @@ function request(path = "", method = "GET", role: string | null = "staff", body?
 }
 const input = { kind: "update", title: "Program update", body: "Details for the program team." };
 
-test("staff history is limited to assigned active programs, including schema-compatibility fallback", async () => {
+test("staff history includes assigned active programs and read-only published global announcements, including schema-compatibility fallback", async () => {
   for (const fallback of [false, true]) {
     missingBusinessColumn = fallback;
     const response = await request();
     assert.equal(response.status, 200);
-    assert.deepEqual((await response.json()).map((row: any) => row.id), [41]);
+    const rows = await response.json();
+    assert.deepEqual(rows.map((row: any) => row.id), [41, 43]);
+    assert.equal(rows.find((row: any) => row.id === 43).email, undefined);
   }
   missingBusinessColumn = false;
   const empty = await request("", "GET", "staff", undefined, true);

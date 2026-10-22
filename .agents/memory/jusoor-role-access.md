@@ -28,3 +28,9 @@ description: Durable access boundaries for coordinator, trainer, mentor, judge, 
 **Why staff communications:** The user explicitly requested Communications for staff as well as Admins. Apply the existing program-assignment boundaries to history, publishing, deletion, and recording read receipts.
 
 **Why chat visibility:** The user chose both private participant/program-staff conversations and shared business-team chats. Membership in a business must never grant access to another participant's private conversation.
+
+Private announcement conversations use a participant's accepted application as their program context, including replies to all-program announcements. Incoming participant replies are read by the program team collectively, rather than tracking a separate inbox for each staff member.
+
+**Why:** A global announcement must not let a staff member assigned to one program read replies made under another program. Shared team read status supports the existing Communications workspace without implying that every assigned staff member has personally read a message.
+
+**How to apply:** Keep private threads distinct from shared business messages. If individual staff read receipts are later requested, treat that as a deliberate change to the team-inbox behavior, not as an incidental schema change.

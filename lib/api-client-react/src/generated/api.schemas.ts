@@ -5,6 +5,46 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+export interface AnnouncementReplyInput {
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  body: string;
+}
+
+export interface AnnouncementReplyReadInput {
+  /** @minimum 1 */
+  throughId: number;
+}
+
+export type AnnouncementReplySender = typeof AnnouncementReplySender[keyof typeof AnnouncementReplySender];
+
+
+export const AnnouncementReplySender = {
+  participant: 'participant',
+  staff: 'staff',
+} as const;
+
+export interface AnnouncementReply {
+  id: number;
+  sender: AnnouncementReplySender;
+  body: string;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+}
+
+export interface AnnouncementConversation {
+  applicationId: number;
+  programName: string;
+  participantName: string;
+  /** @nullable */
+  businessName: string | null;
+  unreadCount: number;
+  messages: AnnouncementReply[];
+}
+
 export type ProgramGoogleSheetsStatusStatus = typeof ProgramGoogleSheetsStatusStatus[keyof typeof ProgramGoogleSheetsStatusStatus];
 
 
