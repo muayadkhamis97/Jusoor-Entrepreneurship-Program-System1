@@ -33,8 +33,18 @@ test("participant email is sent through the injected platform sender", async () 
   let delivered: ReturnType<typeof buildParticipantInvitationEmail> | undefined;
   await sendParticipantInvitationEmail(input, async message => {
     delivered = message;
-  });
+  }, async () => ({ brandName: "Future Founders", logoUrl: null, primaryColor: "#28665a", accentColor: "#d98a46" }));
 
   assert.equal(delivered?.recipients[0], input.email);
+  assert.equal(delivered?.subject, "Future Founders: Your program invitation");
+  assert.match(delivered?.text ?? "", /The Future Founders program team has invited you/);
   assert.match(delivered?.text ?? "", /assigned program and business/);
+});
+
+test("participant invitation escapes its brand and keeps its original retry identity", () => {
+  const message = buildParticipantInvitationEmail(input, "أعمال <North> & Co\nTeam");
+  assert.equal(message.subject, "أعمال <North> & Co Team: Your program invitation");
+  assert.match(message.html, /أعمال &lt;North&gt; &amp; Co Team/);
+  assert.match(message.text, /reply to this email/);
+  assert.equal(message.idempotencyKey, "participant-invitation-42-1794830400000");
 });

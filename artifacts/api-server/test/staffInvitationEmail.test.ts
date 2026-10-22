@@ -14,7 +14,7 @@ test("builds a scoped invitation email with stable retry identity", () => {
   });
 
   assert.deepEqual(message.recipients, ["trainer@example.com"]);
-  assert.equal(message.subject, "Invitation to join the program team");
+  assert.equal(message.subject, "Program Hub: Your invitation to join the program team");
   assert.match(message.text, /Role: Trainer\./);
   assert.match(message.text, /Assigned program: Spring founders\./);
   assert.match(message.text, /same verified email address/);
@@ -51,8 +51,20 @@ test("sends the constructed invitation through the injected sender", async () =>
     programNames: ["Launch cohort"],
   }, async message => {
     sent = message;
-  });
+  }, async () => ({ brandName: "Future Founders", logoUrl: null, primaryColor: "#28665a", accentColor: "#d98a46" }));
 
   assert.equal(sent?.recipients[0], "mentor@example.com");
+  assert.equal(sent?.subject, "Future Founders: Your invitation to join the program team");
+  assert.match(sent?.text ?? "", /The Future Founders program team has invited you/);
   assert.match(sent?.text ?? "", /Role: Mentor\./);
+});
+
+test("staff invitation safely includes the current Unicode brand in subject and body", () => {
+  const message = buildStaffInvitationEmail({
+    staffId: 46, email: "mentor@example.com", role: "mentor", programNames: [],
+  }, "أعمال <North> & Co\r\nTeam");
+  assert.equal(message.subject, "أعمال <North> & Co Team: Your invitation to join the program team");
+  assert.match(message.html, /أعمال &lt;North&gt; &amp; Co Team/);
+  assert.match(message.text, /reply to this email/);
+  assert.equal(message.idempotencyKey, "staff-invitation-46");
 });

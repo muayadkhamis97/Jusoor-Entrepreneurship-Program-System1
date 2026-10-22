@@ -75,7 +75,7 @@ import {
 import { isParticipantAttendanceSchemaReady } from "../lib/participant-attendance-schema";
 
 const router: IRouter = Router();
-router.use(requireCoordinator);
+router.use("/analytics", requireCoordinator);
 
 function isCalendarDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

@@ -1,5 +1,6 @@
 import type { PlatformEmail } from "./platform-email";
 import { sendPlatformEmail } from "./platform-email";
+import { loadProgramEmailBranding, visibleEmailBrandName } from "./email-branding";
 
 export type StaffInvitationRole = "coordinator" | "staff" | "trainer" | "mentor" | "judge";
 
@@ -20,7 +21,8 @@ const roleLabels: Record<StaffInvitationRole, string> = {
   judge: "Judge",
 };
 
-export function buildStaffInvitationEmail(input: StaffInvitationEmailInput): PlatformEmail {
+export function buildStaffInvitationEmail(input: StaffInvitationEmailInput, brandName = "Program Hub"): PlatformEmail {
+  const brand = visibleEmailBrandName(brandName).replace(/\s+/g, " ");
   const roleLabel = roleLabels[input.role];
   const programNames = input.role === "coordinator" ? [] : input.programNames;
   const assignment = programNames.length
@@ -35,25 +37,27 @@ export function buildStaffInvitationEmail(input: StaffInvitationEmailInput): Pla
   const text = [
     "Hello,",
     "",
-    "You have been invited to join the program platform.",
+    `The ${brand} program team has invited you to join its workspace.`,
     `Role: ${roleLabel}.`,
     assignment,
     "",
     "Create an account or sign in using this same verified email address to access the platform.",
+    "If you have questions about your role or program access, reply to this email to contact the program team.",
     "If you were not expecting this invitation, you can ignore this email.",
   ].join("\n");
   const html = [
     "<p>Hello,</p>",
-    "<p>You have been invited to join the program platform.</p>",
+    `<p>The ${escapeHtml(brand)} program team has invited you to join its workspace.</p>`,
     `<p><strong>Role:</strong> ${safeRole}</p>`,
     assignmentHtml,
     "<p>Create an account or sign in using this same verified email address to access the platform.</p>",
+    "<p>If you have questions about your role or program access, reply to this email to contact the program team.</p>",
     "<p>If you were not expecting this invitation, you can ignore this email.</p>",
   ].join("");
 
   return {
     recipients: [input.email],
-    subject: "Invitation to join the program team",
+    subject: `${brand}: Your invitation to join the program team`,
     text,
     html,
     idempotencyKey: `staff-invitation-${input.staffId}`,
@@ -62,9 +66,13 @@ export function buildStaffInvitationEmail(input: StaffInvitationEmailInput): Pla
 
 export async function sendStaffInvitationEmail(
   input: StaffInvitationEmailInput,
-  send: EmailSender = sendPlatformEmail,
+  send?: EmailSender,
+  loadBranding = loadProgramEmailBranding,
 ): Promise<void> {
-  await send(buildStaffInvitationEmail(input));
+  const branding = await loadBranding();
+  const message = buildStaffInvitationEmail(input, branding.brandName);
+  if (send) await send(message);
+  else await sendPlatformEmail(message, undefined, async () => branding);
 }
 
 function escapeHtml(value: string): string {

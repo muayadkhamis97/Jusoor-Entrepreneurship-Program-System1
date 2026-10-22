@@ -25,7 +25,7 @@ import {
 import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
 
 const router: IRouter = Router();
-router.use(requireCoordinator);
+router.use("/communications", requireCoordinator);
 
 type AnnouncementListRow = {
   id: number;
