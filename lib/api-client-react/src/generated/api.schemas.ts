@@ -171,6 +171,12 @@ export type JudgingFormDetail = JudgingFormSummary & ({
   shareToken: string | null;
 });
 
+export interface JudgingFormLinkHistoryEntry {
+  id: number;
+  actorEmail: string;
+  replacedAt: string;
+}
+
 export interface PublicJudgingForm {
   id: number;
   title: string;

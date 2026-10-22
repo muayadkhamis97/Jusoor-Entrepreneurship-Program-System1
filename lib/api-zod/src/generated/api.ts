@@ -6637,6 +6637,24 @@ export const RotateJudgingFormShareLinkResponse = zod.object({
 
 
 /**
+ * @summary Read replacement timestamps and staff identities for an authorized form
+ */
+
+
+
+export const ListJudgingFormLinkHistoryParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+export const ListJudgingFormLinkHistoryResponseItem = zod.object({
+  "id": zod.number().int(),
+  "actorEmail": zod.string(),
+  "replacedAt": zod.coerce.date()
+})
+export const ListJudgingFormLinkHistoryResponse = zod.array(ListJudgingFormLinkHistoryResponseItem)
+
+
+/**
  * @summary Read private judging responses for an authorized form
  */
 

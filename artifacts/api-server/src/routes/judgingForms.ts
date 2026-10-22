@@ -2,11 +2,11 @@ import { Router } from "express";
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import {
   CreateJudgingFormBody, CreateJudgingFormResponse, GetJudgingFormResponse, ListJudgingFormsResponse,
-  ListJudgingFormResponsesQueryParams, ListJudgingFormResponsesResponse, UpdateJudgingFormBody,
+  ListJudgingFormLinkHistoryResponse, ListJudgingFormResponsesQueryParams, ListJudgingFormResponsesResponse, UpdateJudgingFormBody,
   UpdateJudgingFormResponse, UpdateJudgingFormStatusBody, UpdateJudgingFormStatusResponse,
   type JudgingFormInput,
 } from "@workspace/api-zod";
-import { businessesTable, db, judgingFormBusinessesTable, judgingFormsTable, judgingResponsesTable, programsTable } from "@workspace/db";
+import { businessesTable, db, judgingFormBusinessesTable, judgingFormLinkHistoryTable, judgingFormsTable, judgingResponsesTable, programsTable } from "@workspace/db";
 import { requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import {
@@ -109,8 +109,22 @@ router.post("/:formId/rotate-link", async (req, res) => {
     await tx.update(judgingFormsTable).set({
       shareTokenHash: token.hash, shareTokenEnc: token.encrypted, updatedAt: new Date(),
     }).where(eq(judgingFormsTable.id, id));
+    await tx.insert(judgingFormLinkHistoryTable).values({
+      formId: id, actorStaffId: staff.id, actorEmail: staff.email,
+    });
   });
   res.json(GetJudgingFormResponse.parse(await detail(staff, id)));
+});
+router.get("/:formId/link-history", async (req, res) => {
+  const { form } = await staffJudgingForm(res.locals.staff as StaffAccess, Number(req.params.formId));
+  const rows = await db.select({
+    id: judgingFormLinkHistoryTable.id,
+    actorEmail: judgingFormLinkHistoryTable.actorEmail,
+    replacedAt: judgingFormLinkHistoryTable.replacedAt,
+  }).from(judgingFormLinkHistoryTable)
+    .where(eq(judgingFormLinkHistoryTable.formId, form.id))
+    .orderBy(desc(judgingFormLinkHistoryTable.id));
+  res.json(ListJudgingFormLinkHistoryResponse.parse(rows));
 });
 router.get("/:formId/responses", async (req, res) => {
   const { form } = await staffJudgingForm(res.locals.staff as StaffAccess, Number(req.params.formId));

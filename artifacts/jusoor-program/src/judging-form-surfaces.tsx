@@ -3,8 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { CircleAlert, ClipboardCopy, Eye, Lock, Plus, RefreshCw, Trash2, Trophy } from 'lucide-react';
 import {
-  getGetJudgingFormQueryKey, getListBusinessesQueryKey, getListJudgingFormResponsesQueryKey, getListJudgingFormsQueryKey,
-  useCreateJudgingForm, useGetJudgingForm, useListBusinesses, useListJudgingFormResponses, useListJudgingForms, useListPrograms,
+  getGetJudgingFormQueryKey, getListBusinessesQueryKey, getListJudgingFormLinkHistoryQueryKey, getListJudgingFormResponsesQueryKey, getListJudgingFormsQueryKey,
+  useCreateJudgingForm, useGetJudgingForm, useListBusinesses, useListJudgingFormLinkHistory, useListJudgingFormResponses, useListJudgingForms, useListPrograms,
   useRotateJudgingFormShareLink, useUpdateJudgingForm, useUpdateJudgingFormStatus,
 } from '@workspace/api-client-react';
 import type { JudgingFormDetail, JudgingFormSummary } from '@workspace/api-client-react';
@@ -311,6 +311,9 @@ function FormEditor({ initial, formId, onSaved, onCancel }: { initial: FormDraft
 function SharePanel({ form }: { form: JudgingFormDetail }) {
   const queryClient = useQueryClient();
   const rotateLink = useRotateJudgingFormShareLink();
+  const linkHistory = useListJudgingFormLinkHistory(form.id, {
+    query: { enabled: form.publishedAt !== null, queryKey: getListJudgingFormLinkHistoryQueryKey(form.id) },
+  });
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [confirmRotate, setConfirmRotate] = useState(false);
   const [rotateError, setRotateError] = useState('');
@@ -325,6 +328,7 @@ function SharePanel({ form }: { form: JudgingFormDetail }) {
       const updated = await rotateLink.mutateAsync({ formId: form.id });
       queryClient.setQueryData(getGetJudgingFormQueryKey(form.id), updated);
       void queryClient.invalidateQueries({ queryKey: getListJudgingFormsQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getListJudgingFormLinkHistoryQueryKey(form.id) });
       setConfirmRotate(false);
       setRotateSuccess(true);
     } catch (caught) {
@@ -354,6 +358,16 @@ function SharePanel({ form }: { form: JudgingFormDetail }) {
     {rotateError && <div className="form-error" role="alert"><CircleAlert size={16} />{t(rotateError)}</div>}
     {form.status === 'closed' && <p className="field-hint">{t('This form is closed, so the link does not accept new responses until you reopen it.')}</p>}
     <p className="field-hint">{t('Anyone with this link can submit an assessment without signing in. Names and emails are self-reported and not verified. Guest responses stay here and are not added to signed-in judge scorecards or pitch scores.')}</p>
+    <div className="jf-section jf-link-history" aria-label={t('Link replacement history')}>
+      <div className="jf-section-head"><Typography as="h3" variant="label">{t('LINK REPLACEMENT HISTORY')}</Typography></div>
+      <p className="field-hint">{t('Staff email addresses and replacement times are shown here. Share tokens are never included.')}</p>
+      {linkHistory.isLoading ? <p className="field-hint" role="status">{t('Loading replacement history…')}</p>
+        : linkHistory.isError ? <LoadError message="Replacement history could not load." retry={() => void linkHistory.refetch()} />
+          : !linkHistory.data?.length ? <p className="field-hint">{t('No link replacements have been recorded.')}</p>
+            : <ul className="jf-history-list">{linkHistory.data.map(entry => <li key={entry.id}>
+              <span>{entry.actorEmail}</span><time dateTime={entry.replacedAt}>{dateTime(entry.replacedAt)}</time>
+            </li>)}</ul>}
+    </div>
     <Dialog open={confirmRotate} onOpenChange={open => { if (!rotateLink.isPending) setConfirmRotate(open); }} eyebrow={t('REPLACE SHARE LINK')} title={t('Replace this judging link?')} description={t('The current link will stop loading and accepting submissions immediately. Existing assessments and the locked rubric will remain unchanged. The replacement link only accepts new assessments while the form is open.')}>
       <div className="jf-dialog-actions">
         <Button type="button" variant="text" onClick={() => setConfirmRotate(false)} disabled={rotateLink.isPending}>{t('Keep current link')}</Button>

@@ -173,6 +173,7 @@ export * from './judgingBusiness';
 export * from './judgingCriterion';
 export * from './judgingFormDetail';
 export * from './judgingFormInput';
+export * from './judgingFormLinkHistoryEntry';
 export * from './judgingFormStatusInput';
 export * from './judgingFormStatusInputStatus';
 export * from './judgingFormSummary';

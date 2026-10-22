@@ -120,6 +120,7 @@ import type {
   JudgeScorecardInput,
   JudgingFormDetail,
   JudgingFormInput,
+  JudgingFormLinkHistoryEntry,
   JudgingFormStatusInput,
   JudgingFormSummary,
   JudgingResponseInput,
@@ -17192,6 +17193,83 @@ export const useRotateJudgingFormShareLink = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRotateJudgingFormShareLinkMutationOptions(options));
     }
+
+export const getListJudgingFormLinkHistoryUrl = (formId: number,) => {
+
+
+
+
+  return `/api/staff/judging-forms/${formId}/link-history`
+}
+
+/**
+ * @summary Read replacement timestamps and staff identities for an authorized form
+ */
+export const listJudgingFormLinkHistory = async (formId: number, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormLinkHistoryEntry[]> => {
+
+  return customFetch<JudgingFormLinkHistoryEntry[]>(getListJudgingFormLinkHistoryUrl(formId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJudgingFormLinkHistoryQueryKey = (formId: number,) => {
+    return [
+    `/api/staff/judging-forms/${formId}/link-history`
+    ] as const;
+    }
+
+
+export const getListJudgingFormLinkHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listJudgingFormLinkHistory>>, TError = ErrorType<unknown>>(formId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormLinkHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJudgingFormLinkHistoryQueryKey(formId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJudgingFormLinkHistory>>> = ({ signal }) => listJudgingFormLinkHistory(formId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: formId !== null && formId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormLinkHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJudgingFormLinkHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listJudgingFormLinkHistory>>>
+export type ListJudgingFormLinkHistoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read replacement timestamps and staff identities for an authorized form
+ */
+
+export function useListJudgingFormLinkHistory<TData = Awaited<ReturnType<typeof listJudgingFormLinkHistory>>, TError = ErrorType<unknown>>(
+ formId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormLinkHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJudgingFormLinkHistoryQueryOptions(formId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListJudgingFormResponsesUrl = (formId: number,
     params?: ListJudgingFormResponsesParams,) => {

@@ -55,11 +55,14 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
       CREATE TEMP TABLE jusoor_staff_members (id integer PRIMARY KEY);
       INSERT INTO jusoor_programs VALUES (11,'Assigned program',NULL),(22,'Other program',NULL),(33,'Archived',now());
       INSERT INTO jusoor_businesses VALUES (201,11,'Business one'),(202,11,'Business two'),(203,22,'Other business'),(204,33,'Archived business');
-      INSERT INTO jusoor_staff_members VALUES (7);
+      INSERT INTO jusoor_staff_members VALUES (7),(8);
     `);
     const migration = readFileSync(new URL("../../../lib/db/migrations/20261022_public_judging_forms.sql", import.meta.url), "utf8")
       .replace(/^BEGIN;\s*/, "").replace(/COMMIT;\s*$/, "").replaceAll("CREATE TABLE ", "CREATE TEMP TABLE ");
     await client.query(migration);
+    const historyMigration = readFileSync(new URL("../../../lib/db/migrations/20261023_judging_form_link_history.sql", import.meta.url), "utf8")
+      .replace(/^BEGIN;\s*/, "").replace(/COMMIT;\s*$/, "").replaceAll("CREATE TABLE ", "CREATE TEMP TABLE ");
+    await client.query(historyMigration);
     const isolated = drizzle(client);
     for (const key of ["select", "insert", "update", "delete"] as const) Object.defineProperty(db, key, { configurable: true, value: isolated[key].bind(isolated) });
     Object.defineProperty(db, "transaction", { configurable: true, value: async (callback: (tx: typeof isolated) => Promise<unknown>) => {
@@ -77,7 +80,10 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     app.use(express.json());
     app.use((req, res, next) => {
       const role = req.get("x-test-role");
-      if (role) res.locals.staff = { id: 7, role, programIds: [11] };
+      if (role) res.locals.staff = {
+        id: role === "coordinator" ? 8 : 7, email: role === "coordinator" ? "admin@example.test" : "staff@example.test",
+        role, programIds: [11],
+      };
       next();
     });
     app.use("/public/judging-form", publicRouter);
@@ -138,6 +144,8 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(publicResponse.status, 200);
     assert.equal(publicResponse.headers.get("cache-control"), "no-store");
     const form = await publicResponse.json();
+    assert.deepEqual(await (await staff(`/${formId}/link-history`)).json(), [],
+      "opening a form does not create a link replacement entry");
     assert.deepEqual(form.businesses.map((business: any) => business.id), [201, 202]);
     for (const field of ["responses", "judgeEmail", "shareToken", "shareTokenEnc", "createdByStaffId", "responseCount"]) assert.ok(!(field in form));
     assert.equal((await staff(`/${formId}`, "PATCH", definition)).status, 409);
@@ -195,6 +203,16 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(responses.responses.length, 2);
     assert.equal((await guest("POST", { ...assessment, clientSubmissionId: randomUUID() })).status, 409,
       "existing per-business judge uniqueness still applies with the replacement link");
+    const historyResponse = await staff(`/${formId}/link-history`);
+    assert.equal(historyResponse.status, 200);
+    const history = await historyResponse.json();
+    assert.equal(history.length, 1);
+    assert.equal(history[0].actorEmail, "staff@example.test");
+    assert.ok(Number.isFinite(Date.parse(history[0].replacedAt)));
+    assert.ok(!JSON.stringify(history).includes(previousToken));
+    assert.ok(!("token" in history[0]));
+    assert.equal((await staff(`/${formId}/link-history`, "GET", undefined, "judge")).status, 403);
+    assert.equal((await staff(`/${foreignId}/link-history`)).status, 404);
   });
   test("staff response privacy is enforced on list, details, status, editing and pagination", async () => {
     assert.ok((await (await staff()).json()).every((form: any) => form.programId === 11));
@@ -203,8 +221,12 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
       [`/${foreignId}`, "PATCH", definition], [`/${foreignId}/status`, "PATCH", { status: "closed" }],
     ] as const) assert.equal((await staff(suffix, method, body)).status, 404);
     assert.equal((await staff(`/${foreignId}/rotate-link`, "POST")).status, 404);
+    assert.equal((await staff(`/${foreignId}/status`, "PATCH", { status: "open" }, "coordinator")).status, 200);
     assert.equal((await staff(`/${foreignId}/rotate-link`, "POST", undefined, "coordinator")).status, 200,
       "Admin can replace links across programs");
+    const coordinatorHistory = await (await staff(`/${foreignId}/link-history`, "GET", undefined, "coordinator")).json();
+    assert.equal(coordinatorHistory.length, 1);
+    assert.equal(coordinatorHistory[0].actorEmail, "admin@example.test");
     for (const role of ["judge", "mentor", "trainer"]) {
       assert.equal((await staff("", "GET", undefined, role)).status, 403);
       assert.equal((await staff("", "POST", definition, role)).status, 403);
@@ -232,6 +254,12 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(rotated.status, 200);
     token = (await rotated.json()).shareToken;
     assert.notEqual(token, previousToken);
+    const history = await (await staff(`/${formId}/link-history`)).json();
+    assert.equal(history.length, 2, "every replacement creates one retained history entry");
+    assert.ok(history[0].id > history[1].id, "history is returned newest first");
+    assert.deepEqual(history.map((entry: any) => entry.actorEmail), ["staff@example.test", "staff@example.test"]);
+    assert.ok(!JSON.stringify(history).includes(previousToken));
+    assert.ok(!JSON.stringify(history).includes(token));
     assert.equal((await guest("GET", undefined, previousToken)).status, 404);
     assert.equal((await guest("POST", assessment, previousToken)).status, 404);
     assert.equal((await guest()).status, 410, "a replacement link is unavailable while the form is closed");

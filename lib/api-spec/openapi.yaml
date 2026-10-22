@@ -4149,6 +4149,18 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/JudgingFormDetail" }
+  /staff/judging-forms/{formId}/link-history:
+    parameters:
+      - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listJudgingFormLinkHistory
+      summary: Read replacement timestamps and staff identities for an authorized form
+      responses:
+        "200":
+          description: Newest-first link replacement history without share tokens
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/JudgingFormLinkHistoryEntry" } }
   /staff/judging-forms/{formId}/responses:
     parameters:
       - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -4381,6 +4393,13 @@ components:
             questions: { type: array, items: { $ref: "#/components/schemas/JudgingQuestion" } }
             businesses: { type: array, items: { $ref: "#/components/schemas/JudgingBusiness" } }
             shareToken: { type: [string, "null"] }
+    JudgingFormLinkHistoryEntry:
+      type: object
+      required: [id, actorEmail, replacedAt]
+      properties:
+        id: { type: integer }
+        actorEmail: { type: string }
+        replacedAt: { type: string, format: date-time }
     PublicJudgingForm:
       type: object
       required: [id, title, instructions, programName, criteria, questions, businesses]
