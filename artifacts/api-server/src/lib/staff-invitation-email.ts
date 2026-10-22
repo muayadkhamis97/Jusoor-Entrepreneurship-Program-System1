@@ -13,6 +13,9 @@ export type StaffInvitationEmailInput = {
 
 type EmailSender = (message: PlatformEmail) => Promise<void>;
 
+// Use the published system URL, not a workspace preview or development domain.
+const SYSTEM_SIGN_IN_URL = "https://entrep-system.replit.app/sign-in";
+
 const roleLabels: Record<StaffInvitationRole, string> = {
   coordinator: "Admin",
   staff: "Program staff",
@@ -42,6 +45,7 @@ export function buildStaffInvitationEmail(input: StaffInvitationEmailInput, bran
     assignment,
     "",
     "Create an account or sign in using this same verified email address to access the platform.",
+    `Open the program system: ${SYSTEM_SIGN_IN_URL}`,
     "If you have questions about your role or program access, reply to this email to contact the program team.",
     "If you were not expecting this invitation, you can ignore this email.",
   ].join("\n");
@@ -51,6 +55,7 @@ export function buildStaffInvitationEmail(input: StaffInvitationEmailInput, bran
     `<p><strong>Role:</strong> ${safeRole}</p>`,
     assignmentHtml,
     "<p>Create an account or sign in using this same verified email address to access the platform.</p>",
+    `<p><a href="${escapeHtml(SYSTEM_SIGN_IN_URL)}">Open the program system</a></p>`,
     "<p>If you have questions about your role or program access, reply to this email to contact the program team.</p>",
     "<p>If you were not expecting this invitation, you can ignore this email.</p>",
   ].join("");

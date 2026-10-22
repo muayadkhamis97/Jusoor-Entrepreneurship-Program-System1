@@ -18,6 +18,8 @@ test("builds a scoped invitation email with stable retry identity", () => {
   assert.match(message.text, /Role: Trainer\./);
   assert.match(message.text, /Assigned program: Spring founders\./);
   assert.match(message.text, /same verified email address/);
+  assert.match(message.text, /Open the program system: https:\/\/entrep-system\.replit\.app\/sign-in/);
+  assert.match(message.html, /<a href="https:\/\/entrep-system\.replit\.app\/sign-in">Open the program system<\/a>/);
   assert.equal(message.idempotencyKey, "staff-invitation-42");
 });
 
