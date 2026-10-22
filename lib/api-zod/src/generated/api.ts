@@ -6124,3 +6124,436 @@ export const MarkChatReadResponse = zod.object({
 })
 
 
+/**
+ * @summary List judging forms in authorized active programs
+ */
+export const ListJudgingFormsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "publishedAt": zod.coerce.date().nullable()
+})
+export const ListJudgingFormsResponse = zod.array(ListJudgingFormsResponseItem)
+
+
+/**
+ * @summary Create a draft judging form for selected businesses
+ */
+
+export const createJudgingFormBodyTitleMax = 200;
+
+export const createJudgingFormBodyInstructionsMax = 5000;
+
+
+export const createJudgingFormBodyBusinessIdsMax = 100;
+
+export const createJudgingFormBodyCriteriaItemLabelMax = 200;
+
+export const createJudgingFormBodyCriteriaItemDescriptionMax = 1000;
+
+export const createJudgingFormBodyCriteriaItemMaxScoreMax = 100;
+
+export const createJudgingFormBodyCriteriaMax = 20;
+
+export const createJudgingFormBodyQuestionsItemLabelMax = 500;
+
+export const createJudgingFormBodyQuestionsMax = 20;
+
+
+
+export const CreateJudgingFormBody = zod.object({
+  "programId": zod.number().int().min(1),
+  "title": zod.string().min(1).max(createJudgingFormBodyTitleMax),
+  "instructions": zod.string().max(createJudgingFormBodyInstructionsMax),
+  "businessIds": zod.array(zod.number().int().min(1)).min(1).max(createJudgingFormBodyBusinessIdsMax),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createJudgingFormBodyCriteriaItemLabelMax),
+  "description": zod.string().max(createJudgingFormBodyCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(createJudgingFormBodyCriteriaItemMaxScoreMax)
+})).max(createJudgingFormBodyCriteriaMax),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createJudgingFormBodyQuestionsItemLabelMax),
+  "required": zod.boolean()
+})).max(createJudgingFormBodyQuestionsMax)
+})
+
+export const createJudgingFormResponseTwoCriteriaItemLabelMax = 200;
+
+export const createJudgingFormResponseTwoCriteriaItemDescriptionMax = 1000;
+
+export const createJudgingFormResponseTwoCriteriaItemMaxScoreMax = 100;
+
+export const createJudgingFormResponseTwoQuestionsItemLabelMax = 500;
+
+
+
+export const CreateJudgingFormResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "instructions": zod.string(),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createJudgingFormResponseTwoCriteriaItemLabelMax),
+  "description": zod.string().max(createJudgingFormResponseTwoCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(createJudgingFormResponseTwoCriteriaItemMaxScoreMax)
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createJudgingFormResponseTwoQuestionsItemLabelMax),
+  "required": zod.boolean()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "shareToken": zod.string().nullable()
+}))
+
+
+/**
+ * @summary Get an authorized form and its staff-only share token
+ */
+
+
+
+export const GetJudgingFormParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+export const getJudgingFormResponseTwoCriteriaItemLabelMax = 200;
+
+export const getJudgingFormResponseTwoCriteriaItemDescriptionMax = 1000;
+
+export const getJudgingFormResponseTwoCriteriaItemMaxScoreMax = 100;
+
+export const getJudgingFormResponseTwoQuestionsItemLabelMax = 500;
+
+
+
+export const GetJudgingFormResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "instructions": zod.string(),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getJudgingFormResponseTwoCriteriaItemLabelMax),
+  "description": zod.string().max(getJudgingFormResponseTwoCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(getJudgingFormResponseTwoCriteriaItemMaxScoreMax)
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getJudgingFormResponseTwoQuestionsItemLabelMax),
+  "required": zod.boolean()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "shareToken": zod.string().nullable()
+}))
+
+
+/**
+ * @summary Edit a draft before its scoring configuration has been published
+ */
+
+
+
+export const UpdateJudgingFormParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+
+export const updateJudgingFormBodyTitleMax = 200;
+
+export const updateJudgingFormBodyInstructionsMax = 5000;
+
+
+export const updateJudgingFormBodyBusinessIdsMax = 100;
+
+export const updateJudgingFormBodyCriteriaItemLabelMax = 200;
+
+export const updateJudgingFormBodyCriteriaItemDescriptionMax = 1000;
+
+export const updateJudgingFormBodyCriteriaItemMaxScoreMax = 100;
+
+export const updateJudgingFormBodyCriteriaMax = 20;
+
+export const updateJudgingFormBodyQuestionsItemLabelMax = 500;
+
+export const updateJudgingFormBodyQuestionsMax = 20;
+
+
+
+export const UpdateJudgingFormBody = zod.object({
+  "programId": zod.number().int().min(1),
+  "title": zod.string().min(1).max(updateJudgingFormBodyTitleMax),
+  "instructions": zod.string().max(updateJudgingFormBodyInstructionsMax),
+  "businessIds": zod.array(zod.number().int().min(1)).min(1).max(updateJudgingFormBodyBusinessIdsMax),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(updateJudgingFormBodyCriteriaItemLabelMax),
+  "description": zod.string().max(updateJudgingFormBodyCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(updateJudgingFormBodyCriteriaItemMaxScoreMax)
+})).max(updateJudgingFormBodyCriteriaMax),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(updateJudgingFormBodyQuestionsItemLabelMax),
+  "required": zod.boolean()
+})).max(updateJudgingFormBodyQuestionsMax)
+})
+
+export const updateJudgingFormResponseTwoCriteriaItemLabelMax = 200;
+
+export const updateJudgingFormResponseTwoCriteriaItemDescriptionMax = 1000;
+
+export const updateJudgingFormResponseTwoCriteriaItemMaxScoreMax = 100;
+
+export const updateJudgingFormResponseTwoQuestionsItemLabelMax = 500;
+
+
+
+export const UpdateJudgingFormResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "instructions": zod.string(),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(updateJudgingFormResponseTwoCriteriaItemLabelMax),
+  "description": zod.string().max(updateJudgingFormResponseTwoCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(updateJudgingFormResponseTwoCriteriaItemMaxScoreMax)
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(updateJudgingFormResponseTwoQuestionsItemLabelMax),
+  "required": zod.boolean()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "shareToken": zod.string().nullable()
+}))
+
+
+/**
+ * @summary Open or close submissions; opening permanently freezes form configuration
+ */
+
+
+
+export const UpdateJudgingFormStatusParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+export const UpdateJudgingFormStatusBody = zod.object({
+  "status": zod.enum(['open', 'closed'])
+})
+
+export const updateJudgingFormStatusResponseTwoCriteriaItemLabelMax = 200;
+
+export const updateJudgingFormStatusResponseTwoCriteriaItemDescriptionMax = 1000;
+
+export const updateJudgingFormStatusResponseTwoCriteriaItemMaxScoreMax = 100;
+
+export const updateJudgingFormStatusResponseTwoQuestionsItemLabelMax = 500;
+
+
+
+export const UpdateJudgingFormStatusResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "instructions": zod.string(),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(updateJudgingFormStatusResponseTwoCriteriaItemLabelMax),
+  "description": zod.string().max(updateJudgingFormStatusResponseTwoCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(updateJudgingFormStatusResponseTwoCriteriaItemMaxScoreMax)
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(updateJudgingFormStatusResponseTwoQuestionsItemLabelMax),
+  "required": zod.boolean()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "shareToken": zod.string().nullable()
+}))
+
+
+/**
+ * @summary Read private judging responses for an authorized form
+ */
+
+
+
+export const ListJudgingFormResponsesParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const ListJudgingFormResponsesQueryParams = zod.object({
+  "beforeId": zod.coerce.number().int().min(1).optional()
+})
+
+export const listJudgingFormResponsesResponseResponsesItemScoresItemScoreMin = 0;
+
+export const listJudgingFormResponsesResponseResponsesItemAnswersItemTextMax = 4000;
+
+
+
+export const ListJudgingFormResponsesResponse = zod.object({
+  "responses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "businessId": zod.number().int(),
+  "businessName": zod.string(),
+  "judgeName": zod.string(),
+  "judgeEmail": zod.string(),
+  "scores": zod.array(zod.object({
+  "criterionId": zod.string().uuid(),
+  "score": zod.number().min(listJudgingFormResponsesResponseResponsesItemScoresItemScoreMin)
+})),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().uuid(),
+  "text": zod.string().max(listJudgingFormResponsesResponseResponsesItemAnswersItemTextMax)
+})),
+  "scoreTotal": zod.number(),
+  "maxScore": zod.number(),
+  "submittedAt": zod.coerce.date()
+})),
+  "nextBeforeId": zod.number().int().nullable()
+})
+
+
+/**
+ * @summary Read an open judging form using an unguessable share token, without sign-in
+ */
+export const getPublicJudgingFormQueryTokenMin = 43;
+export const getPublicJudgingFormQueryTokenMax = 43;
+
+
+export const getPublicJudgingFormQueryTokenRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+
+
+export const GetPublicJudgingFormQueryParams = zod.object({
+  "token": zod.coerce.string().min(getPublicJudgingFormQueryTokenMin).max(getPublicJudgingFormQueryTokenMax).regex(getPublicJudgingFormQueryTokenRegExp)
+})
+
+export const getPublicJudgingFormResponseCriteriaItemLabelMax = 200;
+
+export const getPublicJudgingFormResponseCriteriaItemDescriptionMax = 1000;
+
+export const getPublicJudgingFormResponseCriteriaItemMaxScoreMax = 100;
+
+export const getPublicJudgingFormResponseQuestionsItemLabelMax = 500;
+
+
+
+export const GetPublicJudgingFormResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "instructions": zod.string(),
+  "programName": zod.string(),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getPublicJudgingFormResponseCriteriaItemLabelMax),
+  "description": zod.string().max(getPublicJudgingFormResponseCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(getPublicJudgingFormResponseCriteriaItemMaxScoreMax)
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getPublicJudgingFormResponseQuestionsItemLabelMax),
+  "required": zod.boolean()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}))
+})
+
+
+/**
+ * @summary Submit one business assessment with required self-reported judge name and email
+ */
+export const submitPublicJudgingResponseQueryTokenMin = 43;
+export const submitPublicJudgingResponseQueryTokenMax = 43;
+
+
+export const submitPublicJudgingResponseQueryTokenRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+
+
+export const SubmitPublicJudgingResponseQueryParams = zod.object({
+  "token": zod.coerce.string().min(submitPublicJudgingResponseQueryTokenMin).max(submitPublicJudgingResponseQueryTokenMax).regex(submitPublicJudgingResponseQueryTokenRegExp)
+})
+
+
+export const submitPublicJudgingResponseBodyJudgeNameMax = 150;
+
+export const submitPublicJudgingResponseBodyJudgeEmailMax = 254;
+
+export const submitPublicJudgingResponseBodyScoresItemScoreMin = 0;
+
+export const submitPublicJudgingResponseBodyScoresMax = 20;
+
+export const submitPublicJudgingResponseBodyAnswersItemTextMax = 4000;
+
+export const submitPublicJudgingResponseBodyAnswersMax = 20;
+
+
+
+export const SubmitPublicJudgingResponseBody = zod.object({
+  "businessId": zod.number().int().min(1),
+  "judgeName": zod.string().min(1).max(submitPublicJudgingResponseBodyJudgeNameMax),
+  "judgeEmail": zod.string().email().max(submitPublicJudgingResponseBodyJudgeEmailMax),
+  "scores": zod.array(zod.object({
+  "criterionId": zod.string().uuid(),
+  "score": zod.number().min(submitPublicJudgingResponseBodyScoresItemScoreMin)
+})).max(submitPublicJudgingResponseBodyScoresMax),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().uuid(),
+  "text": zod.string().max(submitPublicJudgingResponseBodyAnswersItemTextMax)
+})).max(submitPublicJudgingResponseBodyAnswersMax),
+  "clientSubmissionId": zod.string().uuid()
+})
+
+export const SubmitPublicJudgingResponseResponse = zod.object({
+  "received": zod.boolean(),
+  "businessName": zod.string(),
+  "scoreTotal": zod.number(),
+  "maxScore": zod.number()
+})
+
+

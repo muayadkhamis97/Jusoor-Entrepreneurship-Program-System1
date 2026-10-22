@@ -5,6 +5,165 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+export interface JudgingCriterion {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  label: string;
+  /** @maxLength 1000 */
+  description: string;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  maxScore: number;
+}
+
+export interface JudgingQuestion {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  label: string;
+  required: boolean;
+}
+
+export interface JudgingBusiness {
+  id: number;
+  name: string;
+}
+
+export interface JudgingFormInput {
+  /** @minimum 1 */
+  programId: number;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+  /** @maxLength 5000 */
+  instructions: string;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     * @items.minimum 1
+     */
+  businessIds: number[];
+  /** @maxItems 20 */
+  criteria: JudgingCriterion[];
+  /** @maxItems 20 */
+  questions: JudgingQuestion[];
+}
+
+export type JudgingFormStatusInputStatus = typeof JudgingFormStatusInputStatus[keyof typeof JudgingFormStatusInputStatus];
+
+
+export const JudgingFormStatusInputStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface JudgingFormStatusInput {
+  status: JudgingFormStatusInputStatus;
+}
+
+export type JudgingFormSummaryStatus = typeof JudgingFormSummaryStatus[keyof typeof JudgingFormSummaryStatus];
+
+
+export const JudgingFormSummaryStatus = {
+  draft: 'draft',
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface JudgingFormSummary {
+  id: number;
+  programId: number;
+  programName: string;
+  title: string;
+  status: JudgingFormSummaryStatus;
+  responseCount: number;
+  /** @nullable */
+  publishedAt: string | null;
+}
+
+export type JudgingFormDetail = JudgingFormSummary & ({
+  instructions: string;
+  criteria: JudgingCriterion[];
+  questions: JudgingQuestion[];
+  businesses: JudgingBusiness[];
+  /** @nullable */
+  shareToken: string | null;
+});
+
+export interface PublicJudgingForm {
+  id: number;
+  title: string;
+  instructions: string;
+  programName: string;
+  criteria: JudgingCriterion[];
+  questions: JudgingQuestion[];
+  businesses: JudgingBusiness[];
+}
+
+export interface JudgingScore {
+  criterionId: string;
+  /** @minimum 0 */
+  score: number;
+}
+
+export interface JudgingAnswer {
+  questionId: string;
+  /** @maxLength 4000 */
+  text: string;
+}
+
+export interface JudgingResponseInput {
+  /** @minimum 1 */
+  businessId: number;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  judgeName: string;
+  /** @maxLength 254 */
+  judgeEmail: string;
+  /** @maxItems 20 */
+  scores: JudgingScore[];
+  /** @maxItems 20 */
+  answers: JudgingAnswer[];
+  clientSubmissionId: string;
+}
+
+export interface JudgingSubmissionReceipt {
+  received: boolean;
+  businessName: string;
+  scoreTotal: number;
+  maxScore: number;
+}
+
+export interface JudgingResponse {
+  id: number;
+  businessId: number;
+  businessName: string;
+  judgeName: string;
+  judgeEmail: string;
+  scores: JudgingScore[];
+  answers: JudgingAnswer[];
+  scoreTotal: number;
+  maxScore: number;
+  submittedAt: string;
+}
+
+export interface JudgingResponsePage {
+  responses: JudgingResponse[];
+  /** @nullable */
+  nextBeforeId: number | null;
+}
+
 export type ChatTargetKind = typeof ChatTargetKind[keyof typeof ChatTargetKind];
 
 
@@ -4140,5 +4299,30 @@ beforeId?: number;
 
 export type MarkChatRead200 = {
   ok: boolean;
+};
+
+export type ListJudgingFormResponsesParams = {
+/**
+ * @minimum 1
+ */
+beforeId?: number;
+};
+
+export type GetPublicJudgingFormParams = {
+/**
+ * @minLength 43
+ * @maxLength 43
+ * @pattern ^[A-Za-z0-9_-]+$
+ */
+token: string;
+};
+
+export type SubmitPublicJudgingResponseParams = {
+/**
+ * @minLength 43
+ * @maxLength 43
+ * @pattern ^[A-Za-z0-9_-]+$
+ */
+token: string;
 };
 

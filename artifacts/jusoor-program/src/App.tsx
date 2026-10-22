@@ -83,6 +83,8 @@ const AdminProfilesPage = lazy(() => import('./profile-surfaces').then(module =>
 const ParticipantProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.ParticipantProfilePage })));
 const SessionRecordingPlayer = lazy(() => import('./session-recording-player').then(module => ({ default: module.SessionRecordingPlayer })));
 const StaffSessionInteractions = lazy(() => import('./session-interactions').then(module => ({ default: module.StaffSessionInteractions })));
+const JudgingFormsPage = lazy(() => import('./judging-form-surfaces').then(module => ({ default: module.JudgingFormsPage })));
+const PublicJudgingFormPage = lazy(() => import('./public-judging-form').then(module => ({ default: module.PublicJudgingFormPage })));
 const AuthPage = lazy(() => import('./clerk-auth-page').then(module => ({ default: module.ClerkAuthPage })));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
@@ -996,7 +998,7 @@ function PitchesPage({ coordinator = false }: { coordinator?: boolean }) {
   const awarded = pitches.filter(p => p.grantDecision === 'awarded');
   const awardedTotal = awarded.reduce((sum, pitch) => sum + (pitch.grantAmount || 0), 0);
   return <>
-    <PageHeading kicker="PITCH DAY / DECISIONS" title="Pitch & grants" summary="Keep evaluations, judge feedback and funding decisions connected." action={<button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-pitch"><Plus size={16} /> {t('Add evaluation')}</button>} />
+    <PageHeading kicker="PITCH DAY / DECISIONS" title="Pitch & grants" summary="Keep evaluations, judge feedback and funding decisions connected." action={<div className="topbar-actions"><Link href="/judging-forms" className="text-link" data-testid="link-judging-forms">{t('Guest judging forms')} <ArrowRight size={14} /></Link><button className="button button-primary" onClick={() => setEditing(null)} data-testid="button-add-pitch"><Plus size={16} /> {t('Add evaluation')}</button></div>} />
     {coordinator && staffQuery.isError && <div className="team-callout" role="alert"><CircleAlert size={17} /><div><b>{t('Judge assignments are temporarily unavailable.')}</b><span>{t('Retry team access records before assigning scorecards.')}</span></div><button className="button button-quiet" onClick={() => void staffQuery.refetch()} data-testid="button-retry-judges">{t('Retry')}</button></div>}
      {coordinator && <section className="grant-summary"><div className="grant-emblem"><Trophy size={21} /></div><div className="grant-copy"><div className="eyebrow">{t('FROM THE STAGE TO THE NEXT CHAPTER')}</div><b>{t('Make each decision legible and grounded.')}</b><span>{t('Scores, feedback and grant outcomes stay with the founder record.')}</span></div><div className="grant-stat"><b>{awarded.length}</b><span>{t('GRANTS AWARDED')}</span></div><div className="grant-stat grant-amount"><b>{money(awardedTotal)}</b><span>{t('TRACKED HERE')}</span></div></section>}
     <div className="toolbar standalone-toolbar"><label className="filter-select"><Filter size={15} /><select value={eventType} aria-label={t('Filter pitch evaluations by event')} onChange={e => setEventType(e.target.value)} data-testid="select-pitch-event"><option value="">{t('Pitch + demo day')}</option><option value="pitch_day">{t('Pitch day')}</option><option value="demo_day">{t('Demo day')}</option></select><ChevronDown size={13} /></label><div className="toolbar-count"><b>{pitches.length}</b> {t('evaluations')}</div></div>
@@ -1347,6 +1349,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/support">{() => <SupportPage coordinator={isAdmin} />}</Route>
     <Route path="/mentor-meeting-reports">{() => isAdmin || isProgramStaff ? <StaffMentorMeetingReportsPage /> : <NotFoundPage />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>
+    <Route path="/judging-forms">{() => isAdmin || isProgramStaff ? <JudgingFormsPage /> : <NotFoundPage />}</Route>
     <Route path="/grants" component={isAdmin ? GrantManagementPage : NotFoundPage} />
     <Route path="/applications" component={isAdmin ? ApplicationsReviewPage : NotFoundPage} />
     <Route path="/mentor-booking" component={isAdmin ? MentorBookingStatusPage : NotFoundPage} />
@@ -1540,6 +1543,7 @@ function AuthRouter() {
   const { isLoaded, isSignedIn } = useAuth();
   if (location === '/verify-certificate') return <CertificateVerificationPage />;
   if (location === '/apply') return <ApplyPage />;
+  if (location === '/judging') return <PublicJudgingFormPage />;
   if (location.startsWith('/participant') && isLoaded && !isSignedIn) return <AuthPage mode="sign-in" participantRedirect />;
   if (location.startsWith('/sign-in')) return <AuthPage mode="sign-in" />;
   if (location.startsWith('/sign-up')) return <AuthPage mode="sign-up" />;

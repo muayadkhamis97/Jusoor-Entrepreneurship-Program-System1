@@ -29,3 +29,4 @@
 - [Editorial palette contrast](editorial-palette-contrast.md) — Preserve source colors for large emphasis, but measure small-text pairings when applying the extracted design system.
 - [pnpm audit fixes](pnpm-audit-fix.md) — Review auto-generated overrides for major-version drift and preserve workspace safeguards and comments.
 - [Drizzle correlated projections](drizzle-correlated-projections.md) — Explicitly qualify outer references; single-table rewriting can silently bind them to inner columns.
+- [Guest judging forms](guest-judging-forms.md) — Public links use self-reported identity; freeze published rubrics and keep guest assessments separate from verified judge scores.

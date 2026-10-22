@@ -85,6 +85,7 @@ import type {
   GetLearningProgressAnalyticsParams,
   GetProgramAnalyticsParams,
   GetProgramSessionInteractionAnalyticsParams,
+  GetPublicJudgingFormParams,
   GetStaffAssignmentHistoryParams,
   GetStaffMentorAdditionalSessionRequestsParams,
   GetStaffMentorMeetingReportCoachesParams,
@@ -112,9 +113,17 @@ import type {
   JudgeDashboard,
   JudgePitch,
   JudgeScorecardInput,
+  JudgingFormDetail,
+  JudgingFormInput,
+  JudgingFormStatusInput,
+  JudgingFormSummary,
+  JudgingResponseInput,
+  JudgingResponsePage,
+  JudgingSubmissionReceipt,
   LearningProgressAnalytics,
   ListBusinessesParams,
   ListChatMessagesParams,
+  ListJudgingFormResponsesParams,
   ListPitchesParams,
   ListProgramAnalyticsReportLayoutsParams,
   ListProgramImpactKpisParams,
@@ -175,6 +184,7 @@ import type {
   ProgramStaffRolesUpdate,
   ProgramTeamAssignments,
   ProgramUpdate,
+  PublicJudgingForm,
   PutXapiActivityStateParams,
   PutXapiStatementParams,
   RecordingNoticeReceipts,
@@ -202,6 +212,7 @@ import type {
   StaffMentorMeetingReport,
   StaffMentorMeetingReportCoach,
   StaffUpdate,
+  SubmitPublicJudgingResponseParams,
   SupportCalendlyMeeting,
   SupportEngagement,
   SupportGoogleCalendarMeeting,
@@ -16124,5 +16135,694 @@ export const useMarkChatRead = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getMarkChatReadMutationOptions(options));
+    }
+
+export const getListJudgingFormsUrl = () => {
+
+
+
+
+  return `/api/staff/judging-forms`
+}
+
+/**
+ * @summary List judging forms in authorized active programs
+ */
+export const listJudgingForms = async ( options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormSummary[]> => {
+
+  return customFetch<JudgingFormSummary[]>(getListJudgingFormsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJudgingFormsQueryKey = () => {
+    return [
+    `/api/staff/judging-forms`
+    ] as const;
+    }
+
+
+export const getListJudgingFormsQueryOptions = <TData = Awaited<ReturnType<typeof listJudgingForms>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingForms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJudgingFormsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJudgingForms>>> = ({ signal }) => listJudgingForms({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJudgingForms>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJudgingFormsQueryResult = NonNullable<Awaited<ReturnType<typeof listJudgingForms>>>
+export type ListJudgingFormsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List judging forms in authorized active programs
+ */
+
+export function useListJudgingForms<TData = Awaited<ReturnType<typeof listJudgingForms>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingForms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJudgingFormsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateJudgingFormUrl = () => {
+
+
+
+
+  return `/api/staff/judging-forms`
+}
+
+/**
+ * @summary Create a draft judging form for selected businesses
+ */
+export const createJudgingForm = async (judgingFormInput: JudgingFormInput, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<JudgingFormDetail>(getCreateJudgingFormUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(judgingFormInput)
+  }
+);}
+
+
+
+
+
+export const getCreateJudgingFormMutationKey = () => ['createJudgingForm'] as const;
+
+export const getCreateJudgingFormMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJudgingForm>>, TError,CreateJudgingFormMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createJudgingForm>>, TError,CreateJudgingFormMutationVariables, TContext> => {
+
+const mutationKey = getCreateJudgingFormMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createJudgingForm>>, CreateJudgingFormMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createJudgingForm(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateJudgingFormMutationResult = NonNullable<Awaited<ReturnType<typeof createJudgingForm>>>
+    export type CreateJudgingFormMutationBody = BodyType<JudgingFormInput>
+    export type CreateJudgingFormMutationError = ErrorType<unknown>
+    export type CreateJudgingFormMutationVariables = {data: BodyType<JudgingFormInput>}
+
+    /**
+ * @summary Create a draft judging form for selected businesses
+ */
+export const useCreateJudgingForm = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createJudgingForm>>, TError,CreateJudgingFormMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createJudgingForm>>,
+        TError,
+        CreateJudgingFormMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateJudgingFormMutationOptions(options));
+    }
+
+export const getGetJudgingFormUrl = (formId: number,) => {
+
+
+
+
+  return `/api/staff/judging-forms/${formId}`
+}
+
+/**
+ * @summary Get an authorized form and its staff-only share token
+ */
+export const getJudgingForm = async (formId: number, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormDetail> => {
+
+  return customFetch<JudgingFormDetail>(getGetJudgingFormUrl(formId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetJudgingFormQueryKey = (formId: number,) => {
+    return [
+    `/api/staff/judging-forms/${formId}`
+    ] as const;
+    }
+
+
+export const getGetJudgingFormQueryOptions = <TData = Awaited<ReturnType<typeof getJudgingForm>>, TError = ErrorType<unknown>>(formId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJudgingForm>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetJudgingFormQueryKey(formId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getJudgingForm>>> = ({ signal }) => getJudgingForm(formId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: formId !== null && formId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getJudgingForm>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetJudgingFormQueryResult = NonNullable<Awaited<ReturnType<typeof getJudgingForm>>>
+export type GetJudgingFormQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get an authorized form and its staff-only share token
+ */
+
+export function useGetJudgingForm<TData = Awaited<ReturnType<typeof getJudgingForm>>, TError = ErrorType<unknown>>(
+ formId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getJudgingForm>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetJudgingFormQueryOptions(formId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateJudgingFormUrl = (formId: number,) => {
+
+
+
+
+  return `/api/staff/judging-forms/${formId}`
+}
+
+/**
+ * @summary Edit a draft before its scoring configuration has been published
+ */
+export const updateJudgingForm = async (formId: number,
+    judgingFormInput: JudgingFormInput, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<JudgingFormDetail>(getUpdateJudgingFormUrl(formId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(judgingFormInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateJudgingFormMutationKey = () => ['updateJudgingForm'] as const;
+
+export const getUpdateJudgingFormMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJudgingForm>>, TError,UpdateJudgingFormMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateJudgingForm>>, TError,UpdateJudgingFormMutationVariables, TContext> => {
+
+const mutationKey = getUpdateJudgingFormMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateJudgingForm>>, UpdateJudgingFormMutationVariables> = (props) => {
+          const {formId,data} = props ?? {};
+
+          return  updateJudgingForm(formId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateJudgingFormMutationResult = NonNullable<Awaited<ReturnType<typeof updateJudgingForm>>>
+    export type UpdateJudgingFormMutationBody = BodyType<JudgingFormInput>
+    export type UpdateJudgingFormMutationError = ErrorType<unknown>
+    export type UpdateJudgingFormMutationVariables = {formId: number;data: BodyType<JudgingFormInput>}
+
+    /**
+ * @summary Edit a draft before its scoring configuration has been published
+ */
+export const useUpdateJudgingForm = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJudgingForm>>, TError,UpdateJudgingFormMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateJudgingForm>>,
+        TError,
+        UpdateJudgingFormMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateJudgingFormMutationOptions(options));
+    }
+
+export const getUpdateJudgingFormStatusUrl = (formId: number,) => {
+
+
+
+
+  return `/api/staff/judging-forms/${formId}/status`
+}
+
+/**
+ * @summary Open or close submissions; opening permanently freezes form configuration
+ */
+export const updateJudgingFormStatus = async (formId: number,
+    judgingFormStatusInput: JudgingFormStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<JudgingFormDetail>(getUpdateJudgingFormStatusUrl(formId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(judgingFormStatusInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateJudgingFormStatusMutationKey = () => ['updateJudgingFormStatus'] as const;
+
+export const getUpdateJudgingFormStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJudgingFormStatus>>, TError,UpdateJudgingFormStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateJudgingFormStatus>>, TError,UpdateJudgingFormStatusMutationVariables, TContext> => {
+
+const mutationKey = getUpdateJudgingFormStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateJudgingFormStatus>>, UpdateJudgingFormStatusMutationVariables> = (props) => {
+          const {formId,data} = props ?? {};
+
+          return  updateJudgingFormStatus(formId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateJudgingFormStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateJudgingFormStatus>>>
+    export type UpdateJudgingFormStatusMutationBody = BodyType<JudgingFormStatusInput>
+    export type UpdateJudgingFormStatusMutationError = ErrorType<unknown>
+    export type UpdateJudgingFormStatusMutationVariables = {formId: number;data: BodyType<JudgingFormStatusInput>}
+
+    /**
+ * @summary Open or close submissions; opening permanently freezes form configuration
+ */
+export const useUpdateJudgingFormStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateJudgingFormStatus>>, TError,UpdateJudgingFormStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateJudgingFormStatus>>,
+        TError,
+        UpdateJudgingFormStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateJudgingFormStatusMutationOptions(options));
+    }
+
+export const getListJudgingFormResponsesUrl = (formId: number,
+    params?: ListJudgingFormResponsesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/judging-forms/${formId}/responses?${stringifiedParams}` : `/api/staff/judging-forms/${formId}/responses`
+}
+
+/**
+ * @summary Read private judging responses for an authorized form
+ */
+export const listJudgingFormResponses = async (formId: number,
+    params?: ListJudgingFormResponsesParams, options?: Parameters<typeof customFetch>[1]): Promise<JudgingResponsePage> => {
+
+  return customFetch<JudgingResponsePage>(getListJudgingFormResponsesUrl(formId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJudgingFormResponsesQueryKey = (formId: number,
+    params?: ListJudgingFormResponsesParams,) => {
+    return [
+    `/api/staff/judging-forms/${formId}/responses`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListJudgingFormResponsesQueryOptions = <TData = Awaited<ReturnType<typeof listJudgingFormResponses>>, TError = ErrorType<unknown>>(formId: number,
+    params?: ListJudgingFormResponsesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormResponses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJudgingFormResponsesQueryKey(formId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJudgingFormResponses>>> = ({ signal }) => listJudgingFormResponses(formId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: formId !== null && formId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormResponses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJudgingFormResponsesQueryResult = NonNullable<Awaited<ReturnType<typeof listJudgingFormResponses>>>
+export type ListJudgingFormResponsesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read private judging responses for an authorized form
+ */
+
+export function useListJudgingFormResponses<TData = Awaited<ReturnType<typeof listJudgingFormResponses>>, TError = ErrorType<unknown>>(
+ formId: number,
+    params?: ListJudgingFormResponsesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormResponses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJudgingFormResponsesQueryOptions(formId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPublicJudgingFormUrl = (params: GetPublicJudgingFormParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/public/judging-form?${stringifiedParams}` : `/api/public/judging-form`
+}
+
+/**
+ * @summary Read an open judging form using an unguessable share token, without sign-in
+ */
+export const getPublicJudgingForm = async (params: GetPublicJudgingFormParams, options?: Parameters<typeof customFetch>[1]): Promise<PublicJudgingForm> => {
+
+  return customFetch<PublicJudgingForm>(getGetPublicJudgingFormUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicJudgingFormQueryKey = (params?: GetPublicJudgingFormParams,) => {
+    return [
+    `/api/public/judging-form`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPublicJudgingFormQueryOptions = <TData = Awaited<ReturnType<typeof getPublicJudgingForm>>, TError = ErrorType<unknown>>(params: GetPublicJudgingFormParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicJudgingForm>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicJudgingFormQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicJudgingForm>>> = ({ signal }) => getPublicJudgingForm(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicJudgingForm>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicJudgingFormQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicJudgingForm>>>
+export type GetPublicJudgingFormQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read an open judging form using an unguessable share token, without sign-in
+ */
+
+export function useGetPublicJudgingForm<TData = Awaited<ReturnType<typeof getPublicJudgingForm>>, TError = ErrorType<unknown>>(
+ params: GetPublicJudgingFormParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicJudgingForm>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicJudgingFormQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitPublicJudgingResponseUrl = (params: SubmitPublicJudgingResponseParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/public/judging-form/responses?${stringifiedParams}` : `/api/public/judging-form/responses`
+}
+
+/**
+ * @summary Submit one business assessment with required self-reported judge name and email
+ */
+export const submitPublicJudgingResponse = async (judgingResponseInput: JudgingResponseInput,
+    params: SubmitPublicJudgingResponseParams, options?: Parameters<typeof customFetch>[1]): Promise<JudgingSubmissionReceipt> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<JudgingSubmissionReceipt>(getSubmitPublicJudgingResponseUrl(params),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(judgingResponseInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitPublicJudgingResponseMutationKey = () => ['submitPublicJudgingResponse'] as const;
+
+export const getSubmitPublicJudgingResponseMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPublicJudgingResponse>>, TError,SubmitPublicJudgingResponseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitPublicJudgingResponse>>, TError,SubmitPublicJudgingResponseMutationVariables, TContext> => {
+
+const mutationKey = getSubmitPublicJudgingResponseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitPublicJudgingResponse>>, SubmitPublicJudgingResponseMutationVariables> = (props) => {
+          const {data,params} = props ?? {};
+
+          return  submitPublicJudgingResponse(data,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitPublicJudgingResponseMutationResult = NonNullable<Awaited<ReturnType<typeof submitPublicJudgingResponse>>>
+    export type SubmitPublicJudgingResponseMutationBody = BodyType<JudgingResponseInput>
+    export type SubmitPublicJudgingResponseMutationError = ErrorType<unknown>
+    export type SubmitPublicJudgingResponseMutationVariables = {data: BodyType<JudgingResponseInput>;params: SubmitPublicJudgingResponseParams}
+
+    /**
+ * @summary Submit one business assessment with required self-reported judge name and email
+ */
+export const useSubmitPublicJudgingResponse = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPublicJudgingResponse>>, TError,SubmitPublicJudgingResponseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitPublicJudgingResponse>>,
+        TError,
+        SubmitPublicJudgingResponseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitPublicJudgingResponseMutationOptions(options));
     }
 

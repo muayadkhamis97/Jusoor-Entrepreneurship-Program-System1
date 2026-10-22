@@ -43,6 +43,8 @@ import {
 import { requireOperationsStaff, requireStaff } from "./middlewares/staffAccess";
 import { requireParticipant } from "./middlewares/participantAccess";
 import { createChatRouter } from "./routes/chat";
+import judgingFormsRouter from "./routes/judgingForms";
+import publicJudgingFormsRouter from "./routes/publicJudgingForms";
 import { requireRole } from "./middlewares/requireRole";
 import { logger } from "./lib/logger";
 import { createCorsOptionsDelegate } from "./lib/corsPolicy";
@@ -94,6 +96,8 @@ app.use(options.authenticationMiddleware ?? clerkMiddleware((req) => ({
 app.use("/api", healthRouter);
 app.use("/api", publicApplicationsRouter);
 app.use("/api", programBrandingRouter);
+app.use("/api/public/judging-form", publicJudgingFormsRouter);
+app.use("/api/staff/judging-forms", requireStaff, requireOperationsStaff, judgingFormsRouter);
 app.use("/api/v1", externalIntegrationApiRouter);
 app.use("/api", integrationApiKeysRouter);
 const participantAccess = options.participantMiddleware ?? requireParticipant;

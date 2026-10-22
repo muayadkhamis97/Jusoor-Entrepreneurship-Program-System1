@@ -1,6 +1,9 @@
 export * from "./chat-threads";
 export * from "./chat-messages";
 export * from "./chat-reads";
+export * from "./judging-forms";
+export * from "./judging-form-businesses";
+export * from "./judging-responses";
 // Export your models here. Add one export per file
 // export * from "./posts";
 //

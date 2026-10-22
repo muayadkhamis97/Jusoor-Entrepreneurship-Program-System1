@@ -3966,6 +3966,116 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [ok], properties: { ok: { type: boolean } } }
+  /staff/judging-forms:
+    get:
+      operationId: listJudgingForms
+      summary: List judging forms in authorized active programs
+      responses:
+        "200":
+          description: Judging forms
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/JudgingFormSummary" } }
+    post:
+      operationId: createJudgingForm
+      summary: Create a draft judging form for selected businesses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JudgingFormInput" }
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingFormDetail" }
+  /staff/judging-forms/{formId}:
+    parameters:
+      - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: getJudgingForm
+      summary: Get an authorized form and its staff-only share token
+      responses:
+        "200":
+          description: Form details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingFormDetail" }
+    patch:
+      operationId: updateJudgingForm
+      summary: Edit a draft before its scoring configuration has been published
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JudgingFormInput" }
+      responses:
+        "200":
+          description: Updated draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingFormDetail" }
+  /staff/judging-forms/{formId}/status:
+    parameters:
+      - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    patch:
+      operationId: updateJudgingFormStatus
+      summary: Open or close submissions; opening permanently freezes form configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JudgingFormStatusInput" }
+      responses:
+        "200":
+          description: Updated status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingFormDetail" }
+  /staff/judging-forms/{formId}/responses:
+    parameters:
+      - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listJudgingFormResponses
+      summary: Read private judging responses for an authorized form
+      parameters:
+        - { name: beforeId, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Response page in newest-first order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingResponsePage" }
+  /public/judging-form:
+    get:
+      operationId: getPublicJudgingForm
+      summary: Read an open judging form using an unguessable share token, without sign-in
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string, minLength: 43, maxLength: 43, pattern: "^[A-Za-z0-9_-]+$" } }
+      responses:
+        "200":
+          description: Public form definition, never other judges or responses
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicJudgingForm" }
+  /public/judging-form/responses:
+    post:
+      operationId: submitPublicJudgingResponse
+      summary: Submit one business assessment with required self-reported judge name and email
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string, minLength: 43, maxLength: 43, pattern: "^[A-Za-z0-9_-]+$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JudgingResponseInput" }
+      responses:
+        "200":
+          description: Accepted assessment or safe retry of the same assessment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingSubmissionReceipt" }
 components:
   parameters:
     Id:
@@ -3986,6 +4096,125 @@ components:
       scheme: bearer
       bearerFormat: Program integration key
   schemas:
+    JudgingCriterion:
+      type: object
+      required: [id, label, description, maxScore]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 1000 }
+        maxScore: { type: integer, minimum: 1, maximum: 100 }
+    JudgingQuestion:
+      type: object
+      required: [id, label, required]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string, minLength: 1, maxLength: 500 }
+        required: { type: boolean }
+    JudgingBusiness:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    JudgingFormInput:
+      type: object
+      required: [programId, title, instructions, businessIds, criteria, questions]
+      properties:
+        programId: { type: integer, minimum: 1 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        instructions: { type: string, maxLength: 5000 }
+        businessIds: { type: array, minItems: 1, maxItems: 100, items: { type: integer, minimum: 1 } }
+        criteria: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/JudgingCriterion" } }
+        questions: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/JudgingQuestion" } }
+    JudgingFormStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [open, closed] }
+    JudgingFormSummary:
+      type: object
+      required: [id, programId, programName, title, status, responseCount, publishedAt]
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [draft, open, closed] }
+        responseCount: { type: integer }
+        publishedAt: { type: [string, "null"], format: date-time }
+    JudgingFormDetail:
+      allOf:
+        - { $ref: "#/components/schemas/JudgingFormSummary" }
+        - type: object
+          required: [instructions, criteria, questions, businesses, shareToken]
+          properties:
+            instructions: { type: string }
+            criteria: { type: array, items: { $ref: "#/components/schemas/JudgingCriterion" } }
+            questions: { type: array, items: { $ref: "#/components/schemas/JudgingQuestion" } }
+            businesses: { type: array, items: { $ref: "#/components/schemas/JudgingBusiness" } }
+            shareToken: { type: [string, "null"] }
+    PublicJudgingForm:
+      type: object
+      required: [id, title, instructions, programName, criteria, questions, businesses]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        instructions: { type: string }
+        programName: { type: string }
+        criteria: { type: array, items: { $ref: "#/components/schemas/JudgingCriterion" } }
+        questions: { type: array, items: { $ref: "#/components/schemas/JudgingQuestion" } }
+        businesses: { type: array, items: { $ref: "#/components/schemas/JudgingBusiness" } }
+    JudgingScore:
+      type: object
+      required: [criterionId, score]
+      properties:
+        criterionId: { type: string, format: uuid }
+        score: { type: number, minimum: 0 }
+    JudgingAnswer:
+      type: object
+      required: [questionId, text]
+      properties:
+        questionId: { type: string, format: uuid }
+        text: { type: string, maxLength: 4000 }
+    JudgingResponseInput:
+      type: object
+      required: [businessId, judgeName, judgeEmail, scores, answers, clientSubmissionId]
+      properties:
+        businessId: { type: integer, minimum: 1 }
+        judgeName: { type: string, minLength: 1, maxLength: 150 }
+        judgeEmail: { type: string, format: email, maxLength: 254 }
+        scores: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/JudgingScore" } }
+        answers: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/JudgingAnswer" } }
+        clientSubmissionId: { type: string, format: uuid }
+    JudgingSubmissionReceipt:
+      type: object
+      required: [received, businessName, scoreTotal, maxScore]
+      properties:
+        received: { type: boolean }
+        businessName: { type: string }
+        scoreTotal: { type: number }
+        maxScore: { type: number }
+    JudgingResponse:
+      type: object
+      required: [id, businessId, businessName, judgeName, judgeEmail, scores, answers, scoreTotal, maxScore, submittedAt]
+      properties:
+        id: { type: integer }
+        businessId: { type: integer }
+        businessName: { type: string }
+        judgeName: { type: string }
+        judgeEmail: { type: string }
+        scores: { type: array, items: { $ref: "#/components/schemas/JudgingScore" } }
+        answers: { type: array, items: { $ref: "#/components/schemas/JudgingAnswer" } }
+        scoreTotal: { type: number }
+        maxScore: { type: number }
+        submittedAt: { type: string, format: date-time }
+    JudgingResponsePage:
+      type: object
+      required: [responses, nextBeforeId]
+      properties:
+        responses: { type: array, items: { $ref: "#/components/schemas/JudgingResponse" } }
+        nextBeforeId: { type: [integer, "null"] }
     ChatTarget:
       type: object
       required: [programId, programName, kind, targetId, name]
