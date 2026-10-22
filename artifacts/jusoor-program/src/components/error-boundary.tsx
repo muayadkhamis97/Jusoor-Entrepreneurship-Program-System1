@@ -4,6 +4,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react';
+import { isModuleLoadError, recoverFromRenderError } from '../module-load-recovery';
 
 export interface ErrorFallbackProps {
   error: Error;
@@ -41,6 +42,9 @@ const FALLBACK_COPY = {
     body: 'This part of the app hit an error. The rest of the app is still running.',
     help: 'If this keeps happening, contact the program team and tell them what you were doing.',
     retry: 'Try again',
+    moduleTitle: 'This page could not finish loading',
+    moduleBody: 'A required page file could not be downloaded. Reload the page to try again.',
+    reload: 'Reload page',
     home: 'Back to home',
   },
   ar: {
@@ -48,6 +52,9 @@ const FALLBACK_COPY = {
     body: 'واجه هذا الجزء من التطبيق خطأً. بقية التطبيق ما زالت تعمل.',
     help: 'إذا تكرر ذلك، تواصل مع فريق البرنامج وأخبرهم بما كنت تفعله.',
     retry: 'حاول مرة أخرى',
+    moduleTitle: 'تعذّر إكمال تحميل هذه الصفحة',
+    moduleBody: 'تعذّر تنزيل ملف مطلوب للصفحة. أعد تحميل الصفحة للمحاولة مرة أخرى.',
+    reload: 'إعادة تحميل الصفحة',
     home: 'العودة إلى الرئيسية',
   },
 } as const;
@@ -68,6 +75,7 @@ function prefersArabic(): boolean {
 function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
   const isArabic = prefersArabic();
   const copy = isArabic ? FALLBACK_COPY.ar : FALLBACK_COPY.en;
+  const moduleFailed = isModuleLoadError(error);
   return (
     <div
       className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6"
@@ -75,8 +83,8 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       <div className="max-w-lg w-full text-center" role="alert">
-        <h1 className="text-xl font-semibold text-gray-900">{copy.title}</h1>
-        <p className="mt-2 text-sm text-gray-600">{copy.body}</p>
+        <h1 className="text-xl font-semibold text-gray-900">{moduleFailed ? copy.moduleTitle : copy.title}</h1>
+        <p className="mt-2 text-sm text-gray-600">{moduleFailed ? copy.moduleBody : copy.body}</p>
         <p className="mt-1 text-sm text-gray-600">{copy.help}</p>
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
@@ -90,7 +98,7 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
             onClick={resetError}
             className="min-h-11 rounded bg-gray-900 px-5 py-2 text-sm text-white hover:bg-gray-700"
           >
-            {copy.retry}
+            {moduleFailed ? copy.reload : copy.retry}
           </button>
           <a
             href={import.meta.env.BASE_URL || '/'}
@@ -117,7 +125,7 @@ export class ErrorBoundary extends Component<
   componentDidCatch(error: unknown, info: ErrorInfo): void {
     console.error(
       'ErrorBoundary caught an error:',
-      toError(error),
+      import.meta.env.DEV ? toError(error).message : toError(error).name,
       info.componentStack,
     );
   }
@@ -127,12 +135,15 @@ export class ErrorBoundary extends Component<
       this.state.error !== null &&
       prevProps.resetKey !== this.props.resetKey
     ) {
-      this.resetError();
+      this.setState({ error: null });
     }
   }
 
   resetError = (): void => {
-    this.setState({ error: null });
+    recoverFromRenderError(this.state.error, {
+      reload: () => window.location.reload(),
+      reset: () => this.setState({ error: null }),
+    });
   };
 
   render(): ReactNode {
