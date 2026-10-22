@@ -51,7 +51,7 @@ import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter
 import { SessionCalendar } from './session-calendar';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
-import { isStaffNavigationItemActive } from './staff-navigation-items';
+import { canAccessStaffNavigationPath, isStaffNavigationItemActive } from './staff-navigation-items';
 import { participantSignInInstructions } from './participant-dashboard-helpers';
 import { trackEvent, trackZoomFailure } from './lib/analytics';
 import { brandedAdminRoleLabel, getDisplayBrandName, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
@@ -292,7 +292,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
     label: role === 'trainer' ? 'Trainer workspace' : role === 'mentor' ? 'Mentor workspace' : 'Judge workspace',
     icon: role === 'trainer' ? BookOpen : role === 'mentor' ? Handshake : Trophy,
   }));
-  const nav = [...getStaffNavigationItems(staff.primaryRole === 'coordinator' ? 'coordinator' : 'staff'), ...specialistItems];
+  const nav = [...getStaffNavigationItems(staff.primaryRole), ...specialistItems];
   const label = nav.find(item => isStaffNavigationItemActive(path, item.href))?.label || 'Workspace';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
@@ -341,7 +341,7 @@ function Metric({ label, value, hint, icon: Icon, accent, trend }: { label: stri
   return <article className={`metric-card ${accent || ''}`}><div className="metric-top"><span>{t(label)}</span><span className="metric-icon"><Icon size={17} /></span></div><strong className="metric-value">{value}</strong><div className="metric-bottom"><span>{t(hint)}</span>{trend && <span className="metric-trend"><ArrowUpRight size={13} />{t(trend)}</span>}</div></article>;
 }
 
-function Overview() {
+function Overview({ coordinator = false }: { coordinator?: boolean }) {
   const query = useGetDashboard(); const dashboard = query.data;
   const stages = dashboard?.stageCounts || [];
   const max = Math.max(1, ...stages.map(stage => stage.count));
@@ -374,7 +374,7 @@ function Overview() {
        <section className="panel recent-panel"><div className="panel-heading"><div><div className="eyebrow">{t('LATEST MOVEMENT')}</div><h2 className="app-title">{t('Recently added businesses')}</h2></div><Link href="/businesses" className="text-link">{t('View pipeline')} <ArrowRight size={14} /></Link></div>
        {dashboard.recentBusinesses.length ? <div className="table-wrap"><table><thead><tr><th>{t('BUSINESS / FOUNDER')}</th><th>{t('INDUSTRY')}</th><th>{t('STAGE')}</th><th>{t('APPLIED')}</th><th /></tr></thead><tbody>{dashboard.recentBusinesses.slice(0, 5).map(business => <tr key={business.id}><td><div className="company-cell"><span className="company-monogram">{business.businessName.slice(0, 1).toUpperCase()}</span><span><b>{business.businessName}</b><small>{business.founderName}</small></span></div></td><td>{business.industry || '—'}</td><td><Badge value={business.stage} label={stageNames[business.stage]} /></td><td>{dateLabel(business.applicationDate)}</td><td><Link href="/businesses" className="row-arrow" aria-label={`${t('View')} ${business.businessName}`}><ArrowRight size={15} /></Link></td></tr>)}</tbody></table></div> : <EmptyState title="No businesses added yet." body="Applications and founder records will appear here as the program gets underway." action={<Link href="/businesses" className="text-link">{t('Add a founder')} <ArrowRight size={14} /></Link>} />}
     </section>
-     <div className="dashboard-note"><span className="note-mark">J</span><span><b>{t('The work is the journey.')}</b> {t('Outreach to grant decision — keep every next step visible.')}</span><Link href="/programs">{t('Program setup')} <ArrowRight size={14} /></Link></div>
+     <div className="dashboard-note"><span className="note-mark">J</span><span><b>{t('The work is the journey.')}</b> {t('Outreach to grant decision — keep every next step visible.')}</span><Link href="/programs">{t(coordinator ? 'Program setup' : 'Programs')} <ArrowRight size={14} /></Link></div>
   </>;
 }
 
@@ -1332,7 +1332,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
   const isAdmin = staff.primaryRole === 'coordinator';
   const isProgramStaff = staff.primaryRole === 'staff';
   return <ErrorBoundary resetKey={location}><Shell staff={staff} displayName={displayName}><Switch>
-    <Route path="/" component={Overview} />
+    <Route path="/">{() => <Overview coordinator={isAdmin} />}</Route>
     <Route path="/businesses">{() => <BusinessesPage isAdmin={isAdmin} />}</Route>
     <Route path="/programs">{() => <ProgramsPage coordinator={isAdmin} />}</Route>
     <Route path="/analytics">{() => isAdmin ? <><ProgramAnalyticsPage /><LearningProgressAnalytics /></> : <NotFoundPage />}</Route>
@@ -1401,9 +1401,7 @@ function AuthenticatedWorkspace() {
     if (staff.primaryRole === 'trainer' && (path === '/courses' || path === '/sessions')) return roles.has('trainer');
     if (path === '/participant') return false;
     if (staff.primaryRole !== 'coordinator' && staff.primaryRole !== 'staff') return false;
-    const isAdmin = staff.primaryRole === 'coordinator';
-    if (!isAdmin && ['/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/communications', '/grants'].includes(path)) return false;
-    return ['/', '/businesses', '/programs', '/sessions', '/support', '/mentor-meeting-reports', '/pitches', '/courses', '/team-assignments', ...(isAdmin ? ['/communications', '/applications', '/mentor-booking', '/team', '/access', '/analytics', '/branding', '/api-integrations', '/grants', '/profiles'] : [])].includes(path);
+    return canAccessStaffNavigationPath(staff.primaryRole, path);
   };
   const accessStatus = (staffQuery.error as { status?: number } | null)?.status;
   useEffect(() => {

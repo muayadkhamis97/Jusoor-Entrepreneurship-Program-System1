@@ -9,6 +9,17 @@ export type StaffMentorMeetingReportSelection = {
   coachEmail: string;
 };
 
+export function getMeetingReportEmptyCopy(
+  selection: StaffMentorMeetingReportSelection,
+  meetingDateFrom: string,
+  meetingDateTo: string,
+) {
+  const filtered = selection.businessId !== '' || Boolean(selection.coachEmail || meetingDateFrom || meetingDateTo);
+  return filtered
+    ? { filtered, title: 'No meeting reports match these filters.', body: 'Try changing the mentor, business or meeting-date range.' }
+    : { filtered, title: 'No meeting reports submitted yet.', body: 'Reports will appear here after a mentor submits a meeting report for this program.' };
+}
+
 export function selectStaffMentorMeetingReportProgram(
   programId: number | '',
 ): StaffMentorMeetingReportSelection {

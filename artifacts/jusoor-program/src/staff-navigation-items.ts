@@ -20,7 +20,17 @@ export function isStaffNavigationItemActive(currentPath: string, href: string): 
   return normalizeStaffNavigationPath(currentPath) === normalizeStaffNavigationPath(href);
 }
 
-export function getStaffNavigationItems(role: 'coordinator' | 'staff'): StaffNavigationItem[] {
+export type StaffNavigationRole = 'coordinator' | 'staff' | 'trainer' | 'mentor' | 'judge';
+
+export function canAccessStaffNavigationPath(role: StaffNavigationRole, path: string): boolean {
+  const normalized = normalizeStaffNavigationPath(path);
+  return getStaffNavigationItems(role).some(item => item.href === normalized);
+}
+
+export function getStaffNavigationItems(role: StaffNavigationRole): StaffNavigationItem[] {
+  if (role !== 'coordinator' && role !== 'staff') {
+    return [{ href: '/profile', label: 'Profile', icon: UserRound }];
+  }
   return [
     { href: '/', label: 'Overview', icon: LayoutDashboard },
     { href: '/businesses', label: 'Businesses', icon: BriefcaseBusiness },

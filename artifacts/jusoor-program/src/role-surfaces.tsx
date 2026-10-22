@@ -39,6 +39,7 @@ import { printReportSheet } from './print-report-sheet';
 import { getTrainerAttendanceEmptyState, updateTrainerIdSet } from './trainer-dashboard-state';
 import {
   getStaffMentorMeetingReportFilterParams,
+  getMeetingReportEmptyCopy,
   selectStaffMentorMeetingReportBusiness,
   selectStaffMentorMeetingReportProgram,
   type StaffMentorMeetingReportSelection,
@@ -128,6 +129,7 @@ export function StaffMentorMeetingReportsPage() {
   const { programId: selectedProgramId, businessId: selectedBusinessId, coachEmail: selectedCoachEmail } = selection;
   const [meetingDateFrom, setMeetingDateFrom] = useState('');
   const [meetingDateTo, setMeetingDateTo] = useState('');
+  const emptyReportCopy = getMeetingReportEmptyCopy(selection, meetingDateFrom, meetingDateTo);
   const programsQuery = useListPrograms(undefined, {
     query: { queryKey: getListProgramsQueryKey(), refetchOnWindowFocus: true },
   });
@@ -187,14 +189,14 @@ export function StaffMentorMeetingReportsPage() {
       kicker="MENTORING / REPORTS"
       title="Mentor meeting reports"
       description="Review submitted session notes, agreed actions, achievements and recommendations by program, business, mentor and meeting date."
-      count={reportsQuery.data ? `${reportsQuery.data.length} reports` : undefined}
+      count={selectedProgramId !== '' && reportsQuery.isSuccess ? `${reportsQuery.data.length} reports` : undefined}
     />
     <section className="role-section role-assignment-section" data-testid="staff-mentor-meeting-report-filters">
       <div className="role-section-title"><div><div className="eyebrow">{t('FIND REPORTS')}</div><h2>{t('Choose a program, business, mentor and date range')}</h2></div></div>
       {programsQuery.isLoading ? <p role="status">{t('Loading programs…')}</p> : programsQuery.isError ? <div className="role-inline-note" role="alert">
         <p>{t('Programs could not load.')}</p>
         <Button type="button" className="button button-quiet" onClick={() => void programsQuery.refetch()}>{t('Retry')}</Button>
-      </div> : programs.length === 0 ? <p className="role-inline-note">{t('No active programs are assigned to this account.')}</p> : <div className="role-form-grid">
+      </div> : programs.length === 0 ? <div className="empty-panel" role="status" data-testid="staff-reports-no-programs"><h3>{t('No active programs are assigned to this account.')}</h3><p>{t('Ask an Admin to assign a program. Meeting reports and session requests will appear here once a program is available.')}</p></div> : <div className="role-form-grid">
         <label className="field">{t('Program')}
           <select className="form-control" value={selectedProgramId} onChange={event => {
             const programId = event.currentTarget.value ? Number(event.currentTarget.value) : '';
@@ -216,6 +218,7 @@ export function StaffMentorMeetingReportsPage() {
           {businessesQuery.isError && <span role="alert">{t('Business choices could not load.')}{' '}
             <Button type="button" className="button button-quiet" onClick={() => void businessesQuery.refetch()}>{t('Retry')}</Button>
           </span>}
+          {businessesQuery.isSuccess && businessesQuery.data.length === 0 && <span role="status">{t('No businesses have been added to this program yet.')}</span>}
         </label>
         <label className="field">{t('Mentor')}
           <select className="form-control" value={selectedCoachEmail} onChange={event => setSelection(current => ({ ...current, coachEmail: event.currentTarget.value }))}
@@ -225,6 +228,7 @@ export function StaffMentorMeetingReportsPage() {
             {(coachOptionsQuery.data ?? []).map(coach => <option key={coach.coachEmail} value={coach.coachEmail}>{coach.coachName}</option>)}
           </select>
           {coachOptionsQuery.isLoading && <span role="status">{t('Loading mentor choices…')}</span>}
+          {coachOptionsQuery.isSuccess && coachOptionsQuery.data.length === 0 && <span role="status">{t('No mentors are available for this selection yet.')}</span>}
           {coachOptionsQuery.isError && <span role="alert">{t('Mentor choices could not load.')}{' '}
             <Button type="button" className="button button-quiet" onClick={() => void coachOptionsQuery.refetch()}>{t('Retry')}</Button>
           </span>}
@@ -239,14 +243,15 @@ export function StaffMentorMeetingReportsPage() {
         </label>
       </div>}
     </section>
+    {programsQuery.isSuccess && programs.length > 0 && <>
     <section className="role-section" data-testid="staff-additional-session-requests">
       <div className="role-section-title"><div><div className="eyebrow">{t('SESSION CAPACITY')}</div><h2>{t('Requests for additional 1:1 sessions')}</h2></div>
-        <span>{additionalSessionRequestsQuery.data?.length ?? 0} {t('open requests')}</span>
+        {selectedProgramId !== '' && additionalSessionRequestsQuery.isSuccess && <span>{additionalSessionRequestsQuery.data.length} {t('open requests')}</span>}
       </div>
       {selectedProgramId === '' ? <p className="role-inline-note">{t('Choose a program to review session requests.')}</p>
         : additionalSessionRequestsQuery.isLoading ? <p className="role-inline-note" role="status">{t('Loading session requests…')}</p>
           : additionalSessionRequestsQuery.isError ? <div className="role-inline-note" role="alert"><p>{t('Session requests could not load.')}</p><Button type="button" className="button button-quiet" onClick={() => void additionalSessionRequestsQuery.refetch()}>{t('Retry')}</Button></div>
-            : (additionalSessionRequestsQuery.data ?? []).length === 0 ? <div className="empty-panel"><h3>{t('No open requests.')}</h3><p>{t('New requests from assigned mentors will appear here.')}</p></div>
+             : (additionalSessionRequestsQuery.data ?? []).length === 0 ? <div className="empty-panel" role="status" data-testid="staff-session-requests-empty"><h3>{t('No open requests.')}</h3><p>{t('New requests from assigned mentors will appear here.')}</p></div>
               : <div className="answer-list">{additionalSessionRequestsQuery.data?.map(request => {
                 const approvedCount = Number(approvedSessionCounts[request.id] ?? 1);
                 const validApprovedCount = Number.isInteger(approvedCount) && approvedCount >= 1 && approvedCount <= 1000;
@@ -311,7 +316,11 @@ export function StaffMentorMeetingReportsPage() {
         <Button type="button" className="button button-quiet" onClick={retry}>{t('Retry')}</Button>
       </div>
       : reportsQuery.data && (reportsQuery.data.length === 0
-        ? <div className="empty-panel" data-testid="staff-meeting-reports-empty"><h3>{t('No meeting reports found.')}</h3><p>{t('Try changing the mentor, business or meeting-date range.')}</p></div>
+         ? <div className="empty-panel" role="status" data-testid="staff-meeting-reports-empty"><h3>{t(emptyReportCopy.title)}</h3><p>{t(emptyReportCopy.body)}</p>{emptyReportCopy.filtered && <Button type="button" className="button button-quiet" onClick={() => {
+           setSelection(current => ({ ...current, businessId: '', coachEmail: '' }));
+           setMeetingDateFrom('');
+           setMeetingDateTo('');
+         }}>{t('Clear filters')}</Button>}</div>
         : <section className="role-section" aria-label={t('Submitted mentor meeting reports')} data-testid="staff-mentor-meeting-reports">
            <div className="role-section-title meeting-report-sheet-heading">
              <div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2><p>{t('One row per report. Scroll horizontally to see every field.')}</p></div>
@@ -365,6 +374,7 @@ export function StaffMentorMeetingReportsPage() {
              </article>)}
            </section>
         </section>)}
+    </>}
   </>;
 }
 

@@ -94,7 +94,7 @@ export function BusinessParticipantsDialog({ business, programName, isAdmin, onC
                 </li>)}
               </ul>}
       </section>
-      {isAdmin ? <section className="business-participant-invite" aria-labelledby={`business-invite-title-${business.id}`}>
+      {isAdmin && <section className="business-participant-invite" aria-labelledby={`business-invite-title-${business.id}`}>
           <div className="business-participants-heading">
             <h3 id={`business-invite-title-${business.id}`} className="app-title">{t('Invite a participant')}</h3>
             <MailPlus size={16} aria-hidden="true" />
@@ -123,7 +123,7 @@ export function BusinessParticipantsDialog({ business, programName, isAdmin, onC
             </div>
           </form>
         </section>
-        : <p className="business-participant-invite-copy">{t('Only Admins can invite participants.')}</p>}
+        }
     </div>
   </AccessibleDialogSurface>;
 }
