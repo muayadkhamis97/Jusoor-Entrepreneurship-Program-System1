@@ -6594,3 +6594,84 @@ export const SubmitPublicJudgingResponseResponse = zod.object({
 })
 
 
+/**
+ * @summary List Google Sheets destinations visible to this staff account
+ */
+export const getProgramGoogleSheetsStatusesResponsePendingCountMin = 0;
+
+export const getProgramGoogleSheetsStatusesResponseFailedCountMin = 0;
+
+
+
+export const GetProgramGoogleSheetsStatusesResponseItem = zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
+  "spreadsheetId": zod.string().nullable(),
+  "spreadsheetUrl": zod.string().url().nullable(),
+  "spreadsheetTitle": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "pendingCount": zod.number().int().min(getProgramGoogleSheetsStatusesResponsePendingCountMin),
+  "failedCount": zod.number().int().min(getProgramGoogleSheetsStatusesResponseFailedCountMin)
+})
+export const GetProgramGoogleSheetsStatusesResponse = zod.array(GetProgramGoogleSheetsStatusesResponseItem)
+
+
+/**
+ * @summary Create a program's Google Sheets workbook and backfill existing records
+ */
+export const CreateProgramGoogleSheetsConnectionParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const createProgramGoogleSheetsConnectionResponsePendingCountMin = 0;
+
+export const createProgramGoogleSheetsConnectionResponseFailedCountMin = 0;
+
+
+
+export const CreateProgramGoogleSheetsConnectionResponse = zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
+  "spreadsheetId": zod.string().nullable(),
+  "spreadsheetUrl": zod.string().url().nullable(),
+  "spreadsheetTitle": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "pendingCount": zod.number().int().min(createProgramGoogleSheetsConnectionResponsePendingCountMin),
+  "failedCount": zod.number().int().min(createProgramGoogleSheetsConnectionResponseFailedCountMin)
+})
+
+
+/**
+ * @summary Retry failed application and judging-response synchronization
+ */
+export const RetryProgramGoogleSheetsSyncParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const retryProgramGoogleSheetsSyncResponsePendingCountMin = 0;
+
+export const retryProgramGoogleSheetsSyncResponseFailedCountMin = 0;
+
+
+
+export const RetryProgramGoogleSheetsSyncResponse = zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
+  "spreadsheetId": zod.string().nullable(),
+  "spreadsheetUrl": zod.string().url().nullable(),
+  "spreadsheetTitle": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "pendingCount": zod.number().int().min(retryProgramGoogleSheetsSyncResponsePendingCountMin),
+  "failedCount": zod.number().int().min(retryProgramGoogleSheetsSyncResponseFailedCountMin)
+})
+
+

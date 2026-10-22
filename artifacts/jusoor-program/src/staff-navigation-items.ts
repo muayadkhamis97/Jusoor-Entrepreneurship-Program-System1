@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, BarChart3, BookOpen, BriefcaseBusiness, CalendarCheck, CalendarDays,
-  CircleDollarSign, ClipboardList, FileText, Handshake, KeyRound, LayoutDashboard, MessagesSquare, Palette,
+  CircleDollarSign, ClipboardList, FileSpreadsheet, FileText, Handshake, KeyRound, LayoutDashboard, MessagesSquare, Palette,
   Shield, Trophy, UserRound, UsersRound,
 } from 'lucide-react';
 
@@ -49,6 +49,7 @@ export function getStaffNavigationItems(role: StaffNavigationRole): StaffNavigat
     { href: '/mentor-meeting-reports', label: 'Mentor meeting reports', icon: FileText },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },
     { href: '/judging-forms', label: 'Judging forms', icon: ClipboardList },
+    { href: '/google-sheets', label: 'Google Sheets', icon: FileSpreadsheet },
     ...(role === 'coordinator' ? [{ href: '/grants', label: 'Grant tracking', icon: CircleDollarSign }] : []),
     ...(role === 'coordinator'
       ? [

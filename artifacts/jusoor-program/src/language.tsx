@@ -515,6 +515,7 @@ const arabic: Record<string, string> = {
   'Apply to a program': 'قدّم طلب انضمام',
   'Already applied? Sign in to track progress': 'قدّمت طلباً؟ سجّل الدخول لمتابعة طلبك',
   'Program team sign in': 'دخول فريق البرنامج',
+  'Google Sheets': 'جداول بيانات Google',
   'Founder progress is private to the applicant. Staff workspace access requires admin approval.': 'تقدم رائد الأعمال خاص به. يتطلب دخول الفريق إلى المنصة موافقة المسؤول.',
   'Every founder.': 'كل رائد أعمال.',
   'Every next step.': 'وكل خطوة قادمة.',

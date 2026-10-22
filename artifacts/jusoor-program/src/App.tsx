@@ -78,6 +78,7 @@ const LearningProgressAnalytics = lazy(() => import('./learning-progress').then(
 const GrantManagementPage = lazy(() => import('./grant-surfaces').then(module => ({ default: module.GrantManagementPage })));
 const BrandingPage = lazy(() => import('./branding-surfaces').then(module => ({ default: module.BrandingPage })));
 const ApiIntegrationsPage = lazy(() => import('./api-integrations').then(module => ({ default: module.ApiIntegrationsPage })));
+const GoogleSheetsPage = lazy(() => import('./google-sheets').then(module => ({ default: module.GoogleSheetsPage })));
 const OwnProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.OwnProfilePage })));
 const AdminProfilesPage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.AdminProfilesPage })));
 const ParticipantProfilePage = lazy(() => import('./profile-surfaces').then(module => ({ default: module.ParticipantProfilePage })));
@@ -1350,6 +1351,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/mentor-meeting-reports">{() => isAdmin || isProgramStaff ? <StaffMentorMeetingReportsPage /> : <NotFoundPage />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>
     <Route path="/judging-forms">{() => isAdmin || isProgramStaff ? <JudgingFormsPage /> : <NotFoundPage />}</Route>
+    <Route path="/google-sheets">{() => isAdmin || isProgramStaff ? <GoogleSheetsPage /> : <NotFoundPage />}</Route>
     <Route path="/grants" component={isAdmin ? GrantManagementPage : NotFoundPage} />
     <Route path="/applications" component={isAdmin ? ApplicationsReviewPage : NotFoundPage} />
     <Route path="/mentor-booking" component={isAdmin ? MentorBookingStatusPage : NotFoundPage} />

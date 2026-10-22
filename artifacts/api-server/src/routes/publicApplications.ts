@@ -7,6 +7,7 @@ import {
   SubmitApplicationResponse,
 } from "@workspace/api-zod";
 import { applicationsTable, db, programsTable } from "@workspace/db";
+import { lockGoogleSheetsProgram, queueGoogleSheetsEvent } from "../lib/googleSheetsSync";
 
 const router: IRouter = Router();
 
@@ -100,14 +101,26 @@ router.post("/applications", async (req, res): Promise<void> => {
     }
   }
 
-  const [application] = await db.insert(applicationsTable)
-    .values({ ...input, clerkUserId })
-    .onConflictDoNothing()
-    .returning({
-      id: applicationsTable.id,
-      status: applicationsTable.status,
-      createdAt: applicationsTable.createdAt,
-    });
+  const application = await db.transaction(async (tx) => {
+    await lockGoogleSheetsProgram(tx, input.programId);
+    const [created] = await tx.insert(applicationsTable)
+      .values({ ...input, clerkUserId })
+      .onConflictDoNothing()
+      .returning({
+        id: applicationsTable.id,
+        programId: applicationsTable.programId,
+        status: applicationsTable.status,
+        createdAt: applicationsTable.createdAt,
+      });
+    if (created) {
+      await queueGoogleSheetsEvent(tx, {
+        programId: created.programId,
+        sourceType: "application",
+        sourceId: created.id,
+      });
+    }
+    return created;
+  });
 
   if (!application) {
     res.status(409).json({ error: "This email already has an application for this program." });

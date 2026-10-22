@@ -5,6 +5,7 @@ export * from "./chat-reads";
 export * from "./judging-forms";
 export * from "./judging-form-businesses";
 export * from "./judging-responses";
+export * from "./google-sheets";
 // Export your models here. Add one export per file
 // export * from "./posts";
 //

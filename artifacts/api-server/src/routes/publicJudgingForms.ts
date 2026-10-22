@@ -4,6 +4,7 @@ import { GetPublicJudgingFormResponse, SubmitPublicJudgingResponseBody, SubmitPu
 import { db, judgingFormsTable, judgingResponsesTable, programsTable, type JudgingResponse } from "@workspace/db";
 import { JudgingFormError, judgingBusinesses, judgingTokenHash, normalizeJudgingAssessment, validJudgingToken } from "../lib/judgingForms";
 import { judgingFormErrors } from "./judgingFormErrors";
+import { lockGoogleSheetsProgram, queueGoogleSheetsEvent } from "../lib/googleSheetsSync";
 
 const router = Router();
 const limits = new Map<string, { count: number; expires: number }>();
@@ -68,11 +69,19 @@ router.post("/responses", async (req, res) => {
     if (row.form.status !== "open") throw new JudgingFormError(410, "This judging form is not accepting responses.");
     const business = (await judgingBusinesses(row.form, tx, true)).find(business => business.id === parsed.data.businessId);
     if (!business) throw new JudgingFormError(400, "Choose one of the businesses listed on this form.");
+    await lockGoogleSheetsProgram(tx, row.form.programId);
     const [created] = await tx.insert(judgingResponsesTable).values({
       ...assessment, formId: row.form.id, businessName: business.name, clientSubmissionId: parsed.data.clientSubmissionId,
     }).onConflictDoNothing().returning();
     const saved = created ?? await existing();
     if (!saved) throw new JudgingFormError(409, "An assessment with this email has already been received for this business.");
+    if (created) {
+      await queueGoogleSheetsEvent(tx, {
+        programId: row.form.programId,
+        sourceType: "judging_response",
+        sourceId: created.id,
+      });
+    }
     return saved;
   });
   res.json(receipt(result));

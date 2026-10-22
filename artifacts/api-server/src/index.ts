@@ -5,6 +5,7 @@ import { startCourseReminderWorker } from "./lib/course-reminders";
 import { startGoogleCalendarSyncWorker } from "./lib/googleCalendarSync";
 import { startMentorFollowUpDigestWorker } from "./lib/mentor-follow-up-digests";
 import { startAnnouncementEmailWorker } from "./lib/announcement-email";
+import { startGoogleSheetsSyncWorker } from "./lib/googleSheetsSync";
 
 const rawPort = process.env["PORT"];
 
@@ -32,4 +33,5 @@ app.listen(port, (err) => {
   startGoogleCalendarSyncWorker();
   startMentorFollowUpDigestWorker();
   startAnnouncementEmailWorker();
+  startGoogleSheetsSyncWorker();
 });

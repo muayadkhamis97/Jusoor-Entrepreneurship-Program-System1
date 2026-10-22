@@ -282,6 +282,8 @@ export * from './programBranding';
 export * from './programBrandingInput';
 export * from './programBusinessOption';
 export * from './programFormat';
+export * from './programGoogleSheetsStatus';
+export * from './programGoogleSheetsStatusStatus';
 export * from './programInput';
 export * from './programInputFormat';
 export * from './programInputStatus';

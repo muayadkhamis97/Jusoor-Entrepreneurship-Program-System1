@@ -4094,6 +4094,59 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/JudgingSubmissionReceipt" }
+  /staff/google-sheets:
+    get:
+      operationId: getProgramGoogleSheetsStatuses
+      tags: [staff]
+      summary: List Google Sheets destinations visible to this staff account
+      responses:
+        "200":
+          description: Google Sheets destinations for active programs in the staff member's scope
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "403":
+          description: Admin or program staff access required
+  /staff/google-sheets/{programId}:
+    post:
+      operationId: createProgramGoogleSheetsConnection
+      tags: [staff]
+      summary: Create a program's Google Sheets workbook and backfill existing records
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+      responses:
+        "200":
+          description: Existing workbook returned for an idempotent retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "201":
+          description: Workbook created; existing submissions are queued for synchronization
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "404":
+          description: Program not found or outside the staff member's scope
+        "502":
+          description: Google Sheets could not create the workbook
+  /staff/google-sheets/{programId}/sync:
+    post:
+      operationId: retryProgramGoogleSheetsSync
+      tags: [staff]
+      summary: Retry failed application and judging-response synchronization
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+      responses:
+        "200":
+          description: Failed items have been queued again
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "404":
+          description: Program is unavailable or has no workbook
+
 components:
   parameters:
     Id:
@@ -4114,6 +4167,32 @@ components:
       scheme: bearer
       bearerFormat: Program integration key
   schemas:
+    ProgramGoogleSheetsStatus:
+      type: object
+      required:
+        - programId
+        - programName
+        - status
+        - spreadsheetId
+        - spreadsheetUrl
+        - spreadsheetTitle
+        - connectedAt
+        - lastSyncedAt
+        - lastError
+        - pendingCount
+        - failedCount
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        status: { type: string, enum: [not_connected, syncing, connected, needs_attention] }
+        spreadsheetId: { type: [string, "null"] }
+        spreadsheetUrl: { type: [string, "null"], format: uri }
+        spreadsheetTitle: { type: [string, "null"] }
+        connectedAt: { type: [string, "null"], format: date-time }
+        lastSyncedAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        pendingCount: { type: integer, minimum: 0 }
+        failedCount: { type: integer, minimum: 0 }
     JudgingCriterion:
       type: object
       required: [id, label, description, maxScore]

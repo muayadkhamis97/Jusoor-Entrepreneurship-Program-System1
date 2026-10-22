@@ -5,6 +5,38 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+export type ProgramGoogleSheetsStatusStatus = typeof ProgramGoogleSheetsStatusStatus[keyof typeof ProgramGoogleSheetsStatusStatus];
+
+
+export const ProgramGoogleSheetsStatusStatus = {
+  not_connected: 'not_connected',
+  syncing: 'syncing',
+  connected: 'connected',
+  needs_attention: 'needs_attention',
+} as const;
+
+export interface ProgramGoogleSheetsStatus {
+  programId: number;
+  programName: string;
+  status: ProgramGoogleSheetsStatusStatus;
+  /** @nullable */
+  spreadsheetId: string | null;
+  /** @nullable */
+  spreadsheetUrl: string | null;
+  /** @nullable */
+  spreadsheetTitle: string | null;
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  lastSyncedAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+  /** @minimum 0 */
+  pendingCount: number;
+  /** @minimum 0 */
+  failedCount: number;
+}
+
 export interface JudgingCriterion {
   id: string;
   /**

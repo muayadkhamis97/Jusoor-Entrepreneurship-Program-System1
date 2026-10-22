@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import { requireCoordinator } from "../middlewares/staffAccess";
 import { getAdminInvitedApplicationIds } from "../lib/participantInvitations";
+import { lockGoogleSheetsProgram, queueGoogleSheetsEvent } from "../lib/googleSheetsSync";
 
 const router: IRouter = Router();
 
@@ -69,6 +70,7 @@ router.patch("/applications/:id", requireCoordinator, async (req, res): Promise<
       .limit(1)
       .for("update");
     if (!current) return { kind: "missing" as const };
+    await lockGoogleSheetsProgram(tx, current.programId);
 
     const finalStatus = current.status === "accepted" || current.status === "declined";
     if (finalStatus && current.status !== body.data.status) {
@@ -104,6 +106,11 @@ router.patch("/applications/:id", requireCoordinator, async (req, res): Promise<
       .returning();
 
     if (!application) return { kind: "conflict" as const };
+    await queueGoogleSheetsEvent(tx, {
+      programId: application.programId,
+      sourceType: "application",
+      sourceId: application.id,
+    });
 
     const [program] = await tx.select({ name: programsTable.name })
       .from(programsTable)

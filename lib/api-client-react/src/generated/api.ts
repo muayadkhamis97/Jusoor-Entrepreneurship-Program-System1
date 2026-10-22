@@ -178,6 +178,7 @@ import type {
   ProgramAnalytics,
   ProgramBranding,
   ProgramBrandingInput,
+  ProgramGoogleSheetsStatus,
   ProgramInput,
   ProgramLifecycleEvent,
   ProgramSessionInteractionAnalytics,
@@ -16899,5 +16900,230 @@ export const useSubmitPublicJudgingResponse = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSubmitPublicJudgingResponseMutationOptions(options));
+    }
+
+export const getGetProgramGoogleSheetsStatusesUrl = () => {
+
+
+
+
+  return `/api/staff/google-sheets`
+}
+
+/**
+ * @summary List Google Sheets destinations visible to this staff account
+ */
+export const getProgramGoogleSheetsStatuses = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus[]> => {
+
+  return customFetch<ProgramGoogleSheetsStatus[]>(getGetProgramGoogleSheetsStatusesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProgramGoogleSheetsStatusesQueryKey = () => {
+    return [
+    `/api/staff/google-sheets`
+    ] as const;
+    }
+
+
+export const getGetProgramGoogleSheetsStatusesQueryOptions = <TData = Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProgramGoogleSheetsStatusesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>> = ({ signal }) => getProgramGoogleSheetsStatuses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProgramGoogleSheetsStatusesQueryResult = NonNullable<Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>>
+export type GetProgramGoogleSheetsStatusesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List Google Sheets destinations visible to this staff account
+ */
+
+export function useGetProgramGoogleSheetsStatuses<TData = Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsStatuses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProgramGoogleSheetsStatusesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProgramGoogleSheetsConnectionUrl = (programId: number,) => {
+
+
+
+
+  return `/api/staff/google-sheets/${programId}`
+}
+
+/**
+ * @summary Create a program's Google Sheets workbook and backfill existing records
+ */
+export const createProgramGoogleSheetsConnection = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
+
+  return customFetch<ProgramGoogleSheetsStatus>(getCreateProgramGoogleSheetsConnectionUrl(programId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateProgramGoogleSheetsConnectionMutationKey = () => ['createProgramGoogleSheetsConnection'] as const;
+
+export const getCreateProgramGoogleSheetsConnectionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, TError,CreateProgramGoogleSheetsConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, TError,CreateProgramGoogleSheetsConnectionMutationVariables, TContext> => {
+
+const mutationKey = getCreateProgramGoogleSheetsConnectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, CreateProgramGoogleSheetsConnectionMutationVariables> = (props) => {
+          const {programId} = props ?? {};
+
+          return  createProgramGoogleSheetsConnection(programId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProgramGoogleSheetsConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>>
+
+    export type CreateProgramGoogleSheetsConnectionMutationError = ErrorType<void>
+    export type CreateProgramGoogleSheetsConnectionMutationVariables = {programId: number}
+
+    /**
+ * @summary Create a program's Google Sheets workbook and backfill existing records
+ */
+export const useCreateProgramGoogleSheetsConnection = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, TError,CreateProgramGoogleSheetsConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>,
+        TError,
+        CreateProgramGoogleSheetsConnectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateProgramGoogleSheetsConnectionMutationOptions(options));
+    }
+
+export const getRetryProgramGoogleSheetsSyncUrl = (programId: number,) => {
+
+
+
+
+  return `/api/staff/google-sheets/${programId}/sync`
+}
+
+/**
+ * @summary Retry failed application and judging-response synchronization
+ */
+export const retryProgramGoogleSheetsSync = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
+
+  return customFetch<ProgramGoogleSheetsStatus>(getRetryProgramGoogleSheetsSyncUrl(programId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryProgramGoogleSheetsSyncMutationKey = () => ['retryProgramGoogleSheetsSync'] as const;
+
+export const getRetryProgramGoogleSheetsSyncMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>, TError,RetryProgramGoogleSheetsSyncMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>, TError,RetryProgramGoogleSheetsSyncMutationVariables, TContext> => {
+
+const mutationKey = getRetryProgramGoogleSheetsSyncMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>, RetryProgramGoogleSheetsSyncMutationVariables> = (props) => {
+          const {programId} = props ?? {};
+
+          return  retryProgramGoogleSheetsSync(programId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryProgramGoogleSheetsSyncMutationResult = NonNullable<Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>>
+
+    export type RetryProgramGoogleSheetsSyncMutationError = ErrorType<void>
+    export type RetryProgramGoogleSheetsSyncMutationVariables = {programId: number}
+
+    /**
+ * @summary Retry failed application and judging-response synchronization
+ */
+export const useRetryProgramGoogleSheetsSync = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>, TError,RetryProgramGoogleSheetsSyncMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>,
+        TError,
+        RetryProgramGoogleSheetsSyncMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryProgramGoogleSheetsSyncMutationOptions(options));
     }
 
