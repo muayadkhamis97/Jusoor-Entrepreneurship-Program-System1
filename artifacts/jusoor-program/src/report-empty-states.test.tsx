@@ -35,3 +35,14 @@ test('empty feedback is distinct from errors, and dependent sections wait for av
   assert.match(source, /reportsQuery\.isError \?[^]*Mentor meeting reports could not load/);
   assert.match(source, /emptyReportCopy\.filtered && <Button/);
 });
+
+test('report sections follow the reading order: filters, session history, then capacity requests', () => {
+  const source = readFileSync(new URL('./role-surfaces.tsx', import.meta.url), 'utf8');
+  const filters = source.indexOf('data-testid="staff-mentor-meeting-report-filters"');
+  const history = source.indexOf('{meetingReportsSection}', filters);
+  const requests = source.indexOf('data-testid="staff-additional-session-requests"', filters);
+  assert.ok(filters >= 0 && history > filters && requests > history);
+  assert.match(source, /className="role-inline-note" role="status" data-testid="staff-meeting-reports-empty"/);
+  assert.match(source, /className="role-inline-note" role="status" data-testid="staff-session-requests-empty"/);
+  assert.match(source, /data-testid="staff-mentor-meeting-reports"[^]*<h2>\{t\('Session history'\)\}<\/h2>/);
+});

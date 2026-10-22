@@ -183,6 +183,75 @@ export function StaffMentorMeetingReportsPage() {
     void additionalSessionRequestsQuery.refetch();
   };
   const printCoachReports = () => printReportSheet('print-coach-meeting-reports');
+  const meetingReportsSection = <section className="role-section role-assignment-section" aria-label={t('Submitted mentor meeting reports')} data-testid="staff-mentor-meeting-reports">
+    <div className="role-section-title meeting-report-sheet-heading">
+      <div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2>
+        {reportsQuery.isSuccess && reportsQuery.data.length > 0 && <p>{t('One row per report. Scroll horizontally to see every field.')}</p>}
+      </div>
+      {reportsQuery.isSuccess && reportsQuery.data.length > 0 && <div className="meeting-report-export-actions">
+        <span className="role-count">{reportsQuery.data.length}</span>
+        <Button type="button" className="button button-quiet" onClick={() => { if (selectedProgramId !== '') downloadStaffMentorMeetingReportsCsv(selectedProgramId, reportsQuery.data); }} data-testid="button-export-coach-reports-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</Button>
+        <Button type="button" className="button button-quiet" onClick={printCoachReports} data-testid="button-export-coach-reports-pdf"><Printer size={14} />{t('Print / Save PDF')}</Button>
+      </div>}
+    </div>
+    {selectedProgramId !== '' && (reportsQuery.isLoading || businessesQuery.isLoading)
+      ? <p className="role-inline-note" role="status">{t('Loading mentor meeting reports…')}</p>
+      : reportsQuery.isError ? <div className="role-inline-note" role="alert">
+        <p>{t('Mentor meeting reports could not load.')}</p>
+        <Button type="button" className="button button-quiet" onClick={retry}>{t('Retry')}</Button>
+      </div>
+      : reportsQuery.data && (reportsQuery.data.length === 0
+        ? <div className="role-inline-note" role="status" data-testid="staff-meeting-reports-empty"><h3>{t(emptyReportCopy.title)}</h3><p>{t(emptyReportCopy.body)}</p>{emptyReportCopy.filtered && <Button type="button" className="button button-quiet" onClick={() => {
+          setSelection(current => ({ ...current, businessId: '', coachEmail: '' }));
+          setMeetingDateFrom('');
+          setMeetingDateTo('');
+        }}>{t('Clear filters')}</Button>}</div>
+        : <>
+          <div className="meeting-report-sheet-scroll" role="region" aria-label={t('Meeting report spreadsheet')} tabIndex={0} data-testid="meeting-report-sheet">
+            <table className="meeting-report-sheet">
+              <thead><tr>
+                <th scope="col">{t('Meeting date')}</th><th scope="col">{t('Program')}</th><th scope="col">{t('Business')}</th>
+                <th scope="col">{t('Mentor name')}</th><th scope="col">{t('Mentor email')}</th>
+                <th scope="col">{t('Team members who attended the session')}</th><th scope="col">{t('Meeting occurrence')}</th>
+                <th scope="col">{t('Topics, session highlights, connections made, and other notes')}</th>
+                <th scope="col">{t('SMART Grow actions recommended and agreed with the team until the next call')}</th>
+                <th scope="col">{t('Key achievements and opportunities resulting from your mentoring')}</th>
+                <th scope="col">{t('Recommendations to the program team for further support')}</th>
+                <th scope="col">{t('Submitted')}</th>
+              </tr></thead>
+              <tbody>{reportsQuery.data.map(report => <tr key={report.id} data-testid={`staff-meeting-report-${report.id}`}>
+                <td>{dateText(report.meetingDate)}</td><td>{report.programName}</td><td>{report.businessName}</td>
+                <td>{report.coachName}</td><td>{report.coachEmail}</td>
+                <td>{report.attendees.length ? report.attendees.join(', ') : t('No attendees recorded')}</td>
+                <td>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</td>
+                <td>{report.sessionSummary}</td><td>{report.smartGrowActions}</td><td>{report.achievementsAndOpportunities}</td>
+                <td>{report.teamRecommendations || '—'}</td><td>{dateText(report.submittedAt)}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <section className="meeting-report-print-sheet" aria-hidden="true">
+            <header>
+              <p className="eyebrow">{t('SUBMITTED REPORTS')}</p>
+              <h1>{t('Mentor meeting reports')}</h1>
+              <p>{t('Program')}: {selectedProgramName || '—'} · {t('Business')}: {selectedBusinessName ?? t('All businesses')} · {t('Mentor')}: {selectedCoachName ?? t('All mentors')}</p>
+              <p>{t('Meeting date from')}: {meetingDateFrom || '—'} · {t('Meeting date to')}: {meetingDateTo || '—'} · {reportsQuery.data.length} {t('reports')}</p>
+            </header>
+            {reportsQuery.data.map(report => <article className="meeting-report-print-record" key={report.id}>
+              <h2>{dateText(report.meetingDate)} · {report.businessName}</h2>
+              <p>{report.programName} · {report.coachName} · {report.coachEmail}</p>
+              <dl>
+                <div><dt>{t('Team members who attended the session')}</dt><dd dir="auto">{report.attendees.join(', ') || t('No attendees recorded')}</dd></div>
+                <div><dt>{t('Meeting occurrence')}</dt><dd>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</dd></div>
+                <div><dt>{t('Topics, session highlights, connections made, and other notes')}</dt><dd dir="auto">{report.sessionSummary}</dd></div>
+                <div><dt>{t('SMART Grow actions recommended and agreed with the team until the next call')}</dt><dd dir="auto">{report.smartGrowActions}</dd></div>
+                <div><dt>{t('Key achievements and opportunities resulting from your mentoring')}</dt><dd dir="auto">{report.achievementsAndOpportunities}</dd></div>
+                <div><dt>{t('Recommendations to the program team for further support')}</dt><dd dir="auto">{report.teamRecommendations || '—'}</dd></div>
+              </dl>
+              <footer>{t('Submitted')} {dateText(report.submittedAt)}</footer>
+            </article>)}
+          </section>
+        </>)}
+  </section>;
 
   return <>
     <Heading
@@ -244,14 +313,15 @@ export function StaffMentorMeetingReportsPage() {
       </div>}
     </section>
     {programsQuery.isSuccess && programs.length > 0 && <>
-    <section className="role-section" data-testid="staff-additional-session-requests">
+    {meetingReportsSection}
+    <section className="role-section role-assignment-section" data-testid="staff-additional-session-requests">
       <div className="role-section-title"><div><div className="eyebrow">{t('SESSION CAPACITY')}</div><h2>{t('Requests for additional 1:1 sessions')}</h2></div>
         {selectedProgramId !== '' && additionalSessionRequestsQuery.isSuccess && <span>{additionalSessionRequestsQuery.data.length} {t('open requests')}</span>}
       </div>
       {selectedProgramId === '' ? <p className="role-inline-note">{t('Choose a program to review session requests.')}</p>
         : additionalSessionRequestsQuery.isLoading ? <p className="role-inline-note" role="status">{t('Loading session requests…')}</p>
           : additionalSessionRequestsQuery.isError ? <div className="role-inline-note" role="alert"><p>{t('Session requests could not load.')}</p><Button type="button" className="button button-quiet" onClick={() => void additionalSessionRequestsQuery.refetch()}>{t('Retry')}</Button></div>
-             : (additionalSessionRequestsQuery.data ?? []).length === 0 ? <div className="empty-panel" role="status" data-testid="staff-session-requests-empty"><h3>{t('No open requests.')}</h3><p>{t('New requests from assigned mentors will appear here.')}</p></div>
+             : (additionalSessionRequestsQuery.data ?? []).length === 0 ? <div className="role-inline-note" role="status" data-testid="staff-session-requests-empty"><h3>{t('No open requests.')}</h3><p>{t('New requests from assigned mentors will appear here.')}</p></div>
               : <div className="answer-list">{additionalSessionRequestsQuery.data?.map(request => {
                 const approvedCount = Number(approvedSessionCounts[request.id] ?? 1);
                 const validApprovedCount = Number.isInteger(approvedCount) && approvedCount >= 1 && approvedCount <= 1000;
@@ -309,71 +379,6 @@ export function StaffMentorMeetingReportsPage() {
                 </article>;
               })}</div>}
     </section>
-    {selectedProgramId !== '' && (reportsQuery.isLoading || businessesQuery.isLoading)
-      ? <p className="role-inline-note" role="status">{t('Loading mentor meeting reports…')}</p>
-      : reportsQuery.isError ? <div className="role-inline-note" role="alert">
-        <p>{t('Mentor meeting reports could not load.')}</p>
-        <Button type="button" className="button button-quiet" onClick={retry}>{t('Retry')}</Button>
-      </div>
-      : reportsQuery.data && (reportsQuery.data.length === 0
-         ? <div className="empty-panel" role="status" data-testid="staff-meeting-reports-empty"><h3>{t(emptyReportCopy.title)}</h3><p>{t(emptyReportCopy.body)}</p>{emptyReportCopy.filtered && <Button type="button" className="button button-quiet" onClick={() => {
-           setSelection(current => ({ ...current, businessId: '', coachEmail: '' }));
-           setMeetingDateFrom('');
-           setMeetingDateTo('');
-         }}>{t('Clear filters')}</Button>}</div>
-        : <section className="role-section" aria-label={t('Submitted mentor meeting reports')} data-testid="staff-mentor-meeting-reports">
-           <div className="role-section-title meeting-report-sheet-heading">
-             <div><div className="eyebrow">{t('SUBMITTED REPORTS')}</div><h2>{t('Session history')}</h2><p>{t('One row per report. Scroll horizontally to see every field.')}</p></div>
-             <div className="meeting-report-export-actions">
-               <span className="role-count">{reportsQuery.data.length}</span>
-               <Button type="button" className="button button-quiet" onClick={() => { if (selectedProgramId !== '') downloadStaffMentorMeetingReportsCsv(selectedProgramId, reportsQuery.data); }} data-testid="button-export-coach-reports-csv"><Download size={14} />{t('Export spreadsheet (CSV)')}</Button>
-               <Button type="button" className="button button-quiet" onClick={printCoachReports} data-testid="button-export-coach-reports-pdf"><Printer size={14} />{t('Print / Save PDF')}</Button>
-             </div>
-           </div>
-           <div className="meeting-report-sheet-scroll" role="region" aria-label={t('Meeting report spreadsheet')} tabIndex={0} data-testid="meeting-report-sheet">
-             <table className="meeting-report-sheet">
-               <thead><tr>
-                 <th scope="col">{t('Meeting date')}</th><th scope="col">{t('Program')}</th><th scope="col">{t('Business')}</th>
-                  <th scope="col">{t('Mentor name')}</th><th scope="col">{t('Mentor email')}</th>
-                 <th scope="col">{t('Team members who attended the session')}</th><th scope="col">{t('Meeting occurrence')}</th>
-                 <th scope="col">{t('Topics, session highlights, connections made, and other notes')}</th>
-                 <th scope="col">{t('SMART Grow actions recommended and agreed with the team until the next call')}</th>
-                  <th scope="col">{t('Key achievements and opportunities resulting from your mentoring')}</th>
-                 <th scope="col">{t('Recommendations to the program team for further support')}</th>
-                 <th scope="col">{t('Submitted')}</th>
-               </tr></thead>
-               <tbody>{reportsQuery.data.map(report => <tr key={report.id} data-testid={`staff-meeting-report-${report.id}`}>
-                 <td>{dateText(report.meetingDate)}</td><td>{report.programName}</td><td>{report.businessName}</td>
-                 <td>{report.coachName}</td><td>{report.coachEmail}</td>
-                 <td>{report.attendees.length ? report.attendees.join(', ') : t('No attendees recorded')}</td>
-                 <td>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</td>
-                 <td>{report.sessionSummary}</td><td>{report.smartGrowActions}</td><td>{report.achievementsAndOpportunities}</td>
-                 <td>{report.teamRecommendations || '—'}</td><td>{dateText(report.submittedAt)}</td>
-               </tr>)}</tbody>
-             </table>
-           </div>
-           <section className="meeting-report-print-sheet" aria-hidden="true">
-             <header>
-               <p className="eyebrow">{t('SUBMITTED REPORTS')}</p>
-                <h1>{t('Mentor meeting reports')}</h1>
-                <p>{t('Program')}: {selectedProgramName || '—'} · {t('Business')}: {selectedBusinessName ?? t('All businesses')} · {t('Mentor')}: {selectedCoachName ?? t('All mentors')}</p>
-               <p>{t('Meeting date from')}: {meetingDateFrom || '—'} · {t('Meeting date to')}: {meetingDateTo || '—'} · {reportsQuery.data.length} {t('reports')}</p>
-             </header>
-             {reportsQuery.data.map(report => <article className="meeting-report-print-record" key={report.id}>
-               <h2>{dateText(report.meetingDate)} · {report.businessName}</h2>
-                <p>{report.programName} · {report.coachName} · {report.coachEmail}</p>
-               <dl>
-                 <div><dt>{t('Team members who attended the session')}</dt><dd dir="auto">{report.attendees.join(', ') || t('No attendees recorded')}</dd></div>
-                 <div><dt>{t('Meeting occurrence')}</dt><dd>{report.meetingProvider === 'manual' ? t('Manual meeting') : report.meetingProvider === 'calendly' ? t('Calendly') : t('Google Calendar')}</dd></div>
-                 <div><dt>{t('Topics, session highlights, connections made, and other notes')}</dt><dd dir="auto">{report.sessionSummary}</dd></div>
-                 <div><dt>{t('SMART Grow actions recommended and agreed with the team until the next call')}</dt><dd dir="auto">{report.smartGrowActions}</dd></div>
-                  <div><dt>{t('Key achievements and opportunities resulting from your mentoring')}</dt><dd dir="auto">{report.achievementsAndOpportunities}</dd></div>
-                 <div><dt>{t('Recommendations to the program team for further support')}</dt><dd dir="auto">{report.teamRecommendations || '—'}</dd></div>
-               </dl>
-               <footer>{t('Submitted')} {dateText(report.submittedAt)}</footer>
-             </article>)}
-           </section>
-        </section>)}
     </>}
   </>;
 }
