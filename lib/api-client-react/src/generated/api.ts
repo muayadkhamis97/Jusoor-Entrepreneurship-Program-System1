@@ -42,6 +42,13 @@ import type {
   CertificateCode,
   CertificateRevocationInput,
   CertificateVerification,
+  ChatMessage,
+  ChatMessageInput,
+  ChatMessagePage,
+  ChatReadInput,
+  ChatTarget,
+  ChatThread,
+  ChatThreadInput,
   CompleteCalendlyConnectionParams,
   CompleteGoogleCalendarConnectionParams,
   CompleteZoomConnectionParams,
@@ -107,12 +114,14 @@ import type {
   JudgeScorecardInput,
   LearningProgressAnalytics,
   ListBusinessesParams,
+  ListChatMessagesParams,
   ListPitchesParams,
   ListProgramAnalyticsReportLayoutsParams,
   ListProgramImpactKpisParams,
   ListProgramsParams,
   ListSessionsParams,
   ListSupportParams,
+  MarkChatRead200,
   MentorAdditionalSessionRequest,
   MentorBookingFollowUpUpdate,
   MentorBookingSettings,
@@ -15596,5 +15605,524 @@ export const useUpdateExternalProgramResource = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateExternalProgramResourceMutationOptions(options));
+    }
+
+export const getListChatTargetsUrl = (chatActor: 'staff' | 'participant',) => {
+
+
+
+
+  return `/api/${chatActor}/chat/targets`
+}
+
+/**
+ * @summary List authorized private and business-team conversation targets
+ */
+export const listChatTargets = async (chatActor: 'staff' | 'participant', options?: Parameters<typeof customFetch>[1]): Promise<ChatTarget[]> => {
+
+  return customFetch<ChatTarget[]>(getListChatTargetsUrl(chatActor),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListChatTargetsQueryKey = (chatActor: 'staff' | 'participant',) => {
+    return [
+    `/api/${chatActor}/chat/targets`
+    ] as const;
+    }
+
+
+export const getListChatTargetsQueryOptions = <TData = Awaited<ReturnType<typeof listChatTargets>>, TError = ErrorType<unknown>>(chatActor: 'staff' | 'participant', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatTargets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListChatTargetsQueryKey(chatActor);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listChatTargets>>> = ({ signal }) => listChatTargets(chatActor, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatActor !== null && chatActor !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listChatTargets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListChatTargetsQueryResult = NonNullable<Awaited<ReturnType<typeof listChatTargets>>>
+export type ListChatTargetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List authorized private and business-team conversation targets
+ */
+
+export function useListChatTargets<TData = Awaited<ReturnType<typeof listChatTargets>>, TError = ErrorType<unknown>>(
+ chatActor: 'staff' | 'participant', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatTargets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListChatTargetsQueryOptions(chatActor,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListChatThreadsUrl = (chatActor: 'staff' | 'participant',) => {
+
+
+
+
+  return `/api/${chatActor}/chat/threads`
+}
+
+/**
+ * @summary List authorized conversations and unread counts
+ */
+export const listChatThreads = async (chatActor: 'staff' | 'participant', options?: Parameters<typeof customFetch>[1]): Promise<ChatThread[]> => {
+
+  return customFetch<ChatThread[]>(getListChatThreadsUrl(chatActor),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListChatThreadsQueryKey = (chatActor: 'staff' | 'participant',) => {
+    return [
+    `/api/${chatActor}/chat/threads`
+    ] as const;
+    }
+
+
+export const getListChatThreadsQueryOptions = <TData = Awaited<ReturnType<typeof listChatThreads>>, TError = ErrorType<unknown>>(chatActor: 'staff' | 'participant', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatThreads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListChatThreadsQueryKey(chatActor);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listChatThreads>>> = ({ signal }) => listChatThreads(chatActor, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatActor !== null && chatActor !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listChatThreads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListChatThreadsQueryResult = NonNullable<Awaited<ReturnType<typeof listChatThreads>>>
+export type ListChatThreadsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List authorized conversations and unread counts
+ */
+
+export function useListChatThreads<TData = Awaited<ReturnType<typeof listChatThreads>>, TError = ErrorType<unknown>>(
+ chatActor: 'staff' | 'participant', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatThreads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListChatThreadsQueryOptions(chatActor,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateChatThreadUrl = (chatActor: 'staff' | 'participant',) => {
+
+
+
+
+  return `/api/${chatActor}/chat/threads`
+}
+
+/**
+ * @summary Open or reuse an authorized conversation
+ */
+export const createChatThread = async (chatActor: 'staff' | 'participant',
+    chatThreadInput: ChatThreadInput, options?: Parameters<typeof customFetch>[1]): Promise<ChatThread> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ChatThread>(getCreateChatThreadUrl(chatActor),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(chatThreadInput)
+  }
+);}
+
+
+
+
+
+export const getCreateChatThreadMutationKey = () => ['createChatThread'] as const;
+
+export const getCreateChatThreadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChatThread>>, TError,CreateChatThreadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createChatThread>>, TError,CreateChatThreadMutationVariables, TContext> => {
+
+const mutationKey = getCreateChatThreadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createChatThread>>, CreateChatThreadMutationVariables> = (props) => {
+          const {chatActor,data} = props ?? {};
+
+          return  createChatThread(chatActor,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateChatThreadMutationResult = NonNullable<Awaited<ReturnType<typeof createChatThread>>>
+    export type CreateChatThreadMutationBody = BodyType<ChatThreadInput>
+    export type CreateChatThreadMutationError = ErrorType<unknown>
+    export type CreateChatThreadMutationVariables = {chatActor: 'staff' | 'participant';data: BodyType<ChatThreadInput>}
+
+    /**
+ * @summary Open or reuse an authorized conversation
+ */
+export const useCreateChatThread = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChatThread>>, TError,CreateChatThreadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createChatThread>>,
+        TError,
+        CreateChatThreadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateChatThreadMutationOptions(options));
+    }
+
+export const getListChatMessagesUrl = (chatActor: 'staff' | 'participant',
+    threadId: number,
+    params?: ListChatMessagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/${chatActor}/chat/threads/${threadId}/messages?${stringifiedParams}` : `/api/${chatActor}/chat/threads/${threadId}/messages`
+}
+
+/**
+ * @summary Read an authorized conversation, newest page first with older-message cursor
+ */
+export const listChatMessages = async (chatActor: 'staff' | 'participant',
+    threadId: number,
+    params?: ListChatMessagesParams, options?: Parameters<typeof customFetch>[1]): Promise<ChatMessagePage> => {
+
+  return customFetch<ChatMessagePage>(getListChatMessagesUrl(chatActor,threadId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListChatMessagesQueryKey = (chatActor: 'staff' | 'participant',
+    threadId: number,
+    params?: ListChatMessagesParams,) => {
+    return [
+    `/api/${chatActor}/chat/threads/${threadId}/messages`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListChatMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listChatMessages>>, TError = ErrorType<unknown>>(chatActor: 'staff' | 'participant',
+    threadId: number,
+    params?: ListChatMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListChatMessagesQueryKey(chatActor,threadId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listChatMessages>>> = ({ signal }) => listChatMessages(chatActor,threadId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: chatActor !== null && chatActor !== undefined && threadId !== null && threadId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listChatMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListChatMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listChatMessages>>>
+export type ListChatMessagesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read an authorized conversation, newest page first with older-message cursor
+ */
+
+export function useListChatMessages<TData = Awaited<ReturnType<typeof listChatMessages>>, TError = ErrorType<unknown>>(
+ chatActor: 'staff' | 'participant',
+    threadId: number,
+    params?: ListChatMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListChatMessagesQueryOptions(chatActor,threadId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendChatMessageUrl = (chatActor: 'staff' | 'participant',
+    threadId: number,) => {
+
+
+
+
+  return `/api/${chatActor}/chat/threads/${threadId}/messages`
+}
+
+/**
+ * @summary Append a message using the authenticated sender and an idempotency key
+ */
+export const sendChatMessage = async (chatActor: 'staff' | 'participant',
+    threadId: number,
+    chatMessageInput: ChatMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<ChatMessage> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ChatMessage>(getSendChatMessageUrl(chatActor,threadId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(chatMessageInput)
+  }
+);}
+
+
+
+
+
+export const getSendChatMessageMutationKey = () => ['sendChatMessage'] as const;
+
+export const getSendChatMessageMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendChatMessage>>, TError,SendChatMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendChatMessage>>, TError,SendChatMessageMutationVariables, TContext> => {
+
+const mutationKey = getSendChatMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendChatMessage>>, SendChatMessageMutationVariables> = (props) => {
+          const {chatActor,threadId,data} = props ?? {};
+
+          return  sendChatMessage(chatActor,threadId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendChatMessage>>>
+    export type SendChatMessageMutationBody = BodyType<ChatMessageInput>
+    export type SendChatMessageMutationError = ErrorType<unknown>
+    export type SendChatMessageMutationVariables = {chatActor: 'staff' | 'participant';threadId: number;data: BodyType<ChatMessageInput>}
+
+    /**
+ * @summary Append a message using the authenticated sender and an idempotency key
+ */
+export const useSendChatMessage = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendChatMessage>>, TError,SendChatMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendChatMessage>>,
+        TError,
+        SendChatMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendChatMessageMutationOptions(options));
+    }
+
+export const getMarkChatReadUrl = (chatActor: 'staff' | 'participant',
+    threadId: number,) => {
+
+
+
+
+  return `/api/${chatActor}/chat/threads/${threadId}/read`
+}
+
+/**
+ * @summary Advance this account's read position to a visible message
+ */
+export const markChatRead = async (chatActor: 'staff' | 'participant',
+    threadId: number,
+    chatReadInput: ChatReadInput, options?: Parameters<typeof customFetch>[1]): Promise<MarkChatRead200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MarkChatRead200>(getMarkChatReadUrl(chatActor,threadId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(chatReadInput)
+  }
+);}
+
+
+
+
+
+export const getMarkChatReadMutationKey = () => ['markChatRead'] as const;
+
+export const getMarkChatReadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markChatRead>>, TError,MarkChatReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markChatRead>>, TError,MarkChatReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkChatReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markChatRead>>, MarkChatReadMutationVariables> = (props) => {
+          const {chatActor,threadId,data} = props ?? {};
+
+          return  markChatRead(chatActor,threadId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkChatReadMutationResult = NonNullable<Awaited<ReturnType<typeof markChatRead>>>
+    export type MarkChatReadMutationBody = BodyType<ChatReadInput>
+    export type MarkChatReadMutationError = ErrorType<unknown>
+    export type MarkChatReadMutationVariables = {chatActor: 'staff' | 'participant';threadId: number;data: BodyType<ChatReadInput>}
+
+    /**
+ * @summary Advance this account's read position to a visible message
+ */
+export const useMarkChatRead = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markChatRead>>, TError,MarkChatReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markChatRead>>,
+        TError,
+        MarkChatReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkChatReadMutationOptions(options));
     }
 

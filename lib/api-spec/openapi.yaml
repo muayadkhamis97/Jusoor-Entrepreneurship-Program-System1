@@ -3881,6 +3881,91 @@ paths:
         "403": { description: "Key lacks write permission for this resource or the record is outside the key's program" }
         "404": { description: Record not found }
         "409": { description: A final workflow decision cannot be changed }
+  /{chatActor}/chat/targets:
+    parameters:
+      - { name: chatActor, in: path, required: true, schema: { type: string, enum: [staff, participant] } }
+    get:
+      operationId: listChatTargets
+      summary: List authorized private and business-team conversation targets
+      responses:
+        "200":
+          description: Authorized conversation targets
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ChatTarget" } }
+  /{chatActor}/chat/threads:
+    parameters:
+      - { name: chatActor, in: path, required: true, schema: { type: string, enum: [staff, participant] } }
+    get:
+      operationId: listChatThreads
+      summary: List authorized conversations and unread counts
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ChatThread" } }
+    post:
+      operationId: createChatThread
+      summary: Open or reuse an authorized conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatThreadInput" }
+      responses:
+        "200":
+          description: Opened conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChatThread" }
+  /{chatActor}/chat/threads/{threadId}/messages:
+    parameters:
+      - { name: chatActor, in: path, required: true, schema: { type: string, enum: [staff, participant] } }
+      - { name: threadId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listChatMessages
+      summary: Read an authorized conversation, newest page first with older-message cursor
+      parameters:
+        - { name: beforeId, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Messages in chronological order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChatMessagePage" }
+    post:
+      operationId: sendChatMessage
+      summary: Append a message using the authenticated sender and an idempotency key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatMessageInput" }
+      responses:
+        "201":
+          description: Sent message or original message for a retried send
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChatMessage" }
+  /{chatActor}/chat/threads/{threadId}/read:
+    parameters:
+      - { name: chatActor, in: path, required: true, schema: { type: string, enum: [staff, participant] } }
+      - { name: threadId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      operationId: markChatRead
+      summary: Advance this account's read position to a visible message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatReadInput" }
+      responses:
+        "200":
+          description: Read position saved
+          content:
+            application/json:
+              schema: { type: object, required: [ok], properties: { ok: { type: boolean } } }
 components:
   parameters:
     Id:
@@ -3901,6 +3986,62 @@ components:
       scheme: bearer
       bearerFormat: Program integration key
   schemas:
+    ChatTarget:
+      type: object
+      required: [programId, programName, kind, targetId, name]
+      properties:
+        programId: { type: integer }
+        programName: { type: string }
+        kind: { type: string, enum: [private, business] }
+        targetId: { type: integer }
+        name: { type: string }
+    ChatThreadInput:
+      type: object
+      required: [programId, kind, targetId]
+      properties:
+        programId: { type: integer, minimum: 1 }
+        kind: { type: string, enum: [private, business] }
+        targetId: { type: integer, minimum: 1 }
+    ChatThread:
+      type: object
+      required: [id, programId, programName, kind, title, lastMessage, lastMessageAt, unreadCount]
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        kind: { type: string, enum: [private, business] }
+        title: { type: string }
+        lastMessage: { type: [string, "null"] }
+        lastMessageAt: { type: [string, "null"], format: date-time }
+        unreadCount: { type: integer }
+    ChatMessageInput:
+      type: object
+      required: [body, clientMessageId]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+        clientMessageId: { type: string, format: uuid }
+    ChatMessage:
+      type: object
+      required: [id, threadId, body, senderName, senderRole, isOwn, createdAt]
+      properties:
+        id: { type: integer }
+        threadId: { type: integer }
+        body: { type: string }
+        senderName: { type: string }
+        senderRole: { type: string, enum: [staff, participant] }
+        isOwn: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ChatMessagePage:
+      type: object
+      required: [messages, nextBeforeId]
+      properties:
+        messages: { type: array, items: { $ref: "#/components/schemas/ChatMessage" } }
+        nextBeforeId: { type: [integer, "null"] }
+    ChatReadInput:
+      type: object
+      required: [lastReadMessageId]
+      properties:
+        lastReadMessageId: { type: integer, minimum: 1 }
     IntegrationApiKeyInput:
       type: object
       additionalProperties: false

@@ -1,3 +1,6 @@
+export * from "./chat-threads";
+export * from "./chat-messages";
+export * from "./chat-reads";
 // Export your models here. Add one export per file
 // export * from "./posts";
 //

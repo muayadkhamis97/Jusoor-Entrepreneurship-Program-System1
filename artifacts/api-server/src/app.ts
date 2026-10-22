@@ -42,6 +42,7 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import { requireOperationsStaff, requireStaff } from "./middlewares/staffAccess";
 import { requireParticipant } from "./middlewares/participantAccess";
+import { createChatRouter } from "./routes/chat";
 import { requireRole } from "./middlewares/requireRole";
 import { logger } from "./lib/logger";
 import { createCorsOptionsDelegate } from "./lib/corsPolicy";
@@ -96,6 +97,8 @@ app.use("/api", programBrandingRouter);
 app.use("/api/v1", externalIntegrationApiRouter);
 app.use("/api", integrationApiKeysRouter);
 const participantAccess = options.participantMiddleware ?? requireParticipant;
+app.use("/api/participant/chat", participantAccess, createChatRouter("participant"));
+app.use("/api/staff/chat", requireStaff, requireOperationsStaff, createChatRouter("staff"));
 app.use("/api/participant/profile", participantAccess, participantProfileRouter);
  app.use("/api/participant", participantAccess, participantRouter);
 app.use("/api/participant", participantAccess, participantSessionInteractionsRouter);

@@ -15,7 +15,7 @@ test('Admin-only functions are absent from staff panels and denied by the same n
 });
 
 test('Program Staff retain permitted read and operational functions', () => {
-  for (const path of ['/', '/programs', '/businesses', '/sessions', '/support', '/communications', '/mentor-meeting-reports', '/pitches', '/courses', '/team-assignments', '/profile']) {
+  for (const path of ['/', '/programs', '/businesses', '/sessions', '/support', '/communications', '/chat', '/mentor-meeting-reports', '/pitches', '/courses', '/team-assignments', '/profile']) {
     assert.equal(canAccessStaffNavigationPath('staff', path), true, path);
   }
   assert.equal(canAccessStaffNavigationPath('staff', '/support/?type=mentor'), true);

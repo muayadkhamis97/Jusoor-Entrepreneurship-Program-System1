@@ -5972,3 +5972,155 @@ export const UpdateExternalProgramResourceResponse = zod.object({
 })
 
 
+/**
+ * @summary List authorized private and business-team conversation targets
+ */
+export const ListChatTargetsParams = zod.object({
+  "chatActor": zod.enum(['staff', 'participant'])
+})
+
+export const ListChatTargetsResponseItem = zod.object({
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "kind": zod.enum(['private', 'business']),
+  "targetId": zod.number().int(),
+  "name": zod.string()
+})
+export const ListChatTargetsResponse = zod.array(ListChatTargetsResponseItem)
+
+
+/**
+ * @summary List authorized conversations and unread counts
+ */
+export const ListChatThreadsParams = zod.object({
+  "chatActor": zod.enum(['staff', 'participant'])
+})
+
+export const ListChatThreadsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "kind": zod.enum(['private', 'business']),
+  "title": zod.string(),
+  "lastMessage": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable(),
+  "unreadCount": zod.number().int()
+})
+export const ListChatThreadsResponse = zod.array(ListChatThreadsResponseItem)
+
+
+/**
+ * @summary Open or reuse an authorized conversation
+ */
+export const CreateChatThreadParams = zod.object({
+  "chatActor": zod.enum(['staff', 'participant'])
+})
+
+
+
+
+
+export const CreateChatThreadBody = zod.object({
+  "programId": zod.number().int().min(1),
+  "kind": zod.enum(['private', 'business']),
+  "targetId": zod.number().int().min(1)
+})
+
+export const CreateChatThreadResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "kind": zod.enum(['private', 'business']),
+  "title": zod.string(),
+  "lastMessage": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable(),
+  "unreadCount": zod.number().int()
+})
+
+
+/**
+ * @summary Read an authorized conversation, newest page first with older-message cursor
+ */
+
+
+
+export const ListChatMessagesParams = zod.object({
+  "chatActor": zod.enum(['staff', 'participant']),
+  "threadId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const ListChatMessagesQueryParams = zod.object({
+  "beforeId": zod.coerce.number().int().min(1).optional()
+})
+
+export const ListChatMessagesResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number().int(),
+  "threadId": zod.number().int(),
+  "body": zod.string(),
+  "senderName": zod.string(),
+  "senderRole": zod.enum(['staff', 'participant']),
+  "isOwn": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "nextBeforeId": zod.number().int().nullable()
+})
+
+
+/**
+ * @summary Append a message using the authenticated sender and an idempotency key
+ */
+
+
+
+export const SendChatMessageParams = zod.object({
+  "chatActor": zod.enum(['staff', 'participant']),
+  "threadId": zod.coerce.number().int().min(1)
+})
+
+export const sendChatMessageBodyBodyMax = 4000;
+
+
+
+export const SendChatMessageBody = zod.object({
+  "body": zod.string().min(1).max(sendChatMessageBodyBodyMax),
+  "clientMessageId": zod.string().uuid()
+})
+
+export const SendChatMessageResponse = zod.object({
+  "id": zod.number().int(),
+  "threadId": zod.number().int(),
+  "body": zod.string(),
+  "senderName": zod.string(),
+  "senderRole": zod.enum(['staff', 'participant']),
+  "isOwn": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Advance this account's read position to a visible message
+ */
+
+
+
+export const MarkChatReadParams = zod.object({
+  "chatActor": zod.enum(['staff', 'participant']),
+  "threadId": zod.coerce.number().int().min(1)
+})
+
+
+
+
+export const MarkChatReadBody = zod.object({
+  "lastReadMessageId": zod.number().int().min(1)
+})
+
+export const MarkChatReadResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+

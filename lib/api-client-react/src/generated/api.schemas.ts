@@ -5,6 +5,97 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+export type ChatTargetKind = typeof ChatTargetKind[keyof typeof ChatTargetKind];
+
+
+export const ChatTargetKind = {
+  private: 'private',
+  business: 'business',
+} as const;
+
+export interface ChatTarget {
+  programId: number;
+  programName: string;
+  kind: ChatTargetKind;
+  targetId: number;
+  name: string;
+}
+
+export type ChatThreadInputKind = typeof ChatThreadInputKind[keyof typeof ChatThreadInputKind];
+
+
+export const ChatThreadInputKind = {
+  private: 'private',
+  business: 'business',
+} as const;
+
+export interface ChatThreadInput {
+  /** @minimum 1 */
+  programId: number;
+  kind: ChatThreadInputKind;
+  /** @minimum 1 */
+  targetId: number;
+}
+
+export type ChatThreadKind = typeof ChatThreadKind[keyof typeof ChatThreadKind];
+
+
+export const ChatThreadKind = {
+  private: 'private',
+  business: 'business',
+} as const;
+
+export interface ChatThread {
+  id: number;
+  programId: number;
+  programName: string;
+  kind: ChatThreadKind;
+  title: string;
+  /** @nullable */
+  lastMessage: string | null;
+  /** @nullable */
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+
+export interface ChatMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  body: string;
+  clientMessageId: string;
+}
+
+export type ChatMessageSenderRole = typeof ChatMessageSenderRole[keyof typeof ChatMessageSenderRole];
+
+
+export const ChatMessageSenderRole = {
+  staff: 'staff',
+  participant: 'participant',
+} as const;
+
+export interface ChatMessage {
+  id: number;
+  threadId: number;
+  body: string;
+  senderName: string;
+  senderRole: ChatMessageSenderRole;
+  isOwn: boolean;
+  createdAt: string;
+}
+
+export interface ChatMessagePage {
+  messages: ChatMessage[];
+  /** @nullable */
+  nextBeforeId: number | null;
+}
+
+export interface ChatReadInput {
+  /** @minimum 1 */
+  lastReadMessageId: number;
+}
+
 export type IntegrationApiPermission = typeof IntegrationApiPermission[keyof typeof IntegrationApiPermission];
 
 
@@ -4039,4 +4130,15 @@ export const GetStaffAssignmentHistoryAssignmentType = {
   staff_roles: 'staff_roles',
   business_team: 'business_team',
 } as const;
+
+export type ListChatMessagesParams = {
+/**
+ * @minimum 1
+ */
+beforeId?: number;
+};
+
+export type MarkChatRead200 = {
+  ok: boolean;
+};
 

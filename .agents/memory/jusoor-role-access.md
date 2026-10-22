@@ -17,6 +17,7 @@ description: Durable access boundaries for coordinator, trainer, mentor, judge, 
 - Profile editing is app-level: users can edit display name, phone, bio, organization, and profile photo. Admin may edit these details for both staff and participants; keep sign-in email, roles, and program assignments separate.
 - Hide functions the current user cannot access from panels and navigation.
 - Program staff can communicate with participants in their assigned active programs; all-program announcements remain Admin-only.
+- Chat supports both private participant/program-team conversations and shared business-team conversations, with explicit visibility labels.
 
 **Why:** The program uses distinct role workspaces; the user confirmed that project staff assign module dates while coordinators retain content control, requested cohort assignments be created by Admin and Program Staff rather than trainers, selected interactive-learning features, requested Admin for visible wording without changing the internal permission key, specified profile editing, per-program multi-role assignments, and business-only participant team sharing.
 
@@ -25,3 +26,5 @@ description: Durable access boundaries for coordinator, trainer, mentor, judge, 
 **Why hide unavailable functions:** The user asked to hide functions from panels when the user has no access. Keep the backend checks; hiding controls is not an authorization mechanism.
 
 **Why staff communications:** The user explicitly requested Communications for staff as well as Admins. Apply the existing program-assignment boundaries to history, publishing, deletion, and recording read receipts.
+
+**Why chat visibility:** The user chose both private participant/program-staff conversations and shared business-team chats. Membership in a business must never grant access to another participant's private conversation.

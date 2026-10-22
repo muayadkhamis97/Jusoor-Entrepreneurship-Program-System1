@@ -3,7 +3,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetParticipantDashboardQueryKey, getGetRecordingNoticeReceiptsQueryKey, getListAnnouncementsQueryKey, getListProgramsQueryKey, useCreateAnnouncement, useDeleteAnnouncement, useGetRecordingNoticeReceipts, useListAnnouncements, useListBusinesses, useListPrograms, useMarkAnnouncementRead } from '@workspace/api-client-react';
 import type { Announcement, AnnouncementInput, ParticipantAnnouncement } from '@workspace/api-client-react';
-import { AlertCircle, Bell, CalendarClock, Check, CheckCheck, Clock3, Megaphone, Plus, Trash2, Video } from 'lucide-react';
+import { AlertCircle, Bell, CalendarClock, Check, CheckCheck, Clock3, Megaphone, MessagesSquare, Plus, Trash2, Video } from 'lucide-react';
+import { Link } from 'wouter';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { businessesForProgram, buildAnnouncementAudienceTarget, type AnnouncementAudienceMode } from './announcement-audience';
 import './calendar-communications.css';
@@ -80,7 +81,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
   const programs = programsQuery.data || [];
 
   return <main className="communications-page">
-    <div className="page-heading"><div><div className="eyebrow">{t('COHORT & BUSINESS MESSAGES')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t(staffOnly ? 'Share an in-app update with an assigned program or one of its business teams.' : 'Share an in-app update with all cohorts, one cohort, or a business team.')}</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">{t('COHORT & BUSINESS MESSAGES')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t(staffOnly ? 'Share an in-app update with an assigned program or one of its business teams.' : 'Share an in-app update with all cohorts, one cohort, or a business team.')}</p></div><Link href="/chat" className="button button-outline" data-testid="link-open-chat"><MessagesSquare size={15} aria-hidden="true" /> {t('Chat')}</Link></div>
     <section className="communications-intro"><span className="communications-emblem"><Megaphone size={19} /></span><div><div className="eyebrow">{t('IN-APP ONLY')}</div><b>{t('One reliable place for what founders need to know.')}</b><p>{t('Published notes appear in the private participant portal. Share an update now or schedule a message for later.')}</p></div><span className="privacy-mark">{t('PRIVATE')}<br />{t('PORTAL')}</span></section>
     <div className="communications-layout">
       <section className="compose-panel panel">

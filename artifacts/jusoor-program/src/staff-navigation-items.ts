@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity, BarChart3, BookOpen, BriefcaseBusiness, CalendarCheck, CalendarDays,
-  CircleDollarSign, FileText, Handshake, KeyRound, LayoutDashboard, Palette,
+  CircleDollarSign, FileText, Handshake, KeyRound, LayoutDashboard, MessagesSquare, Palette,
   Shield, Trophy, UserRound, UsersRound,
 } from 'lucide-react';
 
@@ -44,6 +44,7 @@ export function getStaffNavigationItems(role: StaffNavigationRole): StaffNavigat
       : []),
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },
     { href: '/communications', label: 'Communications', icon: Activity },
+    { href: '/chat', label: 'Chat', icon: MessagesSquare },
     { href: '/support', label: 'Support', icon: Handshake },
     { href: '/mentor-meeting-reports', label: 'Mentor meeting reports', icon: FileText },
     { href: '/pitches', label: 'Pitch & grants', icon: Trophy },

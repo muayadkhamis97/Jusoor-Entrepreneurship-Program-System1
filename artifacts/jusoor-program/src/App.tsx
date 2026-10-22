@@ -69,6 +69,8 @@ const RoleNotFound = lazy(() => import('./role-surfaces').then(module => ({ defa
 const TrainerDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.TrainerDashboardPage })));
 const RoleAccessPage = lazy(() => import('./role-access').then(module => ({ default: module.RoleAccessPage })));
 const ProgramTeamAssignmentsPage = lazy(() => import('./team-assignments').then(module => ({ default: module.ProgramTeamAssignmentsPage })));
+const StaffChatPage = lazy(() => import('./chat-surfaces').then(module => ({ default: module.StaffChatPage })));
+const ParticipantChatPage = lazy(() => import('./chat-surfaces').then(module => ({ default: module.ParticipantChatPage })));
 const CommunicationsPage = lazy(() => import('./communications-surfaces').then(module => ({ default: module.CommunicationsPage })));
 const ProgramAnalyticsPage = lazy(() => import('./analytics-surfaces').then(module => ({ default: module.ProgramAnalyticsPage })));
 const CertificateVerificationPage = lazy(() => import('./learning-progress').then(module => ({ default: module.CertificateVerificationPage })));
@@ -1341,6 +1343,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/courses">{() => isAdmin ? <CourseManagementPage /> : isProgramStaff ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
     <Route path="/sessions">{() => <SessionsPage coordinator={isAdmin} staffId={staff.id} />}</Route>
     <Route path="/communications">{() => isAdmin || isProgramStaff ? <CommunicationsPage staffOnly={isProgramStaff} /> : <NotFoundPage />}</Route>
+    <Route path="/chat">{() => isAdmin || isProgramStaff ? <StaffChatPage /> : <NotFoundPage />}</Route>
     <Route path="/support">{() => <SupportPage coordinator={isAdmin} />}</Route>
     <Route path="/mentor-meeting-reports">{() => isAdmin || isProgramStaff ? <StaffMentorMeetingReportsPage /> : <NotFoundPage />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>
@@ -1414,7 +1417,10 @@ function AuthenticatedWorkspace() {
   if (staffQuery.isError || !staffQuery.data) {
     const status = (staffQuery.error as { status?: number } | null)?.status;
     if (location.startsWith('/participant') && status === 403) {
-      return location === '/participant/profile' ? <ParticipantProfilePage /> : <ParticipantDashboardPage />;
+      const participantPath = location.replace(/\/+$/, '');
+      if (participantPath === '/participant/profile') return <ParticipantProfilePage />;
+      if (participantPath === '/participant/chat') return <ParticipantChatPage />;
+      return <ParticipantDashboardPage />;
     }
     if (status === 403) return <AccessDenied retry={() => void staffQuery.refetch()} />;
     return <AccessCheckFailed sessionExpired={status === 401} retry={() => void staffQuery.refetch()} />;
