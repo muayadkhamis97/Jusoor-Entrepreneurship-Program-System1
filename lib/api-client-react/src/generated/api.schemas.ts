@@ -1884,6 +1884,29 @@ export const AnnouncementStatus = {
   published: 'published',
 } as const;
 
+export type AnnouncementEmailStatusState = typeof AnnouncementEmailStatusState[keyof typeof AnnouncementEmailStatusState];
+
+
+export const AnnouncementEmailStatusState = {
+  not_requested: 'not_requested',
+  queued: 'queued',
+  processing: 'processing',
+  complete: 'complete',
+  needs_attention: 'needs_attention',
+  paused: 'paused',
+  unavailable: 'unavailable',
+} as const;
+
+export interface AnnouncementEmailStatus {
+  state: AnnouncementEmailStatusState;
+  sent: number;
+  pending: number;
+  failed: number;
+  uncertain: number;
+  skipped: number;
+  canRetry: boolean;
+}
+
 export interface Announcement {
   id: number;
   /** @nullable */
@@ -1903,6 +1926,7 @@ export interface Announcement {
   scheduledFor: string;
   createdAt: string;
   status: AnnouncementStatus;
+  email?: AnnouncementEmailStatus;
 }
 
 export interface AnnouncementInput {
@@ -1925,6 +1949,7 @@ export interface AnnouncementInput {
      */
   body: string;
   scheduledFor?: string;
+  notifyByEmail?: boolean;
 }
 
 export type AnnouncementsList = Announcement[];

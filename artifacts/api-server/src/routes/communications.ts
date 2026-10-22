@@ -7,6 +7,8 @@ import {
   GetRecordingNoticeReceiptsParams,
   GetRecordingNoticeReceiptsResponse,
   ListAnnouncementsResponse,
+  RetryAnnouncementEmailParams,
+  RetryAnnouncementEmailResponse,
 } from "@workspace/api-zod";
 import {
   announcementReceiptsTable,
@@ -16,6 +18,8 @@ import {
   programAnnouncementsTable,
   programsTable,
   sessionsTable,
+  announcementEmailRequestsTable,
+  announcementEmailDeliveriesTable,
 } from "@workspace/db";
 import { requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
@@ -24,6 +28,7 @@ import {
   isMissingAnnouncementBusinessColumn,
 } from "../lib/announcement-targeting";
 import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
+import { announcementEmailStatuses, emptyEmailStatus } from "../lib/announcement-email";
 
 const router: IRouter = Router();
 router.use("/communications", requireOperationsStaff);
@@ -104,7 +109,12 @@ async function listAnnouncementRows(scope?: SQL): Promise<AnnouncementListRow[]>
 router.get("/communications", async (_req, res): Promise<void> => {
   const now = new Date();
   const scope = await announcementScope(res.locals.staff as StaffAccess);
-  const announcements = (await listAnnouncementRows(scope)).map(announcement => ({
+  const rows = await listAnnouncementRows(scope);
+  let emailStatuses: Awaited<ReturnType<typeof announcementEmailStatuses>> | undefined;
+  try { emailStatuses = await announcementEmailStatuses(rows.map(row => row.id)); }
+  catch { _req.log.warn("Announcement email status unavailable"); }
+  const announcements = rows.map(announcement => ({
+    email: emailStatuses?.get(announcement.id) ?? emptyEmailStatus(emailStatuses ? "not_requested" : "unavailable"),
     id: announcement.id,
     sessionId: announcement.sessionId,
     isCurrentRecordingNotice: isCurrentRecordingNotice({
@@ -287,7 +297,18 @@ router.post("/communications", async (req, res): Promise<void> => {
     : await db.select({ name: programsTable.name }).from(programsTable)
       .where(eq(programsTable.id, programId)).limit(1);
 
+  let email = emptyEmailStatus();
+  if (input.notifyByEmail) {
+    try {
+      await db.insert(announcementEmailRequestsTable).values({ announcementId: announcement.id });
+      email = emptyEmailStatus("queued");
+    } catch {
+      req.log.warn({ announcementId: announcement.id }, "Announcement published but email could not be queued");
+      email = emptyEmailStatus("unavailable");
+    }
+  }
   res.status(201).json(CreateAnnouncementResponse.parse({
+    email,
     id: announcement.id,
     sessionId: null,
     isCurrentRecordingNotice: false,
@@ -302,6 +323,28 @@ router.post("/communications", async (req, res): Promise<void> => {
     createdAt: announcement.createdAt,
     status: announcement.scheduledFor > new Date() ? "scheduled" : "published",
   }));
+});
+
+router.post("/communications/:id/email/retry", async (req, res): Promise<void> => {
+  const params = RetryAnnouncementEmailParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [announcement] = await db.select({ id: programAnnouncementsTable.id }).from(programAnnouncementsTable)
+    .innerJoin(announcementEmailRequestsTable,
+      eq(announcementEmailRequestsTable.announcementId, programAnnouncementsTable.id))
+    .where(and(eq(programAnnouncementsTable.id, params.data.id),
+      await announcementScope(res.locals.staff as StaffAccess))).limit(1);
+  if (!announcement) {
+    res.status(404).json({ error: "Accessible email-enabled announcement not found." });
+    return;
+  }
+  await db.update(announcementEmailDeliveriesTable).set({ status: "pending" })
+    .where(and(eq(announcementEmailDeliveriesTable.announcementId, announcement.id),
+      eq(announcementEmailDeliveriesTable.status, "failed")));
+  const statuses = await announcementEmailStatuses([announcement.id]);
+  res.json(RetryAnnouncementEmailResponse.parse(statuses.get(announcement.id)));
 });
 
 router.delete("/communications/:id", async (req, res): Promise<void> => {

@@ -19,6 +19,9 @@ export type PlatformEmail = {
 type ConnectorClient = Pick<ReplitConnectors, "proxy">;
 type LoadEmailBranding = () => Promise<ProgramEmailBranding>;
 
+// Only use safe retries when Gmail definitely did not accept this attempt.
+export class PlatformEmailSendUncertainError extends Error {}
+
 export async function sendPlatformEmail(
   message: PlatformEmail,
   connectors: ConnectorClient = new ReplitConnectors(),
@@ -60,12 +63,20 @@ export async function sendPlatformEmail(
       html: brandedHtml,
       messageId,
     });
-    const response = await connectors.proxy(
-      "google-mail",
-      "/gmail/v1/users/me/messages/send",
-      { method: "POST", body: { raw } },
-    );
+    let response: Awaited<ReturnType<ConnectorClient["proxy"]>>;
+    try {
+      response = await connectors.proxy(
+        "google-mail",
+        "/gmail/v1/users/me/messages/send",
+        { method: "POST", body: { raw } },
+      );
+    } catch {
+      throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.");
+    }
     if (!response.ok) {
+      if (response.status >= 500 || response.status === 408) {
+        throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.");
+      }
       throw new Error(`Gmail send returned HTTP ${response.status}.`);
     }
   }

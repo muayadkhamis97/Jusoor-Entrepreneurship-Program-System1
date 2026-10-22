@@ -26,6 +26,7 @@ import type {
   AnalyticsReportLayoutUpdate,
   Announcement,
   AnnouncementDeleteResult,
+  AnnouncementEmailStatus,
   AnnouncementInput,
   AnnouncementReadResult,
   AnnouncementsList,
@@ -10173,6 +10174,80 @@ export const useCreateAnnouncement = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateAnnouncementMutationOptions(options));
+    }
+
+export const getRetryAnnouncementEmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/communications/${id}/email/retry`
+}
+
+/**
+ * @summary Retry only safely failed deliveries for an opted-in announcement
+ */
+export const retryAnnouncementEmail = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementEmailStatus> => {
+
+  return customFetch<AnnouncementEmailStatus>(getRetryAnnouncementEmailUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryAnnouncementEmailMutationKey = () => ['retryAnnouncementEmail'] as const;
+
+export const getRetryAnnouncementEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryAnnouncementEmail>>, TError,RetryAnnouncementEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryAnnouncementEmail>>, TError,RetryAnnouncementEmailMutationVariables, TContext> => {
+
+const mutationKey = getRetryAnnouncementEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryAnnouncementEmail>>, RetryAnnouncementEmailMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryAnnouncementEmail(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryAnnouncementEmailMutationResult = NonNullable<Awaited<ReturnType<typeof retryAnnouncementEmail>>>
+
+    export type RetryAnnouncementEmailMutationError = ErrorType<void>
+    export type RetryAnnouncementEmailMutationVariables = {id: number}
+
+    /**
+ * @summary Retry only safely failed deliveries for an opted-in announcement
+ */
+export const useRetryAnnouncementEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryAnnouncementEmail>>, TError,RetryAnnouncementEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryAnnouncementEmail>>,
+        TError,
+        RetryAnnouncementEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetryAnnouncementEmailMutationOptions(options));
     }
 
 export const getGetRecordingNoticeReceiptsUrl = (id: number,) => {

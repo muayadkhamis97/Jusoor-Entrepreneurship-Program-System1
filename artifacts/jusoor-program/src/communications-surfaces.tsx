@@ -7,6 +7,7 @@ import { AlertCircle, Bell, CalendarClock, Check, CheckCheck, Clock3, Megaphone,
 import { Link } from 'wouter';
 import { SessionRecordingPlayer } from './session-recording-player';
 import { businessesForProgram, buildAnnouncementAudienceTarget, type AnnouncementAudienceMode } from './announcement-audience';
+import { AnnouncementEmailDelivery } from './announcement-email-status';
 import './calendar-communications.css';
 
 const fmtDate = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -14,7 +15,7 @@ const localDateTime = (date: Date) => new Date(date.getTime() - date.getTimezone
 
 export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean }) {
   useAppLanguage();
-  const announcementsQuery = useListAnnouncements({ query: { queryKey: getListAnnouncementsQueryKey() } });
+  const announcementsQuery = useListAnnouncements({ query: { queryKey: getListAnnouncementsQueryKey(), refetchInterval: 15_000 } });
   const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey() } });
   const businessesQuery = useListBusinesses();
   const create = useCreateAnnouncement();
@@ -34,6 +35,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [scheduledFor, setScheduledFor] = useState('');
+  const [notifyByEmail, setNotifyByEmail] = useState(false);
   const [filter, setFilter] = useState<'all' | 'published' | 'scheduled'>('all');
   const [notice, setNotice] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState<number | null>(null);
@@ -57,12 +59,15 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
       kind,
       title: title.trim(),
       body: body.trim(),
+      notifyByEmail,
       ...(scheduledFor ? { scheduledFor: new Date(scheduledFor).toISOString() } : {}),
     };
     create.mutate({ data: input }, {
       onSuccess: result => {
-        setTitle(''); setBody(''); setScheduledFor('');
-        setNotice(result.status === 'scheduled'
+        setTitle(''); setBody(''); setScheduledFor(''); setNotifyByEmail(false);
+        setNotice(result.email?.state === 'unavailable'
+          ? 'The portal message is saved, but email could not be queued. Do not publish it again to retry email.'
+          : result.status === 'scheduled'
           ? audienceMode === 'business' ? 'Reminder scheduled for the selected business team.' : audienceMode === 'cohort' ? 'Reminder scheduled for the selected cohort.' : 'Reminder scheduled for all cohorts.'
           : audienceMode === 'business' ? 'Message published to the selected business team.' : audienceMode === 'cohort' ? 'Announcement published to the cohort.' : 'Announcement published to all cohorts.');
         void Promise.all([
@@ -103,6 +108,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
           <label className="field"><span>{t('Message')} <i>*</i></span><textarea className="form-control" value={body} onChange={event => setBody(event.target.value)} required minLength={5} maxLength={5000} rows={5} placeholder={t('Share the details founders need. Keep it useful and specific.')} data-testid="input-announcement-body" /><small>{body.length} / {t('5,000 characters')}</small></label>
           <label className="field"><span>{t('Schedule for later')} <small className="optional-label">{t('optional')}</small></span><input className="form-control" type="datetime-local" min={localDateTime(now)} value={scheduledFor} onChange={event => setScheduledFor(event.target.value)} data-testid="input-announcement-schedule" /><small>{t('Leave blank to publish immediately.')}</small></label>
           {create.isError && <div className="form-error" role="alert"><AlertCircle size={15} />{t((create.error as { status?: number } | null)?.status === 403 ? 'You can only send messages to active programs assigned to your account.' : 'Could not save this message. Check the fields and try again.')}{(create.error as { status?: number } | null)?.status === 503 && <> {t('Business messages need the program data update before they can be sent.')}</>}</div>}
+          <label className="field"><span><input type="checkbox" checked={notifyByEmail} onChange={event => setNotifyByEmail(event.target.checked)} data-testid="checkbox-announcement-email" /> {t('Also email accepted participants')}</span><small>{t('Optional for important announcements. Email starts after publication, using the selected audience. Portal publishing does not depend on email delivery.')}</small></label>
           {notice && <div className="communication-success" role="status"><Check size={16} />{t(notice)}</div>}
           <button type="submit" className="button button-primary announcement-submit" disabled={create.isPending || programsQuery.isLoading || (staffOnly && (programsQuery.isError || !programs.some(program => String(program.id) === cohort))) || (audienceMode === 'business' && businessesQuery.isLoading)} data-testid="button-publish-announcement">{create.isPending ? t('Saving message…') : <>{scheduledFor ? <CalendarClock size={15} /> : <Plus size={15} />}{scheduledFor ? t(`Schedule ${kind}`) : t('Publish to portal')}</>}</button>
         </form>
@@ -122,6 +128,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
                 <div className="announcement-meta"><span className={`announcement-status ${item.status}`}>{item.status === 'scheduled' ? t('Scheduled') : t('Published')}</span><span>{item.sessionId ? t('Recording') : item.kind === 'reminder' ? t('Reminder') : t('Update')}</span><span>{item.businessName ? `${item.businessName} · ${item.programName}` : item.programName || t('All cohorts')}</span></div>
                 <h3>{item.title}</h3><p>{item.body}</p>
                 <small><Clock3 size={12} />{item.status === 'scheduled' ? t('Goes live') + ' ' : t('Shared') + ' '}{fmtDate(item.scheduledFor)}</small>
+                <AnnouncementEmailDelivery id={item.id} email={item.email} />
                 {item.sessionId !== null && item.isCurrentRecordingNotice && item.status === 'published' && <div className="recording-receipt-actions">
                   <button
                     type="button"
@@ -162,7 +169,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
           })}</div>}
       </section>
     </div>
-    <p className="communications-privacy"><CheckCheck size={14} /> {t('Only published announcements are visible to participants. Scheduled messages remain in the program team view until their release time.')}</p>
+    <p className="communications-privacy"><CheckCheck size={14} /> {t('Only published announcements are visible to participants. Scheduled messages remain in the program team view until their release time.')} {t('Removing an announcement stops queued emails, but cannot recall emails already sending or sent.')}</p>
   </main>;
 }
 

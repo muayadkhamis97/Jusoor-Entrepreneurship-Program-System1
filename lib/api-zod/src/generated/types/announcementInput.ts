@@ -27,4 +27,5 @@ export interface AnnouncementInput {
      */
   body: string;
   scheduledFor?: Date;
+  notifyByEmail?: boolean;
 }

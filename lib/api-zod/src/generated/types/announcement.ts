@@ -5,6 +5,7 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { AnnouncementEmailStatus } from './announcementEmailStatus';
 import type { AnnouncementKind } from './announcementKind';
 import type { AnnouncementStatus } from './announcementStatus';
 
@@ -27,4 +28,5 @@ export interface Announcement {
   scheduledFor: Date;
   createdAt: Date;
   status: AnnouncementStatus;
+  email?: AnnouncementEmailStatus;
 }

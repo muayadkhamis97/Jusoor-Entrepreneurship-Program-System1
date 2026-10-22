@@ -2486,6 +2486,24 @@ paths:
           description: Invalid input
         "403":
           description: Coordinator access required
+  /communications/{id}/email/retry:
+    post:
+      operationId: retryAnnouncementEmail
+      tags: [communications]
+      summary: Retry only safely failed deliveries for an opted-in announcement
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Delivery status after queuing safe retries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementEmailStatus"
+        "400":
+          description: Invalid announcement ID
+        "404":
+          description: Accessible opted-in announcement not found
   /communications/{id}/read-receipts:
     get:
       operationId: getRecordingNoticeReceipts
@@ -5460,6 +5478,7 @@ components:
         scheduledFor: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         status: { type: string, enum: [scheduled, published] }
+        email: { $ref: "#/components/schemas/AnnouncementEmailStatus" }
       required: [id, sessionId, isCurrentRecordingNotice, programId, programName, businessId, businessName, kind, title, body, scheduledFor, createdAt, status]
     AnnouncementInput:
       type: object
@@ -5470,7 +5489,19 @@ components:
         title: { type: string, minLength: 3, maxLength: 180 }
         body: { type: string, minLength: 5, maxLength: 5000 }
         scheduledFor: { type: string, format: date-time }
+        notifyByEmail: { type: boolean, default: false }
       required: [kind, title, body]
+    AnnouncementEmailStatus:
+      type: object
+      properties:
+        state: { type: string, enum: [not_requested, queued, processing, complete, needs_attention, paused, unavailable] }
+        sent: { type: integer }
+        pending: { type: integer }
+        failed: { type: integer }
+        uncertain: { type: integer }
+        skipped: { type: integer }
+        canRetry: { type: boolean }
+      required: [state, sent, pending, failed, uncertain, skipped, canRetry]
     AnnouncementsList:
       type: array
       items: { $ref: "#/components/schemas/Announcement" }

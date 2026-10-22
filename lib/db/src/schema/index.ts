@@ -1,3 +1,4 @@
+export * from "./announcement-email";
 export * from "./chat-threads";
 export * from "./chat-messages";
 export * from "./chat-reads";

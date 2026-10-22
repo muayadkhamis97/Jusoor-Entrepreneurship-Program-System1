@@ -3832,7 +3832,16 @@ export const ListAnnouncementsResponseItem = zod.object({
   "body": zod.string(),
   "scheduledFor": zod.coerce.date(),
   "createdAt": zod.coerce.date(),
-  "status": zod.enum(['scheduled', 'published'])
+  "status": zod.enum(['scheduled', 'published']),
+  "email": zod.object({
+  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
+  "sent": zod.number().int(),
+  "pending": zod.number().int(),
+  "failed": zod.number().int(),
+  "uncertain": zod.number().int(),
+  "skipped": zod.number().int(),
+  "canRetry": zod.boolean()
+}).optional()
 })
 export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
 
@@ -3847,7 +3856,7 @@ export const createAnnouncementBodyTitleMax = 180;
 export const createAnnouncementBodyBodyMin = 5;
 export const createAnnouncementBodyBodyMax = 5000;
 
-
+export const createAnnouncementBodyNotifyByEmailDefault = false;
 
 export const CreateAnnouncementBody = zod.object({
   "programId": zod.number().int().nullish(),
@@ -3855,7 +3864,8 @@ export const CreateAnnouncementBody = zod.object({
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string().min(createAnnouncementBodyTitleMin).max(createAnnouncementBodyTitleMax),
   "body": zod.string().min(createAnnouncementBodyBodyMin).max(createAnnouncementBodyBodyMax),
-  "scheduledFor": zod.coerce.date().optional()
+  "scheduledFor": zod.coerce.date().optional(),
+  "notifyByEmail": zod.boolean().default(createAnnouncementBodyNotifyByEmailDefault)
 })
 
 export const CreateAnnouncementResponse = zod.object({
@@ -3871,7 +3881,34 @@ export const CreateAnnouncementResponse = zod.object({
   "body": zod.string(),
   "scheduledFor": zod.coerce.date(),
   "createdAt": zod.coerce.date(),
-  "status": zod.enum(['scheduled', 'published'])
+  "status": zod.enum(['scheduled', 'published']),
+  "email": zod.object({
+  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
+  "sent": zod.number().int(),
+  "pending": zod.number().int(),
+  "failed": zod.number().int(),
+  "uncertain": zod.number().int(),
+  "skipped": zod.number().int(),
+  "canRetry": zod.boolean()
+}).optional()
+})
+
+
+/**
+ * @summary Retry only safely failed deliveries for an opted-in announcement
+ */
+export const RetryAnnouncementEmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RetryAnnouncementEmailResponse = zod.object({
+  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
+  "sent": zod.number().int(),
+  "pending": zod.number().int(),
+  "failed": zod.number().int(),
+  "uncertain": zod.number().int(),
+  "skipped": zod.number().int(),
+  "canRetry": zod.boolean()
 })
 
 
