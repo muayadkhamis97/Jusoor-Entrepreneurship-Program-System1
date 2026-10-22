@@ -99,6 +99,19 @@ router.patch("/:formId/status", async (req, res) => {
   });
   res.json(UpdateJudgingFormStatusResponse.parse(await detail(staff, id)));
 });
+router.post("/:formId/rotate-link", async (req, res) => {
+  const staff = res.locals.staff as StaffAccess;
+  const id = Number(req.params.formId);
+  await db.transaction(async tx => {
+    const { form } = await staffJudgingForm(staff, id, tx, true);
+    if (!form.publishedAt) throw new JudgingFormError(409, "Open the form before replacing its share link.");
+    const token = newJudgingToken();
+    await tx.update(judgingFormsTable).set({
+      shareTokenHash: token.hash, shareTokenEnc: token.encrypted, updatedAt: new Date(),
+    }).where(eq(judgingFormsTable.id, id));
+  });
+  res.json(GetJudgingFormResponse.parse(await detail(staff, id)));
+});
 router.get("/:formId/responses", async (req, res) => {
   const { form } = await staffJudgingForm(res.locals.staff as StaffAccess, Number(req.params.formId));
   const params = ListJudgingFormResponsesQueryParams.safeParse(req.query);

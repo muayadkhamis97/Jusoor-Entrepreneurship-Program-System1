@@ -17119,6 +17119,80 @@ export const useUpdateJudgingFormStatus = <TError = ErrorType<unknown>,
       return useMutation(getUpdateJudgingFormStatusMutationOptions(options));
     }
 
+export const getRotateJudgingFormShareLinkUrl = (formId: number,) => {
+
+
+
+
+  return `/api/staff/judging-forms/${formId}/rotate-link`
+}
+
+/**
+ * @summary Replace a published form's share link without changing its rubric or responses
+ */
+export const rotateJudgingFormShareLink = async (formId: number, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormDetail> => {
+
+  return customFetch<JudgingFormDetail>(getRotateJudgingFormShareLinkUrl(formId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRotateJudgingFormShareLinkMutationKey = () => ['rotateJudgingFormShareLink'] as const;
+
+export const getRotateJudgingFormShareLinkMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rotateJudgingFormShareLink>>, TError,RotateJudgingFormShareLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rotateJudgingFormShareLink>>, TError,RotateJudgingFormShareLinkMutationVariables, TContext> => {
+
+const mutationKey = getRotateJudgingFormShareLinkMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rotateJudgingFormShareLink>>, RotateJudgingFormShareLinkMutationVariables> = (props) => {
+          const {formId} = props ?? {};
+
+          return  rotateJudgingFormShareLink(formId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RotateJudgingFormShareLinkMutationResult = NonNullable<Awaited<ReturnType<typeof rotateJudgingFormShareLink>>>
+
+    export type RotateJudgingFormShareLinkMutationError = ErrorType<unknown>
+    export type RotateJudgingFormShareLinkMutationVariables = {formId: number}
+
+    /**
+ * @summary Replace a published form's share link without changing its rubric or responses
+ */
+export const useRotateJudgingFormShareLink = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rotateJudgingFormShareLink>>, TError,RotateJudgingFormShareLinkMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rotateJudgingFormShareLink>>,
+        TError,
+        RotateJudgingFormShareLinkMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRotateJudgingFormShareLinkMutationOptions(options));
+    }
+
 export const getListJudgingFormResponsesUrl = (formId: number,
     params?: ListJudgingFormResponsesParams,) => {
   const normalizedParams = new URLSearchParams();

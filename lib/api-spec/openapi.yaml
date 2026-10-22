@@ -4137,6 +4137,18 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/JudgingFormDetail" }
+  /staff/judging-forms/{formId}/rotate-link:
+    parameters:
+      - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      operationId: rotateJudgingFormShareLink
+      summary: Replace a published form's share link without changing its rubric or responses
+      responses:
+        "200":
+          description: Form with its new staff-only share token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JudgingFormDetail" }
   /staff/judging-forms/{formId}/responses:
     parameters:
       - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }

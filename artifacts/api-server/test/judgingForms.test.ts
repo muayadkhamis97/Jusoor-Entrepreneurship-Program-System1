@@ -125,6 +125,7 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(form.responseCount, 0);
     const stored = await client.query("SELECT share_token_enc FROM program_judging_forms WHERE id=$1", [formId]);
     token = readJudgingToken(stored.rows[0].share_token_enc)!;
+    assert.equal((await staff(`/${formId}/rotate-link`, "POST")).status, 409, "draft links cannot be replaced before publishing");
     assert.equal((await guest()).status, 404, "drafts are not public even if their token is known");
     assert.equal((await staff(`/${formId}`, "PATCH", { ...definition, title: "Revised assessment" })).status, 200);
     assert.equal((await staff(`/${formId}`, "PATCH", { ...definition, programId: 22 })).status, 400);
@@ -174,15 +175,40 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(page.responses[0].answers[0].text, "Useful next steps");
     assert.equal((await (await staff(`/${formId}`)).json()).responseCount, 2);
   });
+  test("authorized staff can replace an open form link without changing its rubric or submitted assessments", async () => {
+    const previousToken = token;
+    const before = await (await staff(`/${formId}`)).json();
+    const rotated = await staff(`/${formId}/rotate-link`, "POST");
+    assert.equal(rotated.status, 200);
+    const after = await rotated.json();
+    token = after.shareToken;
+    assert.notEqual(token, previousToken);
+    assert.equal(after.title, before.title);
+    assert.deepEqual(after.criteria, before.criteria);
+    assert.deepEqual(after.questions, before.questions);
+    assert.deepEqual(after.businesses, before.businesses);
+    assert.equal(after.responseCount, 2);
+    assert.equal((await guest("GET", undefined, previousToken)).status, 404);
+    assert.equal((await guest("POST", assessment, previousToken)).status, 404);
+    assert.equal((await guest()).status, 200);
+    const responses = await (await staff(`/${formId}/responses`)).json();
+    assert.equal(responses.responses.length, 2);
+    assert.equal((await guest("POST", { ...assessment, clientSubmissionId: randomUUID() })).status, 409,
+      "existing per-business judge uniqueness still applies with the replacement link");
+  });
   test("staff response privacy is enforced on list, details, status, editing and pagination", async () => {
     assert.ok((await (await staff()).json()).every((form: any) => form.programId === 11));
     for (const [suffix, method, body] of [
       [`/${foreignId}`, "GET", undefined], [`/${foreignId}/responses`, "GET", undefined],
       [`/${foreignId}`, "PATCH", definition], [`/${foreignId}/status`, "PATCH", { status: "closed" }],
     ] as const) assert.equal((await staff(suffix, method, body)).status, 404);
+    assert.equal((await staff(`/${foreignId}/rotate-link`, "POST")).status, 404);
+    assert.equal((await staff(`/${foreignId}/rotate-link`, "POST", undefined, "coordinator")).status, 200,
+      "Admin can replace links across programs");
     for (const role of ["judge", "mentor", "trainer"]) {
       assert.equal((await staff("", "GET", undefined, role)).status, 403);
       assert.equal((await staff("", "POST", definition, role)).status, 403);
+      assert.equal((await staff(`/${formId}/rotate-link`, "POST", undefined, role)).status, 403);
     }
     assert.equal((await request(`/staff/judging-forms/${formId}/responses`)).status, 403);
     assert.equal((await staff(`/${formId}/responses?beforeId=1.5`)).status, 400);
@@ -201,6 +227,15 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "closed" })).status, 200);
     assert.equal((await guest()).status, 410);
     assert.equal((await guest("POST", { ...assessment, judgeEmail: "other@example.test", clientSubmissionId: randomUUID() })).status, 410);
+    const previousToken = token;
+    const rotated = await staff(`/${formId}/rotate-link`, "POST");
+    assert.equal(rotated.status, 200);
+    token = (await rotated.json()).shareToken;
+    assert.notEqual(token, previousToken);
+    assert.equal((await guest("GET", undefined, previousToken)).status, 404);
+    assert.equal((await guest("POST", assessment, previousToken)).status, 404);
+    assert.equal((await guest()).status, 410, "a replacement link is unavailable while the form is closed");
+    assert.equal((await guest("POST", { ...assessment, judgeEmail: "new@example.test", clientSubmissionId: randomUUID() })).status, 410);
     assert.equal((await guest("POST", assessment)).status, 200);
     assert.equal((await staff(`/${formId}`, "PATCH", definition)).status, 409);
     assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "open" })).status, 200);

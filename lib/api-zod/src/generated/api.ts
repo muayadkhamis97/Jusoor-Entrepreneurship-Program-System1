@@ -6588,6 +6588,55 @@ export const UpdateJudgingFormStatusResponse = zod.object({
 
 
 /**
+ * @summary Replace a published form's share link without changing its rubric or responses
+ */
+
+
+
+export const RotateJudgingFormShareLinkParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+export const rotateJudgingFormShareLinkResponseTwoCriteriaItemLabelMax = 200;
+
+export const rotateJudgingFormShareLinkResponseTwoCriteriaItemDescriptionMax = 1000;
+
+export const rotateJudgingFormShareLinkResponseTwoCriteriaItemMaxScoreMax = 100;
+
+export const rotateJudgingFormShareLinkResponseTwoQuestionsItemLabelMax = 500;
+
+
+
+export const RotateJudgingFormShareLinkResponse = zod.object({
+  "id": zod.number().int(),
+  "programId": zod.number().int(),
+  "programName": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'open', 'closed']),
+  "responseCount": zod.number().int(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "instructions": zod.string(),
+  "criteria": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(rotateJudgingFormShareLinkResponseTwoCriteriaItemLabelMax),
+  "description": zod.string().max(rotateJudgingFormShareLinkResponseTwoCriteriaItemDescriptionMax),
+  "maxScore": zod.number().int().min(1).max(rotateJudgingFormShareLinkResponseTwoCriteriaItemMaxScoreMax)
+})),
+  "questions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(rotateJudgingFormShareLinkResponseTwoQuestionsItemLabelMax),
+  "required": zod.boolean()
+})),
+  "businesses": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})),
+  "shareToken": zod.string().nullable()
+}))
+
+
+/**
  * @summary Read private judging responses for an authorized form
  */
 

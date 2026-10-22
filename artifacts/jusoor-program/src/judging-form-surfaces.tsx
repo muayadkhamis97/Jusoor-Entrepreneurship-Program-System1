@@ -5,7 +5,7 @@ import { CircleAlert, ClipboardCopy, Eye, Lock, Plus, RefreshCw, Trash2, Trophy 
 import {
   getGetJudgingFormQueryKey, getListBusinessesQueryKey, getListJudgingFormResponsesQueryKey, getListJudgingFormsQueryKey,
   useCreateJudgingForm, useGetJudgingForm, useListBusinesses, useListJudgingFormResponses, useListJudgingForms, useListPrograms,
-  useUpdateJudgingForm, useUpdateJudgingFormStatus,
+  useRotateJudgingFormShareLink, useUpdateJudgingForm, useUpdateJudgingFormStatus,
 } from '@workspace/api-client-react';
 import type { JudgingFormDetail, JudgingFormSummary } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
@@ -309,11 +309,28 @@ function FormEditor({ initial, formId, onSaved, onCancel }: { initial: FormDraft
 }
 
 function SharePanel({ form }: { form: JudgingFormDetail }) {
+  const queryClient = useQueryClient();
+  const rotateLink = useRotateJudgingFormShareLink();
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  useEffect(() => { setCopyState('idle'); }, [form.id]);
+  const [confirmRotate, setConfirmRotate] = useState(false);
+  const [rotateError, setRotateError] = useState('');
+  const [rotateSuccess, setRotateSuccess] = useState(false);
+  useEffect(() => { setCopyState('idle'); }, [form.id, form.shareToken]);
   if (form.status === 'draft') return <div className="panel jf-section"><Typography as="h3" variant="label">{t('SHARE LINK')}</Typography><p className="field-hint">{t('The share link becomes available after you open the form to judges.')}</p></div>;
   if (!form.shareToken) return <div className="panel jf-section"><Typography as="h3" variant="label">{t('SHARE LINK')}</Typography><div className="form-error" role="alert"><CircleAlert size={16} />{t('The share link is unavailable for this form. The stored link could not be read, so no link is shown. Contact your platform administrator.')}</div></div>;
   const url = buildShareUrl(window.location.origin, import.meta.env.BASE_URL, form.shareToken);
+  const replaceLink = async () => {
+    setRotateError('');
+    try {
+      const updated = await rotateLink.mutateAsync({ formId: form.id });
+      queryClient.setQueryData(getGetJudgingFormQueryKey(form.id), updated);
+      void queryClient.invalidateQueries({ queryKey: getListJudgingFormsQueryKey() });
+      setConfirmRotate(false);
+      setRotateSuccess(true);
+    } catch (caught) {
+      setRotateError(staffErrorMessage(errorStatus(caught), 'The share link could not be replaced. Try again.'));
+    }
+  };
   const copy = async () => {
     try { await navigator.clipboard.writeText(url); setCopyState('copied'); } catch { setCopyState('failed'); }
   };
@@ -327,8 +344,22 @@ function SharePanel({ form }: { form: JudgingFormDetail }) {
       <button type="button" className="button button-outline" onClick={() => void copy()} data-testid="button-copy-judging-link"><ClipboardCopy size={15} /> {t('Copy link')}</button>
       <span role="status" className={copyState === 'failed' ? 'jf-field-error' : 'field-hint'}>{copyState === 'copied' ? t('Link copied.') : copyState === 'failed' ? t('Copy failed. Select the link above and copy it manually.') : ''}</span>
     </div>
+    <div className="jf-list-row">
+      <Button variant="pill" onClick={() => { setRotateError(''); setRotateSuccess(false); setConfirmRotate(true); }} disabled={rotateLink.isPending} data-testid="button-replace-judging-link">
+        {t('Replace link')}
+      </Button>
+      <span className="field-hint">{t('Replacing the link stops the old link immediately. Submitted assessments and the locked rubric stay unchanged.')}</span>
+    </div>
+    {rotateSuccess && <p className="jf-success" role="status">{t('The link was replaced. Share the new link with judges; the previous link no longer works.')}</p>}
+    {rotateError && <div className="form-error" role="alert"><CircleAlert size={16} />{t(rotateError)}</div>}
     {form.status === 'closed' && <p className="field-hint">{t('This form is closed, so the link does not accept new responses until you reopen it.')}</p>}
     <p className="field-hint">{t('Anyone with this link can submit an assessment without signing in. Names and emails are self-reported and not verified. Guest responses stay here and are not added to signed-in judge scorecards or pitch scores.')}</p>
+    <Dialog open={confirmRotate} onOpenChange={open => { if (!rotateLink.isPending) setConfirmRotate(open); }} eyebrow={t('REPLACE SHARE LINK')} title={t('Replace this judging link?')} description={t('The current link will stop loading and accepting submissions immediately. Existing assessments and the locked rubric will remain unchanged. The replacement link only accepts new assessments while the form is open.')}>
+      <div className="jf-dialog-actions">
+        <Button type="button" variant="text" onClick={() => setConfirmRotate(false)} disabled={rotateLink.isPending}>{t('Keep current link')}</Button>
+        <Button type="button" variant="primary" onClick={() => void replaceLink()} disabled={rotateLink.isPending} data-testid="button-confirm-replace-judging-link">{rotateLink.isPending ? t('Replacing…') : t('Replace link')}</Button>
+      </div>
+    </Dialog>
   </div>;
 }
 
