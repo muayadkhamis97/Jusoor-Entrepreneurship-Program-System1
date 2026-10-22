@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { canAccessStaffNavigationPath, getStaffNavigationItems } from './staff-navigation-items';
 
-const adminPages = ['/analytics', '/branding', '/api-integrations', '/communications', '/grants', '/applications', '/mentor-booking', '/team', '/profiles', '/access'];
+const adminPages = ['/analytics', '/branding', '/api-integrations', '/grants', '/applications', '/mentor-booking', '/team', '/profiles', '/access'];
 
 test('Admin-only functions are absent from staff panels and denied by the same navigation policy', () => {
   const staffPaths = getStaffNavigationItems('staff').map(item => item.href);
@@ -15,7 +15,7 @@ test('Admin-only functions are absent from staff panels and denied by the same n
 });
 
 test('Program Staff retain permitted read and operational functions', () => {
-  for (const path of ['/', '/programs', '/businesses', '/sessions', '/support', '/mentor-meeting-reports', '/pitches', '/courses', '/team-assignments', '/profile']) {
+  for (const path of ['/', '/programs', '/businesses', '/sessions', '/support', '/communications', '/mentor-meeting-reports', '/pitches', '/courses', '/team-assignments', '/profile']) {
     assert.equal(canAccessStaffNavigationPath('staff', path), true, path);
   }
   assert.equal(canAccessStaffNavigationPath('staff', '/support/?type=mentor'), true);

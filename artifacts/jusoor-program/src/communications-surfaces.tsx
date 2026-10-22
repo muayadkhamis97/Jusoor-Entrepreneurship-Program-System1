@@ -11,7 +11,7 @@ import './calendar-communications.css';
 const fmtDate = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 const localDateTime = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-export function CommunicationsPage() {
+export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean }) {
   useAppLanguage();
   const announcementsQuery = useListAnnouncements({ query: { queryKey: getListAnnouncementsQueryKey() } });
   const programsQuery = useListPrograms(undefined, { query: { queryKey: getListProgramsQueryKey() } });
@@ -27,7 +27,7 @@ export function CommunicationsPage() {
     },
   });
   const [kind, setKind] = useState<'update' | 'reminder'>('update');
-  const [audienceMode, setAudienceMode] = useState<AnnouncementAudienceMode>('all');
+  const [audienceMode, setAudienceMode] = useState<AnnouncementAudienceMode>(staffOnly ? 'cohort' : 'all');
   const [cohort, setCohort] = useState('');
   const [businessId, setBusinessId] = useState('');
   const [title, setTitle] = useState('');
@@ -47,7 +47,7 @@ export function CommunicationsPage() {
     event.preventDefault();
     setNotice('');
     const target = buildAnnouncementAudienceTarget(audienceMode, cohort, businessId);
-    if (!target) {
+    if (!target || (staffOnly && target.programId === null)) {
       setNotice('Choose a program and business before publishing this message.');
       return;
     }
@@ -80,19 +80,20 @@ export function CommunicationsPage() {
   const programs = programsQuery.data || [];
 
   return <main className="communications-page">
-    <div className="page-heading"><div><div className="eyebrow">{t('COHORT & BUSINESS MESSAGES')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t('Share an in-app update with all cohorts, one cohort, or a business team.')}</p></div></div>
+    <div className="page-heading"><div><div className="eyebrow">{t('COHORT & BUSINESS MESSAGES')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t(staffOnly ? 'Share an in-app update with an assigned program or one of its business teams.' : 'Share an in-app update with all cohorts, one cohort, or a business team.')}</p></div></div>
     <section className="communications-intro"><span className="communications-emblem"><Megaphone size={19} /></span><div><div className="eyebrow">{t('IN-APP ONLY')}</div><b>{t('One reliable place for what founders need to know.')}</b><p>{t('Published notes appear in the private participant portal. Share an update now or schedule a message for later.')}</p></div><span className="privacy-mark">{t('PRIVATE')}<br />{t('PORTAL')}</span></section>
     <div className="communications-layout">
       <section className="compose-panel panel">
         <header className="panel-heading"><div><div className="eyebrow">{t('WRITE TO FOUNDERS')}</div><h2 className="app-title">{t('New announcement')}</h2></div><span className="compose-index">01</span></header>
         <form className="announcement-form" onSubmit={save}>
+          {staffOnly && programsQuery.isSuccess && programs.length === 0 && <p className="empty-inline" role="status">{t('No active programs are assigned to this account.')} {t('Ask an Admin to assign a program before sending participant messages.')}</p>}
           <label className="field"><span>{t('Audience')}</span><select className="form-control" value={audienceMode} onChange={event => {
             const nextMode = event.target.value as AnnouncementAudienceMode;
             setAudienceMode(nextMode);
             if (nextMode === 'all') { setCohort(''); setBusinessId(''); }
             if (nextMode === 'cohort') setBusinessId('');
           }} data-testid="select-announcement-audience">
-            <option value="all">{t('All cohorts')}</option><option value="cohort">{t('One cohort')}</option><option value="business">{t('One business')}</option>
+            {!staffOnly && <option value="all">{t('All cohorts')}</option>}<option value="cohort">{t('One cohort')}</option><option value="business">{t('One business')}</option>
           </select><small>{t('Choose who should see this in-app message.')}</small></label>
           {audienceMode !== 'all' && <label className="field"><span>{t('Program')} <i>*</i></span><select className="form-control" value={cohort} onChange={event => { setCohort(event.target.value); setBusinessId(''); }} disabled={programsQuery.isLoading || programsQuery.isError} required data-testid="select-announcement-cohort"><option value="">{t('Select a program')}</option>{programs.map(program => <option value={String(program.id)} key={program.id}>{program.name}</option>)}</select><small>{t(programsQuery.isError ? 'Programs could not load. Retry to choose a recipient.' : 'Choose the program that contains this audience.')}</small>{programsQuery.isError && <button type="button" className="text-link" onClick={() => void programsQuery.refetch()}>{t('Retry cohort list')}</button>}</label>}
           {audienceMode === 'business' && <label className="field"><span>{t('Business team')} <i>*</i></span><select className="form-control" value={businessId} onChange={event => setBusinessId(event.target.value)} disabled={!cohort || businessesQuery.isLoading || businessesQuery.isError || selectedProgramBusinesses.length === 0} required data-testid="select-announcement-business"><option value="">{t('Select a business')}</option>{selectedProgramBusinesses.map(business => <option value={String(business.id)} key={business.id}>{business.businessName}</option>)}</select><small>{t(businessesQuery.isError ? 'Business choices could not load. Retry to target a team.' : selectedProgramBusinesses.length === 0 && cohort && !businessesQuery.isLoading ? 'No businesses are available in this program yet.' : 'Every participant linked to this business will see the message.')}</small>{businessesQuery.isError && <button type="button" className="text-link" onClick={() => void businessesQuery.refetch()}>{t('Retry business list')}</button>}</label>}
@@ -100,9 +101,9 @@ export function CommunicationsPage() {
           <label className="field"><span>{t('Title')} <i>*</i></span><input className="form-control" value={title} onChange={event => setTitle(event.target.value)} required minLength={3} maxLength={180} placeholder={t('A clear subject line')} data-testid="input-announcement-title" /></label>
           <label className="field"><span>{t('Message')} <i>*</i></span><textarea className="form-control" value={body} onChange={event => setBody(event.target.value)} required minLength={5} maxLength={5000} rows={5} placeholder={t('Share the details founders need. Keep it useful and specific.')} data-testid="input-announcement-body" /><small>{body.length} / {t('5,000 characters')}</small></label>
           <label className="field"><span>{t('Schedule for later')} <small className="optional-label">{t('optional')}</small></span><input className="form-control" type="datetime-local" min={localDateTime(now)} value={scheduledFor} onChange={event => setScheduledFor(event.target.value)} data-testid="input-announcement-schedule" /><small>{t('Leave blank to publish immediately.')}</small></label>
-          {create.isError && <div className="form-error" role="alert"><AlertCircle size={15} />{t('Could not save this message. Check the fields and try again.')}{(create.error as { status?: number } | null)?.status === 503 && <> {t('Business messages need the program data update before they can be sent.')}</>}</div>}
+          {create.isError && <div className="form-error" role="alert"><AlertCircle size={15} />{t((create.error as { status?: number } | null)?.status === 403 ? 'You can only send messages to active programs assigned to your account.' : 'Could not save this message. Check the fields and try again.')}{(create.error as { status?: number } | null)?.status === 503 && <> {t('Business messages need the program data update before they can be sent.')}</>}</div>}
           {notice && <div className="communication-success" role="status"><Check size={16} />{t(notice)}</div>}
-          <button type="submit" className="button button-primary announcement-submit" disabled={create.isPending || programsQuery.isLoading || (audienceMode === 'business' && businessesQuery.isLoading)} data-testid="button-publish-announcement">{create.isPending ? t('Saving message…') : <>{scheduledFor ? <CalendarClock size={15} /> : <Plus size={15} />}{scheduledFor ? t(`Schedule ${kind}`) : t('Publish to portal')}</>}</button>
+          <button type="submit" className="button button-primary announcement-submit" disabled={create.isPending || programsQuery.isLoading || (staffOnly && (programsQuery.isError || !programs.some(program => String(program.id) === cohort))) || (audienceMode === 'business' && businessesQuery.isLoading)} data-testid="button-publish-announcement">{create.isPending ? t('Saving message…') : <>{scheduledFor ? <CalendarClock size={15} /> : <Plus size={15} />}{scheduledFor ? t(`Schedule ${kind}`) : t('Publish to portal')}</>}</button>
         </form>
       </section>
       <section className="announcement-list-panel">
@@ -160,7 +161,7 @@ export function CommunicationsPage() {
           })}</div>}
       </section>
     </div>
-    <p className="communications-privacy"><CheckCheck size={14} /> {t('Only published announcements are visible to participants. Scheduled messages remain in admin view until their release time.')}</p>
+    <p className="communications-privacy"><CheckCheck size={14} /> {t('Only published announcements are visible to participants. Scheduled messages remain in the program team view until their release time.')}</p>
   </main>;
 }
 

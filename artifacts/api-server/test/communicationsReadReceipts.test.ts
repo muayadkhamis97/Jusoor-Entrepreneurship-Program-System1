@@ -57,7 +57,7 @@ const participants: ParticipantRow[] = [
   },
   { founderName: "Omar Founder", email: "omar@example.com", readAt: null },
 ];
-let role: "coordinator" | "staff" | "participant" = "coordinator";
+let role: "coordinator" | "trainer" | "participant" = "coordinator";
 let selectCount = 0;
 let participantQueryCount = 0;
 let server: Server;
@@ -131,8 +131,8 @@ async function request(): Promise<Response> {
   return fetch(`http://127.0.0.1:${address.port}/api/communications/41/read-receipts`);
 }
 
-test("only coordinators can access recording notice read receipts", async () => {
-  for (const deniedRole of ["staff", "participant"] as const) {
+test("specialist and participant roles cannot access operations recording notice read receipts", async () => {
+  for (const deniedRole of ["trainer", "participant"] as const) {
     role = deniedRole;
     selectCount = 0;
     const response = await request();

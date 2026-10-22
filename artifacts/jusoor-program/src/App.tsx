@@ -1340,7 +1340,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/api-integrations" component={isAdmin ? ApiIntegrationsPage : NotFoundPage} />
     <Route path="/courses">{() => isAdmin ? <CourseManagementPage /> : isProgramStaff ? <CourseManagementPage schedulingOnly /> : <NotFoundPage />}</Route>
     <Route path="/sessions">{() => <SessionsPage coordinator={isAdmin} staffId={staff.id} />}</Route>
-    <Route path="/communications" component={isAdmin ? CommunicationsPage : NotFoundPage} />
+    <Route path="/communications">{() => isAdmin || isProgramStaff ? <CommunicationsPage staffOnly={isProgramStaff} /> : <NotFoundPage />}</Route>
     <Route path="/support">{() => <SupportPage coordinator={isAdmin} />}</Route>
     <Route path="/mentor-meeting-reports">{() => isAdmin || isProgramStaff ? <StaffMentorMeetingReportsPage /> : <NotFoundPage />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>

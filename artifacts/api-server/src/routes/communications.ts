@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import {
   CreateAnnouncementBody,
   CreateAnnouncementResponse,
@@ -17,7 +17,8 @@ import {
   programsTable,
   sessionsTable,
 } from "@workspace/db";
-import { requireCoordinator } from "../middlewares/staffAccess";
+import { requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
+import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import {
   businessBelongsToSelectedProgram,
   isMissingAnnouncementBusinessColumn,
@@ -25,7 +26,13 @@ import {
 import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
 
 const router: IRouter = Router();
-router.use("/communications", requireCoordinator);
+router.use("/communications", requireOperationsStaff);
+
+async function announcementScope(staff: StaffAccess): Promise<SQL | undefined> {
+  return staff.role === "coordinator"
+    ? undefined
+    : inArray(programAnnouncementsTable.programId, await activeProgramIdsFor(staff));
+}
 
 type AnnouncementListRow = {
   id: number;
@@ -44,7 +51,7 @@ type AnnouncementListRow = {
   createdAt: Date;
 };
 
-async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
+async function listAnnouncementRows(scope?: SQL): Promise<AnnouncementListRow[]> {
   try {
     return await db.select({
       id: programAnnouncementsTable.id,
@@ -68,6 +75,7 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
         eq(programAnnouncementsTable.businessId, businessesTable.id),
         eq(programAnnouncementsTable.programId, businessesTable.programId),
       ))
+      .where(scope)
       .orderBy(desc(programAnnouncementsTable.scheduledFor), desc(programAnnouncementsTable.createdAt));
   } catch (error) {
     if (!isMissingAnnouncementBusinessColumn(error)) throw error;
@@ -87,6 +95,7 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
     }).from(programAnnouncementsTable)
       .leftJoin(programsTable, eq(programAnnouncementsTable.programId, programsTable.id))
       .leftJoin(sessionsTable, eq(programAnnouncementsTable.sessionId, sessionsTable.id))
+      .where(scope)
       .orderBy(desc(programAnnouncementsTable.scheduledFor), desc(programAnnouncementsTable.createdAt));
     return rows.map(row => ({ ...row, businessId: null, businessName: null }));
   }
@@ -94,7 +103,8 @@ async function listAnnouncementRows(): Promise<AnnouncementListRow[]> {
 
 router.get("/communications", async (_req, res): Promise<void> => {
   const now = new Date();
-  const announcements = (await listAnnouncementRows()).map(announcement => ({
+  const scope = await announcementScope(res.locals.staff as StaffAccess);
+  const announcements = (await listAnnouncementRows(scope)).map(announcement => ({
     id: announcement.id,
     sessionId: announcement.sessionId,
     isCurrentRecordingNotice: isCurrentRecordingNotice({
@@ -132,6 +142,7 @@ router.get("/communications/:id/read-receipts", async (req, res): Promise<void> 
     return;
   }
 
+  const scope = await announcementScope(res.locals.staff as StaffAccess);
   const [announcement] = await db.select({
     id: programAnnouncementsTable.id,
     sessionId: programAnnouncementsTable.sessionId,
@@ -139,7 +150,7 @@ router.get("/communications/:id/read-receipts", async (req, res): Promise<void> 
     recordingVersion: programAnnouncementsTable.recordingVersion,
     scheduledFor: programAnnouncementsTable.scheduledFor,
   }).from(programAnnouncementsTable)
-    .where(eq(programAnnouncementsTable.id, params.data.id))
+    .where(and(eq(programAnnouncementsTable.id, params.data.id), scope))
     .limit(1);
   if (!announcement?.sessionId) {
     res.status(404).json({ error: "Current recording notice not found." });
@@ -204,6 +215,11 @@ router.post("/communications", async (req, res): Promise<void> => {
   }
   const programId = input.programId ?? null;
   const businessId = input.businessId ?? null;
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role !== "coordinator" && (programId === null || !await canAccessActiveProgram(staff, programId))) {
+    res.status(403).json({ error: "Choose an active program assigned to your account. Only Admins can message all programs." });
+    return;
+  }
   if (businessId !== null && programId === null) {
     res.status(400).json({ error: "Select a program before targeting one of its businesses." });
     return;
@@ -238,7 +254,6 @@ router.post("/communications", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Publication time must be a valid date and time." });
     return;
   }
-  const staff = res.locals.staff as { id: number };
   let announcement;
   try {
     [announcement] = await db.insert(programAnnouncementsTable).values({
@@ -296,7 +311,7 @@ router.delete("/communications/:id", async (req, res): Promise<void> => {
     return;
   }
   const [deleted] = await db.delete(programAnnouncementsTable)
-    .where(eq(programAnnouncementsTable.id, id))
+    .where(and(eq(programAnnouncementsTable.id, id), await announcementScope(res.locals.staff as StaffAccess)))
     .returning({ id: programAnnouncementsTable.id });
   if (!deleted) {
     res.status(404).json({ error: "Announcement not found." });

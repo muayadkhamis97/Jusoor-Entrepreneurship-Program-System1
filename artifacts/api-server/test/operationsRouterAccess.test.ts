@@ -25,7 +25,7 @@ before(async () => {
       const query: any = {
         from(value: unknown) { table = value; reads += 1; return query; },
         where(condition: any) {
-          scopes.push({ table, params: dialect.sqlToQuery(condition).params });
+          if (condition) scopes.push({ table, params: dialect.sqlToQuery(condition).params });
           return query;
         },
         leftJoin() { return query; },
@@ -87,18 +87,16 @@ test("shared operations router allows staff Overview and preserves assigned-prog
 });
 
 test("staff can reach non-Admin lists after the communications and analytics router mounts", async () => {
-  for (const path of ["/programs", "/businesses", "/sessions", "/support", "/pitches"]) {
+  for (const path of ["/programs", "/businesses", "/sessions", "/support", "/pitches", "/communications"]) {
     const response = await request(path, "staff");
     assert.equal(response.status, 200, path);
     await response.json();
   }
 });
 
-test("staff remain forbidden from Admin-only communications and analytics including child mutations", async () => {
+test("staff remain forbidden from Admin-only analytics including child mutations", async () => {
   const beforeReads = reads;
   for (const [path, method] of [
-    ["/communications", "GET"], ["/communications", "POST"],
-    ["/communications/1/read-receipts", "GET"], ["/communications/1", "DELETE"],
     ["/analytics", "GET"], ["/analytics/kpis", "POST"],
     ["/analytics/attendance/1", "PUT"], ["/analytics/report-layouts", "GET"],
   ]) {

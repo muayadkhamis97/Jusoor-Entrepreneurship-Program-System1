@@ -52,3 +52,13 @@ test('message history distinguishes a truly empty list from a load failure', () 
   assert.match(communicationsSource, /!announcementsQuery\.isError && <span className="badge badge-neutral">/);
   assert.match(communicationsSource, /announcements\.length \? 'Nothing in this view\.' : 'No messages have been sent yet\.'/);
 });
+
+test('staff communications require a program and hide global broadcasts', () => {
+  assert.match(communicationsSource, /staffOnly \? 'cohort' : 'all'/);
+  assert.match(communicationsSource, /!staffOnly && <option value="all">/);
+  assert.match(communicationsSource, /staffOnly && target\.programId === null/);
+  assert.match(communicationsSource, /staffOnly && programsQuery\.isSuccess && programs\.length === 0/);
+  assert.match(communicationsSource, /staffOnly && \(programsQuery\.isError/);
+  const app = readFileSync(path.join(import.meta.dirname, 'App.tsx'), 'utf8');
+  assert.match(app, /<CommunicationsPage staffOnly=\{isProgramStaff\}/);
+});
