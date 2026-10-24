@@ -108,6 +108,13 @@ export interface JudgingBusiness {
   name: string;
 }
 
+export interface JudgingFormBusinessCoverage {
+  id: number;
+  name: string;
+  /** @minimum 0 */
+  assessmentCount: number;
+}
+
 export interface JudgingFormInput {
   /** @minimum 1 */
   programId: number;
@@ -166,7 +173,7 @@ export type JudgingFormDetail = JudgingFormSummary & ({
   instructions: string;
   criteria: JudgingCriterion[];
   questions: JudgingQuestion[];
-  businesses: JudgingBusiness[];
+  businesses: JudgingFormBusinessCoverage[];
   /** @nullable */
   shareToken: string | null;
 });

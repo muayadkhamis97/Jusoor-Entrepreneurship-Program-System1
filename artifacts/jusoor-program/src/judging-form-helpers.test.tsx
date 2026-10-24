@@ -86,6 +86,7 @@ test('server statuses map to distinct guidance with Arabic copy', () => {
 test('share-link replacement confirmation and feedback have Arabic translations', () => {
   for (const message of [
     'Replace link', 'REPLACE SHARE LINK', 'Replace this judging link?', 'Replacing…', 'Keep current link',
+    'ASSESSMENT COVERAGE', 'Submitted assessments grouped by selected business.', 'No assessments yet.', 'assessment', 'assessments',
     'The current link will stop loading and accepting submissions immediately. Existing assessments and the locked rubric will remain unchanged. The replacement link only accepts new assessments while the form is open.',
     'Replacing the link stops the old link immediately. Submitted assessments and the locked rubric stay unchanged.',
     'The link was replaced. Share the new link with judges; the previous link no longer works.',

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   CreateJudgingFormBody, CreateJudgingFormResponse, GetJudgingFormResponse, ListJudgingFormsResponse,
   ListJudgingFormLinkHistoryResponse, ListJudgingFormResponsesQueryParams, ListJudgingFormResponsesResponse, UpdateJudgingFormBody,
@@ -27,9 +27,21 @@ async function selectedBusinesses(input: JudgingFormInput, executor: JudgingExec
 async function detail(staff: StaffAccess, formId: number) {
   const { form, programName } = await staffJudgingForm(staff, formId);
   const [count] = await db.select({ count: judgingResponseCount }).from(judgingFormsTable).where(eq(judgingFormsTable.id, form.id));
+  const businesses = await db.select({
+    id: judgingFormBusinessesTable.businessId,
+    name: judgingFormBusinessesTable.businessName,
+    assessmentCount: sql<number>`count(${judgingResponsesTable.id})::int`,
+  }).from(judgingFormBusinessesTable)
+    .leftJoin(judgingResponsesTable, and(
+      eq(judgingResponsesTable.formId, judgingFormBusinessesTable.formId),
+      eq(judgingResponsesTable.businessId, judgingFormBusinessesTable.businessId),
+    ))
+    .where(eq(judgingFormBusinessesTable.formId, form.id))
+    .groupBy(judgingFormBusinessesTable.businessId, judgingFormBusinessesTable.businessName)
+    .orderBy(asc(judgingFormBusinessesTable.businessName));
   return { id: form.id, programId: form.programId, programName, title: form.title, status: form.status,
     responseCount: Number(count?.count ?? 0), publishedAt: form.publishedAt, instructions: form.instructions,
-    criteria: form.criteria, questions: form.questions, businesses: await judgingBusinesses(form),
+    criteria: form.criteria, questions: form.questions, businesses,
     shareToken: form.publishedAt ? readJudgingToken(form.shareTokenEnc) : null };
 }
 router.get("/", async (_req, res) => {

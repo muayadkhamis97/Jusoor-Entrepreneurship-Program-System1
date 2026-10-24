@@ -78,7 +78,11 @@ export function JudgingFormsPage() {
 }
 
 function FormWorkspace({ formId }: { formId: number }) {
-  const detail = useGetJudgingForm(formId, { query: { enabled: formId > 0, queryKey: getGetJudgingFormQueryKey(formId) } });
+  const detail = useGetJudgingForm(formId, { query: {
+    enabled: formId > 0,
+    queryKey: getGetJudgingFormQueryKey(formId),
+    refetchInterval: query => query.state.data?.status === 'open' ? 30_000 : false,
+  } });
   if (detail.isLoading) return <Skeleton />;
   if (detail.isError || !detail.data) return <LoadError message={staffErrorMessage(errorStatus(detail.error), 'This form could not load.')} retry={() => void detail.refetch()} />;
   const form = detail.data;
@@ -93,8 +97,26 @@ function FormWorkspace({ formId }: { formId: number }) {
       {frozen && <StatusControls form={form} />}
     </div>
     {frozen ? <FrozenConfig form={form} /> : <FormEditor key={form.id} formId={form.id} initial={draftFromDetail(form)} />}
+    {frozen && <CoveragePanel form={form} />}
     <SharePanel form={form} />
     {frozen && <ResponsesPanel form={form} />}
+  </div>;
+}
+
+function CoveragePanel({ form }: { form: JudgingFormDetail }) {
+  return <div className="panel jf-section" data-testid="judging-assessment-coverage">
+    <div className="jf-section-head"><Typography as="h3" variant="label" tone="accent">{t('ASSESSMENT COVERAGE')}</Typography></div>
+    <p className="field-hint">{t('Submitted assessments grouped by selected business.')}</p>
+    <ul className="jf-coverage-list">
+      {form.businesses.map(business => <li key={business.id} className="jf-coverage-item">
+        <span className="jf-coverage-name">{business.name}</span>
+        <span className={`badge ${business.assessmentCount === 0 ? 'badge-warm' : 'badge-good'}`} data-testid={`judging-business-coverage-${business.id}`}>
+          {business.assessmentCount === 0
+            ? t('No assessments yet.')
+            : `${business.assessmentCount} ${t(business.assessmentCount === 1 ? 'assessment' : 'assessments')}`}
+        </span>
+      </li>)}
+    </ul>
   </div>;
 }
 

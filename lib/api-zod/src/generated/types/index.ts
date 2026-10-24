@@ -171,6 +171,7 @@ export * from './judgeScorecardInput';
 export * from './judgingAnswer';
 export * from './judgingBusiness';
 export * from './judgingCriterion';
+export * from './judgingFormBusinessCoverage';
 export * from './judgingFormDetail';
 export * from './judgingFormInput';
 export * from './judgingFormLinkHistoryEntry';

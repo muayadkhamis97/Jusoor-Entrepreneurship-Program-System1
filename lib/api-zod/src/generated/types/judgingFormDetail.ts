@@ -5,8 +5,8 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
-import type { JudgingBusiness } from './judgingBusiness';
 import type { JudgingCriterion } from './judgingCriterion';
+import type { JudgingFormBusinessCoverage } from './judgingFormBusinessCoverage';
 import type { JudgingFormSummary } from './judgingFormSummary';
 import type { JudgingQuestion } from './judgingQuestion';
 
@@ -14,7 +14,7 @@ export type JudgingFormDetail = JudgingFormSummary & ({
   instructions: string;
   criteria: JudgingCriterion[];
   questions: JudgingQuestion[];
-  businesses: JudgingBusiness[];
+  businesses: JudgingFormBusinessCoverage[];
   /** @nullable */
   shareToken: string | null;
 });

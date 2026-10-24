@@ -4356,6 +4356,13 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
+    JudgingFormBusinessCoverage:
+      type: object
+      required: [id, name, assessmentCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        assessmentCount: { type: integer, minimum: 0 }
     JudgingFormInput:
       type: object
       required: [programId, title, instructions, businessIds, criteria, questions]
@@ -4391,7 +4398,7 @@ components:
             instructions: { type: string }
             criteria: { type: array, items: { $ref: "#/components/schemas/JudgingCriterion" } }
             questions: { type: array, items: { $ref: "#/components/schemas/JudgingQuestion" } }
-            businesses: { type: array, items: { $ref: "#/components/schemas/JudgingBusiness" } }
+            businesses: { type: array, items: { $ref: "#/components/schemas/JudgingFormBusinessCoverage" } }
             shareToken: { type: [string, "null"] }
     JudgingFormLinkHistoryEntry:
       type: object

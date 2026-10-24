@@ -129,6 +129,7 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(form.status, "draft");
     assert.equal(form.shareToken, null);
     assert.equal(form.responseCount, 0);
+    assert.deepEqual(form.businesses.map((business: any) => [business.id, business.assessmentCount]), [[201, 0], [202, 0]]);
     const stored = await client.query("SELECT share_token_enc FROM program_judging_forms WHERE id=$1", [formId]);
     token = readJudgingToken(stored.rows[0].share_token_enc)!;
     assert.equal((await staff(`/${formId}/rotate-link`, "POST")).status, 409, "draft links cannot be replaced before publishing");
@@ -181,7 +182,9 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(page.responses[0].judgeEmail, "judge@example.test");
     assert.equal(page.responses[0].judgeName, "Guest Judge");
     assert.equal(page.responses[0].answers[0].text, "Useful next steps");
-    assert.equal((await (await staff(`/${formId}`)).json()).responseCount, 2);
+    const detail = await (await staff(`/${formId}`)).json();
+    assert.equal(detail.responseCount, 2);
+    assert.deepEqual(detail.businesses.map((business: any) => [business.id, business.assessmentCount]), [[201, 1], [202, 1]]);
   });
   test("authorized staff can replace an open form link without changing its rubric or submitted assessments", async () => {
     const previousToken = token;
@@ -243,7 +246,9 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(second.responses.length, 7);
     assert.equal(second.nextBeforeId, null);
     assert.ok(second.responses.every((row: any) => row.id < first.nextBeforeId));
-    assert.equal((await (await staff(`/${formId}`)).json()).responseCount, 57);
+    const detail = await (await staff(`/${formId}`)).json();
+    assert.equal(detail.responseCount, 57);
+    assert.deepEqual(detail.businesses.map((business: any) => [business.id, business.assessmentCount]), [[201, 56], [202, 1]]);
   });
   test("closing blocks new assessments, preserves retry receipts and never unlocks scoring rules", async () => {
     assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "closed" })).status, 200);
@@ -268,7 +273,8 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal((await staff(`/${formId}`, "PATCH", definition)).status, 409);
     assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "open" })).status, 200);
     await client.query("DELETE FROM jusoor_businesses WHERE id=201");
-    assert.equal((await (await staff(`/${formId}`)).json()).responseCount, 57, "historical assessment snapshots survive removed businesses");
+    const afterBusinessRemoval = await (await staff(`/${formId}`)).json();
+    assert.equal(afterBusinessRemoval.responseCount, 57, "historical assessment snapshots survive removed businesses");
     assert.equal((await guest("POST", { ...assessment, judgeEmail: "removed@example.test", clientSubmissionId: randomUUID() })).status, 400);
     await client.query("UPDATE jusoor_programs SET archived_at=now() WHERE id=11");
     assert.equal((await guest()).status, 404);

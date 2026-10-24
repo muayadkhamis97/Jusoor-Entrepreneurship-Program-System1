@@ -38,6 +38,10 @@
 .jf-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: calc(var(--spacing) * 3); }
 .jf-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: calc(var(--spacing) * 2); }
 .jf-chips li { padding: var(--spacing) calc(var(--spacing) * 3); border: 1px solid hsl(var(--border)); border-radius: 999px; font-size: 13px; }
+.jf-coverage-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.jf-coverage-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: calc(var(--spacing) * 3); padding-block: calc(var(--spacing) * 3); border-bottom: 1px solid hsl(var(--border)); }
+.jf-coverage-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.jf-coverage-name { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
 .jf-readonly-list { margin: 0; padding-inline-start: calc(var(--spacing) * 5); display: grid; gap: calc(var(--spacing) * 2); }
 .jf-readonly-list p { margin: var(--spacing) 0 0; color: hsl(var(--muted-foreground)); font-size: 13px; }
 .jf-prewrap { white-space: pre-wrap; overflow-wrap: anywhere; }

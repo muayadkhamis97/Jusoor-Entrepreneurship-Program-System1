@@ -6365,6 +6365,8 @@ export const createJudgingFormResponseTwoCriteriaItemMaxScoreMax = 100;
 
 export const createJudgingFormResponseTwoQuestionsItemLabelMax = 500;
 
+export const createJudgingFormResponseTwoBusinessesItemAssessmentCountMin = 0;
+
 
 
 export const CreateJudgingFormResponse = zod.object({
@@ -6390,7 +6392,8 @@ export const CreateJudgingFormResponse = zod.object({
 })),
   "businesses": zod.array(zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "assessmentCount": zod.number().int().min(createJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6413,6 +6416,8 @@ export const getJudgingFormResponseTwoCriteriaItemDescriptionMax = 1000;
 export const getJudgingFormResponseTwoCriteriaItemMaxScoreMax = 100;
 
 export const getJudgingFormResponseTwoQuestionsItemLabelMax = 500;
+
+export const getJudgingFormResponseTwoBusinessesItemAssessmentCountMin = 0;
 
 
 
@@ -6439,7 +6444,8 @@ export const GetJudgingFormResponse = zod.object({
 })),
   "businesses": zod.array(zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "assessmentCount": zod.number().int().min(getJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6503,6 +6509,8 @@ export const updateJudgingFormResponseTwoCriteriaItemMaxScoreMax = 100;
 
 export const updateJudgingFormResponseTwoQuestionsItemLabelMax = 500;
 
+export const updateJudgingFormResponseTwoBusinessesItemAssessmentCountMin = 0;
+
 
 
 export const UpdateJudgingFormResponse = zod.object({
@@ -6528,7 +6536,8 @@ export const UpdateJudgingFormResponse = zod.object({
 })),
   "businesses": zod.array(zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "assessmentCount": zod.number().int().min(updateJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6556,6 +6565,8 @@ export const updateJudgingFormStatusResponseTwoCriteriaItemMaxScoreMax = 100;
 
 export const updateJudgingFormStatusResponseTwoQuestionsItemLabelMax = 500;
 
+export const updateJudgingFormStatusResponseTwoBusinessesItemAssessmentCountMin = 0;
+
 
 
 export const UpdateJudgingFormStatusResponse = zod.object({
@@ -6581,7 +6592,8 @@ export const UpdateJudgingFormStatusResponse = zod.object({
 })),
   "businesses": zod.array(zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "assessmentCount": zod.number().int().min(updateJudgingFormStatusResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6604,6 +6616,8 @@ export const rotateJudgingFormShareLinkResponseTwoCriteriaItemDescriptionMax = 1
 export const rotateJudgingFormShareLinkResponseTwoCriteriaItemMaxScoreMax = 100;
 
 export const rotateJudgingFormShareLinkResponseTwoQuestionsItemLabelMax = 500;
+
+export const rotateJudgingFormShareLinkResponseTwoBusinessesItemAssessmentCountMin = 0;
 
 
 
@@ -6630,7 +6644,8 @@ export const RotateJudgingFormShareLinkResponse = zod.object({
 })),
   "businesses": zod.array(zod.object({
   "id": zod.number().int(),
-  "name": zod.string()
+  "name": zod.string(),
+  "assessmentCount": zod.number().int().min(rotateJudgingFormShareLinkResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
