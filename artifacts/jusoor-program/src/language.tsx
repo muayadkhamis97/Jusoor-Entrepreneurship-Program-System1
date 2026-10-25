@@ -1634,6 +1634,7 @@ const arabic: Record<string, string> = {
   'The peer directory could not be loaded. Try again.': 'تعذّر تحميل دليل التواصل. حاول مجدداً.',
   'No peers have opted in yet. You can check back later.': 'لم يختر أي مشارك الظهور بعد. يمكنك العودة لاحقاً.',
   'API integrations': 'تكاملات API',
+  'Integration settings': 'إعدادات التكاملات',
   'APPLICATION': 'طلب التقديم',
   'CREATE YOUR ACCOUNT': 'أنشئ حسابك',
   'ARCHIVED': 'مؤرشف',

@@ -3418,6 +3418,20 @@ paths:
                   $ref: "#/components/schemas/MentorBookingStatus"
         "403":
           description: Coordinator role required
+  /staff/{id}/google-calendar-connection:
+    delete:
+      operationId: disconnectStaffGoogleCalendar
+      tags: [staff]
+      summary: Disconnect a mentor's Google Calendar account as a coordinator
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: The mentor's Google Calendar credentials and booking link were cleared
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Mentor account not found
   /staff/{id}/mentor-booking-follow-up:
     patch:
       operationId: updateMentorBookingFollowUp
@@ -4241,6 +4255,19 @@ paths:
           description: Program not found or outside the staff member's scope
         "502":
           description: Google Sheets could not create the workbook
+    delete:
+      operationId: disconnectProgramGoogleSheets
+      tags: [staff]
+      summary: Unlink a program's Google Sheets workbook without deleting the external file
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+      responses:
+        "204":
+          description: The workbook link was removed; the external Google file and platform records remain
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Program workbook not found
   /staff/google-sheets/{programId}/sync:
     post:
       operationId: retryProgramGoogleSheetsSync

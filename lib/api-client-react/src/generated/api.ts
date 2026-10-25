@@ -14100,6 +14100,80 @@ export function useGetMentorBookingStatus<TData = Awaited<ReturnType<typeof getM
 
 
 
+export const getDisconnectStaffGoogleCalendarUrl = (id: number,) => {
+
+
+
+
+  return `/api/staff/${id}/google-calendar-connection`
+}
+
+/**
+ * @summary Disconnect a mentor's Google Calendar account as a coordinator
+ */
+export const disconnectStaffGoogleCalendar = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisconnectStaffGoogleCalendarUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectStaffGoogleCalendarMutationKey = () => ['disconnectStaffGoogleCalendar'] as const;
+
+export const getDisconnectStaffGoogleCalendarMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectStaffGoogleCalendar>>, TError,DisconnectStaffGoogleCalendarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectStaffGoogleCalendar>>, TError,DisconnectStaffGoogleCalendarMutationVariables, TContext> => {
+
+const mutationKey = getDisconnectStaffGoogleCalendarMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectStaffGoogleCalendar>>, DisconnectStaffGoogleCalendarMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  disconnectStaffGoogleCalendar(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectStaffGoogleCalendarMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectStaffGoogleCalendar>>>
+
+    export type DisconnectStaffGoogleCalendarMutationError = ErrorType<void>
+    export type DisconnectStaffGoogleCalendarMutationVariables = {id: number}
+
+    /**
+ * @summary Disconnect a mentor's Google Calendar account as a coordinator
+ */
+export const useDisconnectStaffGoogleCalendar = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectStaffGoogleCalendar>>, TError,DisconnectStaffGoogleCalendarMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectStaffGoogleCalendar>>,
+        TError,
+        DisconnectStaffGoogleCalendarMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisconnectStaffGoogleCalendarMutationOptions(options));
+    }
+
 export const getUpdateMentorBookingFollowUpUrl = (id: number,) => {
 
 
@@ -17689,6 +17763,80 @@ export const useCreateProgramGoogleSheetsConnection = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateProgramGoogleSheetsConnectionMutationOptions(options));
+    }
+
+export const getDisconnectProgramGoogleSheetsUrl = (programId: number,) => {
+
+
+
+
+  return `/api/staff/google-sheets/${programId}`
+}
+
+/**
+ * @summary Unlink a program's Google Sheets workbook without deleting the external file
+ */
+export const disconnectProgramGoogleSheets = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDisconnectProgramGoogleSheetsUrl(programId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectProgramGoogleSheetsMutationKey = () => ['disconnectProgramGoogleSheets'] as const;
+
+export const getDisconnectProgramGoogleSheetsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectProgramGoogleSheets>>, TError,DisconnectProgramGoogleSheetsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectProgramGoogleSheets>>, TError,DisconnectProgramGoogleSheetsMutationVariables, TContext> => {
+
+const mutationKey = getDisconnectProgramGoogleSheetsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectProgramGoogleSheets>>, DisconnectProgramGoogleSheetsMutationVariables> = (props) => {
+          const {programId} = props ?? {};
+
+          return  disconnectProgramGoogleSheets(programId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectProgramGoogleSheetsMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectProgramGoogleSheets>>>
+
+    export type DisconnectProgramGoogleSheetsMutationError = ErrorType<void>
+    export type DisconnectProgramGoogleSheetsMutationVariables = {programId: number}
+
+    /**
+ * @summary Unlink a program's Google Sheets workbook without deleting the external file
+ */
+export const useDisconnectProgramGoogleSheets = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectProgramGoogleSheets>>, TError,DisconnectProgramGoogleSheetsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectProgramGoogleSheets>>,
+        TError,
+        DisconnectProgramGoogleSheetsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDisconnectProgramGoogleSheetsMutationOptions(options));
     }
 
 export const getRetryProgramGoogleSheetsSyncUrl = (programId: number,) => {

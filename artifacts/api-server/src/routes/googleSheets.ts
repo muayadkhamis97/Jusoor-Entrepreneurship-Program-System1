@@ -9,7 +9,7 @@ import {
   queueProgramGoogleSheetsBackfill,
   retryFailedGoogleSheetsEvents,
 } from "../lib/googleSheetsSync";
-import type { StaffAccess } from "../middlewares/staffAccess";
+import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 
 const router = Router();
 
@@ -130,6 +130,36 @@ router.post("/:programId", async (req, res): Promise<void> => {
       return;
     }
     req.log.error({ err: error, programId }, "Google Sheets connection could not be created");
+    routeError(res, error);
+  }
+});
+
+router.delete("/:programId", requireCoordinator, async (req, res): Promise<void> => {
+  const programId = Number(req.params.programId);
+  if (!Number.isSafeInteger(programId) || programId <= 0) {
+    res.status(400).json({ error: "Invalid program id." });
+    return;
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await lockGoogleSheetsProgram(tx, programId);
+      const [connection] = await tx.select({ programId: programGoogleSheetsConnectionsTable.programId })
+        .from(programGoogleSheetsConnectionsTable)
+        .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
+        .limit(1);
+      if (!connection) throw new GoogleSheetsError("Program workbook not found.", 404);
+      await tx.delete(programGoogleSheetsConnectionsTable)
+        .where(eq(programGoogleSheetsConnectionsTable.programId, programId));
+    });
+    req.log.info({ programId }, "Coordinator unlinked a program Google Sheets workbook");
+    res.sendStatus(204);
+  } catch (error) {
+    if (error instanceof GoogleSheetsError && error.status === 404) {
+      res.status(404).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error, programId }, "Google Sheets workbook could not be disconnected");
     routeError(res, error);
   }
 });

@@ -253,6 +253,7 @@ async function insertBackfill(
         programGoogleSheetsSyncEventsTable.sourceId,
       ],
       set: {
+        sheetRow: sql`excluded.sheet_row`,
         status: sql`CASE WHEN ${programGoogleSheetsSyncEventsTable.status} = 'processing' THEN 'processing' ELSE 'pending' END`,
         revision: sql`${programGoogleSheetsSyncEventsTable.revision} + 1`,
         nextAttemptAt: new Date(),

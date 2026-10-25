@@ -1,0 +1,171 @@
+.integration-settings {
+  display: grid;
+  gap: calc(var(--spacing) * 4);
+  margin-bottom: calc(var(--spacing) * 8);
+  padding: calc(var(--spacing) * 6);
+  color: hsl(var(--foreground));
+}
+
+.integration-settings-header,
+.integration-settings-provider-heading,
+.integration-settings-row,
+.integration-settings-actions,
+.integration-settings-dialog-actions {
+  display: flex;
+  align-items: center;
+}
+
+.integration-settings-header {
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 4);
+}
+
+.integration-settings-header h2,
+.integration-settings-provider-heading h3 {
+  margin: calc(var(--spacing) * 2) 0;
+}
+
+.integration-settings-header p:last-child,
+.integration-settings-provider-heading p {
+  margin: 0;
+}
+
+.integration-settings-lock,
+.integration-settings-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: calc(var(--spacing) * 10);
+  height: calc(var(--spacing) * 10);
+  border-radius: var(--radius);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+
+.integration-settings-rule {
+  margin: 0;
+}
+
+.integration-settings-provider {
+  display: grid;
+  gap: calc(var(--spacing) * 3);
+}
+
+.integration-settings-provider-heading {
+  gap: calc(var(--spacing) * 3);
+  margin-bottom: var(--spacing);
+}
+
+.integration-settings-row {
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 4);
+  min-width: 0;
+  padding: calc(var(--spacing) * 3) 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.integration-settings-details {
+  display: grid;
+  gap: var(--spacing);
+  min-width: 0;
+}
+
+.integration-settings-details > strong {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.integration-settings-details > span {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing);
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+}
+
+.integration-settings-details > span svg {
+  flex: none;
+  color: hsl(var(--primary));
+}
+
+.integration-settings-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: calc(var(--spacing) * 4);
+}
+
+.integration-settings-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing);
+  color: hsl(var(--primary));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: var(--spacing);
+}
+
+.integration-settings-disconnect {
+  color: hsl(var(--destructive));
+}
+
+.integration-settings-muted {
+  color: hsl(var(--muted-foreground));
+}
+
+.integration-settings-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--spacing) * 3);
+  padding: calc(var(--spacing) * 3);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted) / 0.25);
+}
+
+.integration-settings-state p {
+  margin: 0;
+}
+
+.integration-settings-feedback {
+  padding: calc(var(--spacing) * 3);
+  border-radius: var(--radius);
+  background: hsl(var(--primary) / 0.08);
+}
+
+.integration-settings-feedback.is-success {
+  color: hsl(var(--primary));
+}
+
+.integration-settings-feedback.is-error {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.08);
+}
+
+.integration-settings-dialog-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: calc(var(--spacing) * 3);
+}
+
+@media (max-width: 640px) {
+  .integration-settings {
+    padding: calc(var(--spacing) * 4);
+  }
+
+  .integration-settings-header,
+  .integration-settings-row {
+    align-items: flex-start;
+  }
+
+  .integration-settings-row {
+    flex-direction: column;
+  }
+
+  .integration-settings-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

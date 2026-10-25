@@ -39,7 +39,7 @@ export function getStaffNavigationItems(role: StaffNavigationRole): StaffNavigat
       ? [
           { href: '/analytics', label: 'Analytics', icon: BarChart3 },
           { href: '/branding', label: 'Branding', icon: Palette },
-          { href: '/api-integrations', label: 'API integrations', icon: KeyRound },
+          { href: '/api-integrations', label: 'Integration settings', icon: KeyRound },
         ]
       : []),
     { href: '/sessions', label: 'Sessions', icon: CalendarDays },

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { t, useAppLanguage } from './language';
 import { AccessibleDialogSurface } from './accessible-dialog';
+import { IntegrationSettings } from './integration-settings';
 import './api-integrations.css';
 
 type DocResource = { name: string; method: string; path: string; fields: string; note?: string };
@@ -144,6 +145,8 @@ export function ApiIntegrationsPage() {
       <span><ShieldCheck size={16} />{copy('Secrets are shown once only', 'يظهر السر مرة واحدة فقط')}</span>
       <span><RotateCw size={16} />{copy('Revocation takes effect immediately', 'يسري الإلغاء فوراً')}</span>
     </section>
+
+    <IntegrationSettings />
 
     <section className="api-keys-section">
       <div className="api-section-heading">

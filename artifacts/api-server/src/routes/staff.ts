@@ -679,6 +679,45 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
   }))));
 });
 
+router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async (req, res): Promise<void> => {
+  const params = DeleteStaffParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [target] = await db.select({
+    id: staffMembersTable.id,
+    role: staffMembersTable.role,
+  }).from(staffMembersTable)
+    .where(eq(staffMembersTable.id, params.data.id))
+    .limit(1);
+  if (!target || (target.role !== "mentor" && !await hasAnyProgramStaffRole(target.id, "mentor"))) {
+    res.status(404).json({ error: "Mentor account not found." });
+    return;
+  }
+
+  const [updated] = await db.update(staffMembersTable)
+    .set({
+      bookingProvider: "calendly",
+      googleCalendarAccountEmail: null,
+      googleCalendarBookingUrl: null,
+      googleCalendarRefreshTokenEncrypted: null,
+      googleCalendarAccessTokenEncrypted: null,
+      googleCalendarAccessTokenExpiresAt: null,
+      googleCalendarSyncToken: null,
+    })
+    .where(eq(staffMembersTable.id, target.id))
+    .returning({ id: staffMembersTable.id });
+  if (!updated) {
+    res.status(404).json({ error: "Mentor account not found." });
+    return;
+  }
+
+  req.log.info({ targetStaffId: target.id }, "Coordinator disconnected a mentor Google Calendar account");
+  res.sendStatus(204);
+});
+
 router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (req, res): Promise<void> => {
   const editor = res.locals.staff as StaffAccess;
   const params = UpdateMentorBookingFollowUpParams.safeParse(req.params);

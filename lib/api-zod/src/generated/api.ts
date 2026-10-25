@@ -5298,6 +5298,16 @@ export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusRe
 
 
 /**
+ * @summary Disconnect a mentor's Google Calendar account as a coordinator
+ */
+export const DisconnectStaffGoogleCalendarParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DisconnectStaffGoogleCalendarResponse = zod.void()
+
+
+/**
  * @summary Update follow-up details for a mentor who has not connected Calendly
  */
 export const UpdateMentorBookingFollowUpParams = zod.object({
@@ -6865,6 +6875,16 @@ export const CreateProgramGoogleSheetsConnectionResponse = zod.object({
   "pendingCount": zod.number().int().min(createProgramGoogleSheetsConnectionResponsePendingCountMin),
   "failedCount": zod.number().int().min(createProgramGoogleSheetsConnectionResponseFailedCountMin)
 })
+
+
+/**
+ * @summary Unlink a program's Google Sheets workbook without deleting the external file
+ */
+export const DisconnectProgramGoogleSheetsParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const DisconnectProgramGoogleSheetsResponse = zod.void()
 
 
 /**
