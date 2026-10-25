@@ -243,8 +243,8 @@ export function GrantManagementPage() {
         <div className="grant-ledger-empty">
           <span className="grant-ledger-mark"><ShieldCheck size={21} /></span>
           <h2>{t("No grant awards to track yet.")}</h2>
-          <p>{t("When judges select grant recipients, set the awarded amount in Pitch &amp; grants. The awards will appear here for installment tracking.")}</p>
-          <Link href="/pitches" className="button button-primary">{t("Open Pitch &amp; grants")}</Link>
+          <p>{t("When judges select grant recipients, set the awarded amount in Pitch & grants. The awards will appear here for installment tracking.")}</p>
+          <Link href="/pitches" className="button button-primary">{t("Open Pitch & grants")}</Link>
         </div>
       ) : filteredAwards.length === 0 ? (
         <div className="grant-ledger-state">{t("No awards match this search or status.")}</div>
