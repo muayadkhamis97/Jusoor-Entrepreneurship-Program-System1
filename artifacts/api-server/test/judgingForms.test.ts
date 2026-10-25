@@ -186,6 +186,36 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal(detail.responseCount, 2);
     assert.deepEqual(detail.businesses.map((business: any) => [business.id, business.assessmentCount]), [[201, 1], [202, 1]]);
   });
+  test("shared businesses keep assessment counts separate between forms and program access remains enforced", async () => {
+    assert.equal((await staff("", "POST", { ...definition, programId: 22, businessIds: [203] })).status, 403);
+    assert.equal((await staff(`/${foreignId}`)).status, 404);
+
+    const originalBefore = await (await staff(`/${formId}`)).json();
+    const created = await staff("", "POST", { ...definition, title: "Independent assessment", businessIds: [201] });
+    assert.equal(created.status, 201);
+    const secondForm = await created.json();
+    assert.deepEqual(secondForm.businesses.map((business: any) => [business.id, business.assessmentCount]), [[201, 0]]);
+
+    const opened = await staff(`/${secondForm.id}/status`, "PATCH", { status: "open" });
+    assert.equal(opened.status, 200);
+    const stored = await client.query("SELECT share_token_enc FROM program_judging_forms WHERE id=$1", [secondForm.id]);
+    const secondToken = readJudgingToken(stored.rows[0].share_token_enc)!;
+    const submitted = await guest("POST", {
+      ...assessment,
+      judgeName: "Second Form Judge",
+      judgeEmail: "second-form-judge@example.test",
+      clientSubmissionId: randomUUID(),
+    }, secondToken);
+    assert.equal(submitted.status, 200);
+
+    const originalAfter = await (await staff(`/${formId}`)).json();
+    const secondAfter = await (await staff(`/${secondForm.id}`)).json();
+    assert.equal(originalAfter.businesses.find((business: any) => business.id === 201).assessmentCount,
+      originalBefore.businesses.find((business: any) => business.id === 201).assessmentCount);
+    assert.equal(originalAfter.responseCount, originalBefore.responseCount);
+    assert.equal(secondAfter.responseCount, 1);
+    assert.deepEqual(secondAfter.businesses.map((business: any) => [business.id, business.assessmentCount]), [[201, 1]]);
+  });
   test("authorized staff can replace an open form link without changing its rubric or submitted assessments", async () => {
     const previousToken = token;
     const before = await (await staff(`/${formId}`)).json();
