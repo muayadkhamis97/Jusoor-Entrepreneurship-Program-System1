@@ -13,6 +13,7 @@
 .assignment-history-filters { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 1.5fr) minmax(170px, 1fr); gap: 12px; margin: 0 0 16px; }
 .assignment-history-filters .field { margin: 0; }
 .assignment-table { min-width: 780px; }
+.integration-disconnect-table { min-width: 620px; }
 .assignment-table th { font-size: 9px; }
 .assignment-table td { vertical-align: top; }
 .assignment-table .staff-email { min-width: 205px; }

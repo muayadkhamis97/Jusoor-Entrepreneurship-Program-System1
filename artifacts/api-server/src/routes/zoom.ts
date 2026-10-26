@@ -23,6 +23,7 @@ import {
   staffMembersTable,
   zoomRecordingAlertsTable,
   zoomConnectionsTable,
+  integrationDisconnectAuditEventsTable,
 } from "@workspace/db";
 import { requireStaff } from "../middlewares/staffAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
@@ -33,7 +34,6 @@ import {
   createOrUpdateZoomMeeting,
   getZoomConnection,
   hasZoomOAuthConfiguration,
-  removeZoomConnection,
   revokeZoomAuthorization,
   saveZoomConnection,
   verifyZoomWebhookSignature,
@@ -611,7 +611,25 @@ router.post(
     }
     try {
       await revokeZoomAuthorization();
-      await removeZoomConnection();
+      const staff = res.locals.staff as StaffAccess;
+      await db.transaction(async (tx) => {
+        const [connection] = await tx.select({ id: zoomConnectionsTable.id })
+          .from(zoomConnectionsTable)
+          .where(eq(zoomConnectionsTable.provider, "zoom"))
+          .limit(1);
+        if (!connection) return;
+        await tx.delete(zoomConnectionsTable)
+          .where(eq(zoomConnectionsTable.provider, "zoom"));
+        await tx.insert(integrationDisconnectAuditEventsTable).values({
+          integrationType: "shared_zoom",
+          actorStaffId: staff.id,
+          actorEmail: staff.email,
+          affectedStaffId: null,
+          affectedAccountEmail: null,
+          programId: null,
+          programName: null,
+        });
+      });
       res.sendStatus(204);
     } catch (error) {
       sendZoomError(res, error);

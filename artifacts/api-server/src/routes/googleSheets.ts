@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db, programsTable, programGoogleSheetsConnectionsTable, programGoogleSheetsSyncEventsTable } from "@workspace/db";
+import {
+  db,
+  integrationDisconnectAuditEventsTable,
+  programsTable,
+  programGoogleSheetsConnectionsTable,
+  programGoogleSheetsSyncEventsTable,
+} from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import {
   createProgramSpreadsheet,
@@ -135,6 +141,7 @@ router.post("/:programId", async (req, res): Promise<void> => {
 });
 
 router.delete("/:programId", requireCoordinator, async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
   const programId = Number(req.params.programId);
   if (!Number.isSafeInteger(programId) || programId <= 0) {
     res.status(400).json({ error: "Invalid program id." });
@@ -149,8 +156,22 @@ router.delete("/:programId", requireCoordinator, async (req, res): Promise<void>
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
         .limit(1);
       if (!connection) throw new GoogleSheetsError("Program workbook not found.", 404);
+      const [program] = await tx.select({ name: programsTable.name })
+        .from(programsTable)
+        .where(eq(programsTable.id, programId))
+        .limit(1);
+      if (!program) throw new GoogleSheetsError("Program not found.", 404);
       await tx.delete(programGoogleSheetsConnectionsTable)
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId));
+      await tx.insert(integrationDisconnectAuditEventsTable).values({
+        integrationType: "program_google_sheets",
+        actorStaffId: staff.id,
+        actorEmail: staff.email,
+        affectedStaffId: null,
+        affectedAccountEmail: null,
+        programId,
+        programName: program.name,
+      });
     });
     req.log.info({ programId }, "Coordinator unlinked a program Google Sheets workbook");
     res.sendStatus(204);

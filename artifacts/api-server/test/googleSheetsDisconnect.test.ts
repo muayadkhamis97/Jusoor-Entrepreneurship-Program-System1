@@ -11,8 +11,10 @@ let restoreTransaction: (() => void) | undefined;
 let staffRole = "coordinator";
 let connectionExists = true;
 let deletedTable: unknown;
+let auditValues: Record<string, unknown> | undefined;
 let transactionCalls = 0;
 let connectionTable: unknown;
+let programTable: unknown;
 
 function replaceTransaction(replacement: (...args: never[]) => unknown): () => void {
   const original = Object.getOwnPropertyDescriptor(db, "transaction");
@@ -27,6 +29,7 @@ beforeEach(() => {
   staffRole = "coordinator";
   connectionExists = true;
   deletedTable = undefined;
+  auditValues = undefined;
   transactionCalls = 0;
 });
 
@@ -34,22 +37,35 @@ before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
   process.env.NODE_ENV = "test";
   db = (await import("@workspace/db")).db;
-  const { programGoogleSheetsConnectionsTable } = await import("@workspace/db");
+  const { programGoogleSheetsConnectionsTable, programsTable } = await import("@workspace/db");
   connectionTable = programGoogleSheetsConnectionsTable;
+  programTable = programsTable;
   const { default: googleSheetsRouter } = await import("../src/routes/googleSheets");
   const tx = {
     execute: async () => undefined,
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => connectionExists ? [{ programId: 19 }] : [],
-        }),
-      }),
-    }),
+    select: () => {
+      let table: unknown;
+      const query = {
+        from(value: unknown) {
+          table = value;
+          return query;
+        },
+        where: () => query,
+        limit: async () => table === connectionTable
+          ? connectionExists ? [{ programId: 19 }] : []
+          : table === programTable ? [{ name: "Spring Program" }] : [],
+      };
+      return query;
+    },
     delete: (table: unknown) => {
       deletedTable = table;
       return { where: async () => undefined };
     },
+    insert: () => ({
+      values: async (values: Record<string, unknown>) => {
+        auditValues = values;
+      },
+    }),
   };
   restoreTransaction = replaceTransaction((async (callback: (transaction: typeof tx) => Promise<unknown>) => {
     transactionCalls += 1;
@@ -88,6 +104,15 @@ test("coordinator unlinks the workbook mapping while preserving the external wor
   assert.equal(response.status, 204);
   assert.equal(deletedTable, connectionTable);
   assert.equal(transactionCalls, 1);
+  assert.deepEqual(auditValues, {
+    integrationType: "program_google_sheets",
+    actorStaffId: 1,
+    actorEmail: "admin@example.test",
+    affectedStaffId: null,
+    affectedAccountEmail: null,
+    programId: 19,
+    programName: "Spring Program",
+  });
 });
 
 test("program staff cannot disconnect a shared Google Sheets workbook", async () => {
@@ -106,4 +131,5 @@ test("disconnect reports a missing workbook without deleting anything", async ()
   assert.equal(response.status, 404);
   assert.equal(transactionCalls, 1);
   assert.equal(deletedTable, undefined);
+  assert.equal(auditValues, undefined);
 });

@@ -3089,6 +3089,34 @@ export interface StaffAssignmentHistoryClearResult {
   deletedCount: number;
 }
 
+export type IntegrationDisconnectAuditEventIntegrationType = typeof IntegrationDisconnectAuditEventIntegrationType[keyof typeof IntegrationDisconnectAuditEventIntegrationType];
+
+
+export const IntegrationDisconnectAuditEventIntegrationType = {
+  mentor_google_calendar: 'mentor_google_calendar',
+  program_google_sheets: 'program_google_sheets',
+  shared_zoom: 'shared_zoom',
+} as const;
+
+export interface IntegrationDisconnectAuditEvent {
+  id: number;
+  integrationType: IntegrationDisconnectAuditEventIntegrationType;
+  /** @nullable */
+  actorStaffId: number | null;
+  actorEmail: string;
+  /** @nullable */
+  affectedStaffId: number | null;
+  /** @nullable */
+  affectedAccountEmail: string | null;
+  /** @nullable */
+  programId: number | null;
+  /** @nullable */
+  programName: string | null;
+  createdAt: string;
+}
+
+export type IntegrationDisconnectAuditHistory = IntegrationDisconnectAuditEvent[];
+
 export interface ParticipantBusinessTeamMember {
   founderName: string;
   isYou: boolean;

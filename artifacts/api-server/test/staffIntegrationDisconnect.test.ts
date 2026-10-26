@@ -9,15 +9,17 @@ const nativeFetch = globalThis.fetch;
 let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
-let restoreUpdate: (() => void) | undefined;
+let restoreTransaction: (() => void) | undefined;
 let staffRole = "coordinator";
 let selectedMentor: {
   id: number;
+  email: string;
   role: string;
   googleCalendarRefreshTokenEncrypted: string | null;
   googleCalendarAccessTokenEncrypted: string | null;
 } | null = {
   id: 27,
+  email: "mentor@example.test",
   role: "mentor",
   googleCalendarRefreshTokenEncrypted: null,
   googleCalendarAccessTokenEncrypted: null,
@@ -25,10 +27,11 @@ let selectedMentor: {
 let updateValues: Record<string, unknown> = {};
 let updateCondition: SQL | undefined;
 let updateCalls = 0;
+let auditValues: Record<string, unknown> | undefined;
 let encryptGoogleCalendarToken: (token: string) => string;
 let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 
-function replaceDbMethod(name: "select" | "update", replacement: (...args: never[]) => unknown): () => void {
+function replaceDbMethod(name: "select" | "transaction", replacement: (...args: never[]) => unknown): () => void {
   const original = Object.getOwnPropertyDescriptor(db, name);
   Object.defineProperty(db, name, { configurable: true, writable: true, value: replacement });
   return () => {
@@ -41,6 +44,7 @@ beforeEach(() => {
   staffRole = "coordinator";
   selectedMentor = {
     id: 27,
+    email: "mentor@example.test",
     role: "mentor",
     googleCalendarRefreshTokenEncrypted: null,
     googleCalendarAccessTokenEncrypted: null,
@@ -48,6 +52,7 @@ beforeEach(() => {
   updateValues = {};
   updateCondition = undefined;
   updateCalls = 0;
+  auditValues = undefined;
   providerCalls = [];
 });
 
@@ -70,20 +75,29 @@ before(async () => {
       };
     },
   })) as (...args: never[]) => unknown);
-  restoreUpdate = replaceDbMethod("update", (() => ({
-    set(values: Record<string, unknown>) {
-      updateValues = values;
-      return this;
-    },
-    where(condition: SQL) {
-      updateCondition = condition;
-      return this;
-    },
-    returning: async () => {
-      updateCalls += 1;
-      return [{ id: selectedMentor?.id ?? 27 }];
-    },
-  })) as (...args: never[]) => unknown);
+  const tx = {
+    update: () => ({
+      set(values: Record<string, unknown>) {
+        updateValues = values;
+        return this;
+      },
+      where(condition: SQL) {
+        updateCondition = condition;
+        return this;
+      },
+      returning: async () => {
+        updateCalls += 1;
+        return [{ id: selectedMentor?.id ?? 27 }];
+      },
+    }),
+    insert: () => ({
+      values: async (values: Record<string, unknown>) => {
+        auditValues = values;
+      },
+    }),
+  };
+  restoreTransaction = replaceDbMethod("transaction", (async (callback: (transaction: typeof tx) => Promise<unknown>) =>
+    callback(tx)) as (...args: never[]) => unknown);
 
   const app = express();
   app.use(pinoHttp());
@@ -98,7 +112,7 @@ before(async () => {
 
 after(async () => {
   restoreSelect?.();
-  restoreUpdate?.();
+  restoreTransaction?.();
   globalThis.fetch = nativeFetch;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -128,6 +142,15 @@ test("coordinator can disconnect a mentor calendar without changing the mentor's
   });
   assert.ok(updateCondition);
   assert.equal(updateCalls, 1);
+  assert.deepEqual(auditValues, {
+    integrationType: "mentor_google_calendar",
+    actorStaffId: 1,
+    actorEmail: "admin@example.test",
+    affectedStaffId: 27,
+    affectedAccountEmail: "mentor@example.test",
+    programId: null,
+    programName: null,
+  });
 });
 
 test("non-coordinators cannot disconnect another staff member's calendar", async () => {
@@ -141,6 +164,7 @@ test("non-coordinators cannot disconnect another staff member's calendar", async
 test("revokes the mentor's Google grant before clearing the saved connection", async () => {
   selectedMentor = {
     id: 27,
+    email: "mentor@example.test",
     role: "mentor",
     googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("mentor-refresh-token"),
     googleCalendarAccessTokenEncrypted: null,
@@ -157,11 +181,13 @@ test("revokes the mentor's Google grant before clearing the saved connection", a
   assert.equal(providerCalls[0]?.url, "https://oauth2.googleapis.com/revoke");
   assert.match(String(providerCalls[0]?.init?.body), /mentor-refresh-token/);
   assert.equal(updateCalls, 1);
+  assert.equal(auditValues?.integrationType, "mentor_google_calendar");
 });
 
 test("keeps the mentor's saved connection when Google cannot revoke its grant", async () => {
   selectedMentor = {
     id: 27,
+    email: "mentor@example.test",
     role: "mentor",
     googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("mentor-refresh-token"),
     googleCalendarAccessTokenEncrypted: null,
@@ -172,4 +198,5 @@ test("keeps the mentor's saved connection when Google cannot revoke its grant", 
   assert.equal(response.status, 502);
   assert.match((await response.json()).error, /connection was not changed/i);
   assert.equal(updateCalls, 0);
+  assert.equal(auditValues, undefined);
 });

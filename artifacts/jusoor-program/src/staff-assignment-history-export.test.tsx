@@ -132,11 +132,19 @@ test('assignment history download creates a CSV file and releases its temporary 
 });
 
 test('only Admins can clear all assignment history after confirming the permanent deletion', () => {
-  assert.match(assignmentHistoryUi, /isAdmin && <AssignmentAuditHistory/);
+  assert.match(assignmentHistoryUi, /isAdmin && <AssignmentAuditHistory programs={programs} \/>/);
   assert.match(assignmentHistoryUi, /useClearStaffAssignmentHistory/);
   assert.match(assignmentHistoryUi, /title={t\('Clear assignment-change history\?'\)}/);
   assert.match(assignmentHistoryUi, /This permanently deletes every assignment-change history record/);
   assert.match(assignmentHistoryUi, /Existing staff roles and business teams will not change/);
   assert.match(assignmentHistoryUi, /data-testid="button-confirm-clear-assignment-history"/);
   assert.match(assignmentHistoryUi, /client\.invalidateQueries\(\{ queryKey: getGetStaffAssignmentHistoryQueryKey\(\) \}\)/);
+});
+
+test('integration disconnect history is Admin-only and read-only', () => {
+  assert.match(assignmentHistoryUi, /isAdmin && <IntegrationDisconnectAuditHistory \/>/);
+  assert.match(assignmentHistoryUi, /getGetIntegrationDisconnectHistoryQueryKey/);
+  assert.match(assignmentHistoryUi, /useGetIntegrationDisconnectHistory/);
+  assert.match(assignmentHistoryUi, /This history is read-only/);
+  assert.match(assignmentHistoryUi, /integration-disconnect-audit-history/);
 });

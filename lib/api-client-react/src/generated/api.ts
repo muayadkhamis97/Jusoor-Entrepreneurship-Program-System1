@@ -115,6 +115,7 @@ import type {
   IntegrationApiRecordResponse,
   IntegrationApiRecordsResponse,
   IntegrationApiResource,
+  IntegrationDisconnectAuditHistory,
   JudgeDashboard,
   JudgePitch,
   JudgeScorecardInput,
@@ -14899,6 +14900,83 @@ export const useClearStaffAssignmentHistory = <TError = ErrorType<void>,
       > => {
       return useMutation(getClearStaffAssignmentHistoryMutationOptions(options));
     }
+
+export const getGetIntegrationDisconnectHistoryUrl = () => {
+
+
+
+
+  return `/api/staff/integration-disconnect-history`
+}
+
+/**
+ * @summary List successful integration disconnects for admins
+ */
+export const getIntegrationDisconnectHistory = async ( options?: Parameters<typeof customFetch>[1]): Promise<IntegrationDisconnectAuditHistory> => {
+
+  return customFetch<IntegrationDisconnectAuditHistory>(getGetIntegrationDisconnectHistoryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntegrationDisconnectHistoryQueryKey = () => {
+    return [
+    `/api/staff/integration-disconnect-history`
+    ] as const;
+    }
+
+
+export const getGetIntegrationDisconnectHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntegrationDisconnectHistoryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>> = ({ signal }) => getIntegrationDisconnectHistory({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntegrationDisconnectHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>>
+export type GetIntegrationDisconnectHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary List successful integration disconnects for admins
+ */
+
+export function useGetIntegrationDisconnectHistory<TData = Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntegrationDisconnectHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntegrationDisconnectHistoryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateProgramStaffRolesUrl = (programId: number,
     staffId: number,) => {

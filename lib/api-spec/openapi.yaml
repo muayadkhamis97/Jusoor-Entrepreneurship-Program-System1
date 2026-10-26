@@ -3620,6 +3620,20 @@ paths:
                 $ref: "#/components/schemas/StaffAssignmentHistoryClearResult"
         "403":
           description: Coordinator role required
+  /staff/integration-disconnect-history:
+    get:
+      operationId: getIntegrationDisconnectHistory
+      tags: [staff]
+      summary: List successful integration disconnects for admins
+      responses:
+        "200":
+          description: Up to 250 most recent integration disconnects with actor, affected resource, and timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationDisconnectAuditHistory"
+        "403":
+          description: Coordinator role required
   /programs/{programId}/staff/{staffId}/roles:
     put:
       operationId: updateProgramStaffRoles
@@ -6389,6 +6403,34 @@ components:
       properties:
         deletedCount: { type: integer, minimum: 0 }
       required: [deletedCount]
+    IntegrationDisconnectAuditHistory:
+      type: array
+      items:
+        $ref: "#/components/schemas/IntegrationDisconnectAuditEvent"
+    IntegrationDisconnectAuditEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        integrationType:
+          type: string
+          enum: [mentor_google_calendar, program_google_sheets, shared_zoom]
+        actorStaffId: { type: ["integer", "null"] }
+        actorEmail: { type: string, format: email }
+        affectedStaffId: { type: ["integer", "null"] }
+        affectedAccountEmail: { type: ["string", "null"], format: email }
+        programId: { type: ["integer", "null"] }
+        programName: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+      required:
+        - id
+        - integrationType
+        - actorStaffId
+        - actorEmail
+        - affectedStaffId
+        - affectedAccountEmail
+        - programId
+        - programName
+        - createdAt
     StaffAssignmentAuditEvent:
       type: object
       properties:

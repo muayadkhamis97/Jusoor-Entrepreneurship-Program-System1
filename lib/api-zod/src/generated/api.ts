@@ -5533,6 +5533,23 @@ export const ClearStaffAssignmentHistoryResponse = zod.object({
 
 
 /**
+ * @summary List successful integration disconnects for admins
+ */
+export const GetIntegrationDisconnectHistoryResponseItem = zod.object({
+  "id": zod.number().int(),
+  "integrationType": zod.enum(['mentor_google_calendar', 'program_google_sheets', 'shared_zoom']),
+  "actorStaffId": zod.number().int().nullable(),
+  "actorEmail": zod.string().email(),
+  "affectedStaffId": zod.number().int().nullable(),
+  "affectedAccountEmail": zod.string().email().nullable(),
+  "programId": zod.number().int().nullable(),
+  "programName": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const GetIntegrationDisconnectHistoryResponse = zod.array(GetIntegrationDisconnectHistoryResponseItem)
+
+
+/**
  * @summary Replace a staff member's specialist roles in one program
  */
 

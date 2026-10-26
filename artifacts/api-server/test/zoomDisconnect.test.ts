@@ -8,8 +8,10 @@ let server: Server;
 let db: typeof import("@workspace/db").db;
 let staffMembersTable: typeof import("@workspace/db").staffMembersTable;
 let zoomConnectionsTable: typeof import("@workspace/db").zoomConnectionsTable;
+let restoreTransaction: (() => void) | undefined;
 let connection: Record<string, unknown> | null = null;
 let deleteCalls = 0;
+let auditValues: Record<string, unknown> | undefined;
 let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 
 function replaceDbMethod(
@@ -81,6 +83,7 @@ before(async () => {
 });
 
 after(async () => {
+  restoreTransaction?.();
   globalThis.fetch = nativeFetch;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -125,15 +128,49 @@ test("revokes Zoom authorization before removing the local connection", async ()
       };
     },
   })) as (...args: never[]) => unknown);
-  const restoreDelete = replaceDbMethod("delete", (() => ({
-    where: async () => {
-      deleteCalls += 1;
-      assert.equal(providerCalls.length, 1);
-      connection = null;
+  const { integrationDisconnectAuditEventsTable } = await import("@workspace/db");
+  const tx = {
+    select: () => {
+      let table: unknown;
+      const query = {
+        from(value: unknown) {
+          table = value;
+          return query;
+        },
+        where: () => query,
+        limit: async () => table === zoomConnectionsTable && connection ? [connection] : [],
+      };
+      return query;
     },
-  })) as (...args: never[]) => unknown);
+    delete: (table: unknown) => ({
+      where: async () => {
+        deleteCalls += 1;
+        assert.equal(table, zoomConnectionsTable);
+        assert.equal(providerCalls.length, 1);
+        connection = null;
+      },
+    }),
+    insert: (table: unknown) => ({
+      values: async (values: Record<string, unknown>) => {
+        assert.equal(table, integrationDisconnectAuditEventsTable);
+        auditValues = values;
+      },
+    }),
+  };
+  const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
+  Object.defineProperty(db, "transaction", {
+    configurable: true,
+    writable: true,
+    value: (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx),
+  });
+  const restoreDelete = () => {
+    if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
+    else Reflect.deleteProperty(db, "transaction");
+  };
+  restoreTransaction = restoreDelete;
   const { saveZoomConnection } = await import("../src/lib/zoom");
   deleteCalls = 0;
+  auditValues = undefined;
   providerCalls = [];
   await saveZoomConnection({
     accessToken: "zoom-access-token",
@@ -153,6 +190,15 @@ test("revokes Zoom authorization before removing the local connection", async ()
     assert.match(String(providerCalls[0]?.init?.body), /zoom-refresh-token/);
     assert.equal(deleteCalls, 1);
     assert.equal(connection, null);
+    assert.deepEqual(auditValues, {
+      integrationType: "shared_zoom",
+      actorStaffId: 7,
+      actorEmail: "coordinator@example.test",
+      affectedStaffId: null,
+      affectedAccountEmail: null,
+      programId: null,
+      programName: null,
+    });
   } finally {
     restoreDelete();
     restoreInsert();
@@ -189,12 +235,8 @@ test("keeps the local Zoom connection when provider revocation fails", async () 
       };
     },
   })) as (...args: never[]) => unknown);
-  const restoreDelete = replaceDbMethod("delete", (() => ({
-    where: async () => {
-      deleteCalls += 1;
-      connection = null;
-    },
-  })) as (...args: never[]) => unknown);
+  deleteCalls = 0;
+  auditValues = undefined;
   const { saveZoomConnection } = await import("../src/lib/zoom");
   deleteCalls = 0;
   await saveZoomConnection({
@@ -211,7 +253,6 @@ test("keeps the local Zoom connection when provider revocation fails", async () 
     assert.equal(deleteCalls, 0);
     assert.ok(connection);
   } finally {
-    restoreDelete();
     restoreInsert();
     restoreSelect();
     globalThis.fetch = nativeFetch;

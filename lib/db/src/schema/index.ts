@@ -30,6 +30,7 @@ export * from "./programs";
 export * from "./staff-program-assignments";
 export * from "./staff-program-roles";
 export * from "./staff-assignment-audit-events";
+export * from "./integration-disconnect-audit-events";
 export * from "./program-lifecycle-events";
 export * from "./businesses";
 export * from "./sessions";

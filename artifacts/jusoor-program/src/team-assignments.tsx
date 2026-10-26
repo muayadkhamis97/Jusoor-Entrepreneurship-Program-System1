@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetAuthMeQueryKey,
+  getGetIntegrationDisconnectHistoryQueryKey,
   getGetStaffAssignmentHistoryQueryKey,
   getGetProgramTeamAssignmentsQueryKey,
   getListStaffQueryKey,
   useAssignParticipantBusiness,
   useClearStaffAssignmentHistory,
   useGetAuthMe,
+  useGetIntegrationDisconnectHistory,
   useGetProgramTeamAssignments,
   useGetStaffAssignmentHistory,
   useListPrograms,
@@ -119,6 +121,7 @@ export function ProgramTeamAssignmentsPage({ isAdmin }: { isAdmin: boolean }) {
       isAdmin={isAdmin}
       onSaved={refreshAssignments}
     />}
+    {isAdmin && <IntegrationDisconnectAuditHistory />}
   </div>;
 }
 
@@ -184,6 +187,55 @@ function AssignmentsSections({
     </section>
     {isAdmin && <AssignmentAuditHistory programs={programs} />}
   </>;
+}
+
+function IntegrationDisconnectAuditHistory() {
+  const query = useGetIntegrationDisconnectHistory({
+    query: { queryKey: getGetIntegrationDisconnectHistoryQueryKey() },
+  });
+  const events = query.data || [];
+  const integrationLabel = (type: string) => {
+    if (type === 'mentor_google_calendar') return t('Mentor Google Calendar');
+    if (type === 'program_google_sheets') return t('Program Google Sheets');
+    return t('Shared Zoom connection');
+  };
+  const affectedResource = (event: (typeof events)[number]) => {
+    if (event.integrationType === 'mentor_google_calendar') {
+      return event.affectedAccountEmail || `${t('Mentor account')} #${event.affectedStaffId}`;
+    }
+    if (event.integrationType === 'program_google_sheets') return event.programName || `${t('Program')} #${event.programId}`;
+    return t('Shared Zoom connection');
+  };
+
+  return <section className="panel program-assignment-panel" data-testid="integration-disconnect-audit-history">
+    <div className="panel-heading">
+      <div><div className="eyebrow">{t('ADMIN HISTORY')}</div><h2 className="app-title"><History size={20} /> {t('Integration disconnects')}</h2></div>
+      <span className="section-meta">{t('Latest 250')}</span>
+    </div>
+    <p className="assignment-section-copy">{t('Review which Admin disconnected a mentor calendar, program workbook, or shared Zoom account. This history is read-only.')}</p>
+    {query.isLoading
+      ? <div className="empty-panel">{t('Loading integration history…')}</div>
+      : query.isError
+        ? <div className="empty-panel error-panel" role="alert">
+          <h3>{t('Integration disconnect history could not be loaded.')}</h3>
+          <button className="button button-outline" onClick={() => void query.refetch()}>{t('Retry')}</button>
+        </div>
+        : events.length === 0
+          ? <div className="assignment-empty">{t('No integration disconnects have been recorded yet.')}</div>
+          : <div className="table-wrap" role="region" tabIndex={0} aria-label={t('Scrollable integration history table')}>
+            <table className="assignment-table integration-disconnect-table">
+              <thead><tr>
+                <th>{t('WHEN')}</th><th>{t('INTEGRATION')}</th><th>{t('AFFECTED RESOURCE')}</th><th>{t('DISCONNECTED BY')}</th>
+              </tr></thead>
+              <tbody>{events.map(event => <tr key={event.id} data-testid={`integration-disconnect-audit-${event.id}`}>
+                <td>{new Date(event.createdAt).toLocaleString()}</td>
+                <td>{integrationLabel(event.integrationType)}</td>
+                <td>{affectedResource(event)}</td>
+                <td>{event.actorEmail}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
+  </section>;
 }
 
 function AssignmentAuditHistory({ programs }: { programs: { id: number; name: string }[] }) {

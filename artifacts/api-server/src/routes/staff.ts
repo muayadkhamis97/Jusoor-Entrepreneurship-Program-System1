@@ -14,6 +14,7 @@ import {
   GetAuthMeResponse,
   GetMentorBookingStatusResponse,
   GetMentorBookingStatusResponseItem,
+  GetIntegrationDisconnectHistoryResponse,
   GetProgramTeamAssignmentsParams,
   GetProgramTeamAssignmentsResponse,
   GetStaffAssignmentHistoryQueryParams,
@@ -35,6 +36,7 @@ import {
   programsTable,
   staffMembersTable,
   staffAssignmentAuditEventsTable,
+  integrationDisconnectAuditEventsTable,
   staffProgramAssignmentsTable,
   staffProgramRolesTable,
   sessionsTable,
@@ -308,6 +310,26 @@ router.get("/staff/assignment-history", requireCoordinator, async (req, res): Pr
     ...event,
     createdAt: event.createdAt.toISOString(),
   })));
+});
+
+router.get("/staff/integration-disconnect-history", requireCoordinator, async (_req, res): Promise<void> => {
+  const events = await db.select({
+    id: integrationDisconnectAuditEventsTable.id,
+    integrationType: integrationDisconnectAuditEventsTable.integrationType,
+    actorStaffId: integrationDisconnectAuditEventsTable.actorStaffId,
+    actorEmail: integrationDisconnectAuditEventsTable.actorEmail,
+    affectedStaffId: integrationDisconnectAuditEventsTable.affectedStaffId,
+    affectedAccountEmail: integrationDisconnectAuditEventsTable.affectedAccountEmail,
+    programId: integrationDisconnectAuditEventsTable.programId,
+    programName: integrationDisconnectAuditEventsTable.programName,
+    createdAt: integrationDisconnectAuditEventsTable.createdAt,
+  }).from(integrationDisconnectAuditEventsTable)
+    .orderBy(desc(integrationDisconnectAuditEventsTable.createdAt), desc(integrationDisconnectAuditEventsTable.id))
+    .limit(250);
+  res.json(GetIntegrationDisconnectHistoryResponse.parse(events.map((event) => ({
+    ...event,
+    createdAt: event.createdAt.toISOString(),
+  }))));
 });
 
 router.delete("/staff/assignment-history", requireCoordinator, async (req, res): Promise<void> => {
@@ -689,6 +711,7 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
 
   const [target] = await db.select({
     id: staffMembersTable.id,
+    email: staffMembersTable.email,
     role: staffMembersTable.role,
     googleCalendarRefreshTokenEncrypted: staffMembersTable.googleCalendarRefreshTokenEncrypted,
     googleCalendarAccessTokenEncrypted: staffMembersTable.googleCalendarAccessTokenEncrypted,
@@ -716,8 +739,10 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
     return;
   }
 
-  const [updated] = await db.update(staffMembersTable)
-    .set({
+  const staff = res.locals.staff as StaffAccess;
+  const disconnected = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(staffMembersTable)
+      .set({
       bookingProvider: "calendly",
       googleCalendarAccountEmail: null,
       googleCalendarBookingUrl: null,
@@ -725,10 +750,22 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
       googleCalendarAccessTokenEncrypted: null,
       googleCalendarAccessTokenExpiresAt: null,
       googleCalendarSyncToken: null,
-    })
-    .where(eq(staffMembersTable.id, target.id))
-    .returning({ id: staffMembersTable.id });
-  if (!updated) {
+      })
+      .where(eq(staffMembersTable.id, target.id))
+      .returning({ id: staffMembersTable.id });
+    if (!updated) return false;
+    await tx.insert(integrationDisconnectAuditEventsTable).values({
+      integrationType: "mentor_google_calendar",
+      actorStaffId: staff.id,
+      actorEmail: staff.email,
+      affectedStaffId: target.id,
+      affectedAccountEmail: target.email,
+      programId: null,
+      programName: null,
+    });
+    return true;
+  });
+  if (!disconnected) {
     res.status(404).json({ error: "Mentor account not found." });
     return;
   }
