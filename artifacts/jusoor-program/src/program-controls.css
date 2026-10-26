@@ -110,7 +110,7 @@
 .button-danger:hover:not(:disabled),
 .ana-button.danger:hover:not(:disabled),
 .api-button-danger:hover:not(:disabled) {
-  background: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
+  background: color-mix(in srgb, hsl(var(--destructive)) 88%, hsl(var(--foreground)));
 }
 
 .button:disabled,

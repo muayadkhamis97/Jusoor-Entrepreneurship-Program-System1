@@ -4,6 +4,7 @@ import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 import './index.css';
+import './system-redesign.css';
 import { installUnsavedNavigationGuard } from './unsaved-navigation';
 
 installUnsavedNavigationGuard();

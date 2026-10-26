@@ -1,0 +1,192 @@
+/*
+ * Shared application styling bridge: all color, type and radius decisions
+ * resolve to Program Editorial's generated theme tokens.
+ */
+
+:where(.workspace, .intake-page, .role-workspace, .analytics-page, .auth-page) {
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+}
+
+.workspace *,
+.intake-page *,
+.role-workspace *,
+.analytics-page *,
+.auth-page * {
+  font-family: var(--app-font-sans);
+}
+
+.workspace :is(h1, h2, h3),
+.intake-page :is(h1, h2, h3),
+.role-workspace :is(h1, h2, h3),
+.analytics-page :is(h1, h2, h3),
+.auth-page :is(h1, h2, h3) {
+  font-family: var(--app-font-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.app-title,
+.branding-preview-body h3 {
+  font-family: var(--app-font-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.workspace :is(.eyebrow, .workspace-tag, .today-label, .crumb, .footer, .mono,
+  .metric-trend, .role-chip, .receipt-code, .course-meta-label, thead th),
+.intake-page :is(.eyebrow, .footer, .mono, .receipt-code),
+.role-workspace :is(.eyebrow, .footer, .mono),
+.analytics-page :is(.eyebrow, .footer, .mono, thead th),
+.auth-page :is(.eyebrow, .mono) {
+  font-family: var(--app-font-mono);
+}
+
+:where(
+  .panel,
+  .metric-card,
+  .program-card,
+  .course-module-card,
+  .course-aside,
+  .intake-note,
+  .intake-aside,
+  .intake-success,
+  .application-detail-card,
+  .review-aside,
+  .participant-card,
+  .branding-form,
+  .branding-preview-wrap,
+  .empty-icon
+) {
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+:where(.panel, .metric-card, .program-card, .course-module-card, .course-aside,
+  .intake-aside, .intake-success, .application-detail-card, .review-aside,
+  .participant-card, .branding-form) {
+  border-color: hsl(var(--border));
+}
+
+:where(.nav-link, .profile-signout, .mobile-signout, .session-join, .row-arrow) {
+  transition-property: color, background-color, border-color, transform;
+  transition-duration: 200ms;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: hsl(var(--sidebar-foreground));
+  background: hsl(var(--sidebar-accent));
+}
+
+.nav-link.active::before {
+  background: hsl(var(--sidebar-primary));
+}
+
+.sidebar-note {
+  border-color: hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-accent));
+}
+
+.profile {
+  border-color: hsl(var(--sidebar-border));
+}
+
+.live-dot {
+  background: hsl(var(--sidebar-primary));
+  box-shadow: none;
+}
+
+.metric-sand::before {
+  background: hsl(var(--chart-4));
+}
+
+.metric-sand .metric-icon {
+  color: hsl(var(--chart-4));
+  background: hsl(var(--chart-4) / .1);
+}
+
+.stage-fill-1 { background: hsl(var(--chart-1)); }
+.stage-fill-2 { background: hsl(var(--chart-2)); }
+.stage-fill-3 { background: hsl(var(--chart-3)); }
+.stage-fill-4 { background: hsl(var(--chart-4)); }
+
+.company-monogram {
+  background: hsl(var(--primary) / .1);
+  color: hsl(var(--primary));
+}
+
+:where(.button, .ana-button, .api-button, .ana-tool) {
+  border-radius: var(--radius);
+  font-family: var(--app-font-sans);
+}
+
+.program-controls,
+:root {
+  --program-control-radius: var(--radius);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+  select, textarea, .form-control) {
+  border-color: hsl(var(--border));
+  border-radius: var(--radius);
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-family: var(--app-font-sans);
+}
+
+:where(input, select, textarea, .form-control):focus-visible {
+  border-color: hsl(var(--ring));
+  outline-color: hsl(var(--ring));
+}
+
+:where(input, textarea, [contenteditable="true"])::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+
+.badge,
+.role-chip,
+.participant-material-mode {
+  border-radius: var(--radius);
+  font-family: var(--app-font-mono);
+}
+
+.badge-good,
+.badge-neutral {
+  border-color: hsl(var(--primary) / .2);
+  background: hsl(var(--primary) / .1);
+  color: hsl(var(--primary));
+}
+
+.badge-warm {
+  border-color: hsl(var(--accent) / .2);
+  background: hsl(var(--accent) / .1);
+  color: hsl(var(--accent));
+}
+
+.badge-bad {
+  border-color: hsl(var(--destructive) / .2);
+  background: hsl(var(--destructive) / .1);
+  color: hsl(var(--destructive));
+}
+
+:where(.table-wrap, .ana-table-scroll, .access-table-wrap, .lp-history-table-wrap) {
+  border-radius: var(--radius);
+}
+
+@media (max-width: 760px) {
+  .sidebar {
+    border-inline-end: 1px solid hsl(var(--sidebar-border));
+  }
+
+  .page-content {
+    padding-block: calc(var(--spacing) * 6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.nav-link, .profile-signout, .mobile-signout, .session-join, .row-arrow) {
+    transition-duration: 0ms;
+  }
+}

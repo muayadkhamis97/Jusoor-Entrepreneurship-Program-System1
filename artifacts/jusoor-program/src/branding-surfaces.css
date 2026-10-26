@@ -8,7 +8,7 @@
 .branding-form-top{display:grid;grid-template-columns:1fr;gap:6px;padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid hsl(var(--border)/.8)}
 .branding-form-top>div{display:flex;gap:11px;align-items:center}
 .branding-step{font:10px var(--app-font-mono);color:hsl(var(--accent))}
-.branding-form-top h2{margin:0;font:700 18px 'Manrope',sans-serif;letter-spacing:-.035em}
+.branding-form-top h2{margin:0;font:700 18px var(--app-font-serif);letter-spacing:-.035em}
 .branding-form-top p{margin:0;color:hsl(var(--muted-foreground));font-size:11px;line-height:1.55}
 .branding-field{display:grid;gap:7px;margin:0 0 18px;color:hsl(var(--foreground));font-size:11px;font-weight:700}
 .branding-field>span{display:flex;justify-content:space-between;align-items:center}
@@ -27,15 +27,15 @@
 .branding-saved{display:flex;align-items:center;gap:7px;padding:10px 12px;margin:2px 0 12px;border-radius:7px;background:hsl(var(--primary)/.07);color:hsl(var(--primary));font-size:11px;font-weight:600}
 .branding-preview-wrap{position:sticky;top:17px;padding:17px;border-radius:11px;background:hsl(var(--sidebar));color:hsl(var(--sidebar-foreground))}
 .branding-preview-label{display:flex;justify-content:space-between;gap:10px;margin-bottom:11px;color:hsl(var(--sidebar-foreground)/.66);font:9px var(--app-font-mono);letter-spacing:.07em}
-.branding-preview{overflow:hidden;border:1px solid hsl(0 0% 100%/.18);border-radius:9px;background:hsl(var(--background));color:hsl(var(--foreground))}
+.branding-preview{overflow:hidden;border:1px solid hsl(var(--sidebar-border));border-radius:9px;background:hsl(var(--background));color:hsl(var(--foreground))}
 .branding-preview-nav{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid hsl(var(--border));}
 .branding-preview-nav img,.branding-preview-mark{width:31px;height:31px;object-fit:contain;border-radius:9px}
-.branding-preview-mark{display:grid;place-items:center;background:color-mix(in srgb,var(--preview-primary) 12%,transparent);border:1px solid color-mix(in srgb,var(--preview-primary) 33%,transparent);color:var(--preview-primary);font:700 17px 'Manrope',sans-serif}
-.branding-preview-nav b{font:700 13px 'Manrope',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.branding-preview-mark{display:grid;place-items:center;background:color-mix(in srgb,var(--preview-primary) 12%,transparent);border:1px solid color-mix(in srgb,var(--preview-primary) 33%,transparent);color:var(--preview-primary);font:700 17px var(--app-font-serif)}
+.branding-preview-nav b{font:700 13px var(--app-font-serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .branding-preview-nav>span:last-child{margin-left:auto;color:hsl(var(--muted-foreground));font:8px var(--app-font-mono);letter-spacing:.1em}
 .branding-preview-body{padding:23px 20px 20px}
 .branding-preview-kicker{font:9px var(--app-font-mono);letter-spacing:.08em;color:var(--preview-primary)}
-.branding-preview-body h3{max-width:300px;margin:11px 0 7px;font:700 clamp(20px,2vw,27px)/1.15 'Manrope',sans-serif;letter-spacing:-.04em}
+.branding-preview-body h3{max-width:300px;margin:11px 0 7px;font:700 clamp(20px,2vw,27px)/1.15 var(--app-font-serif);letter-spacing:-.04em}
 .branding-preview-body p{margin:0 0 16px;color:hsl(var(--muted-foreground));font-size:11px;line-height:1.55}
 .branding-preview-body button{display:inline-flex;align-items:center;gap:7px;padding:9px 11px;border:0;border-radius:6px;background:var(--preview-primary);color:var(--preview-primary-foreground);font-size:10px;font-weight:700}
 .branding-preview-body button svg{color:var(--preview-accent)}
@@ -43,7 +43,7 @@
 .branding-preview-swatches span{display:flex;align-items:center;gap:6px}.branding-preview-swatches i{width:11px;height:11px;border-radius:3px;background:var(--preview-primary)}.branding-preview-swatches span+span i{background:var(--preview-accent)}
 .branding-preview-note{margin:12px 2px 0;color:hsl(var(--sidebar-foreground)/.58);font-size:10px;line-height:1.5}
 .branding-skeleton{height:180px;margin:0 0 12px;border-radius:10px;background:linear-gradient(90deg,hsl(var(--muted)) 20%,hsl(var(--card)) 48%,hsl(var(--muted)) 76%);background-size:220% 100%;animation:shimmer 1.5s ease infinite}
-.branding-error{min-height:280px;display:grid;justify-items:center;align-content:center;text-align:center;gap:9px;padding:22px}.branding-error h1{font:700 23px 'Manrope',sans-serif;margin:4px}.branding-error p{color:hsl(var(--muted-foreground));font-size:12px}
+.branding-error{min-height:280px;display:grid;justify-items:center;align-content:center;text-align:center;gap:9px;padding:22px}.branding-error h1{font:700 23px var(--app-font-serif);margin:4px}.branding-error p{color:hsl(var(--muted-foreground));font-size:12px}
 .brand-logo{width:36px;height:36px;flex:none;object-fit:contain;border-radius:7px}
 .intake-logo-image{width:36px;height:36px;object-fit:contain;border-radius:7px}
 .offline-learning-note{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;margin:0 0 14px;border:1px solid hsl(var(--primary)/.17);border-radius:8px;background:hsl(var(--primary)/.055);color:hsl(var(--primary))}

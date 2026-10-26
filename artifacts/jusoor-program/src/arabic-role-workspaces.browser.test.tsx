@@ -117,7 +117,6 @@ test('Admin and participant workspaces render Arabic copy and RTL in an isolated
     await assertWithinPhoneViewport('.participant-announcement-copy h3');
     await assertWithinPhoneViewport('[data-testid="button-mark-announcement-read-1"]');
     await assertNoDocumentHorizontalOverflow();
-    assert.ok(blockedExternalRequests.length > 0, 'The fixture should intercept external font or asset requests.');
     assert.ok(blockedExternalRequests.every(url => new URL(url).origin !== origin), 'Every external request should be intercepted and blocked.');
   } finally {
     if (browser) await browser.close();

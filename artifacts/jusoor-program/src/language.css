@@ -21,7 +21,7 @@
 }
 
 .language-toggle > span {
-  font-family: Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-sans);
   font-size: 15px;
 }
 
@@ -35,8 +35,8 @@
   width: 100%;
   justify-content: flex-start;
   margin: 0 0 13px;
-  border-color: hsl(0 0% 100% / .12);
-  background: hsl(0 0% 100% / .05);
+  border-color: hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-accent));
   color: hsl(var(--sidebar-foreground));
 }
 
@@ -47,7 +47,7 @@
 }
 
 html[lang="ar"] body {
-  font-family: "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-sans);
 }
 
 html[lang="ar"] .eyebrow,
@@ -100,7 +100,7 @@ html[dir="rtl"] .auth-side-note {
 
 html[dir="rtl"] .program-window {
   border-left: 0;
-  border-right: 1px solid hsl(0 0% 100% / .16);
+  border-right: 1px solid hsl(var(--sidebar-border));
 }
 
 html[dir="rtl"] .field input,
@@ -120,7 +120,7 @@ html[dir="rtl"] svg.lucide-arrow-left {
 html[dir="rtl"] svg.lucide-arrow-up-right { transform: scaleX(-1); }
 
 html[lang="ar"] :is(h1, h2, h3, .app-title) {
-  font-family: "Noto Sans Arabic", Tahoma, Arial, sans-serif;
+  font-family: var(--app-font-sans);
   line-height: 1.55;
   letter-spacing: 0;
 }
