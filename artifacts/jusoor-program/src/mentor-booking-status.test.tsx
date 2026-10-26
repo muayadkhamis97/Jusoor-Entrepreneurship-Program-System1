@@ -43,7 +43,7 @@ test('page, filter and follow-up editor use provider-neutral connection rules an
   assert.match(source, /label="Booking account connected"/);
   assert.match(source, /t\('still need a booking connection'\)/);
   assert.doesNotMatch(source, /still need Calendly|have not connected Calendly/);
-  const translations = readFileSync(new URL('./language.tsx', import.meta.url), 'utf8');
+  const translations = readFileSync(new URL('./arabic-translations.ts', import.meta.url), 'utf8');
   for (const label of [
     'Booking account connected',
     'Google Calendar or Calendly connected',

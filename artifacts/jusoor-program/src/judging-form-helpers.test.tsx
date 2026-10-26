@@ -6,7 +6,9 @@ import {
 } from './judging-form-helpers';
 import { getStaffNavigationItems } from './mobile-staff-navigation';
 import { canAccessStaffNavigationPath } from './staff-navigation-items';
-import { hasArabicTranslation } from './language';
+import { hasArabicTranslation, loadArabicTranslations } from './language';
+
+await loadArabicTranslations();
 
 const form = {
   criteria: [{ id: 'c1', label: 'Team', description: '', maxScore: 10 }],

@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import * as ts from 'typescript';
-import { brandedAdminRoleLabel, getDisplayBrandName, hasArabicTranslation, translate } from './language';
+import { brandedAdminRoleLabel, getDisplayBrandName, hasArabicTranslation, loadArabicTranslations, translate } from './language';
 import { getStaffNavigationItems } from './mobile-staff-navigation';
 
+await loadArabicTranslations();
 const sourceRoot = path.resolve(import.meta.dirname);
 const componentsThatTranslateTextProps = new Set([
   'Badge',

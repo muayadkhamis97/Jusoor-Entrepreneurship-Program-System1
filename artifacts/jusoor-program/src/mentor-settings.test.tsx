@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const surface = readFileSync(new URL('./role-surfaces.tsx', import.meta.url), 'utf8');
 const router = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
-const translations = readFileSync(new URL('./language.tsx', import.meta.url), 'utf8');
+const translations = readFileSync(new URL('./arabic-translations.ts', import.meta.url), 'utf8');
 
 test('mentor settings route stays inside the existing mentor role guard', () => {
   assert.match(router, /if \(activeRole && availableRoles\.includes/);

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { translate } from './language';
+import { loadArabicTranslations, translate } from './language';
+
+await loadArabicTranslations();
 
 test('engagement list delegates feedback ownership to keyed card components', () => {
   const parent = readFileSync(new URL('./role-surfaces.tsx', import.meta.url), 'utf8');

@@ -370,3 +370,100 @@ test('signed-in visitors reach their role workspace only after session confirmat
     else process.env.BASE_PATH = priorBasePath;
   }
 });
+
+test('Arabic translations load only when selected and finish loading before Arabic content renders', { timeout: 120_000 }, async () => {
+  const port = await unusedPort();
+  const origin = `http://127.0.0.1:${port}`;
+  const priorPort = process.env.PORT;
+  const priorBasePath = process.env.BASE_PATH;
+  process.env.PORT = String(port);
+  process.env.BASE_PATH = '/';
+
+  let vite: Awaited<ReturnType<typeof createViteServer>> | undefined;
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+
+  try {
+    vite = await createViteServer({
+      configFile: path.join(packageRoot, 'vite.config.ts'),
+      root: packageRoot,
+      server: { host: '127.0.0.1', port, strictPort: true },
+    });
+    await vite.listen();
+    browser = await chromium.launch({
+      executablePath: chromiumPath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    });
+
+    const preparePage = async (language?: 'ar') => {
+      const page = await browser!.newPage();
+      const arabicRequests = new Set<string>();
+      if (language) {
+        await page.addInitScript(() => window.localStorage.setItem('jusoor-language', 'ar'));
+      }
+      await page.on('request', request => {
+        if (request.url().includes('arabic-translations')) arabicRequests.add(request.url());
+      });
+      await page.route('**/*', async route => {
+        const url = new URL(route.request().url());
+        if (url.origin !== origin) {
+          await route.abort();
+          return;
+        }
+        if (url.pathname.startsWith('/api/')) {
+          await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'Unavailable in language route test.' }) });
+          return;
+        }
+        await route.continue();
+      });
+      return { page, arabicRequests };
+    };
+
+    const english = await preparePage();
+    await english.page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await english.page.getByRole('heading', { name: /Every founder/i }).waitFor();
+    await english.page.waitForTimeout(300);
+    assert.equal(english.arabicRequests.size, 0, 'An English session must not request the Arabic dictionary.');
+
+    let releaseSwitch: (() => void) | undefined;
+    const switchDictionaryResponse = new Promise<void>(resolve => { releaseSwitch = resolve; });
+    await english.page.route('**/arabic-translations*', async route => {
+      await switchDictionaryResponse;
+      await route.continue();
+    });
+    const switchRequest = english.page.waitForRequest(request => request.url().includes('arabic-translations'));
+    await english.page.getByRole('button', { name: 'تغيير اللغة إلى العربية' }).click();
+    await switchRequest;
+    assert.match(await english.page.getByRole('heading', { name: /Every founder/i }).innerText(), /Every founder/);
+    assert.equal(await english.page.locator('html').getAttribute('lang'), 'en');
+    assert.equal(await english.page.locator('html').getAttribute('dir'), 'ltr');
+    releaseSwitch?.();
+    await english.page.getByRole('heading', { name: /كل رائد أعمال/ }).waitFor();
+    assert.equal(await english.page.locator('html').getAttribute('lang'), 'ar');
+    assert.equal(await english.page.locator('html').getAttribute('dir'), 'rtl');
+
+    const arabic = await preparePage('ar');
+    let releaseStartup: (() => void) | undefined;
+    const startupDictionaryResponse = new Promise<void>(resolve => { releaseStartup = resolve; });
+    await arabic.page.route('**/arabic-translations*', async route => {
+      await startupDictionaryResponse;
+      await route.continue();
+    });
+    const startupRequest = arabic.page.waitForRequest(request => request.url().includes('arabic-translations'));
+    await arabic.page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await startupRequest;
+    assert.equal(await arabic.page.locator('html').getAttribute('lang'), 'ar');
+    assert.equal(await arabic.page.locator('html').getAttribute('dir'), 'rtl');
+    assert.equal(await arabic.page.getByRole('heading', { name: /كل رائد أعمال/ }).count(), 0, 'Arabic content must stay hidden until the dictionary has loaded.');
+    releaseStartup?.();
+    await arabic.page.getByRole('heading', { name: /كل رائد أعمال/ }).waitFor();
+    assert.ok(arabic.arabicRequests.size > 0, 'An Arabic-first session must request the Arabic dictionary.');
+  } finally {
+    if (browser) await browser.close();
+    if (vite) await vite.close();
+    if (priorPort === undefined) delete process.env.PORT;
+    else process.env.PORT = priorPort;
+    if (priorBasePath === undefined) delete process.env.BASE_PATH;
+    else process.env.BASE_PATH = priorBasePath;
+  }
+});

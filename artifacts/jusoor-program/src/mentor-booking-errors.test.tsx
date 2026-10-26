@@ -25,7 +25,7 @@ test('session, permission, service, network and unknown validation failures are 
 });
 
 test('all safe messages have Arabic translations and errors are wired accessibly', () => {
-  const language = readFileSync(new URL('./language.tsx', import.meta.url), 'utf8');
+  const language = readFileSync(new URL('./arabic-translations.ts', import.meta.url), 'utf8');
   for (const message of Object.values(messages)) assert.ok(language.includes(`'${message}': '`), message);
   const source = readFileSync(new URL('./role-surfaces.tsx', import.meta.url), 'utf8');
   assert.match(source, /mentorBookingSaveError\(saveBookingSettings.error\)/);

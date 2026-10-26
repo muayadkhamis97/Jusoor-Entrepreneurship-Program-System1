@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ChatMessage } from '@workspace/api-client-react';
 import { chatPrivacyNote, completeDraft, draftFor, draftForSend, highestMessageId, mergeMessages, olderCursor, shouldMarkRead, updateDraft } from './chat-helpers';
-import { hasArabicTranslation } from './language';
+import { hasArabicTranslation, loadArabicTranslations } from './language';
+
+await loadArabicTranslations();
 
 const ids = () => { let n = 0; return () => `id-${++n}`; };
 const message = (id: number): ChatMessage => ({ id, threadId: 1, body: `m${id}`, senderName: 'A', senderRole: 'staff', isOwn: false, createdAt: '2024-01-01T00:00:00Z' });

@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
 import { tokens } from '@workspace/program-editorial/tokens';
-import { getDisplayBrandName, hasArabicTranslation } from './language';
+import { getDisplayBrandName, hasArabicTranslation, loadArabicTranslations } from './language';
+
+await loadArabicTranslations();
 
 const source = readFileSync(new URL('./public-landing.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('./public-landing.css', import.meta.url), 'utf8');

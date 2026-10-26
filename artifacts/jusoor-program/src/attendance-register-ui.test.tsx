@@ -4,7 +4,7 @@ import test from "node:test";
 
 const component = readFileSync(new URL("./analytics-surfaces.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./analytics.css", import.meta.url), "utf8");
-const translations = readFileSync(new URL("./language.tsx", import.meta.url), "utf8");
+const translations = readFileSync(new URL("./arabic-translations.ts", import.meta.url), "utf8");
 
 test("attendance register marks each participant and keeps the business association visible", () => {
   assert.match(component, /Button as EditorialButton/);

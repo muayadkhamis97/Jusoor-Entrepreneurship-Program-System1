@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getParticipantAccountRedirectUrl } from './participant-account-actions';
-import { translate } from './language';
+import { loadArabicTranslations, translate } from './language';
+
+await loadArabicTranslations();
 
 test('participant sign-out and account switching stay on the app base path', () => {
   assert.equal(getParticipantAccountRedirectUrl('sign-out', '/'), '/');

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { translate } from './language';
+import { loadArabicTranslations, translate } from './language';
+
+await loadArabicTranslations();
 
 const calendar = readFileSync(new URL('./session-calendar.tsx', import.meta.url), 'utf8');
 
