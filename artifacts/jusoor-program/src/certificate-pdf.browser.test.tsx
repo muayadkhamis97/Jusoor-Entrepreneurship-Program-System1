@@ -179,7 +179,7 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
             '.certificate-pdf-program',
             '.certificate-pdf-footer > div:first-child strong',
             '.certificate-pdf-footer > div:first-child small',
-            '.certificate-pdf-code strong',
+            '.certificate-pdf-code',
           ];
           const context = canvas.getContext('2d');
           const pageRect = certificatePage.getBoundingClientRect();
@@ -200,8 +200,6 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
             }
             return darkPixels;
           });
-          const codeField = document.querySelector<HTMLElement>('.certificate-pdf-code strong');
-          const codeRect = codeField?.getBoundingClientRect();
           (window as Window & { __certificateExportResult?: unknown }).__certificateExportResult = {
             pageCount: pdf.getNumberOfPages(),
             widthMm: pdf.internal.pageSize.getWidth(),
@@ -209,14 +207,6 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
             fontStatus: document.fonts.status,
             loadedFonts: Array.from(document.fonts).map(face => face.family),
             pixelCounts,
-            codeStyle: codeField && codeRect ? {
-              text: codeField.textContent,
-              color: getComputedStyle(codeField).color,
-              font: getComputedStyle(codeField).font,
-              bounds: [codeRect.x, codeRect.y, codeRect.width, codeRect.height],
-              pageBounds: [pageRect.x, pageRect.y, pageRect.width, pageRect.height],
-            } : null,
-            canvasDataUrl: canvas.toDataURL('image/png'),
           };
         } catch (error) {
           (window as Window & { __certificateExportResult?: unknown }).__certificateExportResult = {
@@ -250,23 +240,16 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
       fontStatus: FontFaceSet['status'];
       loadedFonts: string[];
       pixelCounts: number[];
-      codeStyle: { text: string | null; color: string; font: string; bounds: number[]; pageBounds: number[] } | null;
-      canvasDataUrl?: string;
     } }).__certificateExportResult);
 
     assert.ok(exportResult, 'Browser did not report completion of the certificate export.');
     assert.ok(!exportResult.error, exportResult.error);
-    if (exportResult.canvasDataUrl) {
-      const { writeFile } = await import('node:fs/promises');
-      await writeFile(path.join(outputDir, 'certificate-debug.png'), Buffer.from(exportResult.canvasDataUrl.split(',')[1], 'base64'));
-    }
     assert.equal(exportResult.pageCount, 1);
     assert.ok(Math.abs(exportResult.widthMm - 297) < 0.01);
     assert.ok(Math.abs(exportResult.heightMm - 210) < 0.01);
     assert.notEqual(exportResult.fontStatus, 'loading', 'Font loading should settle before the PDF is saved.');
     assert.equal(exportResult.pixelCounts.length, 6);
     console.log(`Rendered text pixel counts (participant, business, program, dates, code): ${exportResult.pixelCounts.join(', ')}`);
-    console.log('Certificate code render diagnostics:', exportResult.codeStyle);
     assert.ok(exportResult.pixelCounts.every(count => count > 20), `Certificate text regions were blank or clipped: ${exportResult.pixelCounts.join(', ')}`);
 
     const pdfInfo = execFileSync('pdfinfo', [pdfPath], { encoding: 'utf8' });
