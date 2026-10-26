@@ -16,13 +16,13 @@ export const ListParticipantAnnouncementRepliesParams = zod.object({
 })
 
 export const ListParticipantAnnouncementRepliesResponseItem = zod.object({
-  "applicationId": zod.number().int(),
+  "applicationId": zod.int(),
   "programName": zod.string(),
   "participantName": zod.string(),
   "businessName": zod.string().nullable(),
-  "unreadCount": zod.number().int(),
+  "unreadCount": zod.int(),
   "messages": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "sender": zod.enum(['participant', 'staff']),
   "body": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -40,13 +40,13 @@ export const ListStaffAnnouncementRepliesParams = zod.object({
 })
 
 export const ListStaffAnnouncementRepliesResponseItem = zod.object({
-  "applicationId": zod.number().int(),
+  "applicationId": zod.int(),
   "programName": zod.string(),
   "participantName": zod.string(),
   "businessName": zod.string().nullable(),
-  "unreadCount": zod.number().int(),
+  "unreadCount": zod.int(),
   "messages": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "sender": zod.enum(['participant', 'staff']),
   "body": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -74,7 +74,7 @@ export const SendParticipantAnnouncementReplyBody = zod.object({
 })
 
 export const SendParticipantAnnouncementReplyResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "sender": zod.enum(['participant', 'staff']),
   "body": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -100,7 +100,7 @@ export const SendStaffAnnouncementReplyBody = zod.object({
 })
 
 export const SendStaffAnnouncementReplyResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "sender": zod.enum(['participant', 'staff']),
   "body": zod.string(),
   "createdAt": zod.coerce.date(),
@@ -121,7 +121,7 @@ export const ReadParticipantAnnouncementRepliesParams = zod.object({
 
 
 export const ReadParticipantAnnouncementRepliesBody = zod.object({
-  "throughId": zod.number().int().min(1)
+  "throughId": zod.int().min(1)
 })
 
 export const ReadParticipantAnnouncementRepliesResponse = zod.void()
@@ -140,7 +140,7 @@ export const ReadStaffAnnouncementRepliesParams = zod.object({
 
 
 export const ReadStaffAnnouncementRepliesBody = zod.object({
-  "throughId": zod.number().int().min(1)
+  "throughId": zod.int().min(1)
 })
 
 export const ReadStaffAnnouncementRepliesResponse = zod.void()
@@ -166,7 +166,7 @@ export const getProgramBrandingResponseTopbarColorRegExp = new RegExp('^#[0-9A-F
 
 export const GetProgramBrandingResponse = zod.object({
   "brandName": zod.string(),
-  "logoUrl": zod.string().url().nullable(),
+  "logoUrl": zod.url().nullable(),
   "primaryColor": zod.string().regex(getProgramBrandingResponsePrimaryColorRegExp),
   "accentColor": zod.string().regex(getProgramBrandingResponseAccentColorRegExp),
   "sidebarColor": zod.string().regex(getProgramBrandingResponseSidebarColorRegExp),
@@ -189,7 +189,7 @@ export const updateProgramBrandingBodyTopbarColorRegExp = new RegExp('^#[0-9A-Fa
 
 export const UpdateProgramBrandingBody = zod.object({
   "brandName": zod.string().min(1).max(updateProgramBrandingBodyBrandNameMax),
-  "logoUrl": zod.string().url().max(updateProgramBrandingBodyLogoUrlMax).nullable(),
+  "logoUrl": zod.url().max(updateProgramBrandingBodyLogoUrlMax).nullable(),
   "primaryColor": zod.string().regex(updateProgramBrandingBodyPrimaryColorRegExp),
   "accentColor": zod.string().regex(updateProgramBrandingBodyAccentColorRegExp),
   "sidebarColor": zod.string().regex(updateProgramBrandingBodySidebarColorRegExp).optional(),
@@ -204,7 +204,7 @@ export const updateProgramBrandingResponseTopbarColorRegExp = new RegExp('^#[0-9
 
 export const UpdateProgramBrandingResponse = zod.object({
   "brandName": zod.string(),
-  "logoUrl": zod.string().url().nullable(),
+  "logoUrl": zod.url().nullable(),
   "primaryColor": zod.string().regex(updateProgramBrandingResponsePrimaryColorRegExp),
   "accentColor": zod.string().regex(updateProgramBrandingResponseAccentColorRegExp),
   "sidebarColor": zod.string().regex(updateProgramBrandingResponseSidebarColorRegExp),
@@ -223,26 +223,26 @@ export const getDashboardResponseRecentBusinessesItemApplicationDateRegExp = new
 
 
 export const GetDashboardResponse = zod.object({
-  "programs": zod.number().int(),
-  "applications": zod.number().int(),
-  "incubatorBusinesses": zod.number().int(),
-  "supportInProgress": zod.number().int(),
-  "grantsAwarded": zod.number().int(),
+  "programs": zod.int(),
+  "applications": zod.int(),
+  "incubatorBusinesses": zod.int(),
+  "supportInProgress": zod.int(),
+  "grantsAwarded": zod.int(),
   "totalGrantAmount": zod.number(),
   "stageCounts": zod.array(zod.object({
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
-  "count": zod.number().int()
+  "count": zod.int()
 })),
   "upcomingSessions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
+  "id": zod.int(),
+  "programId": zod.int().nullish(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getDashboardResponseUpcomingSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(getDashboardResponseUpcomingSessionsItemDurationMinutesMin).max(getDashboardResponseUpcomingSessionsItemDurationMinutesMax),
+  "durationMinutes": zod.int().min(getDashboardResponseUpcomingSessionsItemDurationMinutesMin).max(getDashboardResponseUpcomingSessionsItemDurationMinutesMax),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
+  "trainerStaffId": zod.int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -252,8 +252,8 @@ export const GetDashboardResponse = zod.object({
   "createdAt": zod.coerce.date()
 })),
   "recentBusinesses": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "email": zod.string(),
@@ -289,63 +289,63 @@ export const getProgramAnalyticsResponseSessionsItemScheduledDateRegExp = new Re
 
 export const GetProgramAnalyticsResponse = zod.object({
   "programs": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 })),
-  "selectedProgramId": zod.number().int().nullable(),
+  "selectedProgramId": zod.int().nullable(),
   "from": zod.string().regex(getProgramAnalyticsResponseFromRegExp),
   "to": zod.string().regex(getProgramAnalyticsResponseToRegExp),
   "summary": zod.object({
-  "applications": zod.number().int(),
-  "acceptedApplications": zod.number().int(),
-  "businesses": zod.number().int(),
-  "activeBusinesses": zod.number().int(),
-  "sessionsInRange": zod.number().int(),
-  "sessionsWithAttendance": zod.number().int(),
-  "attendanceMarks": zod.number().int(),
-  "present": zod.number().int(),
-  "absent": zod.number().int(),
-  "excused": zod.number().int(),
+  "applications": zod.int(),
+  "acceptedApplications": zod.int(),
+  "businesses": zod.int(),
+  "activeBusinesses": zod.int(),
+  "sessionsInRange": zod.int(),
+  "sessionsWithAttendance": zod.int(),
+  "attendanceMarks": zod.int(),
+  "present": zod.int(),
+  "absent": zod.int(),
+  "excused": zod.int(),
   "attendanceRate": zod.number().nullable(),
-  "assignments": zod.number().int(),
-  "submissions": zod.number().int(),
+  "assignments": zod.int(),
+  "submissions": zod.int(),
   "assignmentCompletionRate": zod.number().nullable(),
-  "questionsAsked": zod.number().int(),
-  "unansweredQuestions": zod.number().int(),
-  "completedSupport": zod.number().int(),
-  "grantsAwarded": zod.number().int(),
+  "questionsAsked": zod.int(),
+  "unansweredQuestions": zod.int(),
+  "completedSupport": zod.int(),
+  "grantsAwarded": zod.int(),
   "grantAmount": zod.number()
 }),
   "stageCounts": zod.array(zod.object({
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
-  "count": zod.number().int()
+  "count": zod.int()
 })),
   "attendanceTrend": zod.array(zod.object({
   "period": zod.string().regex(getProgramAnalyticsResponseAttendanceTrendItemPeriodRegExp),
-  "present": zod.number().int().nullable(),
-  "absent": zod.number().int().nullable(),
-  "excused": zod.number().int().nullable()
+  "present": zod.int().nullable(),
+  "absent": zod.int().nullable(),
+  "excused": zod.int().nullable()
 })),
   "engagement": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
-  "sessionsAttended": zod.number().int(),
-  "sessionsMarked": zod.number().int(),
+  "sessionsAttended": zod.int(),
+  "sessionsMarked": zod.int(),
   "attendanceRate": zod.number().nullable(),
-  "assignmentsSubmitted": zod.number().int(),
-  "assignmentsAvailable": zod.number().int(),
-  "questionsAsked": zod.number().int(),
-  "supportEngagements": zod.number().int(),
+  "assignmentsSubmitted": zod.int(),
+  "assignmentsAvailable": zod.int(),
+  "questionsAsked": zod.int(),
+  "supportEngagements": zod.int(),
   "lastActivityAt": zod.coerce.date().nullable()
 })),
   "sessions": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "scheduledDate": zod.string().regex(getProgramAnalyticsResponseSessionsItemScheduledDateRegExp),
   "status": zod.string(),
-  "attendanceMarks": zod.number().int(),
-  "present": zod.number().int()
+  "attendanceMarks": zod.int(),
+  "present": zod.int()
 }))
 })
 
@@ -391,28 +391,28 @@ export const GetProgramSessionInteractionAnalyticsResponse = zod.object({
   "from": zod.string().regex(getProgramSessionInteractionAnalyticsResponseFromRegExp),
   "to": zod.string().regex(getProgramSessionInteractionAnalyticsResponseToRegExp),
   "activities": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "sessionId": zod.number().int(),
+  "sessionId": zod.int(),
   "sessionTitle": zod.string(),
   "sessionDate": zod.string().regex(getProgramSessionInteractionAnalyticsResponseActivitiesItemSessionDateRegExp),
-  "activityId": zod.number().int(),
+  "activityId": zod.int(),
   "activityTitle": zod.string(),
   "type": zod.enum(['poll', 'survey']),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
-  "eligibleBusinesses": zod.number().int(),
+  "responseCount": zod.int(),
+  "eligibleBusinesses": zod.int(),
   "responseRate": zod.number().nullable(),
   "needsFollowUp": zod.boolean()
 })),
   "trend": zod.array(zod.object({
   "periodStart": zod.string().regex(getProgramSessionInteractionAnalyticsResponseTrendItemPeriodStartRegExp),
   "periodEnd": zod.string().regex(getProgramSessionInteractionAnalyticsResponseTrendItemPeriodEndRegExp),
-  "activityCount": zod.number().int().min(getProgramSessionInteractionAnalyticsResponseTrendItemActivityCountMin),
-  "responseCount": zod.number().int().min(getProgramSessionInteractionAnalyticsResponseTrendItemResponseCountMin).nullable(),
-  "eligibleOpportunities": zod.number().int().min(getProgramSessionInteractionAnalyticsResponseTrendItemEligibleOpportunitiesMin).nullable(),
+  "activityCount": zod.int().min(getProgramSessionInteractionAnalyticsResponseTrendItemActivityCountMin),
+  "responseCount": zod.int().min(getProgramSessionInteractionAnalyticsResponseTrendItemResponseCountMin).nullable(),
+  "eligibleOpportunities": zod.int().min(getProgramSessionInteractionAnalyticsResponseTrendItemEligibleOpportunitiesMin).nullable(),
   "responseRate": zod.number().min(getProgramSessionInteractionAnalyticsResponseTrendItemResponseRateMin).nullable(),
-  "responseCountChange": zod.number().int().nullable(),
+  "responseCountChange": zod.int().nullable(),
   "responseRateChange": zod.number().nullable()
 }))
 })
@@ -426,8 +426,8 @@ export const ListProgramAnalyticsReportLayoutsQueryParams = zod.object({
 })
 
 export const ListProgramAnalyticsReportLayoutsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "title": zod.string(),
   "sections": zod.object({
@@ -437,7 +437,7 @@ export const ListProgramAnalyticsReportLayoutsResponseItem = zod.object({
   "engagement": zod.boolean(),
   "impact": zod.boolean()
 }),
-  "createdByStaffId": zod.number().int().nullable(),
+  "createdByStaffId": zod.int().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -454,7 +454,7 @@ export const createProgramAnalyticsReportLayoutBodyTitleMax = 100;
 
 
 export const CreateProgramAnalyticsReportLayoutBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "name": zod.string().min(1).max(createProgramAnalyticsReportLayoutBodyNameMax),
   "title": zod.string().min(1).max(createProgramAnalyticsReportLayoutBodyTitleMax),
   "sections": zod.object({
@@ -467,8 +467,8 @@ export const CreateProgramAnalyticsReportLayoutBody = zod.object({
 })
 
 export const CreateProgramAnalyticsReportLayoutResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "title": zod.string(),
   "sections": zod.object({
@@ -478,7 +478,7 @@ export const CreateProgramAnalyticsReportLayoutResponse = zod.object({
   "engagement": zod.boolean(),
   "impact": zod.boolean()
 }),
-  "createdByStaffId": zod.number().int().nullable(),
+  "createdByStaffId": zod.int().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -511,8 +511,8 @@ export const UpdateProgramAnalyticsReportLayoutBody = zod.object({
 })
 
 export const UpdateProgramAnalyticsReportLayoutResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "title": zod.string(),
   "sections": zod.object({
@@ -522,7 +522,7 @@ export const UpdateProgramAnalyticsReportLayoutResponse = zod.object({
   "engagement": zod.boolean(),
   "impact": zod.boolean()
 }),
-  "createdByStaffId": zod.number().int().nullable(),
+  "createdByStaffId": zod.int().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -617,34 +617,34 @@ export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOne
 
 export const GetLearningProgressAnalyticsResponse = zod.object({
   "programs": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "startDate": zod.string().regex(getLearningProgressAnalyticsResponseProgramsItemStartDateRegExp).nullable(),
-  "participantCount": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantCountMin),
-  "completedParticipants": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCompletedParticipantsMin),
+  "participantCount": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantCountMin),
+  "completedParticipants": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemCompletedParticipantsMin),
   "averageCompletionPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAverageCompletionPercentMax),
-  "averageActiveSeconds": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAverageActiveSecondsMin),
+  "averageActiveSeconds": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemAverageActiveSecondsMin),
   "averageQuizPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAverageQuizPercentMax).nullable(),
   "assessmentGain": zod.object({
-  "eligibleParticipants": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainEligibleParticipantsMin),
-  "participantsWithPre": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainParticipantsWithPreMin),
-  "participantsWithPost": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainParticipantsWithPostMin),
-  "pairedParticipants": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPairedParticipantsMin),
+  "eligibleParticipants": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainEligibleParticipantsMin),
+  "participantsWithPre": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainParticipantsWithPreMin),
+  "participantsWithPost": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainParticipantsWithPostMin),
+  "pairedParticipants": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPairedParticipantsMin),
   "preAveragePercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPreAveragePercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPreAveragePercentMax).nullable(),
   "postAveragePercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPostAveragePercentMin).max(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainPostAveragePercentMax).nullable(),
   "averageGainPercentagePoints": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainAverageGainPercentagePointsMin).max(getLearningProgressAnalyticsResponseProgramsItemAssessmentGainAverageGainPercentagePointsMax).nullable()
 }).describe('First-attempt averages use all participants eligible for each assessment independently; missing results are excluded rather than treated as zero. Change is available only when both assessment averages have eligible data.'),
-  "certificatesIssued": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin),
+  "certificatesIssued": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemCertificatesIssuedMin),
   "reminders": zod.object({
-  "pending": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersPendingMin),
-  "sent": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersSentMin),
-  "failed": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersFailedMin),
+  "pending": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersPendingMin),
+  "sent": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersSentMin),
+  "failed": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersFailedMin),
   "latestError": zod.union([zod.object({
   "message": zod.string(),
   "failedAt": zod.coerce.date()
 }),zod.null()]),
   "failedDeliveries": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "founderName": zod.string(),
   "businessName": zod.string(),
   "moduleTitle": zod.string(),
@@ -653,22 +653,22 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
 }))
 }),
   "participants": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "completedRequiredModules": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletedRequiredModulesMin),
-  "totalRequiredModules": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneTotalRequiredModulesMin),
+  "completedRequiredModules": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletedRequiredModulesMin),
+  "totalRequiredModules": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneTotalRequiredModulesMin),
   "completionPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletionPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletionPercentMax),
-  "activeSeconds": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneActiveSecondsMin),
+  "activeSeconds": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneActiveSecondsMin),
   "lastActivityAt": zod.coerce.date().nullable(),
   "modules": zod.array(zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "isRequired": zod.boolean(),
   "dueAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
   "completionStatus": zod.enum(['not_started', 'in_progress', 'completed']),
   "packages": zod.array(zod.object({
-  "materialId": zod.number().int(),
+  "materialId": zod.int(),
   "title": zod.string(),
   "format": zod.enum(['scorm12', 'scorm2004', 'xapi']),
   "completionStatus": zod.string(),
@@ -678,7 +678,7 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
 }))
 })),
   "quizzes": zod.array(zod.object({
-  "quizId": zod.number().int(),
+  "quizId": zod.int(),
   "title": zod.string(),
   "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
   "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
@@ -686,19 +686,19 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "grade": zod.string().min(1).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemGradeMax),
   "minimumPercent": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleItemMinimumPercentMax)
 })).min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleMin).max(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLetterGradeScaleMax),
-  "attempts": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemAttemptsMin),
+  "attempts": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemAttemptsMin),
   "bestScore": zod.number().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemBestScoreMin).nullable(),
-  "totalQuestions": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin),
-  "firstScore": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstScoreMin).nullable(),
-  "firstTotalQuestions": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstTotalQuestionsMin),
-  "latestScore": zod.number().int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLatestScoreMin).nullable(),
+  "totalQuestions": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemTotalQuestionsMin),
+  "firstScore": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstScoreMin).nullable(),
+  "firstTotalQuestions": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemFirstTotalQuestionsMin),
+  "latestScore": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneQuizzesItemLatestScoreMin).nullable(),
   "firstSubmittedAt": zod.coerce.date().nullable(),
   "latestSubmittedAt": zod.coerce.date().nullable()
 })),
   "certificate": zod.union([zod.object({
-  "id": zod.number().int(),
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "participantName": zod.string(),
   "businessName": zod.string(),
@@ -710,10 +710,10 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "revocationReason": zod.string().nullable()
 }),zod.null()])
 }).and(zod.object({
-  "applicationId": zod.number().int(),
+  "applicationId": zod.int(),
   "founderName": zod.string(),
   "businessName": zod.string(),
-  "email": zod.string().email()
+  "email": zod.email()
 })))
 }))
 })
@@ -727,9 +727,9 @@ export const IssueCourseCertificateParams = zod.object({
 })
 
 export const IssueCourseCertificateResponse = zod.object({
-  "id": zod.number().int(),
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "participantName": zod.string(),
   "businessName": zod.string(),
@@ -758,9 +758,9 @@ export const RevokeCourseCertificateBody = zod.object({
 })
 
 export const RevokeCourseCertificateResponse = zod.object({
-  "id": zod.number().int(),
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "participantName": zod.string(),
   "businessName": zod.string(),
@@ -805,7 +805,7 @@ export const RetryCourseReminderParams = zod.object({
 })
 
 export const RetryCourseReminderResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "status": zod.enum(['pending'])
 })
 
@@ -834,44 +834,44 @@ export const getSessionAttendanceRegisterResponseUnmatchedParticipantsItemDurati
 
 export const GetSessionAttendanceRegisterResponse = zod.object({
   "session": zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "programId": zod.int().nullable(),
   "title": zod.string(),
   "scheduledDate": zod.string().regex(getSessionAttendanceRegisterResponseSessionScheduledDateRegExp),
   "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
-  "participantId": zod.number().int(),
+  "participantId": zod.int(),
   "participantName": zod.string(),
   "participantEmail": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().nullable(),
   "markedAt": zod.coerce.date().nullable(),
   "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
-  "attendedSeconds": zod.number().int().min(getSessionAttendanceRegisterResponseRosterItemAttendedSecondsMin).nullable(),
+  "attendedSeconds": zod.int().min(getSessionAttendanceRegisterResponseRosterItemAttendedSecondsMin).nullable(),
   "firstJoinedAt": zod.coerce.date().nullable(),
   "lastLeftAt": zod.coerce.date().nullable()
 })),
   "zoomSync": zod.union([zod.object({
   "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
-  "attempts": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneAttemptsMin),
-  "participantCount": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneParticipantCountMin),
-  "matchedCount": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneMatchedCountMin),
-  "unmatchedCount": zod.number().int().min(getSessionAttendanceRegisterResponseZoomSyncOneUnmatchedCountMin),
+  "attempts": zod.int().min(getSessionAttendanceRegisterResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.int().min(getSessionAttendanceRegisterResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.int().min(getSessionAttendanceRegisterResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.int().min(getSessionAttendanceRegisterResponseZoomSyncOneUnmatchedCountMin),
   "lastAttemptAt": zod.coerce.date().nullable(),
   "syncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable()
 }),zod.null()]),
   "unmatchedParticipants": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "displayName": zod.string(),
   "email": zod.string().nullable(),
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
-  "durationSeconds": zod.number().int().min(getSessionAttendanceRegisterResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedParticipantId": zod.number().int().nullable(),
+  "durationSeconds": zod.int().min(getSessionAttendanceRegisterResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedParticipantId": zod.int().nullable(),
   "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
@@ -897,10 +897,10 @@ export const queueZoomAttendanceSyncResponseUnmatchedCountMin = 0;
 
 export const QueueZoomAttendanceSyncResponse = zod.object({
   "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
-  "attempts": zod.number().int().min(queueZoomAttendanceSyncResponseAttemptsMin),
-  "participantCount": zod.number().int().min(queueZoomAttendanceSyncResponseParticipantCountMin),
-  "matchedCount": zod.number().int().min(queueZoomAttendanceSyncResponseMatchedCountMin),
-  "unmatchedCount": zod.number().int().min(queueZoomAttendanceSyncResponseUnmatchedCountMin),
+  "attempts": zod.int().min(queueZoomAttendanceSyncResponseAttemptsMin),
+  "participantCount": zod.int().min(queueZoomAttendanceSyncResponseParticipantCountMin),
+  "matchedCount": zod.int().min(queueZoomAttendanceSyncResponseMatchedCountMin),
+  "unmatchedCount": zod.int().min(queueZoomAttendanceSyncResponseUnmatchedCountMin),
   "lastAttemptAt": zod.coerce.date().nullable(),
   "syncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable()
@@ -920,7 +920,7 @@ export const saveSessionAttendanceBodyRecordsItemNotesMax = 1000;
 
 export const SaveSessionAttendanceBody = zod.object({
   "records": zod.array(zod.object({
-  "participantId": zod.number().int(),
+  "participantId": zod.int(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().max(saveSessionAttendanceBodyRecordsItemNotesMax).nullable()
 }))
@@ -943,44 +943,44 @@ export const saveSessionAttendanceResponseUnmatchedParticipantsItemDurationSecon
 
 export const SaveSessionAttendanceResponse = zod.object({
   "session": zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "programId": zod.int().nullable(),
   "title": zod.string(),
   "scheduledDate": zod.string().regex(saveSessionAttendanceResponseSessionScheduledDateRegExp),
   "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
-  "participantId": zod.number().int(),
+  "participantId": zod.int(),
   "participantName": zod.string(),
   "participantEmail": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().nullable(),
   "markedAt": zod.coerce.date().nullable(),
   "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
-  "attendedSeconds": zod.number().int().min(saveSessionAttendanceResponseRosterItemAttendedSecondsMin).nullable(),
+  "attendedSeconds": zod.int().min(saveSessionAttendanceResponseRosterItemAttendedSecondsMin).nullable(),
   "firstJoinedAt": zod.coerce.date().nullable(),
   "lastLeftAt": zod.coerce.date().nullable()
 })),
   "zoomSync": zod.union([zod.object({
   "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
-  "attempts": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneAttemptsMin),
-  "participantCount": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneParticipantCountMin),
-  "matchedCount": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneMatchedCountMin),
-  "unmatchedCount": zod.number().int().min(saveSessionAttendanceResponseZoomSyncOneUnmatchedCountMin),
+  "attempts": zod.int().min(saveSessionAttendanceResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.int().min(saveSessionAttendanceResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.int().min(saveSessionAttendanceResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.int().min(saveSessionAttendanceResponseZoomSyncOneUnmatchedCountMin),
   "lastAttemptAt": zod.coerce.date().nullable(),
   "syncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable()
 }),zod.null()]),
   "unmatchedParticipants": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "displayName": zod.string(),
   "email": zod.string().nullable(),
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
-  "durationSeconds": zod.number().int().min(saveSessionAttendanceResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedParticipantId": zod.number().int().nullable(),
+  "durationSeconds": zod.int().min(saveSessionAttendanceResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedParticipantId": zod.int().nullable(),
   "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
@@ -995,7 +995,7 @@ export const ResolveZoomAttendanceParticipantParams = zod.object({
 })
 
 export const ResolveZoomAttendanceParticipantBody = zod.object({
-  "participantId": zod.number().int().nullable(),
+  "participantId": zod.int().nullable(),
   "ignore": zod.boolean()
 })
 
@@ -1016,44 +1016,44 @@ export const resolveZoomAttendanceParticipantResponseUnmatchedParticipantsItemDu
 
 export const ResolveZoomAttendanceParticipantResponse = zod.object({
   "session": zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "programId": zod.int().nullable(),
   "title": zod.string(),
   "scheduledDate": zod.string().regex(resolveZoomAttendanceParticipantResponseSessionScheduledDateRegExp),
   "zoomMeetingId": zod.string().nullable()
 }),
   "roster": zod.array(zod.object({
-  "participantId": zod.number().int(),
+  "participantId": zod.int(),
   "participantName": zod.string(),
   "participantEmail": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().nullable(),
   "markedAt": zod.coerce.date().nullable(),
   "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
-  "attendedSeconds": zod.number().int().min(resolveZoomAttendanceParticipantResponseRosterItemAttendedSecondsMin).nullable(),
+  "attendedSeconds": zod.int().min(resolveZoomAttendanceParticipantResponseRosterItemAttendedSecondsMin).nullable(),
   "firstJoinedAt": zod.coerce.date().nullable(),
   "lastLeftAt": zod.coerce.date().nullable()
 })),
   "zoomSync": zod.union([zod.object({
   "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
-  "attempts": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneAttemptsMin),
-  "participantCount": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneParticipantCountMin),
-  "matchedCount": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneMatchedCountMin),
-  "unmatchedCount": zod.number().int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneUnmatchedCountMin),
+  "attempts": zod.int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.int().min(resolveZoomAttendanceParticipantResponseZoomSyncOneUnmatchedCountMin),
   "lastAttemptAt": zod.coerce.date().nullable(),
   "syncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable()
 }),zod.null()]),
   "unmatchedParticipants": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "displayName": zod.string(),
   "email": zod.string().nullable(),
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
-  "durationSeconds": zod.number().int().min(resolveZoomAttendanceParticipantResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedParticipantId": zod.number().int().nullable(),
+  "durationSeconds": zod.int().min(resolveZoomAttendanceParticipantResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedParticipantId": zod.int().nullable(),
   "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
@@ -1071,15 +1071,15 @@ export const listProgramImpactKpisResponseValuesItemPeriodEndRegExp = new RegExp
 
 
 export const ListProgramImpactKpisResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unit": zod.string(),
   "targetValue": zod.number().nullable(),
   "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
   "values": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "value": zod.number(),
   "periodEnd": zod.string().regex(listProgramImpactKpisResponseValuesItemPeriodEndRegExp),
@@ -1104,7 +1104,7 @@ export const createProgramImpactKpiBodyUnitMax = 40;
 
 
 export const CreateProgramImpactKpiBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "name": zod.string().min(1).max(createProgramImpactKpiBodyNameMax),
   "description": zod.string().max(createProgramImpactKpiBodyDescriptionMax).nullish(),
   "unit": zod.string().min(1).max(createProgramImpactKpiBodyUnitMax),
@@ -1116,15 +1116,15 @@ export const createProgramImpactKpiResponseValuesItemPeriodEndRegExp = new RegEx
 
 
 export const CreateProgramImpactKpiResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unit": zod.string(),
   "targetValue": zod.number().nullable(),
   "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
   "values": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "value": zod.number(),
   "periodEnd": zod.string().regex(createProgramImpactKpiResponseValuesItemPeriodEndRegExp),
@@ -1163,15 +1163,15 @@ export const updateProgramImpactKpiResponseValuesItemPeriodEndRegExp = new RegEx
 
 
 export const UpdateProgramImpactKpiResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unit": zod.string(),
   "targetValue": zod.number().nullable(),
   "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
   "values": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "value": zod.number(),
   "periodEnd": zod.string().regex(updateProgramImpactKpiResponseValuesItemPeriodEndRegExp),
@@ -1207,7 +1207,7 @@ export const saveProgramImpactKpiValuesBodyValuesItemNotesMax = 1000;
 
 export const SaveProgramImpactKpiValuesBody = zod.object({
   "values": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "value": zod.number(),
   "periodEnd": zod.string().regex(saveProgramImpactKpiValuesBodyValuesItemPeriodEndRegExp),
   "notes": zod.string().max(saveProgramImpactKpiValuesBodyValuesItemNotesMax).nullable()
@@ -1218,15 +1218,15 @@ export const saveProgramImpactKpiValuesResponseValuesItemPeriodEndRegExp = new R
 
 
 export const SaveProgramImpactKpiValuesResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unit": zod.string(),
   "targetValue": zod.number().nullable(),
   "direction": zod.enum(['increase_is_good', 'decrease_is_good']),
   "values": zod.array(zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "value": zod.number(),
   "periodEnd": zod.string().regex(saveProgramImpactKpiValuesResponseValuesItemPeriodEndRegExp),
@@ -1253,14 +1253,14 @@ export const listProgramsResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const ListProgramsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(listProgramsResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(listProgramsResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(listProgramsResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(listProgramsResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(listProgramsResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1286,7 +1286,7 @@ export const CreateProgramBody = zod.object({
   "startDate": zod.string().regex(createProgramBodyStartDateRegExp).nullish(),
   "endDate": zod.string().regex(createProgramBodyEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(createProgramBodyApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(createProgramBodyMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(createProgramBodyMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
 })
 
@@ -1298,14 +1298,14 @@ export const createProgramResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const CreateProgramResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(createProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(createProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(createProgramResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(createProgramResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(createProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1331,7 +1331,7 @@ export const UpdateProgramBody = zod.object({
   "startDate": zod.coerce.date().nullish(),
   "endDate": zod.coerce.date().nullish(),
   "applicationDeadline": zod.coerce.date().nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(updateProgramBodyMentorSessionsPerBusinessMin).optional(),
+  "mentorSessionsPerBusiness": zod.int().min(updateProgramBodyMentorSessionsPerBusinessMin).optional(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
 })
 
@@ -1343,14 +1343,14 @@ export const updateProgramResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const UpdateProgramResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(updateProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(updateProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(updateProgramResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(updateProgramResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(updateProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1371,8 +1371,8 @@ export const DeleteProgramResponse = zod.void()
  * @summary Review archive and restore history across all programs
  */
 export const ListAllProgramLifecycleEventsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "action": zod.enum(['archived', 'restored']),
   "createdAt": zod.coerce.date(),
@@ -1389,7 +1389,7 @@ export const ListProgramLifecycleEventsParams = zod.object({
 })
 
 export const ListProgramLifecycleEventsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "action": zod.enum(['archived', 'restored']),
   "createdAt": zod.coerce.date(),
   "actorEmail": zod.string().nullable()
@@ -1412,14 +1412,14 @@ export const archiveProgramResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const ArchiveProgramResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(archiveProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(archiveProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(archiveProgramResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(archiveProgramResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(archiveProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1441,14 +1441,14 @@ export const restoreProgramResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const RestoreProgramResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(restoreProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(restoreProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(restoreProgramResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(restoreProgramResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(restoreProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -1468,8 +1468,8 @@ export const listBusinessesResponseApplicationDateRegExp = new RegExp('^\\d{4}-\
 
 
 export const ListBusinessesResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "email": zod.string(),
@@ -1493,10 +1493,10 @@ export const createBusinessBodyApplicationDateRegExp = new RegExp('^\\d{4}-\\d{2
 
 
 export const CreateBusinessBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "businessName": zod.string().min(1),
   "founderName": zod.string().min(1),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "phone": zod.string().nullish(),
   "industry": zod.string().nullish(),
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']).optional(),
@@ -1509,8 +1509,8 @@ export const createBusinessResponseApplicationDateRegExp = new RegExp('^\\d{4}-\
 
 
 export const CreateBusinessResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "email": zod.string(),
@@ -1535,8 +1535,8 @@ export const getBusinessResponseApplicationDateRegExp = new RegExp('^\\d{4}-\\d{
 
 
 export const GetBusinessResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "email": zod.string(),
@@ -1562,10 +1562,10 @@ export const UpdateBusinessParams = zod.object({
 
 
 export const UpdateBusinessBody = zod.object({
-  "programId": zod.number().int().optional(),
+  "programId": zod.int().optional(),
   "businessName": zod.string().min(1).optional(),
   "founderName": zod.string().min(1).optional(),
-  "email": zod.string().email().optional(),
+  "email": zod.email().optional(),
   "phone": zod.string().nullish(),
   "industry": zod.string().nullish(),
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']).optional(),
@@ -1578,8 +1578,8 @@ export const updateBusinessResponseApplicationDateRegExp = new RegExp('^\\d{4}-\
 
 
 export const UpdateBusinessResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "email": zod.string(),
@@ -1610,7 +1610,7 @@ export const listApplicationProgramsResponseApplicationDeadlineRegExp = new RegE
 
 
 export const ListApplicationProgramsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
@@ -1623,20 +1623,20 @@ export const ListApplicationProgramsResponse = zod.array(ListApplicationPrograms
  * @summary List submitted applications for coordinator review
  */
 export const ListApplicationsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "founderName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "phone": zod.string().nullable(),
   "businessName": zod.string(),
   "industry": zod.string().nullable(),
-  "website": zod.string().url().nullable(),
+  "website": zod.url().nullable(),
   "summary": zod.string(),
   "supportNeeds": zod.string(),
   "status": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
   "reviewNotes": zod.string().nullable(),
-  "businessId": zod.number().int().nullable(),
+  "businessId": zod.int().nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListApplicationsResponse = zod.array(ListApplicationsResponseItem)
@@ -1668,19 +1668,19 @@ export const submitApplicationBodySupportNeedsMax = 1500;
 
 
 export const SubmitApplicationBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "founderName": zod.string().min(submitApplicationBodyFounderNameMin).max(submitApplicationBodyFounderNameMax),
-  "email": zod.string().email().max(submitApplicationBodyEmailMax),
+  "email": zod.email().max(submitApplicationBodyEmailMax),
   "phone": zod.string().max(submitApplicationBodyPhoneMax).nullish(),
   "businessName": zod.string().min(submitApplicationBodyBusinessNameMin).max(submitApplicationBodyBusinessNameMax),
   "industry": zod.string().max(submitApplicationBodyIndustryMax).nullish(),
-  "website": zod.string().url().max(submitApplicationBodyWebsiteMax).nullish(),
+  "website": zod.url().max(submitApplicationBodyWebsiteMax).nullish(),
   "summary": zod.string().min(submitApplicationBodySummaryMin).max(submitApplicationBodySummaryMax),
   "supportNeeds": zod.string().min(submitApplicationBodySupportNeedsMin).max(submitApplicationBodySupportNeedsMax)
 })
 
 export const SubmitApplicationResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "status": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
   "createdAt": zod.coerce.date()
 })
@@ -1703,20 +1703,20 @@ export const ReviewApplicationBody = zod.object({
 })
 
 export const ReviewApplicationResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "founderName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "phone": zod.string().nullable(),
   "businessName": zod.string(),
   "industry": zod.string().nullable(),
-  "website": zod.string().url().nullable(),
+  "website": zod.url().nullable(),
   "summary": zod.string(),
   "supportNeeds": zod.string(),
   "status": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
   "reviewNotes": zod.string().nullable(),
-  "businessId": zod.number().int().nullable(),
+  "businessId": zod.int().nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -1726,33 +1726,33 @@ export const ReviewApplicationResponse = zod.object({
  */
 export const GetCourseManagementResponse = zod.object({
   "programs": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "modules": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "position": zod.number().int(),
+  "position": zod.int(),
   "releaseAt": zod.coerce.date().nullable(),
   "dueAt": zod.coerce.date().nullable(),
   "isRequired": zod.boolean(),
   "isPublished": zod.boolean(),
   "materials": zod.array(zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']),
   "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
-  "externalUrl": zod.string().url().nullable(),
+  "externalUrl": zod.url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable(),
+  "fileSize": zod.int().nullable(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
-  "position": zod.number().int()
+  "position": zod.int()
 }))
 }))
 }))
@@ -1773,10 +1773,10 @@ export const createCourseModuleBodyIsRequiredDefault = true;
 export const createCourseModuleBodyIsPublishedDefault = false;
 
 export const CreateCourseModuleBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "title": zod.string().min(1).max(createCourseModuleBodyTitleMax),
   "description": zod.string().max(createCourseModuleBodyDescriptionMax).nullish(),
-  "position": zod.number().int().min(createCourseModuleBodyPositionMin).default(createCourseModuleBodyPositionDefault),
+  "position": zod.int().min(createCourseModuleBodyPositionMin).default(createCourseModuleBodyPositionDefault),
   "releaseAt": zod.coerce.date().nullish(),
   "dueAt": zod.coerce.date().nullish(),
   "isRequired": zod.boolean().default(createCourseModuleBodyIsRequiredDefault),
@@ -1784,30 +1784,30 @@ export const CreateCourseModuleBody = zod.object({
 })
 
 export const CreateCourseModuleResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "position": zod.number().int(),
+  "position": zod.int(),
   "releaseAt": zod.coerce.date().nullable(),
   "dueAt": zod.coerce.date().nullable(),
   "isRequired": zod.boolean(),
   "isPublished": zod.boolean(),
   "materials": zod.array(zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']),
   "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
-  "externalUrl": zod.string().url().nullable(),
+  "externalUrl": zod.url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable(),
+  "fileSize": zod.int().nullable(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
-  "position": zod.number().int()
+  "position": zod.int()
 }))
 })
 
@@ -1830,7 +1830,7 @@ export const updateCourseModuleBodyPositionMin = 0;
 export const UpdateCourseModuleBody = zod.object({
   "title": zod.string().min(1).max(updateCourseModuleBodyTitleMax).optional(),
   "description": zod.string().max(updateCourseModuleBodyDescriptionMax).nullish(),
-  "position": zod.number().int().min(updateCourseModuleBodyPositionMin).optional(),
+  "position": zod.int().min(updateCourseModuleBodyPositionMin).optional(),
   "releaseAt": zod.coerce.date().nullish(),
   "dueAt": zod.coerce.date().nullish(),
   "isRequired": zod.boolean().optional(),
@@ -1838,30 +1838,30 @@ export const UpdateCourseModuleBody = zod.object({
 })
 
 export const UpdateCourseModuleResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "position": zod.number().int(),
+  "position": zod.int(),
   "releaseAt": zod.coerce.date().nullable(),
   "dueAt": zod.coerce.date().nullable(),
   "isRequired": zod.boolean(),
   "isPublished": zod.boolean(),
   "materials": zod.array(zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']),
   "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
-  "externalUrl": zod.string().url().nullable(),
+  "externalUrl": zod.url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable(),
+  "fileSize": zod.int().nullable(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
-  "position": zod.number().int()
+  "position": zod.int()
 }))
 })
 
@@ -1909,30 +1909,30 @@ export const CreateCourseMaterialBody = zod.object({
   "description": zod.string().max(createCourseMaterialBodyDescriptionMax).nullish(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']).default(createCourseMaterialBodyLanguageDefault),
-  "externalUrl": zod.string().url().max(createCourseMaterialBodyExternalUrlMax).nullish(),
+  "externalUrl": zod.url().max(createCourseMaterialBodyExternalUrlMax).nullish(),
   "objectPath": zod.string().max(createCourseMaterialBodyObjectPathMax).nullish(),
   "fileName": zod.string().max(createCourseMaterialBodyFileNameMax).nullish(),
   "contentType": zod.string().max(createCourseMaterialBodyContentTypeMax).nullish(),
-  "fileSize": zod.number().int().min(1).max(createCourseMaterialBodyFileSizeMax).nullish(),
+  "fileSize": zod.int().min(1).max(createCourseMaterialBodyFileSizeMax).nullish(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])).min(1),
-  "position": zod.number().int().min(createCourseMaterialBodyPositionMin).default(createCourseMaterialBodyPositionDefault)
+  "position": zod.int().min(createCourseMaterialBodyPositionMin).default(createCourseMaterialBodyPositionDefault)
 })
 
 export const CreateCourseMaterialResponse = zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']),
   "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
-  "externalUrl": zod.string().url().nullable(),
+  "externalUrl": zod.url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable(),
+  "fileSize": zod.int().nullable(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
-  "position": zod.number().int()
+  "position": zod.int()
 })
 
 
@@ -1944,11 +1944,11 @@ export const GetCourseDiscussionsParams = zod.object({
 })
 
 export const GetCourseDiscussionsResponse = zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "moduleTitle": zod.string(),
   "posts": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "authorName": zod.string(),
@@ -1973,14 +1973,14 @@ export const createCourseDiscussionPostBodyBodyMax = 3000;
 
 
 export const CreateCourseDiscussionPostBody = zod.object({
-  "parentId": zod.number().int().min(1).nullish(),
+  "parentId": zod.int().min(1).nullish(),
   "title": zod.string().min(1).max(createCourseDiscussionPostBodyTitleMax).optional(),
   "body": zod.string().min(1).max(createCourseDiscussionPostBodyBodyMax)
 })
 
 export const CreateCourseDiscussionPostResponse = zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "authorName": zod.string(),
@@ -2020,30 +2020,30 @@ export const UpdateCourseMaterialBody = zod.object({
   "description": zod.string().max(updateCourseMaterialBodyDescriptionMax).nullish(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']).optional(),
   "language": zod.enum(['en', 'ar']).optional(),
-  "externalUrl": zod.string().url().max(updateCourseMaterialBodyExternalUrlMax).nullish(),
+  "externalUrl": zod.url().max(updateCourseMaterialBodyExternalUrlMax).nullish(),
   "objectPath": zod.string().max(updateCourseMaterialBodyObjectPathMax).nullish(),
   "fileName": zod.string().max(updateCourseMaterialBodyFileNameMax).nullish(),
   "contentType": zod.string().max(updateCourseMaterialBodyContentTypeMax).nullish(),
-  "fileSize": zod.number().int().min(1).max(updateCourseMaterialBodyFileSizeMax).nullish(),
+  "fileSize": zod.int().min(1).max(updateCourseMaterialBodyFileSizeMax).nullish(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])).min(1).optional(),
-  "position": zod.number().int().min(updateCourseMaterialBodyPositionMin).optional()
+  "position": zod.int().min(updateCourseMaterialBodyPositionMin).optional()
 })
 
 export const UpdateCourseMaterialResponse = zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']),
   "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
-  "externalUrl": zod.string().url().nullable(),
+  "externalUrl": zod.url().nullable(),
   "objectPath": zod.string().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable(),
+  "fileSize": zod.int().nullable(),
   "allowedRoles": zod.array(zod.enum(['participant', 'trainer', 'coordinator'])),
-  "position": zod.number().int()
+  "position": zod.int()
 })
 
 
@@ -2069,14 +2069,14 @@ export const requestCourseUploadUrlBodyContentTypeMax = 200;
 
 
 export const RequestCourseUploadUrlBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "name": zod.string().min(1).max(requestCourseUploadUrlBodyNameMax),
-  "size": zod.number().int().min(1).max(requestCourseUploadUrlBodySizeMax),
+  "size": zod.int().min(1).max(requestCourseUploadUrlBodySizeMax),
   "contentType": zod.string().min(1).max(requestCourseUploadUrlBodyContentTypeMax)
 })
 
 export const RequestCourseUploadUrlResponse = zod.object({
-  "uploadUrl": zod.string().url(),
+  "uploadUrl": zod.url(),
   "objectPath": zod.string()
 })
 
@@ -2096,27 +2096,27 @@ export const GetCourseMaterialFileResponse = zod.unknown()
  */
 export const GetParticipantCoursesResponse = zod.object({
   "programs": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "modules": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
-  "position": zod.number().int(),
+  "position": zod.int(),
   "releaseAt": zod.coerce.date().nullable(),
   "dueAt": zod.coerce.date().nullable(),
   "isRequired": zod.boolean(),
   "materials": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "kind": zod.enum(['video', 'document', 'slides', 'audio', 'link', 'scorm', 'xapi']),
   "language": zod.enum(['en', 'ar']),
   "packageFormat": zod.union([zod.enum(['scorm12', 'scorm2004', 'xapi']),zod.null()]),
-  "externalUrl": zod.string().url().nullable(),
+  "externalUrl": zod.url().nullable(),
   "fileName": zod.string().nullable(),
   "contentType": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable()
+  "fileSize": zod.int().nullable()
 }))
 }))
 }))
@@ -2131,11 +2131,11 @@ export const GetParticipantCourseDiscussionsParams = zod.object({
 })
 
 export const GetParticipantCourseDiscussionsResponse = zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "moduleTitle": zod.string(),
   "posts": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "authorName": zod.string(),
@@ -2160,14 +2160,14 @@ export const createParticipantCourseDiscussionPostBodyBodyMax = 3000;
 
 
 export const CreateParticipantCourseDiscussionPostBody = zod.object({
-  "parentId": zod.number().int().min(1).nullish(),
+  "parentId": zod.int().min(1).nullish(),
   "title": zod.string().min(1).max(createParticipantCourseDiscussionPostBodyTitleMax).optional(),
   "body": zod.string().min(1).max(createParticipantCourseDiscussionPostBodyBodyMax)
 })
 
 export const CreateParticipantCourseDiscussionPostResponse = zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "authorName": zod.string(),
@@ -2213,7 +2213,7 @@ export const launchParticipantCoursePackageResponseProgressOneOneSuspendDataMax 
 
 
 export const LaunchParticipantCoursePackageResponse = zod.object({
-  "materialId": zod.number().int(),
+  "materialId": zod.int(),
   "format": zod.enum(['scorm12', 'scorm2004', 'xapi']),
   "launchPath": zod.string(),
   "language": zod.enum(['en', 'ar']),
@@ -2232,8 +2232,8 @@ export const LaunchParticipantCoursePackageResponse = zod.object({
   "endpoint": zod.string(),
   "authorization": zod.string(),
   "actor": zod.record(zod.string(), zod.unknown()),
-  "registration": zod.string().uuid(),
-  "activityId": zod.string().url()
+  "registration": zod.uuid(),
+  "activityId": zod.url()
 }),zod.null()])
 })
 
@@ -2274,22 +2274,22 @@ export const getParticipantLearningProgressResponseProgramsItemQuizzesItemLatest
 
 export const GetParticipantLearningProgressResponse = zod.object({
   "programs": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "completedRequiredModules": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemCompletedRequiredModulesMin),
-  "totalRequiredModules": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemTotalRequiredModulesMin),
+  "completedRequiredModules": zod.int().min(getParticipantLearningProgressResponseProgramsItemCompletedRequiredModulesMin),
+  "totalRequiredModules": zod.int().min(getParticipantLearningProgressResponseProgramsItemTotalRequiredModulesMin),
   "completionPercent": zod.number().min(getParticipantLearningProgressResponseProgramsItemCompletionPercentMin).max(getParticipantLearningProgressResponseProgramsItemCompletionPercentMax),
-  "activeSeconds": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemActiveSecondsMin),
+  "activeSeconds": zod.int().min(getParticipantLearningProgressResponseProgramsItemActiveSecondsMin),
   "lastActivityAt": zod.coerce.date().nullable(),
   "modules": zod.array(zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "isRequired": zod.boolean(),
   "dueAt": zod.coerce.date().nullable(),
   "completedAt": zod.coerce.date().nullable(),
   "completionStatus": zod.enum(['not_started', 'in_progress', 'completed']),
   "packages": zod.array(zod.object({
-  "materialId": zod.number().int(),
+  "materialId": zod.int(),
   "title": zod.string(),
   "format": zod.enum(['scorm12', 'scorm2004', 'xapi']),
   "completionStatus": zod.string(),
@@ -2299,7 +2299,7 @@ export const GetParticipantLearningProgressResponse = zod.object({
 }))
 })),
   "quizzes": zod.array(zod.object({
-  "quizId": zod.number().int(),
+  "quizId": zod.int(),
   "title": zod.string(),
   "assessmentType": zod.enum(['knowledge_check', 'pre_course', 'post_course']),
   "gradingFormat": zod.enum(['numerical', 'percentage', 'letter']),
@@ -2307,19 +2307,19 @@ export const GetParticipantLearningProgressResponse = zod.object({
   "grade": zod.string().min(1).max(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemGradeMax),
   "minimumPercent": zod.number().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleItemMinimumPercentMax)
 })).min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleMin).max(getParticipantLearningProgressResponseProgramsItemQuizzesItemLetterGradeScaleMax),
-  "attempts": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemAttemptsMin),
+  "attempts": zod.int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemAttemptsMin),
   "bestScore": zod.number().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemBestScoreMin).nullable(),
-  "totalQuestions": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin),
-  "firstScore": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstScoreMin).nullable(),
-  "firstTotalQuestions": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstTotalQuestionsMin),
-  "latestScore": zod.number().int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLatestScoreMin).nullable(),
+  "totalQuestions": zod.int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemTotalQuestionsMin),
+  "firstScore": zod.int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstScoreMin).nullable(),
+  "firstTotalQuestions": zod.int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemFirstTotalQuestionsMin),
+  "latestScore": zod.int().min(getParticipantLearningProgressResponseProgramsItemQuizzesItemLatestScoreMin).nullable(),
   "firstSubmittedAt": zod.coerce.date().nullable(),
   "latestSubmittedAt": zod.coerce.date().nullable()
 })),
   "certificate": zod.union([zod.object({
-  "id": zod.number().int(),
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "participantName": zod.string(),
   "businessName": zod.string(),
@@ -2346,7 +2346,7 @@ export const RecordParticipantModuleProgressBody = zod.object({
 })
 
 export const RecordParticipantModuleProgressResponse = zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "completedAt": zod.coerce.date().nullable(),
   "lastActivityAt": zod.coerce.date().nullable()
 })
@@ -2364,7 +2364,7 @@ export const recordParticipantCourseActivityBodyActiveSecondsMax = 120;
 
 
 export const RecordParticipantCourseActivityBody = zod.object({
-  "activeSeconds": zod.number().int().min(1).max(recordParticipantCourseActivityBodyActiveSecondsMax)
+  "activeSeconds": zod.int().min(1).max(recordParticipantCourseActivityBodyActiveSecondsMax)
 })
 
 export const recordParticipantCourseActivityResponseActiveSecondsMin = 0;
@@ -2372,8 +2372,8 @@ export const recordParticipantCourseActivityResponseActiveSecondsMin = 0;
 
 
 export const RecordParticipantCourseActivityResponse = zod.object({
-  "programId": zod.number().int(),
-  "activeSeconds": zod.number().int().min(recordParticipantCourseActivityResponseActiveSecondsMin),
+  "programId": zod.int(),
+  "activeSeconds": zod.int().min(recordParticipantCourseActivityResponseActiveSecondsMin),
   "lastActivityAt": zod.coerce.date().nullable()
 })
 
@@ -2465,7 +2465,7 @@ export const CommitParticipantScormProgressBody = zod.object({
 
 export const CommitParticipantScormProgressResponse = zod.object({
   "result": zod.boolean(),
-  "errorCode": zod.number().int()
+  "errorCode": zod.int()
 })
 
 
@@ -2485,8 +2485,8 @@ export const getXapiStatementsQueryLimitMax = 500;
 
 
 export const GetXapiStatementsQueryParams = zod.object({
-  "statementId": zod.coerce.string().uuid().optional(),
-  "registration": zod.coerce.string().uuid().optional(),
+  "statementId": zod.uuid().optional(),
+  "registration": zod.uuid().optional(),
   "since": zod.date().optional(),
   "until": zod.date().optional(),
   "limit": zod.coerce.number().int().min(1).max(getXapiStatementsQueryLimitMax).optional()
@@ -2499,7 +2499,7 @@ export const GetXapiStatementsHeader = zod.object({
 
 export const GetXapiStatementsResponse = zod.object({
   "statements": zod.array(zod.object({
-  "id": zod.string().uuid().optional(),
+  "id": zod.uuid().optional(),
   "actor": zod.record(zod.string(), zod.unknown()),
   "verb": zod.record(zod.string(), zod.unknown()),
   "object": zod.record(zod.string(), zod.unknown()),
@@ -2522,7 +2522,7 @@ export const PostXapiStatementsHeader = zod.object({
 })
 
 export const PostXapiStatementsBody = zod.union([zod.object({
-  "id": zod.string().uuid().optional(),
+  "id": zod.uuid().optional(),
   "actor": zod.record(zod.string(), zod.unknown()),
   "verb": zod.record(zod.string(), zod.unknown()),
   "object": zod.record(zod.string(), zod.unknown()),
@@ -2532,7 +2532,7 @@ export const PostXapiStatementsBody = zod.union([zod.object({
   "stored": zod.coerce.date().optional(),
   "version": zod.string().optional()
 }),zod.array(zod.object({
-  "id": zod.string().uuid().optional(),
+  "id": zod.uuid().optional(),
   "actor": zod.record(zod.string(), zod.unknown()),
   "verb": zod.record(zod.string(), zod.unknown()),
   "object": zod.record(zod.string(), zod.unknown()),
@@ -2543,7 +2543,7 @@ export const PostXapiStatementsBody = zod.union([zod.object({
   "version": zod.string().optional()
 }))])
 
-export const PostXapiStatementsResponseItem = zod.string().uuid()
+export const PostXapiStatementsResponseItem = zod.uuid()
 export const PostXapiStatementsResponse = zod.array(PostXapiStatementsResponseItem)
 
 
@@ -2551,7 +2551,7 @@ export const PostXapiStatementsResponse = zod.array(PostXapiStatementsResponseIt
  * @summary Store a statement using its caller-supplied UUID
  */
 export const PutXapiStatementQueryParams = zod.object({
-  "statementId": zod.coerce.string().uuid()
+  "statementId": zod.uuid()
 })
 
 export const PutXapiStatementHeader = zod.object({
@@ -2560,7 +2560,7 @@ export const PutXapiStatementHeader = zod.object({
 })
 
 export const PutXapiStatementBody = zod.object({
-  "id": zod.string().uuid().optional(),
+  "id": zod.uuid().optional(),
   "actor": zod.record(zod.string(), zod.unknown()),
   "verb": zod.record(zod.string(), zod.unknown()),
   "object": zod.record(zod.string(), zod.unknown()),
@@ -2578,10 +2578,10 @@ export const PutXapiStatementResponse = zod.void()
  * @summary Read state for an activity in the active package launch
  */
 export const GetXapiActivityStateQueryParams = zod.object({
-  "activityId": zod.coerce.string().url(),
+  "activityId": zod.url(),
   "agent": zod.coerce.string(),
   "stateId": zod.coerce.string().optional(),
-  "registration": zod.coerce.string().uuid().optional()
+  "registration": zod.uuid().optional()
 })
 
 export const GetXapiActivityStateHeader = zod.object({
@@ -2596,10 +2596,10 @@ export const GetXapiActivityStateResponse = zod.record(zod.string(), zod.unknown
  * @summary Replace state for an activity in the active package launch
  */
 export const PutXapiActivityStateQueryParams = zod.object({
-  "activityId": zod.coerce.string().url(),
+  "activityId": zod.url(),
   "agent": zod.coerce.string(),
   "stateId": zod.coerce.string(),
-  "registration": zod.coerce.string().uuid().optional()
+  "registration": zod.uuid().optional()
 })
 
 export const PutXapiActivityStateHeader = zod.object({
@@ -2616,10 +2616,10 @@ export const PutXapiActivityStateResponse = zod.void()
  * @summary Store or update state for an activity in the active package launch
  */
 export const PostXapiActivityStateQueryParams = zod.object({
-  "activityId": zod.coerce.string().url(),
+  "activityId": zod.url(),
   "agent": zod.coerce.string(),
   "stateId": zod.coerce.string(),
-  "registration": zod.coerce.string().uuid().optional()
+  "registration": zod.uuid().optional()
 })
 
 export const PostXapiActivityStateHeader = zod.object({
@@ -2636,10 +2636,10 @@ export const PostXapiActivityStateResponse = zod.void()
  * @summary Delete state for an activity in the active package launch
  */
 export const DeleteXapiActivityStateQueryParams = zod.object({
-  "activityId": zod.coerce.string().url(),
+  "activityId": zod.url(),
   "agent": zod.coerce.string(),
   "stateId": zod.coerce.string().optional(),
-  "registration": zod.coerce.string().uuid().optional()
+  "registration": zod.uuid().optional()
 })
 
 export const DeleteXapiActivityStateHeader = zod.object({
@@ -2666,12 +2666,12 @@ export const getParticipantDashboardResponseAnnouncementsItemSessionDateRegExp =
 
 export const GetParticipantDashboardResponse = zod.object({
   "applications": zod.array(zod.object({
-  "applicationId": zod.number().int(),
+  "applicationId": zod.int(),
   "enrollmentSource": zod.enum(['application', 'admin_invitation']),
   "applicationStatus": zod.enum(['submitted', 'under_review', 'accepted', 'declined']),
   "submittedAt": zod.coerce.date(),
   "program": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullable(),
@@ -2679,36 +2679,36 @@ export const GetParticipantDashboardResponse = zod.object({
   "endDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemProgramEndDateRegExp).nullable()
 }),
   "business": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "businessName": zod.string(),
   "industry": zod.string().nullable(),
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'])
 }),zod.null()]),
   "sessions": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullable(),
-  "durationMinutes": zod.number().int().min(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMin).max(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMax).optional(),
+  "durationMinutes": zod.int().min(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMin).max(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMax).optional(),
   "facilitator": zod.string().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullable(),
-  "zoomUrl": zod.string().url().nullable(),
-  "recordingUrl": zod.string().url().nullable(),
+  "zoomUrl": zod.url().nullable(),
+  "recordingUrl": zod.url().nullable(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled'])
 })),
   "support": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSupportItemScheduledDateRegExp).nullable(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
-  "mentorBookingUrl": zod.string().url().nullable()
+  "mentorBookingUrl": zod.url().nullable()
 })),
   "calendlyMeetings": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventName": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
@@ -2716,7 +2716,7 @@ export const GetParticipantDashboardResponse = zod.object({
   "status": zod.enum(['confirmed', 'rescheduled', 'cancelled'])
 })),
   "googleCalendarMeetings": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "eventName": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
@@ -2724,7 +2724,7 @@ export const GetParticipantDashboardResponse = zod.object({
   "status": zod.enum(['confirmed', 'cancelled'])
 })),
   "assignments": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "instructions": zod.string(),
   "dueDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemAssignmentsItemDueDateRegExp).nullable(),
@@ -2736,8 +2736,8 @@ export const GetParticipantDashboardResponse = zod.object({
   "submittedAt": zod.coerce.date().nullable()
 })),
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "sessionTitle": zod.string().nullable(),
   "assignmentTitle": zod.string().nullable(),
   "question": zod.string(),
@@ -2747,12 +2747,12 @@ export const GetParticipantDashboardResponse = zod.object({
 }))
 })),
   "announcements": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "programId": zod.int().nullable(),
   "programName": zod.string().nullable(),
-  "businessId": zod.number().int().nullable(),
+  "businessId": zod.int().nullable(),
   "businessName": zod.string().nullable(),
-  "sessionId": zod.number().int().nullable(),
+  "sessionId": zod.int().nullable(),
   "sessionTitle": zod.string().nullable(),
   "sessionDate": zod.string().regex(getParticipantDashboardResponseAnnouncementsItemSessionDateRegExp).nullable(),
   "recordingUrl": zod.string().nullable(),
@@ -2770,9 +2770,9 @@ export const GetParticipantDashboardResponse = zod.object({
  * @summary List startup-level business details and team members for the signed-in participant
  */
 export const GetParticipantBusinessTeamsResponseItem = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "industry": zod.string().nullable(),
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined']),
@@ -2789,8 +2789,8 @@ export const GetParticipantBusinessTeamsResponse = zod.array(GetParticipantBusin
  */
 export const GetParticipantIdeaValidationResponse = zod.object({
   "workbooks": zod.array(zod.object({
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "businessName": zod.string(),
   "customerSegment": zod.string(),
@@ -2838,8 +2838,8 @@ export const SaveParticipantIdeaValidationBody = zod.object({
 })
 
 export const SaveParticipantIdeaValidationResponse = zod.object({
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "businessName": zod.string(),
   "customerSegment": zod.string(),
@@ -2857,8 +2857,8 @@ export const SaveParticipantIdeaValidationResponse = zod.object({
  */
 export const GetParticipantBusinessPlansResponse = zod.object({
   "plans": zod.array(zod.object({
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "businessName": zod.string(),
   "acquisitionChannels": zod.string(),
@@ -2898,8 +2898,8 @@ export const SaveParticipantBusinessPlanBody = zod.object({
 })
 
 export const SaveParticipantBusinessPlanResponse = zod.object({
-  "applicationId": zod.number().int(),
-  "programId": zod.number().int(),
+  "applicationId": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "businessName": zod.string(),
   "acquisitionChannels": zod.string(),
@@ -2921,7 +2921,7 @@ export const GetParticipantPeerDirectoryParams = zod.object({
 })
 
 export const GetParticipantPeerDirectoryResponse = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "preferences": zod.object({
   "isListed": zod.boolean(),
@@ -2969,7 +2969,7 @@ export const MarkAnnouncementReadParams = zod.object({
 })
 
 export const MarkAnnouncementReadResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "readAt": zod.coerce.date()
 })
 
@@ -2990,9 +2990,9 @@ export const SubmitTrainingAnswerBody = zod.object({
 })
 
 export const SubmitTrainingAnswerResponse = zod.object({
-  "id": zod.number().int(),
-  "assignmentId": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "assignmentId": zod.int(),
+  "businessId": zod.int(),
   "answer": zod.string(),
   "status": zod.enum(['submitted', 'reviewed']),
   "score": zod.number().nullable(),
@@ -3011,15 +3011,15 @@ export const askTrainingQuestionBodyQuestionMax = 3000;
 
 
 export const AskTrainingQuestionBody = zod.object({
-  "programId": zod.number().int(),
-  "sessionId": zod.number().int().nullish(),
-  "assignmentId": zod.number().int().nullish(),
+  "programId": zod.int(),
+  "sessionId": zod.int().nullish(),
+  "assignmentId": zod.int().nullish(),
   "question": zod.string().min(askTrainingQuestionBodyQuestionMin).max(askTrainingQuestionBodyQuestionMax)
 })
 
 export const AskTrainingQuestionResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "sessionTitle": zod.string().nullable(),
   "assignmentTitle": zod.string().nullable(),
   "question": zod.string(),
@@ -3041,19 +3041,19 @@ export const getTrainerDashboardResponseAssignmentsItemDueDateRegExp = new RegEx
 
 export const GetTrainerDashboardResponse = zod.object({
   "programs": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 })),
   "sessions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
+  "id": zod.int(),
+  "programId": zod.int().nullish(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getTrainerDashboardResponseSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(getTrainerDashboardResponseSessionsItemDurationMinutesMin).max(getTrainerDashboardResponseSessionsItemDurationMinutesMax),
+  "durationMinutes": zod.int().min(getTrainerDashboardResponseSessionsItemDurationMinutesMin).max(getTrainerDashboardResponseSessionsItemDurationMinutesMax),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
+  "trainerStaffId": zod.int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -3063,19 +3063,19 @@ export const GetTrainerDashboardResponse = zod.object({
   "createdAt": zod.coerce.date()
 })),
   "assignments": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "title": zod.string(),
   "instructions": zod.string(),
   "dueDate": zod.string().regex(getTrainerDashboardResponseAssignmentsItemDueDateRegExp).nullable(),
-  "sessionId": zod.number().int().nullable(),
+  "sessionId": zod.int().nullable(),
   "sessionTitle": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })),
   "submissions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "assignmentId": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "assignmentId": zod.int(),
+  "businessId": zod.int(),
   "answer": zod.string(),
   "status": zod.enum(['submitted', 'reviewed']),
   "score": zod.number().nullable(),
@@ -3089,8 +3089,8 @@ export const GetTrainerDashboardResponse = zod.object({
   "programName": zod.string()
 }))),
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "sessionTitle": zod.string().nullable(),
   "assignmentTitle": zod.string().nullable(),
   "question": zod.string(),
@@ -3124,41 +3124,41 @@ export const getTrainerAttendanceReportsResponseUnmatchedParticipantsItemDuratio
 
 
 export const GetTrainerAttendanceReportsResponseItem = zod.object({
-  "sessionId": zod.number().int(),
+  "sessionId": zod.int(),
   "sessionTitle": zod.string(),
   "scheduledDate": zod.string().regex(getTrainerAttendanceReportsResponseScheduledDateRegExp),
   "attendance": zod.array(zod.object({
-  "participantId": zod.number().int(),
+  "participantId": zod.int(),
   "participantName": zod.string(),
   "participantEmail": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "status": zod.union([zod.enum(['present', 'absent', 'excused']),zod.null()]),
   "notes": zod.string().nullable(),
   "markedAt": zod.coerce.date().nullable(),
   "source": zod.union([zod.enum(['manual', 'zoom']),zod.null()]),
-  "attendedSeconds": zod.number().int().min(getTrainerAttendanceReportsResponseAttendanceItemAttendedSecondsMin).nullable(),
+  "attendedSeconds": zod.int().min(getTrainerAttendanceReportsResponseAttendanceItemAttendedSecondsMin).nullable(),
   "firstJoinedAt": zod.coerce.date().nullable(),
   "lastLeftAt": zod.coerce.date().nullable()
 })),
   "zoomSync": zod.union([zod.object({
   "status": zod.enum(['queued', 'syncing', 'completed', 'failed']),
-  "attempts": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneAttemptsMin),
-  "participantCount": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneParticipantCountMin),
-  "matchedCount": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneMatchedCountMin),
-  "unmatchedCount": zod.number().int().min(getTrainerAttendanceReportsResponseZoomSyncOneUnmatchedCountMin),
+  "attempts": zod.int().min(getTrainerAttendanceReportsResponseZoomSyncOneAttemptsMin),
+  "participantCount": zod.int().min(getTrainerAttendanceReportsResponseZoomSyncOneParticipantCountMin),
+  "matchedCount": zod.int().min(getTrainerAttendanceReportsResponseZoomSyncOneMatchedCountMin),
+  "unmatchedCount": zod.int().min(getTrainerAttendanceReportsResponseZoomSyncOneUnmatchedCountMin),
   "lastAttemptAt": zod.coerce.date().nullable(),
   "syncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable()
 }),zod.null()]),
   "unmatchedParticipants": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "displayName": zod.string(),
   "email": zod.string().nullable(),
   "joinTime": zod.coerce.date().nullable(),
   "leaveTime": zod.coerce.date().nullable(),
-  "durationSeconds": zod.number().int().min(getTrainerAttendanceReportsResponseUnmatchedParticipantsItemDurationSecondsMin),
-  "matchedParticipantId": zod.number().int().nullable(),
+  "durationSeconds": zod.int().min(getTrainerAttendanceReportsResponseUnmatchedParticipantsItemDurationSecondsMin),
+  "matchedParticipantId": zod.int().nullable(),
   "matchedParticipantName": zod.string().nullable(),
   "ignoredAt": zod.coerce.date().nullable()
 }))
@@ -3179,23 +3179,23 @@ export const createTrainingAssignmentBodyDueDateRegExp = new RegExp('^\\d{4}-\\d
 
 
 export const CreateTrainingAssignmentBody = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "title": zod.string().min(createTrainingAssignmentBodyTitleMin).max(createTrainingAssignmentBodyTitleMax),
   "instructions": zod.string().min(createTrainingAssignmentBodyInstructionsMin).max(createTrainingAssignmentBodyInstructionsMax),
   "dueDate": zod.string().regex(createTrainingAssignmentBodyDueDateRegExp).nullish(),
-  "sessionId": zod.number().int().nullish()
+  "sessionId": zod.int().nullish()
 })
 
 export const createTrainingAssignmentResponseDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const CreateTrainingAssignmentResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "title": zod.string(),
   "instructions": zod.string(),
   "dueDate": zod.string().regex(createTrainingAssignmentResponseDueDateRegExp).nullable(),
-  "sessionId": zod.number().int().nullable(),
+  "sessionId": zod.int().nullable(),
   "sessionTitle": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
@@ -3221,9 +3221,9 @@ export const ReviewTrainingAnswerBody = zod.object({
 })
 
 export const ReviewTrainingAnswerResponse = zod.object({
-  "id": zod.number().int(),
-  "assignmentId": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "assignmentId": zod.int(),
+  "businessId": zod.int(),
   "answer": zod.string(),
   "status": zod.enum(['submitted', 'reviewed']),
   "score": zod.number().nullable(),
@@ -3249,8 +3249,8 @@ export const ReplyTrainingQuestionBody = zod.object({
 })
 
 export const ReplyTrainingQuestionResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "sessionTitle": zod.string().nullable(),
   "assignmentTitle": zod.string().nullable(),
   "question": zod.string(),
@@ -3274,8 +3274,8 @@ export const getMentorDashboardResponseEngagementsItemTwoAdditionalSessionReques
 
 export const GetMentorDashboardResponse = zod.object({
   "engagements": zod.array(zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "programName": zod.string(),
@@ -3286,22 +3286,22 @@ export const GetMentorDashboardResponse = zod.object({
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
   "notes": zod.string().nullable()
 }).and(zod.object({
-  "mentorSessionsPerBusiness": zod.number().int().min(getMentorDashboardResponseEngagementsItemTwoMentorSessionsPerBusinessMin),
-  "reportedOneToOneSessions": zod.number().int().min(getMentorDashboardResponseEngagementsItemTwoReportedOneToOneSessionsMin),
+  "mentorSessionsPerBusiness": zod.int().min(getMentorDashboardResponseEngagementsItemTwoMentorSessionsPerBusinessMin),
+  "reportedOneToOneSessions": zod.int().min(getMentorDashboardResponseEngagementsItemTwoReportedOneToOneSessionsMin),
   "openAdditionalSessionsEmailStatus": zod.union([zod.literal('pending'),zod.literal('delivered'),zod.literal('failed'),zod.literal(null)]).nullable(),
   "additionalSessionRequests": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "status": zod.enum(['open', 'resolved']),
   "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal('withdrawn'),zod.literal(null)]).nullable(),
-  "approvedAdditionalSessions": zod.number().int().min(1).max(getMentorDashboardResponseEngagementsItemTwoAdditionalSessionRequestsItemApprovedAdditionalSessionsMax).nullable(),
+  "approvedAdditionalSessions": zod.int().min(1).max(getMentorDashboardResponseEngagementsItemTwoAdditionalSessionRequestsItemApprovedAdditionalSessionsMax).nullable(),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
   "createdAt": zod.coerce.date(),
   "resolvedAt": zod.coerce.date().nullable()
 }))
 }))),
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
-  "calendlyBookingUrl": zod.string().url().nullable(),
-  "googleCalendarBookingUrl": zod.string().url().nullable(),
+  "calendlyBookingUrl": zod.url().nullable(),
+  "googleCalendarBookingUrl": zod.url().nullable(),
   "googleCalendarConnected": zod.boolean()
 })
 
@@ -3318,18 +3318,18 @@ export const getMentorMeetingReportsResponseReportsItemMeetingDateRegExp = new R
 
 export const GetMentorMeetingReportsResponse = zod.object({
   "coachName": zod.string(),
-  "coachEmail": zod.string().email(),
+  "coachEmail": zod.email(),
   "businessName": zod.string(),
   "attendees": zod.array(zod.object({
-  "applicationId": zod.number().int(),
+  "applicationId": zod.int(),
   "name": zod.string()
 })),
   "reports": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "meetingProvider": zod.enum(['manual', 'calendly', 'google_calendar']),
-  "meetingId": zod.number().int().nullable(),
+  "meetingId": zod.int().nullable(),
   "coachName": zod.string(),
-  "coachEmail": zod.string().email(),
+  "coachEmail": zod.email(),
   "businessName": zod.string(),
   "meetingDate": zod.string().regex(getMentorMeetingReportsResponseReportsItemMeetingDateRegExp),
   "attendees": zod.array(zod.string()),
@@ -3341,12 +3341,12 @@ export const GetMentorMeetingReportsResponse = zod.object({
 })),
   "completedMeetings": zod.array(zod.object({
   "meetingProvider": zod.enum(['calendly', 'google_calendar']),
-  "meetingId": zod.number().int(),
+  "meetingId": zod.int(),
   "eventName": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "timezone": zod.string().nullable(),
-  "reportId": zod.number().int().nullable()
+  "reportId": zod.int().nullable()
 }))
 })
 
@@ -3378,8 +3378,8 @@ export const submitMentorMeetingReportBodyTeamRecommendationsMax = 5000;
 export const SubmitMentorMeetingReportBody = zod.object({
   "meetingDate": zod.string().regex(submitMentorMeetingReportBodyMeetingDateRegExp),
   "meetingProvider": zod.enum(['manual', 'calendly', 'google_calendar']).optional().describe('Optional provider for a completed synced meeting; omitted or manual means this is a manually recorded meeting.'),
-  "meetingId": zod.number().int().min(1).optional().describe('ID of the completed meeting occurrence from the selected provider.'),
-  "attendeeApplicationIds": zod.array(zod.number().int().min(1)).min(1),
+  "meetingId": zod.int().min(1).optional().describe('ID of the completed meeting occurrence from the selected provider.'),
+  "attendeeApplicationIds": zod.array(zod.int().min(1)).min(1),
   "sessionSummary": zod.string().min(submitMentorMeetingReportBodySessionSummaryMin).max(submitMentorMeetingReportBodySessionSummaryMax),
   "smartGrowActions": zod.string().min(submitMentorMeetingReportBodySmartGrowActionsMin).max(submitMentorMeetingReportBodySmartGrowActionsMax),
   "achievementsAndOpportunities": zod.string().min(submitMentorMeetingReportBodyAchievementsAndOpportunitiesMin).max(submitMentorMeetingReportBodyAchievementsAndOpportunitiesMax),
@@ -3390,11 +3390,11 @@ export const submitMentorMeetingReportResponseMeetingDateRegExp = new RegExp('^\
 
 
 export const SubmitMentorMeetingReportResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "meetingProvider": zod.enum(['manual', 'calendly', 'google_calendar']),
-  "meetingId": zod.number().int().nullable(),
+  "meetingId": zod.int().nullable(),
   "coachName": zod.string(),
-  "coachEmail": zod.string().email(),
+  "coachEmail": zod.email(),
   "businessName": zod.string(),
   "meetingDate": zod.string().regex(submitMentorMeetingReportResponseMeetingDateRegExp),
   "attendees": zod.array(zod.string()),
@@ -3422,17 +3422,17 @@ export const createMentorAdditionalSessionRequestResponseApprovedAdditionalSessi
 
 
 export const CreateMentorAdditionalSessionRequestResponse = zod.object({
-  "id": zod.number().int(),
-  "supportId": zod.number().int(),
-  "businessId": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "supportId": zod.int(),
+  "businessId": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "mentorName": zod.string(),
-  "mentorEmail": zod.string().email(),
-  "reportedSessionsAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseReportedSessionsAtRequestMin),
-  "sessionTargetAtRequest": zod.number().int().min(createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin),
+  "mentorEmail": zod.email(),
+  "reportedSessionsAtRequest": zod.int().min(createMentorAdditionalSessionRequestResponseReportedSessionsAtRequestMin),
+  "sessionTargetAtRequest": zod.int().min(createMentorAdditionalSessionRequestResponseSessionTargetAtRequestMin),
   "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal('withdrawn'),zod.literal(null)]).nullable(),
-  "approvedAdditionalSessions": zod.number().int().min(1).max(createMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
+  "approvedAdditionalSessions": zod.int().min(1).max(createMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
   "status": zod.enum(['open', 'resolved']),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
   "canRetryEmail": zod.boolean(),
@@ -3452,10 +3452,10 @@ export const withdrawMentorAdditionalSessionRequestResponseApprovedAdditionalSes
 
 
 export const WithdrawMentorAdditionalSessionRequestResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "status": zod.enum(['resolved']),
   "decision": zod.enum(['withdrawn']),
-  "approvedAdditionalSessions": zod.number().int().min(1).max(withdrawMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
+  "approvedAdditionalSessions": zod.int().min(1).max(withdrawMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
   "resolvedAt": zod.coerce.date()
 })
 
@@ -3479,17 +3479,17 @@ export const getStaffMentorAdditionalSessionRequestsResponseOneApprovedAdditiona
 
 
 export const GetStaffMentorAdditionalSessionRequestsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "supportId": zod.number().int(),
-  "businessId": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "supportId": zod.int(),
+  "businessId": zod.int(),
+  "programId": zod.int(),
   "businessName": zod.string(),
   "mentorName": zod.string(),
-  "mentorEmail": zod.string().email(),
-  "reportedSessionsAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsAtRequestMin),
-  "sessionTargetAtRequest": zod.number().int().min(getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin),
+  "mentorEmail": zod.email(),
+  "reportedSessionsAtRequest": zod.int().min(getStaffMentorAdditionalSessionRequestsResponseOneReportedSessionsAtRequestMin),
+  "sessionTargetAtRequest": zod.int().min(getStaffMentorAdditionalSessionRequestsResponseOneSessionTargetAtRequestMin),
   "decision": zod.union([zod.literal('approved'),zod.literal('declined'),zod.literal('withdrawn'),zod.literal(null)]).nullable(),
-  "approvedAdditionalSessions": zod.number().int().min(1).max(getStaffMentorAdditionalSessionRequestsResponseOneApprovedAdditionalSessionsMax).nullable(),
+  "approvedAdditionalSessions": zod.int().min(1).max(getStaffMentorAdditionalSessionRequestsResponseOneApprovedAdditionalSessionsMax).nullable(),
   "status": zod.enum(['open', 'resolved']),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed']),
   "canRetryEmail": zod.boolean(),
@@ -3513,7 +3513,7 @@ export const resolveStaffMentorAdditionalSessionRequestBodyApprovedAdditionalSes
 
 export const ResolveStaffMentorAdditionalSessionRequestBody = zod.object({
   "decision": zod.enum(['approved', 'declined']),
-  "approvedAdditionalSessions": zod.number().int().min(1).max(resolveStaffMentorAdditionalSessionRequestBodyApprovedAdditionalSessionsMax).optional()
+  "approvedAdditionalSessions": zod.int().min(1).max(resolveStaffMentorAdditionalSessionRequestBodyApprovedAdditionalSessionsMax).optional()
 })
 
 export const resolveStaffMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax = 1000;
@@ -3521,10 +3521,10 @@ export const resolveStaffMentorAdditionalSessionRequestResponseApprovedAdditiona
 
 
 export const ResolveStaffMentorAdditionalSessionRequestResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "status": zod.enum(['resolved']),
   "decision": zod.enum(['approved', 'declined']),
-  "approvedAdditionalSessions": zod.number().int().min(1).max(resolveStaffMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
+  "approvedAdditionalSessions": zod.int().min(1).max(resolveStaffMentorAdditionalSessionRequestResponseApprovedAdditionalSessionsMax).nullable(),
   "resolvedAt": zod.coerce.date()
 })
 
@@ -3537,7 +3537,7 @@ export const RetryStaffMentorAdditionalSessionRequestEmailParams = zod.object({
 })
 
 export const RetryStaffMentorAdditionalSessionRequestEmailResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "emailNotificationStatus": zod.enum(['pending', 'delivered', 'failed'])
 })
 
@@ -3554,7 +3554,7 @@ export const getStaffMentorMeetingReportsQueryMeetingDateToRegExp = new RegExp('
 export const GetStaffMentorMeetingReportsQueryParams = zod.object({
   "programId": zod.coerce.number().int().min(1),
   "businessId": zod.coerce.number().int().min(1).optional(),
-  "coachEmail": zod.coerce.string().email().optional(),
+  "coachEmail": zod.email().optional(),
   "meetingDateFrom": zod.coerce.string().regex(getStaffMentorMeetingReportsQueryMeetingDateFromRegExp).optional(),
   "meetingDateTo": zod.coerce.string().regex(getStaffMentorMeetingReportsQueryMeetingDateToRegExp).optional()
 })
@@ -3563,11 +3563,11 @@ export const getStaffMentorMeetingReportsResponseOneMeetingDateRegExp = new RegE
 
 
 export const GetStaffMentorMeetingReportsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "meetingProvider": zod.enum(['manual', 'calendly', 'google_calendar']),
-  "meetingId": zod.number().int().nullable(),
+  "meetingId": zod.int().nullable(),
   "coachName": zod.string(),
-  "coachEmail": zod.string().email(),
+  "coachEmail": zod.email(),
   "businessName": zod.string(),
   "meetingDate": zod.string().regex(getStaffMentorMeetingReportsResponseOneMeetingDateRegExp),
   "attendees": zod.array(zod.string()),
@@ -3577,9 +3577,9 @@ export const GetStaffMentorMeetingReportsResponseItem = zod.object({
   "teamRecommendations": zod.string().nullable(),
   "submittedAt": zod.coerce.date()
 }).and(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "businessId": zod.number().int()
+  "businessId": zod.int()
 }))
 export const GetStaffMentorMeetingReportsResponse = zod.array(GetStaffMentorMeetingReportsResponseItem)
 
@@ -3598,7 +3598,7 @@ export const GetStaffMentorMeetingReportCoachesQueryParams = zod.object({
 
 export const GetStaffMentorMeetingReportCoachesResponseItem = zod.object({
   "coachName": zod.string(),
-  "coachEmail": zod.string().email()
+  "coachEmail": zod.email()
 })
 export const GetStaffMentorMeetingReportCoachesResponse = zod.array(GetStaffMentorMeetingReportCoachesResponseItem)
 
@@ -3606,12 +3606,12 @@ export const GetStaffMentorMeetingReportCoachesResponse = zod.array(GetStaffMent
 /**
  * @summary Start the signed-in mentor's Calendly authorization
  */
-export const StartCalendlyConnectionBody = zod.object({
+export const StartCalendlyConnectionBody = zod.looseObject({
 
-}).passthrough().describe('Empty request body used to begin the mentor\'s Calendly OAuth flow.')
+}).describe('Empty request body used to begin the mentor\'s Calendly OAuth flow.')
 
 export const StartCalendlyConnectionResponse = zod.object({
-  "authorizationUrl": zod.string().url()
+  "authorizationUrl": zod.url()
 })
 
 
@@ -3646,12 +3646,12 @@ export const ReceiveCalendlyWebhookResponse = zod.unknown()
 /**
  * @summary Start the signed-in mentor's Google account authorization
  */
-export const StartGoogleCalendarConnectionBody = zod.object({
+export const StartGoogleCalendarConnectionBody = zod.looseObject({
 
-}).passthrough().describe('Empty request body used to begin the mentor\'s Google account authorization.')
+}).describe('Empty request body used to begin the mentor\'s Google account authorization.')
 
 export const StartGoogleCalendarConnectionResponse = zod.object({
-  "authorizationUrl": zod.string().url()
+  "authorizationUrl": zod.url()
 })
 
 
@@ -3673,8 +3673,8 @@ export const CompleteGoogleCalendarConnectionResponse = zod.void()
  */
 export const DisconnectGoogleCalendarResponse = zod.object({
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
-  "calendlyBookingUrl": zod.string().url().nullable(),
-  "googleCalendarBookingUrl": zod.string().url().nullable(),
+  "calendlyBookingUrl": zod.url().nullable(),
+  "googleCalendarBookingUrl": zod.url().nullable(),
   "googleCalendarConnected": zod.boolean()
 })
 
@@ -3684,13 +3684,13 @@ export const DisconnectGoogleCalendarResponse = zod.object({
  */
 export const UpdateMentorBookingSettingsBody = zod.object({
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
-  "googleCalendarBookingUrl": zod.string().url().nullable()
+  "googleCalendarBookingUrl": zod.url().nullable()
 })
 
 export const UpdateMentorBookingSettingsResponse = zod.object({
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
-  "calendlyBookingUrl": zod.string().url().nullable(),
-  "googleCalendarBookingUrl": zod.string().url().nullable(),
+  "calendlyBookingUrl": zod.url().nullable(),
+  "googleCalendarBookingUrl": zod.url().nullable(),
   "googleCalendarConnected": zod.boolean()
 })
 
@@ -3703,20 +3703,20 @@ export const GetZoomStatusResponse = zod.object({
   "connected": zod.boolean(),
   "connectedAt": zod.coerce.date().nullable(),
   "connectedBy": zod.string().nullable(),
-  "callbackUrl": zod.string().url().nullable(),
-  "webhookUrl": zod.string().url().nullable()
+  "callbackUrl": zod.url().nullable(),
+  "webhookUrl": zod.url().nullable()
 })
 
 
 /**
  * @summary Start coordinator authorization with Zoom
  */
-export const StartZoomConnectionBody = zod.object({
+export const StartZoomConnectionBody = zod.looseObject({
 
-}).passthrough().describe('Empty request body used to begin or remove the coordinator\'s Zoom connection.')
+}).describe('Empty request body used to begin or remove the coordinator\'s Zoom connection.')
 
 export const StartZoomConnectionResponse = zod.object({
-  "authorizationUrl": zod.string().url()
+  "authorizationUrl": zod.url()
 })
 
 
@@ -3735,9 +3735,9 @@ export const CompleteZoomConnectionResponse = zod.void()
 /**
  * @summary Remove the coordinator's Zoom authorization
  */
-export const DisconnectZoomBody = zod.object({
+export const DisconnectZoomBody = zod.looseObject({
 
-}).passthrough().describe('Empty request body used to begin or remove the coordinator\'s Zoom connection.')
+}).describe('Empty request body used to begin or remove the coordinator\'s Zoom connection.')
 
 export const DisconnectZoomResponse = zod.void()
 
@@ -3756,15 +3756,15 @@ export const createOrUpdateZoomMeetingResponseDurationMinutesMax = 480;
 
 
 export const CreateOrUpdateZoomMeetingResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
+  "id": zod.int(),
+  "programId": zod.int().nullish(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(createOrUpdateZoomMeetingResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(createOrUpdateZoomMeetingResponseDurationMinutesMin).max(createOrUpdateZoomMeetingResponseDurationMinutesMax),
+  "durationMinutes": zod.int().min(createOrUpdateZoomMeetingResponseDurationMinutesMin).max(createOrUpdateZoomMeetingResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
+  "trainerStaffId": zod.int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -3782,13 +3782,13 @@ export const listZoomRecordingAlertsResponseScheduledDateRegExp = new RegExp('^\
 
 
 export const ListZoomRecordingAlertsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "title": zod.string(),
   "scheduledDate": zod.string().regex(listZoomRecordingAlertsResponseScheduledDateRegExp),
   "readyAt": zod.coerce.date(),
   "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
-  "emailAttempts": zod.number().int(),
+  "emailAttempts": zod.int(),
   "emailError": zod.string().nullable(),
   "canRetryEmail": zod.boolean()
 })
@@ -3806,13 +3806,13 @@ export const retryZoomRecordingAlertEmailResponseScheduledDateRegExp = new RegEx
 
 
 export const RetryZoomRecordingAlertEmailResponse = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "title": zod.string(),
   "scheduledDate": zod.string().regex(retryZoomRecordingAlertEmailResponseScheduledDateRegExp),
   "readyAt": zod.coerce.date(),
   "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
-  "emailAttempts": zod.number().int(),
+  "emailAttempts": zod.int(),
   "emailError": zod.string().nullable(),
   "canRetryEmail": zod.boolean()
 })
@@ -3826,9 +3826,9 @@ export const getJudgeDashboardResponsePitchesItemEventDateRegExp = new RegExp('^
 
 export const GetJudgeDashboardResponse = zod.object({
   "pitches": zod.array(zod.object({
-  "assignmentId": zod.number().int(),
-  "pitchId": zod.number().int(),
-  "businessId": zod.number().int(),
+  "assignmentId": zod.int(),
+  "pitchId": zod.int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "industry": zod.string().nullable(),
   "eventType": zod.enum(['pitch_day', 'demo_day']),
@@ -3864,9 +3864,9 @@ export const submitJudgeScorecardResponseEventDateRegExp = new RegExp('^\\d{4}-\
 
 
 export const SubmitJudgeScorecardResponse = zod.object({
-  "assignmentId": zod.number().int(),
-  "pitchId": zod.number().int(),
-  "businessId": zod.number().int(),
+  "assignmentId": zod.int(),
+  "pitchId": zod.int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "industry": zod.string().nullable(),
   "eventType": zod.enum(['pitch_day', 'demo_day']),
@@ -3899,8 +3899,8 @@ export const updateAssignedMentoringResponseScheduledDateRegExp = new RegExp('^\
 
 
 export const UpdateAssignedMentoringResponse = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string(),
   "programName": zod.string(),
@@ -3921,10 +3921,10 @@ export const ListPitchJudgesParams = zod.object({
 })
 
 export const ListPitchJudgesResponseItem = zod.object({
-  "id": zod.number().int(),
-  "pitchId": zod.number().int(),
-  "judgeStaffId": zod.number().int(),
-  "judgeEmail": zod.string().email(),
+  "id": zod.int(),
+  "pitchId": zod.int(),
+  "judgeStaffId": zod.int(),
+  "judgeEmail": zod.email(),
   "judgeName": zod.string(),
   "score": zod.number().nullable(),
   "feedback": zod.string().nullable(),
@@ -3941,14 +3941,14 @@ export const AssignPitchJudgeParams = zod.object({
 })
 
 export const AssignPitchJudgeBody = zod.object({
-  "judgeStaffId": zod.number().int()
+  "judgeStaffId": zod.int()
 })
 
 export const AssignPitchJudgeResponse = zod.object({
-  "id": zod.number().int(),
-  "pitchId": zod.number().int(),
-  "judgeStaffId": zod.number().int(),
-  "judgeEmail": zod.string().email(),
+  "id": zod.int(),
+  "pitchId": zod.int(),
+  "judgeStaffId": zod.int(),
+  "judgeEmail": zod.email(),
   "judgeName": zod.string(),
   "score": zod.number().nullable(),
   "feedback": zod.string().nullable(),
@@ -3970,12 +3970,12 @@ export const RemovePitchJudgeResponse = zod.void()
  * @summary List program announcements for coordinators
  */
 export const ListAnnouncementsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "sessionId": zod.int().nullable(),
   "isCurrentRecordingNotice": zod.boolean(),
-  "programId": zod.number().int().nullable(),
+  "programId": zod.int().nullable(),
   "programName": zod.string().nullable(),
-  "businessId": zod.number().int().nullable(),
+  "businessId": zod.int().nullable(),
   "businessName": zod.string().nullable(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string(),
@@ -3985,11 +3985,11 @@ export const ListAnnouncementsResponseItem = zod.object({
   "status": zod.enum(['scheduled', 'published']),
   "email": zod.object({
   "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
-  "sent": zod.number().int(),
-  "pending": zod.number().int(),
-  "failed": zod.number().int(),
-  "uncertain": zod.number().int(),
-  "skipped": zod.number().int(),
+  "sent": zod.int(),
+  "pending": zod.int(),
+  "failed": zod.int(),
+  "uncertain": zod.int(),
+  "skipped": zod.int(),
   "canRetry": zod.boolean()
 }).optional()
 })
@@ -4009,8 +4009,8 @@ export const createAnnouncementBodyBodyMax = 5000;
 export const createAnnouncementBodyNotifyByEmailDefault = false;
 
 export const CreateAnnouncementBody = zod.object({
-  "programId": zod.number().int().nullish(),
-  "businessId": zod.number().int().min(1).nullish(),
+  "programId": zod.int().nullish(),
+  "businessId": zod.int().min(1).nullish(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string().min(createAnnouncementBodyTitleMin).max(createAnnouncementBodyTitleMax),
   "body": zod.string().min(createAnnouncementBodyBodyMin).max(createAnnouncementBodyBodyMax),
@@ -4019,12 +4019,12 @@ export const CreateAnnouncementBody = zod.object({
 })
 
 export const CreateAnnouncementResponse = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "sessionId": zod.int().nullable(),
   "isCurrentRecordingNotice": zod.boolean(),
-  "programId": zod.number().int().nullable(),
+  "programId": zod.int().nullable(),
   "programName": zod.string().nullable(),
-  "businessId": zod.number().int().nullable(),
+  "businessId": zod.int().nullable(),
   "businessName": zod.string().nullable(),
   "kind": zod.enum(['update', 'reminder']),
   "title": zod.string(),
@@ -4034,11 +4034,11 @@ export const CreateAnnouncementResponse = zod.object({
   "status": zod.enum(['scheduled', 'published']),
   "email": zod.object({
   "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
-  "sent": zod.number().int(),
-  "pending": zod.number().int(),
-  "failed": zod.number().int(),
-  "uncertain": zod.number().int(),
-  "skipped": zod.number().int(),
+  "sent": zod.int(),
+  "pending": zod.int(),
+  "failed": zod.int(),
+  "uncertain": zod.int(),
+  "skipped": zod.int(),
   "canRetry": zod.boolean()
 }).optional()
 })
@@ -4053,11 +4053,11 @@ export const RetryAnnouncementEmailParams = zod.object({
 
 export const RetryAnnouncementEmailResponse = zod.object({
   "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
-  "sent": zod.number().int(),
-  "pending": zod.number().int(),
-  "failed": zod.number().int(),
-  "uncertain": zod.number().int(),
-  "skipped": zod.number().int(),
+  "sent": zod.int(),
+  "pending": zod.int(),
+  "failed": zod.int(),
+  "uncertain": zod.int(),
+  "skipped": zod.int(),
   "canRetry": zod.boolean()
 })
 
@@ -4070,10 +4070,10 @@ export const GetRecordingNoticeReceiptsParams = zod.object({
 })
 
 export const GetRecordingNoticeReceiptsResponse = zod.object({
-  "announcementId": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "announcementId": zod.int(),
+  "sessionId": zod.int(),
   "sessionTitle": zod.string(),
-  "recordingVersion": zod.number().int(),
+  "recordingVersion": zod.int(),
   "participants": zod.array(zod.object({
   "founderName": zod.string(),
   "email": zod.string(),
@@ -4090,7 +4090,7 @@ export const DeleteAnnouncementParams = zod.object({
 })
 
 export const DeleteAnnouncementResponse = zod.object({
-  "id": zod.number().int()
+  "id": zod.int()
 })
 
 
@@ -4109,15 +4109,15 @@ export const listSessionsResponseDurationMinutesMax = 480;
 
 
 export const ListSessionsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
+  "id": zod.int(),
+  "programId": zod.int().nullish(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(listSessionsResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(listSessionsResponseDurationMinutesMin).max(listSessionsResponseDurationMinutesMax),
+  "durationMinutes": zod.int().min(listSessionsResponseDurationMinutesMin).max(listSessionsResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
+  "trainerStaffId": zod.int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -4141,18 +4141,18 @@ export const createSessionBodyDurationMinutesMax = 480;
 
 
 export const CreateSessionBody = zod.object({
-  "programId": zod.number().int().nullish(),
+  "programId": zod.int().nullish(),
   "title": zod.string().min(1),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(createSessionBodyScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(createSessionBodyDurationMinutesMin).max(createSessionBodyDurationMinutesMax).default(createSessionBodyDurationMinutesDefault),
+  "durationMinutes": zod.int().min(createSessionBodyDurationMinutesMin).max(createSessionBodyDurationMinutesMax).default(createSessionBodyDurationMinutesDefault),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullish(),
+  "trainerStaffId": zod.int().nullish(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']).optional(),
   "location": zod.string().nullish(),
-  "zoomUrl": zod.string().url().nullish(),
-  "recordingUrl": zod.string().url().nullish(),
+  "zoomUrl": zod.url().nullish(),
+  "recordingUrl": zod.url().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']).optional()
 })
 
@@ -4163,15 +4163,15 @@ export const createSessionResponseDurationMinutesMax = 480;
 
 
 export const CreateSessionResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
+  "id": zod.int(),
+  "programId": zod.int().nullish(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(createSessionResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(createSessionResponseDurationMinutesMin).max(createSessionResponseDurationMinutesMax),
+  "durationMinutes": zod.int().min(createSessionResponseDurationMinutesMin).max(createSessionResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
+  "trainerStaffId": zod.int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -4197,18 +4197,18 @@ export const updateSessionBodyDurationMinutesMax = 480;
 
 
 export const UpdateSessionBody = zod.object({
-  "programId": zod.number().int().nullish(),
+  "programId": zod.int().nullish(),
   "title": zod.string().min(1).optional(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']).optional(),
   "scheduledDate": zod.string().regex(updateSessionBodyScheduledDateRegExp).optional(),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(updateSessionBodyDurationMinutesMin).max(updateSessionBodyDurationMinutesMax).optional(),
+  "durationMinutes": zod.int().min(updateSessionBodyDurationMinutesMin).max(updateSessionBodyDurationMinutesMax).optional(),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullish(),
+  "trainerStaffId": zod.int().nullish(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']).optional(),
   "location": zod.string().nullish(),
-  "zoomUrl": zod.string().url().nullish(),
-  "recordingUrl": zod.string().url().nullish(),
+  "zoomUrl": zod.url().nullish(),
+  "recordingUrl": zod.url().nullish(),
   "status": zod.enum(['scheduled', 'completed', 'cancelled']).optional()
 })
 
@@ -4219,15 +4219,15 @@ export const updateSessionResponseDurationMinutesMax = 480;
 
 
 export const UpdateSessionResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int().nullish(),
+  "id": zod.int(),
+  "programId": zod.int().nullish(),
   "title": zod.string(),
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(updateSessionResponseScheduledDateRegExp),
   "startTime": zod.string().nullish(),
-  "durationMinutes": zod.number().int().min(updateSessionResponseDurationMinutesMin).max(updateSessionResponseDurationMinutesMax),
+  "durationMinutes": zod.int().min(updateSessionResponseDurationMinutesMin).max(updateSessionResponseDurationMinutesMax),
   "facilitator": zod.string().nullish(),
-  "trainerStaffId": zod.number().int().nullable(),
+  "trainerStaffId": zod.int().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),
   "location": zod.string().nullish(),
   "zoomUrl": zod.string().nullish(),
@@ -4275,8 +4275,8 @@ export const getSessionInteractiveActivitiesResponseActivitiesItemResponsesItemA
 
 export const GetSessionInteractiveActivitiesResponse = zod.object({
   "activities": zod.array(zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "type": zod.enum(['poll', 'survey']),
   "title": zod.string(),
   "description": zod.string().nullish(),
@@ -4291,7 +4291,7 @@ export const GetSessionInteractiveActivitiesResponse = zod.object({
 })).max(getSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsMax).optional()
 })),
   "createdAt": zod.coerce.date(),
-  "responseCount": zod.number().int().min(getSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin),
+  "responseCount": zod.int().min(getSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin),
   "responses": zod.array(zod.object({
   "businessName": zod.string(),
   "submittedAt": zod.coerce.date(),
@@ -4363,8 +4363,8 @@ export const createSessionInteractiveActivityResponseResponsesItemAnswersItemVal
 
 
 export const CreateSessionInteractiveActivityResponse = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "type": zod.enum(['poll', 'survey']),
   "title": zod.string(),
   "description": zod.string().nullish(),
@@ -4379,7 +4379,7 @@ export const CreateSessionInteractiveActivityResponse = zod.object({
 })).max(createSessionInteractiveActivityResponseQuestionsItemOptionsMax).optional()
 })),
   "createdAt": zod.coerce.date(),
-  "responseCount": zod.number().int().min(createSessionInteractiveActivityResponseResponseCountMin),
+  "responseCount": zod.int().min(createSessionInteractiveActivityResponseResponseCountMin),
   "responses": zod.array(zod.object({
   "businessName": zod.string(),
   "submittedAt": zod.coerce.date(),
@@ -4450,8 +4450,8 @@ export const updateSessionInteractiveActivityResponseResponsesItemAnswersItemVal
 
 
 export const UpdateSessionInteractiveActivityResponse = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "type": zod.enum(['poll', 'survey']),
   "title": zod.string(),
   "description": zod.string().nullish(),
@@ -4466,7 +4466,7 @@ export const UpdateSessionInteractiveActivityResponse = zod.object({
 })).max(updateSessionInteractiveActivityResponseQuestionsItemOptionsMax).optional()
 })),
   "createdAt": zod.coerce.date(),
-  "responseCount": zod.number().int().min(updateSessionInteractiveActivityResponseResponseCountMin),
+  "responseCount": zod.int().min(updateSessionInteractiveActivityResponseResponseCountMin),
   "responses": zod.array(zod.object({
   "businessName": zod.string(),
   "submittedAt": zod.coerce.date(),
@@ -4503,8 +4503,8 @@ export const getParticipantSessionInteractiveActivitiesResponseActivitiesItemRes
 
 export const GetParticipantSessionInteractiveActivitiesResponse = zod.object({
   "activities": zod.array(zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "type": zod.enum(['poll', 'survey']),
   "title": zod.string(),
   "description": zod.string().nullish(),
@@ -4518,12 +4518,12 @@ export const GetParticipantSessionInteractiveActivitiesResponse = zod.object({
   "label": zod.string().min(1).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsItemLabelMax)
 })).max(getParticipantSessionInteractiveActivitiesResponseActivitiesItemQuestionsItemOptionsMax).optional()
 })),
-  "responseCount": zod.number().int().min(getParticipantSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin),
+  "responseCount": zod.int().min(getParticipantSessionInteractiveActivitiesResponseActivitiesItemResponseCountMin),
   "hasResponded": zod.boolean(),
   "results": zod.array(zod.object({
   "choiceId": zod.string(),
   "label": zod.string(),
-  "count": zod.number().int().min(getParticipantSessionInteractiveActivitiesResponseActivitiesItemResultsItemCountMin)
+  "count": zod.int().min(getParticipantSessionInteractiveActivitiesResponseActivitiesItemResultsItemCountMin)
 })).nullable()
 }))
 })
@@ -4568,8 +4568,8 @@ export const submitParticipantSessionInteractiveActivityResponseResultsItemCount
 
 
 export const SubmitParticipantSessionInteractiveActivityResponse = zod.object({
-  "id": zod.number().int(),
-  "sessionId": zod.number().int(),
+  "id": zod.int(),
+  "sessionId": zod.int(),
   "type": zod.enum(['poll', 'survey']),
   "title": zod.string(),
   "description": zod.string().nullish(),
@@ -4583,12 +4583,12 @@ export const SubmitParticipantSessionInteractiveActivityResponse = zod.object({
   "label": zod.string().min(1).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsItemLabelMax)
 })).max(submitParticipantSessionInteractiveActivityResponseQuestionsItemOptionsMax).optional()
 })),
-  "responseCount": zod.number().int().min(submitParticipantSessionInteractiveActivityResponseResponseCountMin),
+  "responseCount": zod.int().min(submitParticipantSessionInteractiveActivityResponseResponseCountMin),
   "hasResponded": zod.boolean(),
   "results": zod.array(zod.object({
   "choiceId": zod.string(),
   "label": zod.string(),
-  "count": zod.number().int().min(submitParticipantSessionInteractiveActivityResponseResultsItemCountMin)
+  "count": zod.int().min(submitParticipantSessionInteractiveActivityResponseResultsItemCountMin)
 })).nullable()
 })
 
@@ -4602,7 +4602,7 @@ export const GetSessionQuestionsParams = zod.object({
 
 export const GetSessionQuestionsResponse = zod.object({
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "businessName": zod.string(),
   "question": zod.string(),
   "reply": zod.string().nullable(),
@@ -4621,7 +4621,7 @@ export const GetParticipantSessionQuestionsParams = zod.object({
 
 export const GetParticipantSessionQuestionsResponse = zod.object({
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "businessName": zod.string(),
   "question": zod.string(),
   "reply": zod.string().nullable(),
@@ -4635,10 +4635,10 @@ export const GetParticipantSessionQuestionsResponse = zod.object({
  * @summary List Calendly bookings matching mentor support assignments for coordinators
  */
 export const ListSupportCalendlyMeetingsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
-  "mentorStaffId": zod.number().int(),
-  "mentorEmail": zod.string().email(),
+  "id": zod.int(),
+  "businessId": zod.int(),
+  "mentorStaffId": zod.int(),
+  "mentorEmail": zod.email(),
   "eventName": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
@@ -4652,10 +4652,10 @@ export const ListSupportCalendlyMeetingsResponse = zod.array(ListSupportCalendly
  * @summary List Google Calendar bookings matching mentor support assignments for coordinators
  */
 export const ListSupportGoogleCalendarMeetingsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
-  "mentorStaffId": zod.number().int(),
-  "mentorEmail": zod.string().email(),
+  "id": zod.int(),
+  "businessId": zod.int(),
+  "mentorStaffId": zod.int(),
+  "mentorEmail": zod.email(),
   "eventName": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
@@ -4677,11 +4677,11 @@ export const listSupportResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}
 
 
 export const ListSupportResponseItem = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
-  "mentorStaffId": zod.number().int().nullable(),
+  "mentorStaffId": zod.int().nullable(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(listSupportResponseScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
@@ -4700,10 +4700,10 @@ export const createSupportBodyScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\
 
 
 export const CreateSupportBody = zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string().min(1),
-  "mentorStaffId": zod.number().int().nullish(),
+  "mentorStaffId": zod.int().nullish(),
   "topic": zod.string().min(1),
   "scheduledDate": zod.string().regex(createSupportBodyScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']).optional(),
@@ -4714,11 +4714,11 @@ export const createSupportResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{
 
 
 export const CreateSupportResponse = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
-  "mentorStaffId": zod.number().int().nullable(),
+  "mentorStaffId": zod.int().nullable(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(createSupportResponseScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
@@ -4739,10 +4739,10 @@ export const UpdateSupportParams = zod.object({
 
 
 export const UpdateSupportBody = zod.object({
-  "businessId": zod.number().int().optional(),
+  "businessId": zod.int().optional(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']).optional(),
   "provider": zod.string().min(1).optional(),
-  "mentorStaffId": zod.number().int().nullish(),
+  "mentorStaffId": zod.int().nullish(),
   "topic": zod.string().min(1).optional(),
   "scheduledDate": zod.coerce.date().nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']).optional(),
@@ -4753,11 +4753,11 @@ export const updateSupportResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{
 
 
 export const UpdateSupportResponse = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "type": zod.enum(['mentor', 'subject_expert', 'branding', 'technical']),
   "provider": zod.string(),
-  "mentorStaffId": zod.number().int().nullable(),
+  "mentorStaffId": zod.int().nullable(),
   "topic": zod.string(),
   "scheduledDate": zod.string().regex(updateSupportResponseScheduledDateRegExp).nullish(),
   "status": zod.enum(['requested', 'matched', 'scheduled', 'completed']),
@@ -4786,8 +4786,8 @@ export const listGrantAwardsResponseReceiptsItemReceivedOnRegExp = new RegExp('^
 
 
 export const ListGrantAwardsResponseItem = zod.object({
-  "pitchId": zod.number().int(),
-  "businessId": zod.number().int(),
+  "pitchId": zod.int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "founderName": zod.string().nullable(),
   "programName": zod.string().nullable(),
@@ -4798,8 +4798,8 @@ export const ListGrantAwardsResponseItem = zod.object({
   "remainingAmount": zod.number().nullable(),
   "status": zod.enum(['amount_needed', 'not_received', 'partially_received', 'received', 'over_received']),
   "receipts": zod.array(zod.object({
-  "id": zod.number().int(),
-  "pitchId": zod.number().int(),
+  "id": zod.int(),
+  "pitchId": zod.int(),
   "kind": zod.enum(['received', 'reversal']),
   "amount": zod.number().gt(listGrantAwardsResponseReceiptsItemAmountExclusiveMin),
   "receivedOn": zod.string().regex(listGrantAwardsResponseReceiptsItemReceivedOnRegExp),
@@ -4843,8 +4843,8 @@ export const createGrantReceiptResponseReceivedOnRegExp = new RegExp('^\\d{4}-\\
 
 
 export const CreateGrantReceiptResponse = zod.object({
-  "id": zod.number().int(),
-  "pitchId": zod.number().int(),
+  "id": zod.int(),
+  "pitchId": zod.int(),
   "kind": zod.enum(['received', 'reversal']),
   "amount": zod.number().gt(createGrantReceiptResponseAmountExclusiveMin),
   "receivedOn": zod.string().regex(createGrantReceiptResponseReceivedOnRegExp),
@@ -4867,8 +4867,8 @@ export const listPitchesResponseEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d
 
 
 export const ListPitchesResponseItem = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "eventType": zod.enum(['pitch_day', 'demo_day']),
   "eventDate": zod.string().regex(listPitchesResponseEventDateRegExp),
   "judges": zod.string().nullish(),
@@ -4892,7 +4892,7 @@ export const createPitchBodyGrantAmountMin = 0;
 
 
 export const CreatePitchBody = zod.object({
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "eventType": zod.enum(['pitch_day', 'demo_day']),
   "eventDate": zod.string().regex(createPitchBodyEventDateRegExp),
   "judges": zod.string().nullish(),
@@ -4906,8 +4906,8 @@ export const createPitchResponseEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d
 
 
 export const CreatePitchResponse = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "eventType": zod.enum(['pitch_day', 'demo_day']),
   "eventDate": zod.string().regex(createPitchResponseEventDateRegExp),
   "judges": zod.string().nullish(),
@@ -4934,7 +4934,7 @@ export const updatePitchBodyGrantAmountMin = 0;
 
 
 export const UpdatePitchBody = zod.object({
-  "businessId": zod.number().int().optional(),
+  "businessId": zod.int().optional(),
   "eventType": zod.enum(['pitch_day', 'demo_day']).optional(),
   "eventDate": zod.string().regex(updatePitchBodyEventDateRegExp).optional(),
   "judges": zod.string().nullish(),
@@ -4948,8 +4948,8 @@ export const updatePitchResponseEventDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d
 
 
 export const UpdatePitchResponse = zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "eventType": zod.enum(['pitch_day', 'demo_day']),
   "eventDate": zod.string().regex(updatePitchResponseEventDateRegExp),
   "judges": zod.string().nullish(),
@@ -4975,15 +4975,15 @@ export const DeletePitchResponse = zod.void()
  * @summary Get the current staff profile
  */
 export const GetAuthMeResponse = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
-  "programIds": zod.array(zod.number().int()),
+  "programIds": zod.array(zod.int()),
   "programRoles": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "role": zod.enum(['trainer', 'mentor', 'judge'])
 })),
   "createdAt": zod.coerce.date()
@@ -4996,7 +4996,7 @@ export const GetAuthMeResponse = zod.object({
 export const GetOwnProfileResponse = zod.object({
   "userId": zod.string(),
   "displayName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "accountType": zod.enum(['staff', 'participant', 'both']),
   "phone": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -5031,7 +5031,7 @@ export const UpdateOwnProfileBody = zod.object({
 export const UpdateOwnProfileResponse = zod.object({
   "userId": zod.string(),
   "displayName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "accountType": zod.enum(['staff', 'participant', 'both']),
   "phone": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -5049,11 +5049,11 @@ export const createOwnProfilePhotoUploadUrlBodySizeMax = 5242880;
 
 export const CreateOwnProfilePhotoUploadUrlBody = zod.object({
   "contentType": zod.string(),
-  "size": zod.number().int().min(1).max(createOwnProfilePhotoUploadUrlBodySizeMax)
+  "size": zod.int().min(1).max(createOwnProfilePhotoUploadUrlBodySizeMax)
 })
 
 export const CreateOwnProfilePhotoUploadUrlResponse = zod.object({
-  "uploadUrl": zod.string().url(),
+  "uploadUrl": zod.url(),
   "objectPath": zod.string()
 })
 
@@ -5070,7 +5070,7 @@ export const GetOwnProfilePhotoResponse = zod.unknown()
 export const ListUserProfilesResponseItem = zod.object({
   "userId": zod.string(),
   "displayName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "accountType": zod.enum(['staff', 'participant', 'both']),
   "phone": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -5114,7 +5114,7 @@ export const UpdateUserProfileBody = zod.object({
 export const UpdateUserProfileResponse = zod.object({
   "userId": zod.string(),
   "displayName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "accountType": zod.enum(['staff', 'participant', 'both']),
   "phone": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -5140,11 +5140,11 @@ export const createUserProfilePhotoUploadUrlBodySizeMax = 5242880;
 
 export const CreateUserProfilePhotoUploadUrlBody = zod.object({
   "contentType": zod.string(),
-  "size": zod.number().int().min(1).max(createUserProfilePhotoUploadUrlBodySizeMax)
+  "size": zod.int().min(1).max(createUserProfilePhotoUploadUrlBodySizeMax)
 })
 
 export const CreateUserProfilePhotoUploadUrlResponse = zod.object({
-  "uploadUrl": zod.string().url(),
+  "uploadUrl": zod.url(),
   "objectPath": zod.string()
 })
 
@@ -5169,7 +5169,7 @@ export const GetUserProfilePhotoResponse = zod.unknown()
 export const GetParticipantProfileResponse = zod.object({
   "userId": zod.string(),
   "displayName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "accountType": zod.enum(['staff', 'participant', 'both']),
   "phone": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -5204,7 +5204,7 @@ export const UpdateParticipantProfileBody = zod.object({
 export const UpdateParticipantProfileResponse = zod.object({
   "userId": zod.string(),
   "displayName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "accountType": zod.enum(['staff', 'participant', 'both']),
   "phone": zod.string().nullable(),
   "bio": zod.string().nullable(),
@@ -5222,11 +5222,11 @@ export const createParticipantProfilePhotoUploadUrlBodySizeMax = 5242880;
 
 export const CreateParticipantProfilePhotoUploadUrlBody = zod.object({
   "contentType": zod.string(),
-  "size": zod.number().int().min(1).max(createParticipantProfilePhotoUploadUrlBodySizeMax)
+  "size": zod.int().min(1).max(createParticipantProfilePhotoUploadUrlBodySizeMax)
 })
 
 export const CreateParticipantProfilePhotoUploadUrlResponse = zod.object({
-  "uploadUrl": zod.string().url(),
+  "uploadUrl": zod.url(),
   "objectPath": zod.string()
 })
 
@@ -5241,12 +5241,12 @@ export const GetParticipantProfilePhotoResponse = zod.unknown()
  * @summary List Admin-created participant invitations
  */
 export const ListParticipantInvitationsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "participantName": zod.string(),
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "status": zod.enum(['pending', 'active', 'expired']),
   "createdAt": zod.coerce.date(),
@@ -5267,18 +5267,18 @@ export const createParticipantInvitationBodyDisplayNameMax = 160;
 
 
 export const CreateParticipantInvitationBody = zod.object({
-  "email": zod.string().email().max(createParticipantInvitationBodyEmailMax),
+  "email": zod.email().max(createParticipantInvitationBodyEmailMax),
   "displayName": zod.string().min(createParticipantInvitationBodyDisplayNameMin).max(createParticipantInvitationBodyDisplayNameMax).optional(),
-  "businessId": zod.number().int().min(1)
+  "businessId": zod.int().min(1)
 })
 
 export const CreateParticipantInvitationResponse = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "participantName": zod.string(),
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "businessId": zod.number().int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "status": zod.enum(['pending', 'active', 'expired']),
   "createdAt": zod.coerce.date(),
@@ -5295,15 +5295,15 @@ export const getMentorBookingStatusResponseCalendlyFollowUpNoteMax = 1000;
 
 
 export const GetMentorBookingStatusResponseItem = zod.object({
-  "staffId": zod.number().int(),
-  "email": zod.string().email(),
+  "staffId": zod.int(),
+  "email": zod.email(),
   "status": zod.enum(['invited', 'active']),
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyConnected": zod.boolean(),
   "googleCalendarConnected": zod.boolean(),
   "calendlyFollowUpDate": zod.string().regex(getMentorBookingStatusResponseCalendlyFollowUpDateRegExp).nullable(),
   "calendlyFollowUpNote": zod.string().max(getMentorBookingStatusResponseCalendlyFollowUpNoteMax).nullable(),
-  "calendlyFollowUpUpdatedByEmail": zod.string().email().nullable(),
+  "calendlyFollowUpUpdatedByEmail": zod.email().nullable(),
   "calendlyFollowUpUpdatedAt": zod.coerce.date().nullable()
 })
 export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusResponseItem)
@@ -5342,15 +5342,15 @@ export const updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax = 1000;
 
 
 export const UpdateMentorBookingFollowUpResponse = zod.object({
-  "staffId": zod.number().int(),
-  "email": zod.string().email(),
+  "staffId": zod.int(),
+  "email": zod.email(),
   "status": zod.enum(['invited', 'active']),
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyConnected": zod.boolean(),
   "googleCalendarConnected": zod.boolean(),
   "calendlyFollowUpDate": zod.string().regex(updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp).nullable(),
   "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax).nullable(),
-  "calendlyFollowUpUpdatedByEmail": zod.string().email().nullable(),
+  "calendlyFollowUpUpdatedByEmail": zod.email().nullable(),
   "calendlyFollowUpUpdatedAt": zod.coerce.date().nullable()
 })
 
@@ -5359,15 +5359,15 @@ export const UpdateMentorBookingFollowUpResponse = zod.object({
  * @summary List approved staff and pending invitations
  */
 export const ListStaffResponseItem = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
-  "programIds": zod.array(zod.number().int()),
+  "programIds": zod.array(zod.int()),
   "programRoles": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "role": zod.enum(['trainer', 'mentor', 'judge'])
 })),
   "createdAt": zod.coerce.date()
@@ -5382,21 +5382,21 @@ export const ListStaffResponse = zod.array(ListStaffResponseItem)
 
 
 export const CreateStaffBody = zod.object({
-  "email": zod.string().email(),
+  "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
-  "programIds": zod.array(zod.number().int().min(1)).optional()
+  "programIds": zod.array(zod.int().min(1)).optional()
 })
 
 export const CreateStaffResponse = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
-  "programIds": zod.array(zod.number().int()),
+  "programIds": zod.array(zod.int()),
   "programRoles": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "role": zod.enum(['trainer', 'mentor', 'judge'])
 })),
   "createdAt": zod.coerce.date()
@@ -5415,19 +5415,19 @@ export const UpdateStaffParams = zod.object({
 
 export const UpdateStaffBody = zod.object({
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
-  "programIds": zod.array(zod.number().int().min(1)).optional()
+  "programIds": zod.array(zod.int().min(1)).optional()
 })
 
 export const UpdateStaffResponse = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
-  "programIds": zod.array(zod.number().int()),
+  "programIds": zod.array(zod.int()),
   "programRoles": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "role": zod.enum(['trainer', 'mentor', 'judge'])
 })),
   "createdAt": zod.coerce.date()
@@ -5452,15 +5452,15 @@ export const RetryStaffInvitationEmailParams = zod.object({
 })
 
 export const RetryStaffInvitationEmailResponse = zod.object({
-  "id": zod.number().int(),
-  "email": zod.string().email(),
+  "id": zod.int(),
+  "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
   "status": zod.enum(['invited', 'active']),
   "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
-  "programIds": zod.array(zod.number().int()),
+  "programIds": zod.array(zod.int()),
   "programRoles": zod.array(zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "role": zod.enum(['trainer', 'mentor', 'judge'])
 })),
   "createdAt": zod.coerce.date()
@@ -5478,22 +5478,22 @@ export const GetProgramTeamAssignmentsParams = zod.object({
 })
 
 export const GetProgramTeamAssignmentsResponse = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "staff": zod.array(zod.object({
-  "staffId": zod.number().int(),
-  "email": zod.string().email(),
+  "staffId": zod.int(),
+  "email": zod.email(),
   "status": zod.enum(['invited', 'active']),
   "roles": zod.array(zod.enum(['trainer', 'mentor', 'judge']))
 })),
   "participants": zod.array(zod.object({
-  "applicationId": zod.number().int(),
+  "applicationId": zod.int(),
   "founderName": zod.string(),
-  "email": zod.string().email(),
+  "email": zod.email(),
   "businessName": zod.string(),
-  "assignedBusinessId": zod.number().int().nullable()
+  "assignedBusinessId": zod.int().nullable()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "businessName": zod.string(),
   "stage": zod.enum(['application', 'bootcamp', 'incubator', 'pitch', 'demo_day', 'grant_awarded', 'alumni', 'declined'])
 }))
@@ -5515,15 +5515,15 @@ export const GetStaffAssignmentHistoryQueryParams = zod.object({
 })
 
 export const GetStaffAssignmentHistoryResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "assignmentType": zod.enum(['staff_roles', 'business_team']),
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
-  "actorStaffId": zod.number().int().nullable(),
-  "actorEmail": zod.string().email(),
-  "affectedStaffId": zod.number().int().nullable(),
-  "affectedAccountEmail": zod.string().email().nullable(),
-  "applicationId": zod.number().int().nullable(),
+  "actorStaffId": zod.int().nullable(),
+  "actorEmail": zod.email(),
+  "affectedStaffId": zod.int().nullable(),
+  "affectedAccountEmail": zod.email().nullable(),
+  "applicationId": zod.int().nullable(),
   "affectedApplicationName": zod.string().nullable(),
   "previousValue": zod.record(zod.string(), zod.unknown()),
   "newValue": zod.record(zod.string(), zod.unknown()),
@@ -5540,7 +5540,7 @@ export const clearStaffAssignmentHistoryResponseDeletedCountMin = 0;
 
 
 export const ClearStaffAssignmentHistoryResponse = zod.object({
-  "deletedCount": zod.number().int().min(clearStaffAssignmentHistoryResponseDeletedCountMin)
+  "deletedCount": zod.int().min(clearStaffAssignmentHistoryResponseDeletedCountMin)
 })
 
 
@@ -5548,14 +5548,14 @@ export const ClearStaffAssignmentHistoryResponse = zod.object({
  * @summary List successful integration disconnects for admins
  */
 export const GetIntegrationDisconnectHistoryResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "integrationType": zod.enum(['mentor_google_calendar', 'program_google_sheets', 'shared_zoom']),
   "initiatorType": zod.enum(['admin', 'self_service']),
-  "actorStaffId": zod.number().int().nullable(),
-  "actorEmail": zod.string().email(),
-  "affectedStaffId": zod.number().int().nullable(),
-  "affectedAccountEmail": zod.string().email().nullable(),
-  "programId": zod.number().int().nullable(),
+  "actorStaffId": zod.int().nullable(),
+  "actorEmail": zod.email(),
+  "affectedStaffId": zod.int().nullable(),
+  "affectedAccountEmail": zod.email().nullable(),
+  "programId": zod.int().nullable(),
   "programName": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
@@ -5583,8 +5583,8 @@ export const UpdateProgramStaffRolesBody = zod.object({
 })
 
 export const UpdateProgramStaffRolesResponse = zod.object({
-  "staffId": zod.number().int(),
-  "programId": zod.number().int(),
+  "staffId": zod.int(),
+  "programId": zod.int(),
   "roles": zod.array(zod.enum(['trainer', 'mentor', 'judge']))
 })
 
@@ -5604,13 +5604,13 @@ export const AssignParticipantBusinessParams = zod.object({
 
 
 export const AssignParticipantBusinessBody = zod.object({
-  "applicationId": zod.number().int().min(1),
-  "businessId": zod.number().int().min(1).nullable()
+  "applicationId": zod.int().min(1),
+  "businessId": zod.int().min(1).nullable()
 })
 
 export const AssignParticipantBusinessResponse = zod.object({
-  "applicationId": zod.number().int(),
-  "businessId": zod.number().int().nullable()
+  "applicationId": zod.int(),
+  "businessId": zod.int().nullable()
 })
 
 
@@ -5636,11 +5636,11 @@ export const getCourseModuleQuizzesResponseQuizzesItemQuestionsItemChoicesItemTe
 
 
 export const GetCourseModuleQuizzesResponse = zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "moduleTitle": zod.string(),
   "quizzes": zod.array(zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
@@ -5652,8 +5652,8 @@ export const GetCourseModuleQuizzesResponse = zod.object({
 })).min(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMin).max(getCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "position": zod.number().int(),
+  "id": zod.int(),
+  "position": zod.int(),
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
   "prompt": zod.string(),
   "choices": zod.array(zod.object({
@@ -5740,8 +5740,8 @@ export const createCourseQuizResponseQuestionsItemChoicesItemTextMax = 500;
 
 
 export const CreateCourseQuizResponse = zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
@@ -5753,8 +5753,8 @@ export const CreateCourseQuizResponse = zod.object({
 })).min(createCourseQuizResponseLetterGradeScaleMin).max(createCourseQuizResponseLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "position": zod.number().int(),
+  "id": zod.int(),
+  "position": zod.int(),
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
   "prompt": zod.string(),
   "choices": zod.array(zod.object({
@@ -5840,8 +5840,8 @@ export const updateCourseQuizResponseQuestionsItemChoicesItemTextMax = 500;
 
 
 export const UpdateCourseQuizResponse = zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
@@ -5853,8 +5853,8 @@ export const UpdateCourseQuizResponse = zod.object({
 })).min(updateCourseQuizResponseLetterGradeScaleMin).max(updateCourseQuizResponseLetterGradeScaleMax),
   "isPublished": zod.boolean(),
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "position": zod.number().int(),
+  "id": zod.int(),
+  "position": zod.int(),
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
   "prompt": zod.string(),
   "choices": zod.array(zod.object({
@@ -5875,16 +5875,16 @@ export const GetCourseQuizAttemptsParams = zod.object({
 })
 
 export const GetCourseQuizAttemptsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "quizId": zod.number().int(),
+  "id": zod.int(),
+  "quizId": zod.int(),
   "participantName": zod.string(),
-  "score": zod.number().int(),
-  "totalQuestions": zod.number().int(),
+  "score": zod.int(),
+  "totalQuestions": zod.int(),
   "gradeFormat": zod.enum(['numerical', 'percentage', 'letter']),
   "gradeValue": zod.string(),
   "submittedAt": zod.coerce.date(),
   "answers": zod.array(zod.object({
-  "questionId": zod.number().int(),
+  "questionId": zod.int(),
   "prompt": zod.string(),
   "submittedAnswer": zod.string(),
   "correctAnswer": zod.string(),
@@ -5917,11 +5917,11 @@ export const getParticipantCourseModuleQuizzesResponseQuizzesItemQuestionsItemCh
 
 
 export const GetParticipantCourseModuleQuizzesResponse = zod.object({
-  "moduleId": zod.number().int(),
+  "moduleId": zod.int(),
   "moduleTitle": zod.string(),
   "quizzes": zod.array(zod.object({
-  "id": zod.number().int(),
-  "moduleId": zod.number().int(),
+  "id": zod.int(),
+  "moduleId": zod.int(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "language": zod.enum(['en', 'ar']),
@@ -5931,18 +5931,18 @@ export const GetParticipantCourseModuleQuizzesResponse = zod.object({
   "grade": zod.string().min(1).max(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemGradeMax),
   "minimumPercent": zod.number().min(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMin).max(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleItemMinimumPercentMax)
 })).min(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMin).max(getParticipantCourseModuleQuizzesResponseQuizzesItemLetterGradeScaleMax),
-  "questionCount": zod.number().int(),
-  "attemptCount": zod.number().int(),
+  "questionCount": zod.int(),
+  "attemptCount": zod.int(),
   "latestAttempt": zod.union([zod.object({
-  "id": zod.number().int(),
-  "quizId": zod.number().int(),
-  "score": zod.number().int(),
-  "totalQuestions": zod.number().int(),
+  "id": zod.int(),
+  "quizId": zod.int(),
+  "score": zod.int(),
+  "totalQuestions": zod.int(),
   "gradeFormat": zod.enum(['numerical', 'percentage', 'letter']),
   "gradeValue": zod.string(),
   "submittedAt": zod.coerce.date(),
   "answers": zod.array(zod.object({
-  "questionId": zod.number().int(),
+  "questionId": zod.int(),
   "prompt": zod.string(),
   "submittedAnswer": zod.string(),
   "correctAnswer": zod.string(),
@@ -5951,8 +5951,8 @@ export const GetParticipantCourseModuleQuizzesResponse = zod.object({
 }))
 }),zod.null()]),
   "questions": zod.array(zod.object({
-  "id": zod.number().int(),
-  "position": zod.number().int(),
+  "id": zod.int(),
+  "position": zod.int(),
   "questionType": zod.enum(['multiple_choice', 'true_false', 'ordering']),
   "prompt": zod.string(),
   "choices": zod.array(zod.object({
@@ -5977,21 +5977,21 @@ export const SubmitParticipantCourseQuizAttemptParams = zod.object({
 
 export const SubmitParticipantCourseQuizAttemptBody = zod.object({
   "answers": zod.array(zod.object({
-  "questionId": zod.number().int().min(1),
+  "questionId": zod.int().min(1),
   "answer": zod.union([zod.string(),zod.boolean(),zod.array(zod.string())])
 })).min(1)
 })
 
 export const SubmitParticipantCourseQuizAttemptResponse = zod.object({
-  "id": zod.number().int(),
-  "quizId": zod.number().int(),
-  "score": zod.number().int(),
-  "totalQuestions": zod.number().int(),
+  "id": zod.int(),
+  "quizId": zod.int(),
+  "score": zod.int(),
+  "totalQuestions": zod.int(),
   "gradeFormat": zod.enum(['numerical', 'percentage', 'letter']),
   "gradeValue": zod.string(),
   "submittedAt": zod.coerce.date(),
   "answers": zod.array(zod.object({
-  "questionId": zod.number().int(),
+  "questionId": zod.int(),
   "prompt": zod.string(),
   "submittedAnswer": zod.string(),
   "correctAnswer": zod.string(),
@@ -6007,10 +6007,10 @@ export const SubmitParticipantCourseQuizAttemptResponse = zod.object({
  */
 export const ListIntegrationApiKeysResponse = zod.object({
   "keys": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "label": zod.string(),
   "keyPrefix": zod.string(),
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "permissions": zod.array(zod.enum(['programs_sessions:read', 'programs_sessions:write', 'applications_businesses:read', 'applications_businesses:write', 'courses_attendance:read', 'courses_attendance:write', 'mentoring_grants:read', 'mentoring_grants:write'])),
   "createdAt": zod.coerce.date(),
@@ -6032,16 +6032,16 @@ export const createIntegrationApiKeyBodyLabelMax = 100;
 
 export const CreateIntegrationApiKeyBody = zod.object({
   "label": zod.string().min(1).max(createIntegrationApiKeyBodyLabelMax),
-  "programId": zod.number().int().min(1),
+  "programId": zod.int().min(1),
   "permissions": zod.array(zod.enum(['programs_sessions:read', 'programs_sessions:write', 'applications_businesses:read', 'applications_businesses:write', 'courses_attendance:read', 'courses_attendance:write', 'mentoring_grants:read', 'mentoring_grants:write'])).min(1)
 })
 
 export const CreateIntegrationApiKeyResponse = zod.object({
   "key": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "label": zod.string(),
   "keyPrefix": zod.string(),
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "permissions": zod.array(zod.enum(['programs_sessions:read', 'programs_sessions:write', 'applications_businesses:read', 'applications_businesses:write', 'courses_attendance:read', 'courses_attendance:write', 'mentoring_grants:read', 'mentoring_grants:write'])),
   "createdAt": zod.coerce.date(),
@@ -6061,7 +6061,7 @@ export const RevokeIntegrationApiKeyParams = zod.object({
 })
 
 export const RevokeIntegrationApiKeyResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "revokedAt": zod.coerce.date()
 })
 
@@ -6081,14 +6081,14 @@ export const getExternalProgramResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const GetExternalProgramResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(getExternalProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(getExternalProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(getExternalProgramResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(getExternalProgramResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(getExternalProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -6114,7 +6114,7 @@ export const UpdateExternalProgramBody = zod.object({
   "startDate": zod.coerce.date().nullish(),
   "endDate": zod.coerce.date().nullish(),
   "applicationDeadline": zod.coerce.date().nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(updateExternalProgramBodyMentorSessionsPerBusinessMin).optional(),
+  "mentorSessionsPerBusiness": zod.int().min(updateExternalProgramBodyMentorSessionsPerBusinessMin).optional(),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']).optional()
 })
 
@@ -6126,14 +6126,14 @@ export const updateExternalProgramResponseMentorSessionsPerBusinessMin = 0;
 
 
 export const UpdateExternalProgramResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "format": zod.enum(['bootcamp', 'hackathon']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(updateExternalProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(updateExternalProgramResponseEndDateRegExp).nullish(),
   "applicationDeadline": zod.string().regex(updateExternalProgramResponseApplicationDeadlineRegExp).nullish(),
-  "mentorSessionsPerBusiness": zod.number().int().min(updateExternalProgramResponseMentorSessionsPerBusinessMin),
+  "mentorSessionsPerBusiness": zod.int().min(updateExternalProgramResponseMentorSessionsPerBusinessMin),
   "status": zod.enum(['planning', 'outreach', 'active', 'completed']),
   "archivedAt": zod.coerce.date().nullable(),
   "createdAt": zod.coerce.date()
@@ -6195,10 +6195,10 @@ export const ListChatTargetsParams = zod.object({
 })
 
 export const ListChatTargetsResponseItem = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "kind": zod.enum(['private', 'business']),
-  "targetId": zod.number().int(),
+  "targetId": zod.int(),
   "name": zod.string()
 })
 export const ListChatTargetsResponse = zod.array(ListChatTargetsResponseItem)
@@ -6212,14 +6212,14 @@ export const ListChatThreadsParams = zod.object({
 })
 
 export const ListChatThreadsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "kind": zod.enum(['private', 'business']),
   "title": zod.string(),
   "lastMessage": zod.string().nullable(),
   "lastMessageAt": zod.coerce.date().nullable(),
-  "unreadCount": zod.number().int()
+  "unreadCount": zod.int()
 })
 export const ListChatThreadsResponse = zod.array(ListChatThreadsResponseItem)
 
@@ -6236,20 +6236,20 @@ export const CreateChatThreadParams = zod.object({
 
 
 export const CreateChatThreadBody = zod.object({
-  "programId": zod.number().int().min(1),
+  "programId": zod.int().min(1),
   "kind": zod.enum(['private', 'business']),
-  "targetId": zod.number().int().min(1)
+  "targetId": zod.int().min(1)
 })
 
 export const CreateChatThreadResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "kind": zod.enum(['private', 'business']),
   "title": zod.string(),
   "lastMessage": zod.string().nullable(),
   "lastMessageAt": zod.coerce.date().nullable(),
-  "unreadCount": zod.number().int()
+  "unreadCount": zod.int()
 })
 
 
@@ -6273,15 +6273,15 @@ export const ListChatMessagesQueryParams = zod.object({
 
 export const ListChatMessagesResponse = zod.object({
   "messages": zod.array(zod.object({
-  "id": zod.number().int(),
-  "threadId": zod.number().int(),
+  "id": zod.int(),
+  "threadId": zod.int(),
   "body": zod.string(),
   "senderName": zod.string(),
   "senderRole": zod.enum(['staff', 'participant']),
   "isOwn": zod.boolean(),
   "createdAt": zod.coerce.date()
 })),
-  "nextBeforeId": zod.number().int().nullable()
+  "nextBeforeId": zod.int().nullable()
 })
 
 
@@ -6302,12 +6302,12 @@ export const sendChatMessageBodyBodyMax = 4000;
 
 export const SendChatMessageBody = zod.object({
   "body": zod.string().min(1).max(sendChatMessageBodyBodyMax),
-  "clientMessageId": zod.string().uuid()
+  "clientMessageId": zod.uuid()
 })
 
 export const SendChatMessageResponse = zod.object({
-  "id": zod.number().int(),
-  "threadId": zod.number().int(),
+  "id": zod.int(),
+  "threadId": zod.int(),
   "body": zod.string(),
   "senderName": zod.string(),
   "senderRole": zod.enum(['staff', 'participant']),
@@ -6331,7 +6331,7 @@ export const MarkChatReadParams = zod.object({
 
 
 export const MarkChatReadBody = zod.object({
-  "lastReadMessageId": zod.number().int().min(1)
+  "lastReadMessageId": zod.int().min(1)
 })
 
 export const MarkChatReadResponse = zod.object({
@@ -6343,12 +6343,12 @@ export const MarkChatReadResponse = zod.object({
  * @summary List judging forms in authorized active programs
  */
 export const ListJudgingFormsResponseItem = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
+  "responseCount": zod.int(),
   "publishedAt": zod.coerce.date().nullable()
 })
 export const ListJudgingFormsResponse = zod.array(ListJudgingFormsResponseItem)
@@ -6380,18 +6380,18 @@ export const createJudgingFormBodyQuestionsMax = 20;
 
 
 export const CreateJudgingFormBody = zod.object({
-  "programId": zod.number().int().min(1),
+  "programId": zod.int().min(1),
   "title": zod.string().min(1).max(createJudgingFormBodyTitleMax),
   "instructions": zod.string().max(createJudgingFormBodyInstructionsMax),
-  "businessIds": zod.array(zod.number().int().min(1)).min(1).max(createJudgingFormBodyBusinessIdsMax),
+  "businessIds": zod.array(zod.int().min(1)).min(1).max(createJudgingFormBodyBusinessIdsMax),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(createJudgingFormBodyCriteriaItemLabelMax),
   "description": zod.string().max(createJudgingFormBodyCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(createJudgingFormBodyCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(createJudgingFormBodyCriteriaItemMaxScoreMax)
 })).max(createJudgingFormBodyCriteriaMax),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(createJudgingFormBodyQuestionsItemLabelMax),
   "required": zod.boolean()
 })).max(createJudgingFormBodyQuestionsMax)
@@ -6410,30 +6410,30 @@ export const createJudgingFormResponseTwoBusinessesItemAssessmentCountMin = 0;
 
 
 export const CreateJudgingFormResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
+  "responseCount": zod.int(),
   "publishedAt": zod.coerce.date().nullable()
 }).and(zod.object({
   "instructions": zod.string(),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(createJudgingFormResponseTwoCriteriaItemLabelMax),
   "description": zod.string().max(createJudgingFormResponseTwoCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(createJudgingFormResponseTwoCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(createJudgingFormResponseTwoCriteriaItemMaxScoreMax)
 })),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(createJudgingFormResponseTwoQuestionsItemLabelMax),
   "required": zod.boolean()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
-  "assessmentCount": zod.number().int().min(createJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
+  "assessmentCount": zod.int().min(createJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6462,30 +6462,30 @@ export const getJudgingFormResponseTwoBusinessesItemAssessmentCountMin = 0;
 
 
 export const GetJudgingFormResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
+  "responseCount": zod.int(),
   "publishedAt": zod.coerce.date().nullable()
 }).and(zod.object({
   "instructions": zod.string(),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(getJudgingFormResponseTwoCriteriaItemLabelMax),
   "description": zod.string().max(getJudgingFormResponseTwoCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(getJudgingFormResponseTwoCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(getJudgingFormResponseTwoCriteriaItemMaxScoreMax)
 })),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(getJudgingFormResponseTwoQuestionsItemLabelMax),
   "required": zod.boolean()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
-  "assessmentCount": zod.number().int().min(getJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
+  "assessmentCount": zod.int().min(getJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6524,18 +6524,18 @@ export const updateJudgingFormBodyQuestionsMax = 20;
 
 
 export const UpdateJudgingFormBody = zod.object({
-  "programId": zod.number().int().min(1),
+  "programId": zod.int().min(1),
   "title": zod.string().min(1).max(updateJudgingFormBodyTitleMax),
   "instructions": zod.string().max(updateJudgingFormBodyInstructionsMax),
-  "businessIds": zod.array(zod.number().int().min(1)).min(1).max(updateJudgingFormBodyBusinessIdsMax),
+  "businessIds": zod.array(zod.int().min(1)).min(1).max(updateJudgingFormBodyBusinessIdsMax),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(updateJudgingFormBodyCriteriaItemLabelMax),
   "description": zod.string().max(updateJudgingFormBodyCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(updateJudgingFormBodyCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(updateJudgingFormBodyCriteriaItemMaxScoreMax)
 })).max(updateJudgingFormBodyCriteriaMax),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(updateJudgingFormBodyQuestionsItemLabelMax),
   "required": zod.boolean()
 })).max(updateJudgingFormBodyQuestionsMax)
@@ -6554,30 +6554,30 @@ export const updateJudgingFormResponseTwoBusinessesItemAssessmentCountMin = 0;
 
 
 export const UpdateJudgingFormResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
+  "responseCount": zod.int(),
   "publishedAt": zod.coerce.date().nullable()
 }).and(zod.object({
   "instructions": zod.string(),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(updateJudgingFormResponseTwoCriteriaItemLabelMax),
   "description": zod.string().max(updateJudgingFormResponseTwoCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(updateJudgingFormResponseTwoCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(updateJudgingFormResponseTwoCriteriaItemMaxScoreMax)
 })),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(updateJudgingFormResponseTwoQuestionsItemLabelMax),
   "required": zod.boolean()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
-  "assessmentCount": zod.number().int().min(updateJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
+  "assessmentCount": zod.int().min(updateJudgingFormResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6610,30 +6610,30 @@ export const updateJudgingFormStatusResponseTwoBusinessesItemAssessmentCountMin 
 
 
 export const UpdateJudgingFormStatusResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
+  "responseCount": zod.int(),
   "publishedAt": zod.coerce.date().nullable()
 }).and(zod.object({
   "instructions": zod.string(),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(updateJudgingFormStatusResponseTwoCriteriaItemLabelMax),
   "description": zod.string().max(updateJudgingFormStatusResponseTwoCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(updateJudgingFormStatusResponseTwoCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(updateJudgingFormStatusResponseTwoCriteriaItemMaxScoreMax)
 })),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(updateJudgingFormStatusResponseTwoQuestionsItemLabelMax),
   "required": zod.boolean()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
-  "assessmentCount": zod.number().int().min(updateJudgingFormStatusResponseTwoBusinessesItemAssessmentCountMin)
+  "assessmentCount": zod.int().min(updateJudgingFormStatusResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6662,30 +6662,30 @@ export const rotateJudgingFormShareLinkResponseTwoBusinessesItemAssessmentCountM
 
 
 export const RotateJudgingFormShareLinkResponse = zod.object({
-  "id": zod.number().int(),
-  "programId": zod.number().int(),
+  "id": zod.int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['draft', 'open', 'closed']),
-  "responseCount": zod.number().int(),
+  "responseCount": zod.int(),
   "publishedAt": zod.coerce.date().nullable()
 }).and(zod.object({
   "instructions": zod.string(),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(rotateJudgingFormShareLinkResponseTwoCriteriaItemLabelMax),
   "description": zod.string().max(rotateJudgingFormShareLinkResponseTwoCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(rotateJudgingFormShareLinkResponseTwoCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(rotateJudgingFormShareLinkResponseTwoCriteriaItemMaxScoreMax)
 })),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(rotateJudgingFormShareLinkResponseTwoQuestionsItemLabelMax),
   "required": zod.boolean()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
-  "assessmentCount": zod.number().int().min(rotateJudgingFormShareLinkResponseTwoBusinessesItemAssessmentCountMin)
+  "assessmentCount": zod.int().min(rotateJudgingFormShareLinkResponseTwoBusinessesItemAssessmentCountMin)
 })),
   "shareToken": zod.string().nullable()
 }))
@@ -6702,7 +6702,7 @@ export const ListJudgingFormLinkHistoryParams = zod.object({
 })
 
 export const ListJudgingFormLinkHistoryResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "actorEmail": zod.string(),
   "replacedAt": zod.coerce.date()
 })
@@ -6734,24 +6734,24 @@ export const listJudgingFormResponsesResponseResponsesItemAnswersItemTextMax = 4
 
 export const ListJudgingFormResponsesResponse = zod.object({
   "responses": zod.array(zod.object({
-  "id": zod.number().int(),
-  "businessId": zod.number().int(),
+  "id": zod.int(),
+  "businessId": zod.int(),
   "businessName": zod.string(),
   "judgeName": zod.string(),
   "judgeEmail": zod.string(),
   "scores": zod.array(zod.object({
-  "criterionId": zod.string().uuid(),
+  "criterionId": zod.uuid(),
   "score": zod.number().min(listJudgingFormResponsesResponseResponsesItemScoresItemScoreMin)
 })),
   "answers": zod.array(zod.object({
-  "questionId": zod.string().uuid(),
+  "questionId": zod.uuid(),
   "text": zod.string().max(listJudgingFormResponsesResponseResponsesItemAnswersItemTextMax)
 })),
   "scoreTotal": zod.number(),
   "maxScore": zod.number(),
   "submittedAt": zod.coerce.date()
 })),
-  "nextBeforeId": zod.number().int().nullable()
+  "nextBeforeId": zod.int().nullable()
 })
 
 
@@ -6780,23 +6780,23 @@ export const getPublicJudgingFormResponseQuestionsItemLabelMax = 500;
 
 
 export const GetPublicJudgingFormResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "instructions": zod.string(),
   "programName": zod.string(),
   "criteria": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(getPublicJudgingFormResponseCriteriaItemLabelMax),
   "description": zod.string().max(getPublicJudgingFormResponseCriteriaItemDescriptionMax),
-  "maxScore": zod.number().int().min(1).max(getPublicJudgingFormResponseCriteriaItemMaxScoreMax)
+  "maxScore": zod.int().min(1).max(getPublicJudgingFormResponseCriteriaItemMaxScoreMax)
 })),
   "questions": zod.array(zod.object({
-  "id": zod.string().uuid(),
+  "id": zod.uuid(),
   "label": zod.string().min(1).max(getPublicJudgingFormResponseQuestionsItemLabelMax),
   "required": zod.boolean()
 })),
   "businesses": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }))
 })
@@ -6832,18 +6832,18 @@ export const submitPublicJudgingResponseBodyAnswersMax = 20;
 
 
 export const SubmitPublicJudgingResponseBody = zod.object({
-  "businessId": zod.number().int().min(1),
+  "businessId": zod.int().min(1),
   "judgeName": zod.string().min(1).max(submitPublicJudgingResponseBodyJudgeNameMax),
-  "judgeEmail": zod.string().email().max(submitPublicJudgingResponseBodyJudgeEmailMax),
+  "judgeEmail": zod.email().max(submitPublicJudgingResponseBodyJudgeEmailMax),
   "scores": zod.array(zod.object({
-  "criterionId": zod.string().uuid(),
+  "criterionId": zod.uuid(),
   "score": zod.number().min(submitPublicJudgingResponseBodyScoresItemScoreMin)
 })).max(submitPublicJudgingResponseBodyScoresMax),
   "answers": zod.array(zod.object({
-  "questionId": zod.string().uuid(),
+  "questionId": zod.uuid(),
   "text": zod.string().max(submitPublicJudgingResponseBodyAnswersItemTextMax)
 })).max(submitPublicJudgingResponseBodyAnswersMax),
-  "clientSubmissionId": zod.string().uuid()
+  "clientSubmissionId": zod.uuid()
 })
 
 export const SubmitPublicJudgingResponseResponse = zod.object({
@@ -6864,17 +6864,17 @@ export const getProgramGoogleSheetsStatusesResponseFailedCountMin = 0;
 
 
 export const GetProgramGoogleSheetsStatusesResponseItem = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
   "spreadsheetId": zod.string().nullable(),
-  "spreadsheetUrl": zod.string().url().nullable(),
+  "spreadsheetUrl": zod.url().nullable(),
   "spreadsheetTitle": zod.string().nullable(),
   "connectedAt": zod.coerce.date().nullable(),
   "lastSyncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
-  "pendingCount": zod.number().int().min(getProgramGoogleSheetsStatusesResponsePendingCountMin),
-  "failedCount": zod.number().int().min(getProgramGoogleSheetsStatusesResponseFailedCountMin)
+  "pendingCount": zod.int().min(getProgramGoogleSheetsStatusesResponsePendingCountMin),
+  "failedCount": zod.int().min(getProgramGoogleSheetsStatusesResponseFailedCountMin)
 })
 export const GetProgramGoogleSheetsStatusesResponse = zod.array(GetProgramGoogleSheetsStatusesResponseItem)
 
@@ -6893,17 +6893,17 @@ export const createProgramGoogleSheetsConnectionResponseFailedCountMin = 0;
 
 
 export const CreateProgramGoogleSheetsConnectionResponse = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
   "spreadsheetId": zod.string().nullable(),
-  "spreadsheetUrl": zod.string().url().nullable(),
+  "spreadsheetUrl": zod.url().nullable(),
   "spreadsheetTitle": zod.string().nullable(),
   "connectedAt": zod.coerce.date().nullable(),
   "lastSyncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
-  "pendingCount": zod.number().int().min(createProgramGoogleSheetsConnectionResponsePendingCountMin),
-  "failedCount": zod.number().int().min(createProgramGoogleSheetsConnectionResponseFailedCountMin)
+  "pendingCount": zod.int().min(createProgramGoogleSheetsConnectionResponsePendingCountMin),
+  "failedCount": zod.int().min(createProgramGoogleSheetsConnectionResponseFailedCountMin)
 })
 
 
@@ -6931,17 +6931,17 @@ export const retryProgramGoogleSheetsSyncResponseFailedCountMin = 0;
 
 
 export const RetryProgramGoogleSheetsSyncResponse = zod.object({
-  "programId": zod.number().int(),
+  "programId": zod.int(),
   "programName": zod.string(),
   "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
   "spreadsheetId": zod.string().nullable(),
-  "spreadsheetUrl": zod.string().url().nullable(),
+  "spreadsheetUrl": zod.url().nullable(),
   "spreadsheetTitle": zod.string().nullable(),
   "connectedAt": zod.coerce.date().nullable(),
   "lastSyncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
-  "pendingCount": zod.number().int().min(retryProgramGoogleSheetsSyncResponsePendingCountMin),
-  "failedCount": zod.number().int().min(retryProgramGoogleSheetsSyncResponseFailedCountMin)
+  "pendingCount": zod.int().min(retryProgramGoogleSheetsSyncResponsePendingCountMin),
+  "failedCount": zod.int().min(retryProgramGoogleSheetsSyncResponseFailedCountMin)
 })
 
 

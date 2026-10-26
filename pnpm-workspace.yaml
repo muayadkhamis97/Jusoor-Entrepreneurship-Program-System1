@@ -62,9 +62,9 @@ catalog:
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
   tsx: ^4.21.0
-  vite: ^7.3.2
+  vite: ^7.3.7
   wouter: ^3.3.5
-  zod: ^3.25.76
+  zod: ^4.6.6
 
 autoInstallPeers: false
 
@@ -162,7 +162,9 @@ overrides:
   js-yaml: '4.3.2'
   # Security fixes pinned to reviewed targets, not open-ended major upgrades.
   brace-expansion@>=4.0.0 <5.0.12: '5.0.12'
-  fast-uri@>=3.0.0 <3.1.8: '3.1.8'
+  body-parser@>=2.0.0 <2.4.0: '2.4.0'
+  fast-uri@>=3.0.0 <3.1.9: '3.1.9'
+  markdown-it@>=14.0.0 <14.3.3: '14.3.3'
   postcss-selector-parser@<7.1.6: '7.1.6'
   source-map-js@>=1.0.0 <1.2.2: '1.2.2'
 
