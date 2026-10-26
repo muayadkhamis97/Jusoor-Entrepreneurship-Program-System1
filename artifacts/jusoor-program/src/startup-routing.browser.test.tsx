@@ -81,6 +81,75 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
   }
 });
 
+test('public application, judging, and certificate routes stay outside the workspace at a nested base path', { timeout: 120_000 }, async () => {
+  const port = await unusedPort();
+  const origin = `http://127.0.0.1:${port}`;
+  const basePath = '/workspace';
+  const priorPort = process.env.PORT;
+  const priorBasePath = process.env.BASE_PATH;
+
+  process.env.PORT = String(port);
+  process.env.BASE_PATH = `${basePath}/`;
+  let vite: Awaited<ReturnType<typeof createViteServer>> | undefined;
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+
+  try {
+    vite = await createViteServer({
+      configFile: path.join(packageRoot, 'vite.config.ts'),
+      root: packageRoot,
+      server: { host: '127.0.0.1', port, strictPort: true },
+    });
+    await vite.listen();
+    browser = await chromium.launch({
+      executablePath: chromiumPath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    });
+
+    const page = await browser.newPage();
+    const requested = new Set<string>();
+    page.on('request', request => requested.add(new URL(request.url()).pathname + new URL(request.url()).search));
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) {
+        await route.abort();
+        return;
+      }
+      if (url.pathname.startsWith('/api/')) {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable in route test.' }) });
+        return;
+      }
+      await route.continue();
+    });
+
+    const assertWorkspaceNotRequested = (routeName: string) => {
+      assert.equal([...requested].some(request => /\/src\/App\.tsx(?:\?|$)/.test(request)), false, `${routeName} must not request the authenticated workspace module.`);
+    };
+
+    await page.goto(`${origin}${basePath}/apply`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Programs are taking a moment.' }).waitFor();
+    assert.ok([...requested].some(request => request === '/api/public/application-programs'), 'The application page must request the open program list.');
+    assertWorkspaceNotRequested('The public application page');
+
+    await page.goto(`${origin}${basePath}/judging#${'a'.repeat(43)}`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'The form could not load.' }).waitFor();
+    assert.ok([...requested].some(request => request === `/api/public/judging-form?token=${'a'.repeat(43)}`), 'The judging page must request its token-specific public form.');
+    assertWorkspaceNotRequested('The public judging page');
+
+    await page.goto(`${origin}${basePath}/verify-certificate?code=JUS-2026-AR-8F31D2`, { waitUntil: 'domcontentloaded' });
+    await page.getByText('Certificate verification is temporarily unavailable. Please try again.').waitFor();
+    assert.ok([...requested].some(request => request === '/api/certificates/JUS-2026-AR-8F31D2/verification'), 'The certificate page must request verification for the supplied code.');
+    assertWorkspaceNotRequested('The public certificate verification page');
+  } finally {
+    if (browser) await browser.close();
+    if (vite) await vite.close();
+    if (priorPort === undefined) delete process.env.PORT;
+    else process.env.PORT = priorPort;
+    if (priorBasePath === undefined) delete process.env.BASE_PATH;
+    else process.env.BASE_PATH = priorBasePath;
+  }
+});
+
 test('signed-in visitors reach their role workspace only after session confirmation, including nested app paths', { timeout: 120_000 }, async () => {
   const port = await unusedPort();
   const origin = `http://127.0.0.1:${port}`;
