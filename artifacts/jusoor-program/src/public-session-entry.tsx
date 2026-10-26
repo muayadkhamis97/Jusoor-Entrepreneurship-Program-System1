@@ -4,8 +4,8 @@ import { publishableKeyFromHost } from '@clerk/react/internal';
 import { arSA } from '@clerk/localizations';
 import { shadcn } from '@clerk/themes';
 import { useLocation } from 'wouter';
-import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
 import { getDisplayBrandName, t, useAppLanguage } from './language';
+import { usePublicBranding } from './public-branding';
 import './workspace.css';
 
 const FullApp = lazy(() => import('./App'));
@@ -39,7 +39,7 @@ function SessionContent({ mode, onAuthenticated }: { mode: 'landing' | 'particip
 export function PublicSessionEntry({ mode, onAuthenticated }: { mode: 'landing' | 'participant' | 'auth'; onAuthenticated?: () => void }) {
   const { language } = useAppLanguage();
   const [, setLocation] = useLocation();
-  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const brandingQuery = usePublicBranding();
   const branding = brandingQuery.data;
   const brandName = getDisplayBrandName(branding?.brandName);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');

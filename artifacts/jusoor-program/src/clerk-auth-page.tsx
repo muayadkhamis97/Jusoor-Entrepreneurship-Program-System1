@@ -1,8 +1,8 @@
 import { SignIn, SignUp } from '@clerk/react';
-import { useGetProgramBranding, getGetProgramBrandingQueryKey } from '@workspace/api-client-react';
 import { Shield } from 'lucide-react';
 import { Link } from 'wouter';
 import { getDisplayBrandName, shouldShowBrandCaption, LanguageToggle, t, useAppLanguage } from './language';
+import { usePublicBranding } from './public-branding';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -14,9 +14,7 @@ export function ClerkAuthPage({
   participantRedirect?: boolean;
 }) {
   useAppLanguage();
-  const brandingQuery = useGetProgramBranding({
-    query: { queryKey: getGetProgramBrandingQueryKey() },
-  });
+  const brandingQuery = usePublicBranding();
   const branding = brandingQuery.data;
   const isSignIn = mode === 'sign-in';
 

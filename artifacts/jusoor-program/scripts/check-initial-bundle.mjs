@@ -69,7 +69,7 @@ for (const file of initialFiles) {
 
 const rawKiB = rawBytes / 1024;
 const gzipKiB = gzipBytes / 1024;
-const budgetKiB = Number(process.env.INITIAL_JS_GZIP_BUDGET_KB ?? 255);
+const budgetKiB = Number(process.env.INITIAL_JS_GZIP_BUDGET_KB ?? 165);
 if (!Number.isFinite(budgetKiB) || budgetKiB <= 0) {
   throw new Error('INITIAL_JS_GZIP_BUDGET_KB must be a positive number');
 }

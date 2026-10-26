@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Router as WouterRouter, useLocation } from 'wouter';
 import { LanguageProvider, t } from './language';
-import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
+import { usePublicBranding } from './public-branding';
 import { PublicLanding } from './public-landing';
 
 const PublicSessionEntry = lazy(() => import('./public-session-entry').then(module => ({ default: module.PublicSessionEntry })));
@@ -19,7 +19,7 @@ function LoadingScreen() {
 }
 
 function PublicLandingRoute() {
-  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const brandingQuery = usePublicBranding();
   return <PublicLanding brandName={brandingQuery.data?.brandName} logoUrl={brandingQuery.data?.logoUrl} />;
 }
 

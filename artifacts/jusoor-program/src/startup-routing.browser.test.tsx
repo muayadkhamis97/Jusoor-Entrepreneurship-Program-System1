@@ -66,11 +66,13 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
     await page.waitForTimeout(500);
     assert.equal([...requested].some(pathname => /\/src\/App\.tsx$/.test(pathname)), false, 'The public landing must not request the authenticated app module.');
     assert.equal([...requested].some(pathname => /\/src\/analytics-surfaces\.tsx$/.test(pathname)), false, 'The public landing must not request the analytics module.');
+    assert.equal([...requested].some(pathname => /api[-_]client[-_]react/i.test(pathname)), false, 'The public landing must not download the generated API client just to read branding.');
 
     await page.goto(`${origin}/sign-in`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: /Welcome back/i }).waitFor();
     assert.equal([...requested].some(pathname => /\/src\/App\.tsx$/.test(pathname)), false, 'The sign-in page must not request the authenticated app module.');
     assert.equal([...requested].some(pathname => /\/src\/analytics-surfaces\.tsx$/.test(pathname)), false, 'The sign-in page must not request the analytics module.');
+    assert.equal([...requested].some(pathname => /api[-_]client[-_]react/i.test(pathname)), false, 'The sign-in page must not download the generated API client before authentication.');
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();
