@@ -8,6 +8,20 @@ import { getDisplayBrandName, hasArabicTranslation } from './language';
 const source = readFileSync(new URL('./public-landing.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('./public-landing.css', import.meta.url), 'utf8');
 const readUiFile = (file: string) => readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+const hexToHslChannels = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+  let hue = 0;
+  if (delta) {
+    hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+    hue = (hue * 60 + 360) % 360;
+  }
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  return `${hue.toFixed(4)} ${(saturation * 100).toFixed(4)}% ${(lightness * 100).toFixed(4)}%`;
+};
 
 test('landing retains the existing application and account entry routes', () => {
   assert.match(source, /navigate\('\/apply'\)/);
@@ -82,7 +96,9 @@ test('scoped theme derives color, radius and fonts from the shared tokens withou
   assert.equal(light['--radius'], tokens.radius);
   assert.match(light['--editorial-font-serif'], /Fraunces/);
   assert.match(light['--app-font-sans'], /Noto Sans Arabic/);
-  assert.equal(light['--primary'], '195.7895 51.3514% 29.0196%');
+  assert.equal(tokens.color.light.background, '#f4f7fa');
+  assert.equal(tokens.color.light.primary, '#3f6f8f');
+  assert.equal(light['--primary'], hexToHslChannels(tokens.color.light.primary));
   assert.equal(Object.keys(light).filter(key => key.startsWith('--')).length, 36);
   assert.notEqual(light['--background'], dark['--background']);
   assert.match(light['--chart-1'], /^\d/);
