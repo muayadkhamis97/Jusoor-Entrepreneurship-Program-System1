@@ -30,6 +30,8 @@ let updateValues: Record<string, unknown> = {};
 let updateCondition: SQL | undefined;
 let updateCalls = 0;
 let auditValues: Record<string, unknown> | undefined;
+let pendingAuditValues: Record<string, unknown> | undefined;
+let auditInsertFails = false;
 let encryptGoogleCalendarToken: (token: string) => string;
 let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 
@@ -56,6 +58,8 @@ beforeEach(() => {
   updateCondition = undefined;
   updateCalls = 0;
   auditValues = undefined;
+  pendingAuditValues = undefined;
+  auditInsertFails = false;
   providerCalls = [];
 });
 
@@ -90,17 +94,29 @@ before(async () => {
       },
       returning: async () => {
         updateCalls += 1;
+        if (selectedMentor) Object.assign(selectedMentor, updateValues);
         return [{ id: selectedMentor?.id ?? 27 }];
       },
     }),
     insert: () => ({
       values: async (values: Record<string, unknown>) => {
-        auditValues = values;
+        if (auditInsertFails) throw new Error("Audit insert failed");
+        pendingAuditValues = values;
       },
     }),
   };
-  restoreTransaction = replaceDbMethod("transaction", (async (callback: (transaction: typeof tx) => Promise<unknown>) =>
-    callback(tx)) as (...args: never[]) => unknown);
+  restoreTransaction = replaceDbMethod("transaction", (async (callback: (transaction: typeof tx) => Promise<unknown>) => {
+    const beforeTransaction = selectedMentor ? { ...selectedMentor } : null;
+    try {
+      const result = await callback(tx);
+      auditValues = pendingAuditValues;
+      return result;
+    } catch (error) {
+      selectedMentor = beforeTransaction;
+      pendingAuditValues = undefined;
+      throw error;
+    }
+  }) as (...args: never[]) => unknown);
 
   const app = express();
   app.use(pinoHttp());
@@ -202,5 +218,31 @@ test("keeps the mentor's saved connection when Google cannot revoke its grant", 
   assert.equal(response.status, 502);
   assert.match((await response.json()).error, /connection was not changed/i);
   assert.equal(updateCalls, 0);
+  assert.equal(auditValues, undefined);
+});
+
+test("keeps the mentor's local calendar connection when the audit insert fails after revocation", async () => {
+  selectedMentor = {
+    id: 27,
+    email: "mentor@example.test",
+    googleCalendarAccountEmail: "mentor@example.test",
+    role: "mentor",
+    googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("mentor-refresh-token"),
+    googleCalendarAccessTokenEncrypted: null,
+  };
+  auditInsertFails = true;
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    providerCalls.push({ url: String(input), init });
+    return new Response(null, { status: 200 });
+  }) as typeof fetch;
+
+  const response = await disconnectMentorCalendar();
+
+  assert.equal(response.status, 500);
+  assert.equal(providerCalls.length, 1);
+  assert.equal(providerCalls[0]?.url, "https://oauth2.googleapis.com/revoke");
+  assert.equal(selectedMentor?.googleCalendarAccountEmail, "mentor@example.test");
+  assert.ok(selectedMentor?.googleCalendarRefreshTokenEncrypted);
+  assert.equal(updateCalls, 1);
   assert.equal(auditValues, undefined);
 });

@@ -12,6 +12,8 @@ let restoreTransaction: (() => void) | undefined;
 let connection: Record<string, unknown> | null = null;
 let deleteCalls = 0;
 let auditValues: Record<string, unknown> | undefined;
+let pendingAuditValues: Record<string, unknown> | undefined;
+let auditInsertFails = false;
 let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 
 function replaceDbMethod(
@@ -153,7 +155,8 @@ test("revokes Zoom authorization before removing the local connection", async ()
     insert: (table: unknown) => ({
       values: async (values: Record<string, unknown>) => {
         assert.equal(table, integrationDisconnectAuditEventsTable);
-        auditValues = values;
+        if (auditInsertFails) throw new Error("Audit insert failed");
+        pendingAuditValues = values;
       },
     }),
   };
@@ -161,7 +164,19 @@ test("revokes Zoom authorization before removing the local connection", async ()
   Object.defineProperty(db, "transaction", {
     configurable: true,
     writable: true,
-    value: (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx),
+    value: async (callback: (transaction: typeof tx) => Promise<unknown>) => {
+      const beforeTransaction = connection;
+      try {
+        const result = await callback(tx);
+        auditValues = pendingAuditValues;
+        return result;
+      } catch (error) {
+        connection = beforeTransaction;
+        auditValues = undefined;
+        pendingAuditValues = undefined;
+        throw error;
+      }
+    },
   });
   const restoreDelete = () => {
     if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
@@ -171,6 +186,8 @@ test("revokes Zoom authorization before removing the local connection", async ()
   const { saveZoomConnection } = await import("../src/lib/zoom");
   deleteCalls = 0;
   auditValues = undefined;
+  pendingAuditValues = undefined;
+  auditInsertFails = false;
   providerCalls = [];
   await saveZoomConnection({
     accessToken: "zoom-access-token",
@@ -200,6 +217,24 @@ test("revokes Zoom authorization before removing the local connection", async ()
       programId: null,
       programName: null,
     });
+
+    await saveZoomConnection({
+      accessToken: "zoom-access-token",
+      refreshToken: "zoom-refresh-token",
+      expiresIn: 3600,
+    }, 7);
+    deleteCalls = 0;
+    auditValues = undefined;
+    pendingAuditValues = undefined;
+    auditInsertFails = true;
+    providerCalls = [];
+
+    const failedResponse = await requestDisconnect();
+    assert.equal(failedResponse.status, 502);
+    assert.equal(providerCalls.length, 1);
+    assert.equal(connection?.provider, "zoom");
+    assert.equal(deleteCalls, 1);
+    assert.equal(auditValues, undefined);
   } finally {
     restoreDelete();
     restoreInsert();
@@ -238,6 +273,8 @@ test("keeps the local Zoom connection when provider revocation fails", async () 
   })) as (...args: never[]) => unknown);
   deleteCalls = 0;
   auditValues = undefined;
+  pendingAuditValues = undefined;
+  auditInsertFails = false;
   const { saveZoomConnection } = await import("../src/lib/zoom");
   deleteCalls = 0;
   await saveZoomConnection({
@@ -253,6 +290,7 @@ test("keeps the local Zoom connection when provider revocation fails", async () 
     assert.match((await response.json()).error, /connection was not changed/i);
     assert.equal(deleteCalls, 0);
     assert.ok(connection);
+    assert.equal(auditValues, undefined);
   } finally {
     restoreInsert();
     restoreSelect();

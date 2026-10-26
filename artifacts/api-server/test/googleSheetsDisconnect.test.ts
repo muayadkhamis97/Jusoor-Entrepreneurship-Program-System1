@@ -12,6 +12,8 @@ let staffRole = "coordinator";
 let connectionExists = true;
 let deletedTable: unknown;
 let auditValues: Record<string, unknown> | undefined;
+let pendingAuditValues: Record<string, unknown> | undefined;
+let auditInsertFails = false;
 let transactionCalls = 0;
 let connectionTable: unknown;
 let programTable: unknown;
@@ -30,6 +32,8 @@ beforeEach(() => {
   connectionExists = true;
   deletedTable = undefined;
   auditValues = undefined;
+  pendingAuditValues = undefined;
+  auditInsertFails = false;
   transactionCalls = 0;
 });
 
@@ -59,17 +63,31 @@ before(async () => {
     },
     delete: (table: unknown) => {
       deletedTable = table;
-      return { where: async () => undefined };
+      return {
+        where: async () => {
+          connectionExists = false;
+        },
+      };
     },
     insert: () => ({
       values: async (values: Record<string, unknown>) => {
-        auditValues = values;
+        if (auditInsertFails) throw new Error("Audit insert failed");
+        pendingAuditValues = values;
       },
     }),
   };
   restoreTransaction = replaceTransaction((async (callback: (transaction: typeof tx) => Promise<unknown>) => {
     transactionCalls += 1;
-    return callback(tx);
+    const beforeTransaction = connectionExists;
+    try {
+      const result = await callback(tx);
+      auditValues = pendingAuditValues;
+      return result;
+    } catch (error) {
+      connectionExists = beforeTransaction;
+      pendingAuditValues = undefined;
+      throw error;
+    }
   }) as (...args: never[]) => unknown);
 
   const app = express();
@@ -132,5 +150,16 @@ test("disconnect reports a missing workbook without deleting anything", async ()
   assert.equal(response.status, 404);
   assert.equal(transactionCalls, 1);
   assert.equal(deletedTable, undefined);
+  assert.equal(auditValues, undefined);
+});
+
+test("keeps the workbook connection when its audit insert fails", async () => {
+  auditInsertFails = true;
+
+  const response = await disconnectWorkbook();
+
+  assert.equal(response.status, 503);
+  assert.equal(connectionExists, true);
+  assert.equal(deletedTable, connectionTable);
   assert.equal(auditValues, undefined);
 });
