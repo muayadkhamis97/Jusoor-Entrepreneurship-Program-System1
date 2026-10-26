@@ -76,6 +76,46 @@ function decryptGoogleCalendarToken(value: string | null | undefined): string | 
   }
 }
 
+export async function revokeGoogleCalendarAuthorization(
+  encryptedRefreshToken: string | null | undefined,
+  encryptedAccessToken: string | null | undefined,
+): Promise<void> {
+  const encryptedToken = encryptedRefreshToken || encryptedAccessToken;
+  if (!encryptedToken) return;
+
+  const token = decryptGoogleCalendarToken(encryptedToken);
+  if (!token) {
+    throw new GoogleCalendarSyncError(
+      "Google Calendar access could not be revoked. Your connection was not changed.",
+      502,
+    );
+  }
+
+  let response: Response;
+  try {
+    response = await fetch("https://oauth2.googleapis.com/revoke", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({ token }),
+    });
+  } catch {
+    throw new GoogleCalendarSyncError(
+      "Google Calendar access could not be revoked. Your connection was not changed.",
+      502,
+    );
+  }
+
+  if (!response.ok) {
+    throw new GoogleCalendarSyncError(
+      "Google Calendar access could not be revoked. Your connection was not changed.",
+      502,
+    );
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

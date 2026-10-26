@@ -5,6 +5,7 @@ import express from "express";
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { isGoogleCalendarBookingUrl } from "../src/lib/googleCalendarBookingUrl";
+import { encryptGoogleCalendarToken } from "../src/lib/googleCalendarSync";
 import { requireRole } from "../src/middlewares/requireRole";
 
 const nativeFetch = globalThis.fetch;
@@ -15,12 +16,16 @@ let updateValues: Record<string, unknown> = {};
 let returnUpdatedMentor = true;
 let updateCondition: SQL | undefined;
 let updateCalls = 0;
+let restoreSelect: (() => void) | undefined;
+let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 const connectedMentor = {
   id: 71,
   role: "mentor",
   status: "active",
   calendlyBookingUrl: "https://calendly.com/mentor",
   googleCalendarAccountEmail: "mentor@example.test",
+  googleCalendarRefreshTokenEncrypted: null as string | null,
+  googleCalendarAccessTokenEncrypted: null as string | null,
 };
 let requestStaff: typeof connectedMentor | undefined = { ...connectedMentor };
 
@@ -30,6 +35,11 @@ beforeEach(() => {
   updateCondition = undefined;
   updateCalls = 0;
   returnUpdatedMentor = true;
+  providerCalls = [];
+  if (requestStaff) {
+    requestStaff.googleCalendarRefreshTokenEncrypted = null;
+    requestStaff.googleCalendarAccessTokenEncrypted = null;
+  }
 });
 
 function replaceDbUpdate(replacement: (...args: never[]) => unknown): () => void {
@@ -47,9 +57,21 @@ function replaceDbUpdate(replacement: (...args: never[]) => unknown): () => void
 
 before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  process.env.SESSION_SECRET = "test-session-secret";
   process.env.NODE_ENV = "test";
   db = (await import("@workspace/db")).db;
   const { default: mentorRouter } = await import("../src/routes/mentor");
+  restoreSelect = replaceDbSelect((() => ({
+    from() {
+      return {
+        where() {
+          return {
+            limit: async () => requestStaff ? [requestStaff] : [],
+          };
+        },
+      };
+    },
+  })) as (...args: never[]) => unknown);
   restoreUpdate = replaceDbUpdate((() => {
     updateCalls += 1;
     const query = {
@@ -91,12 +113,26 @@ before(async () => {
 });
 
 after(async () => {
+  restoreSelect?.();
   restoreUpdate?.();
   globalThis.fetch = nativeFetch;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
 });
+
+function replaceDbSelect(replacement: (...args: never[]) => unknown): () => void {
+  const original = Object.getOwnPropertyDescriptor(db, "select");
+  Object.defineProperty(db, "select", {
+    configurable: true,
+    writable: true,
+    value: replacement,
+  });
+  return () => {
+    if (original) Object.defineProperty(db, "select", original);
+    else Reflect.deleteProperty(db, "select");
+  };
+}
 
 async function disconnect(): Promise<Response> {
   const address = server.address();
@@ -258,6 +294,34 @@ test("disconnect clears Google credentials and schedule link, then uses Calendly
     googleCalendarSyncToken: null,
   });
   assert.equal("googleCalendarAccountEmail" in updateValues, true);
+});
+
+test("revokes the mentor's Google grant before clearing credentials", async () => {
+  assert.ok(requestStaff);
+  requestStaff.googleCalendarRefreshTokenEncrypted = encryptGoogleCalendarToken("mentor-refresh-token");
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    providerCalls.push({ url: String(input), init });
+    assert.equal(updateCalls, 0);
+    return new Response(null, { status: 200 });
+  }) as typeof fetch;
+
+  const response = await disconnect();
+  assert.equal(response.status, 200);
+  assert.equal(providerCalls.length, 1);
+  assert.equal(providerCalls[0]?.url, "https://oauth2.googleapis.com/revoke");
+  assert.match(String(providerCalls[0]?.init?.body), /mentor-refresh-token/);
+  assert.equal(updateCalls, 1);
+});
+
+test("does not clear mentor credentials when Google revocation fails", async () => {
+  assert.ok(requestStaff);
+  requestStaff.googleCalendarRefreshTokenEncrypted = encryptGoogleCalendarToken("mentor-refresh-token");
+  globalThis.fetch = (async () => new Response(null, { status: 503 })) as typeof fetch;
+
+  const response = await disconnect();
+  assert.equal(response.status, 502);
+  assert.match((await response.json()).error, /connection was not changed/i);
+  assert.equal(updateCalls, 0);
 });
 
 test("returns an access error when the mentor record is no longer active", async () => {

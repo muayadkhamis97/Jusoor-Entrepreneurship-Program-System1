@@ -180,6 +180,46 @@ export async function removeZoomConnection(): Promise<void> {
     .where(eq(zoomConnectionsTable.provider, "zoom"));
 }
 
+export async function revokeZoomAuthorization(): Promise<void> {
+  const connection = await getZoomConnection();
+  if (!connection) return;
+
+  const clientId = process.env.ZOOM_CLIENT_ID;
+  const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+  const refreshToken = decryptToken(connection.encryptedRefreshToken);
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new ZoomIntegrationError(
+      "Zoom access could not be revoked. Your connection was not changed.",
+      503,
+    );
+  }
+
+  let response: Response;
+  try {
+    response = await fetch("https://zoom.us/oauth/revoke", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({ token: refreshToken }),
+    });
+  } catch {
+    throw new ZoomIntegrationError(
+      "Zoom access could not be revoked. Your connection was not changed.",
+      502,
+    );
+  }
+
+  if (!response.ok) {
+    throw new ZoomIntegrationError(
+      "Zoom access could not be revoked. Your connection was not changed.",
+      502,
+    );
+  }
+}
+
 export async function getZoomConnection(): Promise<ZoomConnection | null> {
   const [connection] = await db
     .select()

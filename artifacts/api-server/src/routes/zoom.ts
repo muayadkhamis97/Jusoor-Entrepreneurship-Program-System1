@@ -34,6 +34,7 @@ import {
   getZoomConnection,
   hasZoomOAuthConfiguration,
   removeZoomConnection,
+  revokeZoomAuthorization,
   saveZoomConnection,
   verifyZoomWebhookSignature,
   ZoomIntegrationError,
@@ -608,8 +609,13 @@ router.post(
       res.status(400).json({ error: "Invalid Zoom disconnect request." });
       return;
     }
-    await removeZoomConnection();
-    res.sendStatus(204);
+    try {
+      await revokeZoomAuthorization();
+      await removeZoomConnection();
+      res.sendStatus(204);
+    } catch (error) {
+      sendZoomError(res, error);
+    }
   },
 );
 

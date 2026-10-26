@@ -43,6 +43,7 @@ import {
   type ProgramSpecialistRole,
 } from "@workspace/db";
 import { requireCoordinator, requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
+import { revokeGoogleCalendarAuthorization } from "../lib/googleCalendarSync";
 import { hasAnyProgramStaffRole } from "../lib/programStaffRoles";
 import { canManageProgramAssignments } from "../lib/programAssignmentAuthorization";
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
@@ -689,11 +690,29 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
   const [target] = await db.select({
     id: staffMembersTable.id,
     role: staffMembersTable.role,
+    googleCalendarRefreshTokenEncrypted: staffMembersTable.googleCalendarRefreshTokenEncrypted,
+    googleCalendarAccessTokenEncrypted: staffMembersTable.googleCalendarAccessTokenEncrypted,
   }).from(staffMembersTable)
     .where(eq(staffMembersTable.id, params.data.id))
     .limit(1);
   if (!target || (target.role !== "mentor" && !await hasAnyProgramStaffRole(target.id, "mentor"))) {
     res.status(404).json({ error: "Mentor account not found." });
+    return;
+  }
+
+  try {
+    await revokeGoogleCalendarAuthorization(
+      target.googleCalendarRefreshTokenEncrypted,
+      target.googleCalendarAccessTokenEncrypted,
+    );
+  } catch {
+    req.log.warn(
+      { targetStaffId: target.id },
+      "Coordinator could not revoke a mentor Google Calendar account",
+    );
+    res.status(502).json({
+      error: "Google Calendar access could not be revoked. The connection was not changed. Try again or contact an administrator.",
+    });
     return;
   }
 

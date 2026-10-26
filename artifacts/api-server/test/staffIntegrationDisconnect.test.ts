@@ -11,10 +11,22 @@ let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreUpdate: (() => void) | undefined;
 let staffRole = "coordinator";
-let selectedMentor: { id: number; role: string } | null = { id: 27, role: "mentor" };
+let selectedMentor: {
+  id: number;
+  role: string;
+  googleCalendarRefreshTokenEncrypted: string | null;
+  googleCalendarAccessTokenEncrypted: string | null;
+} | null = {
+  id: 27,
+  role: "mentor",
+  googleCalendarRefreshTokenEncrypted: null,
+  googleCalendarAccessTokenEncrypted: null,
+};
 let updateValues: Record<string, unknown> = {};
 let updateCondition: SQL | undefined;
 let updateCalls = 0;
+let encryptGoogleCalendarToken: (token: string) => string;
+let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 
 function replaceDbMethod(name: "select" | "update", replacement: (...args: never[]) => unknown): () => void {
   const original = Object.getOwnPropertyDescriptor(db, name);
@@ -27,16 +39,24 @@ function replaceDbMethod(name: "select" | "update", replacement: (...args: never
 
 beforeEach(() => {
   staffRole = "coordinator";
-  selectedMentor = { id: 27, role: "mentor" };
+  selectedMentor = {
+    id: 27,
+    role: "mentor",
+    googleCalendarRefreshTokenEncrypted: null,
+    googleCalendarAccessTokenEncrypted: null,
+  };
   updateValues = {};
   updateCondition = undefined;
   updateCalls = 0;
+  providerCalls = [];
 });
 
 before(async () => {
   process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  process.env.SESSION_SECRET = "test-session-secret";
   process.env.NODE_ENV = "test";
   db = (await import("@workspace/db")).db;
+  ({ encryptGoogleCalendarToken } = await import("../src/lib/googleCalendarSync"));
   const { default: staffRouter } = await import("../src/routes/staff");
 
   restoreSelect = replaceDbMethod("select", (() => ({
@@ -115,5 +135,41 @@ test("non-coordinators cannot disconnect another staff member's calendar", async
   const response = await disconnectMentorCalendar();
 
   assert.equal(response.status, 403);
+  assert.equal(updateCalls, 0);
+});
+
+test("revokes the mentor's Google grant before clearing the saved connection", async () => {
+  selectedMentor = {
+    id: 27,
+    role: "mentor",
+    googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("mentor-refresh-token"),
+    googleCalendarAccessTokenEncrypted: null,
+  };
+  globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    providerCalls.push({ url: String(input), init });
+    assert.equal(updateCalls, 0);
+    return new Response(null, { status: 200 });
+  }) as typeof fetch;
+
+  const response = await disconnectMentorCalendar();
+  assert.equal(response.status, 204);
+  assert.equal(providerCalls.length, 1);
+  assert.equal(providerCalls[0]?.url, "https://oauth2.googleapis.com/revoke");
+  assert.match(String(providerCalls[0]?.init?.body), /mentor-refresh-token/);
+  assert.equal(updateCalls, 1);
+});
+
+test("keeps the mentor's saved connection when Google cannot revoke its grant", async () => {
+  selectedMentor = {
+    id: 27,
+    role: "mentor",
+    googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("mentor-refresh-token"),
+    googleCalendarAccessTokenEncrypted: null,
+  };
+  globalThis.fetch = (async () => new Response(null, { status: 503 })) as typeof fetch;
+
+  const response = await disconnectMentorCalendar();
+  assert.equal(response.status, 502);
+  assert.match((await response.json()).error, /connection was not changed/i);
   assert.equal(updateCalls, 0);
 });

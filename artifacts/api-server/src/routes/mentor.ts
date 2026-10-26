@@ -47,6 +47,7 @@ import {
 } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { revokeGoogleCalendarAuthorization } from "../lib/googleCalendarSync";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 import { sendPlatformEmail } from "../lib/platform-email";
 import {
@@ -1190,6 +1191,35 @@ router.patch("/booking-settings", async (req, res): Promise<void> => {
 
 router.delete("/google-calendar/connection", async (_req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
+  const [connection] = await db.select({
+    id: staffMembersTable.id,
+    googleCalendarRefreshTokenEncrypted: staffMembersTable.googleCalendarRefreshTokenEncrypted,
+    googleCalendarAccessTokenEncrypted: staffMembersTable.googleCalendarAccessTokenEncrypted,
+  }).from(staffMembersTable)
+    .where(and(
+      eq(staffMembersTable.id, staff.id),
+      eq(staffMembersTable.role, "mentor"),
+      eq(staffMembersTable.status, "active"),
+    ))
+    .limit(1);
+
+  if (!connection) {
+    res.status(403).json({ error: "Active mentor access is required." });
+    return;
+  }
+
+  try {
+    await revokeGoogleCalendarAuthorization(
+      connection.googleCalendarRefreshTokenEncrypted,
+      connection.googleCalendarAccessTokenEncrypted,
+    );
+  } catch {
+    res.status(502).json({
+      error: "Google Calendar access could not be revoked. The connection was not changed. Try again or contact an administrator.",
+    });
+    return;
+  }
+
   const [updated] = await db.update(staffMembersTable)
     .set({
       bookingProvider: "calendly",
