@@ -21,7 +21,10 @@ import { Building2, Check, CircleAlert, Download, History, LoaderCircle, Shield,
 import { Dialog } from '@workspace/program-editorial/components/ui/dialog';
 import { LanguageToggle, t, useAppLanguage } from './language';
 import { useProgramSelection } from './program-selection';
-import { downloadStaffAssignmentHistoryCsv } from './program-lifecycle-export';
+import {
+  downloadIntegrationDisconnectHistoryCsv,
+  downloadStaffAssignmentHistoryCsv,
+} from './program-lifecycle-export';
 import './team-assignments.css';
 
 const roleOptions: ProgramSpecialistRole[] = ['trainer', 'mentor', 'judge'];
@@ -210,7 +213,16 @@ function IntegrationDisconnectAuditHistory() {
   return <section className="panel program-assignment-panel" data-testid="integration-disconnect-audit-history">
     <div className="panel-heading">
       <div><div className="eyebrow">{t('ADMIN HISTORY')}</div><h2 className="app-title"><History size={20} /> {t('Integration disconnects')}</h2></div>
-      <span className="section-meta">{t('Latest 250')}</span>
+      <div className="assignment-history-actions">
+        <span className="section-meta">{t('Latest 250')}</span>
+        <button
+          type="button"
+          className="button button-quiet"
+          onClick={() => downloadIntegrationDisconnectHistoryCsv(events)}
+          disabled={query.isLoading || query.isError || events.length === 0}
+          data-testid="button-export-integration-disconnect-history-csv"
+        ><Download size={14} />{t('Export spreadsheet (CSV)')}</button>
+      </div>
     </div>
     <p className="assignment-section-copy">{t('Review who disconnected a mentor calendar, program workbook, or shared Zoom account. This history is read-only.')}</p>
     {query.isLoading

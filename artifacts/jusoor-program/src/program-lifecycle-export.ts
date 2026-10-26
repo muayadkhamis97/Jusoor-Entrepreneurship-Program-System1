@@ -1,4 +1,8 @@
-import type { ProgramLifecycleEvent, StaffAssignmentAuditHistory } from '@workspace/api-client-react';
+import type {
+  IntegrationDisconnectAuditHistory,
+  ProgramLifecycleEvent,
+  StaffAssignmentAuditHistory,
+} from '@workspace/api-client-react';
 
 const csvCell = (value: string | number | null | undefined): string => {
   const text = value == null ? '' : String(value);
@@ -80,6 +84,48 @@ export function downloadStaffAssignmentHistoryCsv(events: StaffAssignmentAuditHi
   const link = document.createElement('a');
   link.href = url;
   link.download = `assignment-history-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.style.display = 'none';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function integrationDisconnectLabel(type: IntegrationDisconnectAuditHistory[number]['integrationType']): string {
+  if (type === 'mentor_google_calendar') return 'Mentor Google Calendar';
+  if (type === 'program_google_sheets') return 'Program Google Sheets';
+  return 'Shared Zoom connection';
+}
+
+function affectedDisconnectResource(event: IntegrationDisconnectAuditHistory[number]): string {
+  if (event.integrationType === 'mentor_google_calendar') {
+    return event.affectedAccountEmail || `Mentor account #${event.affectedStaffId ?? ''}`;
+  }
+  if (event.integrationType === 'program_google_sheets') {
+    return event.programName || `Program #${event.programId ?? ''}`;
+  }
+  return 'Shared Zoom connection';
+}
+
+export function buildIntegrationDisconnectHistoryCsv(events: IntegrationDisconnectAuditHistory): string {
+  const headers = ['Timestamp (UTC)', 'Integration', 'Affected mentor or program', 'Acting Admin'];
+  const rows = events.map(event => [
+    new Date(event.createdAt).toISOString(),
+    integrationDisconnectLabel(event.integrationType),
+    affectedDisconnectResource(event),
+    `${event.actorEmail}${event.initiatorType === 'self_service' ? ' (Self)' : ''}`,
+  ]);
+
+  return `\uFEFF${[headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
+}
+
+export function downloadIntegrationDisconnectHistoryCsv(events: IntegrationDisconnectAuditHistory): void {
+  const csv = buildIntegrationDisconnectHistoryCsv(events);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `integration-disconnect-history-${new Date().toISOString().slice(0, 10)}.csv`;
   link.style.display = 'none';
   document.body.append(link);
   link.click();

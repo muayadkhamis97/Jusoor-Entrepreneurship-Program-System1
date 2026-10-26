@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import type { StaffAssignmentAuditHistory } from '@workspace/api-client-react';
-import { buildStaffAssignmentHistoryCsv, downloadStaffAssignmentHistoryCsv } from './program-lifecycle-export';
+import type { IntegrationDisconnectAuditHistory, StaffAssignmentAuditHistory } from '@workspace/api-client-react';
+import {
+  buildIntegrationDisconnectHistoryCsv,
+  buildStaffAssignmentHistoryCsv,
+  downloadStaffAssignmentHistoryCsv,
+} from './program-lifecycle-export';
 
 const assignmentHistoryUi = readFileSync(new URL('./team-assignments.tsx', import.meta.url), 'utf8');
 
@@ -148,4 +152,71 @@ test('integration disconnect history is Admin-only and read-only', () => {
   assert.match(assignmentHistoryUi, /This history is read-only/);
   assert.match(assignmentHistoryUi, /integration-disconnect-audit-history/);
   assert.match(assignmentHistoryUi, /event\.initiatorType === 'self_service'.*t\('Self'\)/);
+  assert.match(assignmentHistoryUi, /data-testid="button-export-integration-disconnect-history-csv"/);
+  assert.match(assignmentHistoryUi, /downloadIntegrationDisconnectHistoryCsv\(events\)/);
+});
+
+test('integration disconnect CSV includes timestamp, integration, affected resource, and acting Admin', () => {
+  const events: IntegrationDisconnectAuditHistory = [
+    {
+      id: 1,
+      integrationType: 'mentor_google_calendar',
+      initiatorType: 'admin',
+      actorStaffId: 2,
+      actorEmail: 'admin@example.com',
+      affectedStaffId: 8,
+      affectedAccountEmail: 'mentor@example.com',
+      programId: null,
+      programName: null,
+      createdAt: '2026-10-14T10:12:00.000Z',
+    },
+    {
+      id: 2,
+      integrationType: 'program_google_sheets',
+      initiatorType: 'self_service',
+      actorStaffId: 8,
+      actorEmail: 'mentor@example.com',
+      affectedStaffId: null,
+      affectedAccountEmail: null,
+      programId: 4,
+      programName: 'Spring founders',
+      createdAt: '2026-10-15T11:13:00.000Z',
+    },
+    {
+      id: 3,
+      integrationType: 'shared_zoom',
+      initiatorType: 'admin',
+      actorStaffId: 2,
+      actorEmail: 'admin@example.com',
+      affectedStaffId: null,
+      affectedAccountEmail: null,
+      programId: null,
+      programName: null,
+      createdAt: '2026-10-16T12:14:00.000Z',
+    },
+  ];
+  const csv = buildIntegrationDisconnectHistoryCsv(events);
+
+  assert.equal(csv.charCodeAt(0), 0xfeff);
+  assert.match(csv.slice(1), /^"Timestamp \(UTC\)","Integration","Affected mentor or program","Acting Admin"/);
+  assert.match(csv, /"2026-10-14T10:12:00\.000Z","Mentor Google Calendar","mentor@example\.com","admin@example\.com"/);
+  assert.match(csv, /"2026-10-15T11:13:00\.000Z","Program Google Sheets","Spring founders","mentor@example\.com \(Self\)"/);
+  assert.match(csv, /"2026-10-16T12:14:00\.000Z","Shared Zoom connection","Shared Zoom connection","admin@example\.com"/);
+});
+
+test('integration disconnect CSV neutralizes formula-like actor and resource values', () => {
+  const csv = buildIntegrationDisconnectHistoryCsv([{
+    id: 1,
+    integrationType: 'program_google_sheets',
+    initiatorType: 'admin',
+    actorStaffId: 2,
+    actorEmail: '=HYPERLINK("https://example.test")',
+    affectedStaffId: null,
+    affectedAccountEmail: null,
+    programId: 4,
+    programName: '+SUM(1,1)',
+    createdAt: '2026-10-14T10:12:00.000Z',
+  }]);
+
+  assert.match(csv, /"'\+SUM\(1,1\)","'=HYPERLINK\(""https:\/\/example\.test""\)"/);
 });
