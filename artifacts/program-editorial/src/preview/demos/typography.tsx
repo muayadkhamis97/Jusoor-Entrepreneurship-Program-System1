@@ -1,8 +1,8 @@
 import { Typography } from "../../components/ui/typography";
 export default function TypographyDemo() {
-  return <div className="grid gap-9"><Typography as="h1" variant="heading">Editorial typography</Typography>
+  return <div className="grid gap-9"><Typography as="h1" variant="heading">System typography</Typography>
     <section className="grid gap-3">
-      <Typography variant="label">Hero · Fraunces 500 · 44–88px · 1.12 line height</Typography><Typography as="h2" variant="hero">Good work,<br /><em>moving forward.</em></Typography>
+      <Typography variant="label">Hero · DM Sans 500–700 · 44–88px · 1.12 line height</Typography><Typography as="h2" variant="hero">Good work,<br /><em>moving forward.</em></Typography>
     </section>
     <section className="grid gap-3">
       <Typography variant="label">01 — Program operations</Typography>
@@ -22,6 +22,6 @@ export default function TypographyDemo() {
       <div><dt className="font-semibold">Headings</dt><dd className="mt-1 text-sm text-muted-foreground">24–32px · line height 1.3 · restrained tracking.</dd></div>
       <div><dt className="font-semibold">Short labels</dt><dd className="mt-1 text-sm text-muted-foreground">11px · line height 1.55 · lighter Latin letter spacing.</dd></div>
     </dl>
-    <Typography className="text-sm">The font families retain the source’s character; the type scale, spacing and dedicated Arabic font are review-stage refinements, not exact extraction.</Typography>
+    <Typography className="text-sm">One sans-serif family keeps interface and content consistent. Size, weight and spacing provide hierarchy; Noto Sans Arabic supports Arabic content.</Typography>
   </div>;
 }

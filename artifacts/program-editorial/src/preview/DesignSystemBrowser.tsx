@@ -45,7 +45,7 @@ export function DesignSystemBrowser() {
     <a href="#guide-content" className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:z-50 focus:bg-card focus:p-3">Skip to content</a>
     <aside className="border-b border-border bg-sidebar md:sticky md:top-0 md:flex md:h-dvh md:flex-col md:border-e md:border-b-0">
       <div className="border-b border-border p-6">
-        <p className="font-serif text-2xl font-semibold leading-snug tracking-normal">Program<br className="hidden md:block" /> Editorial</p>
+        <p className="font-sans text-2xl font-semibold leading-snug tracking-normal">Program<br className="hidden md:block" /> Editorial</p>
         <p className="mt-3 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Design system / 01</p>
       </div>
       <div className="px-5 pt-5"><label htmlFor="guide-search" className="sr-only">Search design system</label><input id="guide-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find a foundation or component…" className="w-full border border-input bg-background px-3 py-2.5 text-xs outline-offset-2 focus:outline-2 focus:outline-ring" /></div>

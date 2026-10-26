@@ -94,7 +94,9 @@ test('scoped theme derives color, radius and fonts from the shared tokens withou
   const light = getThemeStyle() as Record<string, string>;
   const dark = getThemeStyle('dark') as Record<string, string>;
   assert.equal(light['--radius'], tokens.radius);
-  assert.match(light['--editorial-font-serif'], /Fraunces/);
+  assert.match(light['--editorial-font-serif'], /DM Sans/);
+  assert.match(light['--editorial-font-serif'], /sans-serif/);
+  assert.doesNotMatch(light['--editorial-font-serif'], /Fraunces|Georgia/);
   assert.match(light['--app-font-sans'], /Noto Sans Arabic/);
   assert.equal(tokens.color.light.background, '#f4f7fa');
   assert.equal(tokens.color.light.primary, '#3f6f8f');

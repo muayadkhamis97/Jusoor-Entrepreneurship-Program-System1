@@ -23,9 +23,10 @@ on it and import its theme and components directly.
 - `docs/references/README.md` and the retained source screenshot — provenance
   and source-versus-derived scope. Historical source copy is not approved branding.
 - `SKILL.md` — extracted composition rules and explicit accessibility adaptations.
-- Typography is currently a review-stage refinement: calmer Fraunces headings,
-  16px body text, 11px labels, and Noto Sans Arabic in the font stacks. See the
-  typography reference for the scale and inherited-language behavior.
+- Typography uses DM Sans for all Latin headings and body text, Noto Sans Arabic
+  for Arabic glyphs, and IBM Plex Mono for short labels. The former serif token is
+  a compatibility alias to the shared sans stack. See the typography reference
+  for the scale and inherited-language behavior.
 - `docs/QA.md` — actual verification and limitations.
 - `src/App.tsx` — the entry point for the living style guide.
 - `src/preview/DesignSystemBrowser.tsx` — the persistent grouped navigation,

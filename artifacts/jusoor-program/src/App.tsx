@@ -6,7 +6,7 @@ import './session-recording.css';
 import './language.css';
 import './program-controls.css';
 import { PublicLanding } from './public-landing';
-import { getAccessibleBrandForeground } from './branding-contrast';
+import { getAccessibleBrandForeground, getPanelSurfaceColors } from './branding-contrast';
 import { sessionProgramField } from './session-form-requirements';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
@@ -1460,6 +1460,8 @@ function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
   const branding = brandingQuery.data;
   const brandName = getDisplayBrandName(branding?.brandName);
   const primaryColor = branding?.primaryColor || '#28665a';
+  const sidebarColor = branding?.sidebarColor || '#1f3445';
+  const topbarColor = branding?.topbarColor || '#2d4453';
   useEffect(() => {
     if (!branding) return;
     const toHsl = (hex: string) => {
@@ -1471,15 +1473,26 @@ function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
     };
     const primaryHsl = toHsl(branding.primaryColor);
     const accentHsl = toHsl(branding.accentColor);
+    const sidebar = getPanelSurfaceColors(sidebarColor);
+    const topbar = getPanelSurfaceColors(topbarColor);
     const foreground = getAccessibleBrandForeground(branding.primaryColor);
     document.documentElement.style.setProperty('--primary', primaryHsl);
     document.documentElement.style.setProperty('--ring', primaryHsl);
     document.documentElement.style.setProperty('--accent', accentHsl);
     document.documentElement.style.setProperty('--primary-foreground', foreground);
-    document.documentElement.style.setProperty('--sidebar-primary', primaryHsl);
-    document.documentElement.style.setProperty('--sidebar-primary-foreground', foreground);
+    document.documentElement.style.setProperty('--sidebar', toHsl(sidebar.background));
+    document.documentElement.style.setProperty('--sidebar-foreground', toHsl(sidebar.foreground));
+    document.documentElement.style.setProperty('--sidebar-primary', toHsl(sidebar.foreground));
+    document.documentElement.style.setProperty('--sidebar-primary-foreground', toHsl(sidebar.background));
+    document.documentElement.style.setProperty('--sidebar-accent', toHsl(sidebar.accent));
+    document.documentElement.style.setProperty('--sidebar-accent-foreground', toHsl(sidebar.foreground));
+    document.documentElement.style.setProperty('--sidebar-border', toHsl(sidebar.border));
+    document.documentElement.style.setProperty('--sidebar-ring', toHsl(sidebar.foreground));
+    document.documentElement.style.setProperty('--topbar-background', toHsl(topbar.background));
+    document.documentElement.style.setProperty('--topbar-foreground', toHsl(topbar.foreground));
+    document.documentElement.style.setProperty('--topbar-border', toHsl(topbar.border));
     document.title = `${brandName} · Program Hub`;
-  }, [branding, brandName]);
+  }, [branding, brandName, sidebarColor, topbarColor]);
   const appearance = {
     theme: shadcn,
     cssLayerName: 'clerk',

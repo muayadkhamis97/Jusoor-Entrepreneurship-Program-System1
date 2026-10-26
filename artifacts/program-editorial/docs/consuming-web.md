@@ -39,10 +39,10 @@ primitives rather than recreating those primitives locally.
 There is no Toaster, toast hook, form input or table in this extracted catalog.
 Do not delete local components the package does not replace.
 
-Load DM Sans400–700, Fraunces500–700 (including italic500), IBM Plex Mono400–500,
-and Noto Sans Arabic400–700 once in the consumer; `index.html` in this package has
-the exact Google Fonts link. All three token stacks include the Arabic face
-before system fallbacks. Typography recognizes inherited or explicit Arabic
+Load DM Sans400–700, IBM Plex Mono400–500, and Noto Sans Arabic400–700 once in
+the consumer; `index.html` in this package has the exact Google Fonts link. All
+proportional token stacks resolve to the same sans-serif family; the old serif
+slot remains only for compatibility. Typography recognizes inherited or explicit Arabic
 language; set `lang="ar"` and `dir="rtl"` on an Arabic region. A Typography
 component with its own Arabic `lang` defaults toRTL unless `dir` is explicit.
 
@@ -70,10 +70,10 @@ of unrelated pages. Import `getThemeStyle` from
 outer PaperSurface. It derives HSL custom properties, font stacks and radius
 directly from the exported tokens. Register this package's component sources
 with Tailwind's `@source` and retain the consumer's existing semantic mappings.
-Map `font-serif` to `var(--editorial-font-serif, Georgia, serif)` and the sans
-and mono utilities to `--app-font-sans` and `--app-font-mono`. This bridge is for
-an existing app's partial migration only; new/full consumers still import the
-complete stylesheet as described above.
+Map `font-sans` and `font-mono` to `--app-font-sans` and `--app-font-mono`.
+The legacy `font-serif` slot resolves to the same sans-serif stack; use `font-sans`
+for new headings. This bridge is for an existing app's partial migration only;
+new/full consumers still import the complete stylesheet as described above.
 
 ## Verify
 

@@ -119,14 +119,14 @@
   --border: 207 24.4% 83.9%;
   --card: 0 0% 100%;
   --card-foreground: 207 38% 19.6%;
-  --sidebar: 207 31.4% 93.1%;
-  --sidebar-foreground: 207 38% 19.6%;
-  --sidebar-border: 207 24.4% 83.9%;
-  --sidebar-primary: 204 38.8% 40.4%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 37.5% 96.9%;
-  --sidebar-accent-foreground: 207 38% 19.6%;
-  --sidebar-ring: 204 38.8% 40.4%;
+  --sidebar: 207 38% 19.6%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 205 17.8% 32%;
+  --sidebar-primary: 202 45% 84.3%;
+  --sidebar-primary-foreground: 207 38% 19.6%;
+  --sidebar-accent: 204 29.7% 25.1%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 202 45% 84.3%;
   --popover: 0 0% 100%;
   --popover-foreground: 207 38% 19.6%;
   --primary: 204 38.8% 40.4%;
@@ -148,7 +148,7 @@
   --chart-5: 236 13% 49.6%;
 
   --app-font-sans: DM Sans, Noto Sans Arabic, sans-serif;
-  --app-font-serif: Fraunces, Noto Sans Arabic, Georgia, serif;
+  --app-font-serif: DM Sans, Noto Sans Arabic, sans-serif;
   --app-font-mono: IBM Plex Mono, Noto Sans Arabic, monospace;
   --radius: 0.1875rem;
   --spacing: 0.25rem;

@@ -4661,7 +4661,9 @@ components:
         logoUrl: { type: ["string", "null"], format: uri }
         primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
-      required: [brandName, logoUrl, primaryColor, accentColor]
+        sidebarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        topbarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+      required: [brandName, logoUrl, primaryColor, accentColor, sidebarColor, topbarColor]
     ProgramBrandingInput:
       type: object
       properties:
@@ -4669,6 +4671,8 @@ components:
         logoUrl: { type: ["string", "null"], format: uri, maxLength: 2048 }
         primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        sidebarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        topbarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
       required: [brandName, logoUrl, primaryColor, accentColor]
     ApplicationStatus:
       type: string

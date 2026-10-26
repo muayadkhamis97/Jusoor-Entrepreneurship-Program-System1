@@ -160,13 +160,17 @@ export const HealthCheckResponse = zod.object({
  */
 export const getProgramBrandingResponsePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const getProgramBrandingResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const getProgramBrandingResponseSidebarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const getProgramBrandingResponseTopbarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 
 
 export const GetProgramBrandingResponse = zod.object({
   "brandName": zod.string(),
   "logoUrl": zod.string().url().nullable(),
   "primaryColor": zod.string().regex(getProgramBrandingResponsePrimaryColorRegExp),
-  "accentColor": zod.string().regex(getProgramBrandingResponseAccentColorRegExp)
+  "accentColor": zod.string().regex(getProgramBrandingResponseAccentColorRegExp),
+  "sidebarColor": zod.string().regex(getProgramBrandingResponseSidebarColorRegExp),
+  "topbarColor": zod.string().regex(getProgramBrandingResponseTopbarColorRegExp)
 })
 
 
@@ -179,24 +183,32 @@ export const updateProgramBrandingBodyLogoUrlMax = 2048;
 
 export const updateProgramBrandingBodyPrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateProgramBrandingBodyAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateProgramBrandingBodySidebarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateProgramBrandingBodyTopbarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 
 
 export const UpdateProgramBrandingBody = zod.object({
   "brandName": zod.string().min(1).max(updateProgramBrandingBodyBrandNameMax),
   "logoUrl": zod.string().url().max(updateProgramBrandingBodyLogoUrlMax).nullable(),
   "primaryColor": zod.string().regex(updateProgramBrandingBodyPrimaryColorRegExp),
-  "accentColor": zod.string().regex(updateProgramBrandingBodyAccentColorRegExp)
+  "accentColor": zod.string().regex(updateProgramBrandingBodyAccentColorRegExp),
+  "sidebarColor": zod.string().regex(updateProgramBrandingBodySidebarColorRegExp).optional(),
+  "topbarColor": zod.string().regex(updateProgramBrandingBodyTopbarColorRegExp).optional()
 })
 
 export const updateProgramBrandingResponsePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateProgramBrandingResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateProgramBrandingResponseSidebarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateProgramBrandingResponseTopbarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 
 
 export const UpdateProgramBrandingResponse = zod.object({
   "brandName": zod.string(),
   "logoUrl": zod.string().url().nullable(),
   "primaryColor": zod.string().regex(updateProgramBrandingResponsePrimaryColorRegExp),
-  "accentColor": zod.string().regex(updateProgramBrandingResponseAccentColorRegExp)
+  "accentColor": zod.string().regex(updateProgramBrandingResponseAccentColorRegExp),
+  "sidebarColor": zod.string().regex(updateProgramBrandingResponseSidebarColorRegExp),
+  "topbarColor": zod.string().regex(updateProgramBrandingResponseTopbarColorRegExp)
 })
 
 

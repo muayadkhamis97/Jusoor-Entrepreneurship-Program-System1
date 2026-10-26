@@ -39,7 +39,7 @@ apply.
 | TypeScript | `pnpm --filter @workspace/program-editorial run typecheck` exited0. Includes token generation and `tsc --noEmit`. |
 | Production bundle | `PORT=21236 BASE_PATH=/program-editorial/ pnpm --filter @workspace/program-editorial run build` exited0; Vite transformed48 modules and emitted the guide plus five lazy family bundles. This is a local bundle, not a publish. |
 | Development runtime | Managed `artifacts/program-editorial: web` workflow restarted and served the preview. Vite reported ready without package runtime errors. |
-| Fonts | Chromium `document.fonts.check` returned true for Fraunces600, DM Sans400 and IBM Plex Mono500 after font readiness. Google Fonts stylesheet returned200. |
+| Fonts | Theme contract tests confirm DM Sans is used for proportional text, the legacy serif slot resolves to the same sans stack, and the app no longer requests Fraunces. Arabic and mono font imports remain present. |
 | Catalog | Exactly five component files and five default-export story files. Registry has unique IDs and ten pages. All ten light pages loaded with one main heading and no horizontal overflow at1440px. |
 | Colors |32 light plus32 dark roles.22 foreground/background pair calculations passed4.5:1; minimum4.74:1. This is a paired-token check, not a full WCAG audit. All three core swatches displayed nontransparent fills. |
 | Button interaction | Primary click updates the story status, Enter activates the native button, all unavailable variants are disabled, and the language pill toggles its pressed state. |

@@ -5,13 +5,21 @@ import type { ProgramBrandingInput } from '@workspace/api-client-react';
 import { Check, CircleAlert, Image, Palette, RotateCcw, Save } from 'lucide-react';
 import { getDisplayBrandName, isAllowedDisplayBrandName, t, useAppLanguage } from './language';
 import './branding-surfaces.css';
-import { getAccessibleBrandForeground } from './branding-contrast';
+import { getAccessibleBrandForeground, getAccessiblePanelForeground } from './branding-contrast';
 
-const defaults: ProgramBrandingInput = {
+type BrandingForm = Omit<ProgramBrandingInput, 'sidebarColor' | 'topbarColor'> & {
+  sidebarColor: string;
+  topbarColor: string;
+};
+type BrandingColorField = 'primaryColor' | 'accentColor' | 'sidebarColor' | 'topbarColor';
+
+const defaults: BrandingForm = {
   brandName: 'Program Hub',
   logoUrl: null,
   primaryColor: '#28665A',
   accentColor: '#D98A46',
+  sidebarColor: '#1F3445',
+  topbarColor: '#2D4453',
 };
 
 export function BrandingPage() {
@@ -19,7 +27,7 @@ export function BrandingPage() {
   const client = useQueryClient();
   const query = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const update = useUpdateProgramBranding();
-  const [form, setForm] = useState<ProgramBrandingInput>(defaults);
+  const [form, setForm] = useState<BrandingForm>(defaults);
   const [initialized, setInitialized] = useState(false);
   const [saved, setSaved] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -29,7 +37,7 @@ export function BrandingPage() {
       setInitialized(true);
     }
   }, [query.data, initialized]);
-  const change = (key: keyof ProgramBrandingInput, value: string | null) => {
+  const change = (key: keyof BrandingForm, value: string | null) => {
     setSaved(false);
     setForm(current => ({ ...current, [key]: value }));
   };
@@ -39,13 +47,13 @@ export function BrandingPage() {
     const logoUrl = form.logoUrl?.trim() || null;
     if (!brandName) { setValidationError('Enter a brand name.'); return; }
     if (!isAllowedDisplayBrandName(brandName)) { setValidationError('This brand name is unavailable. Choose another name.'); return; }
-    if (!/^#[0-9a-f]{6}$/i.test(form.primaryColor) || !/^#[0-9a-f]{6}$/i.test(form.accentColor)) {
+    if (![form.primaryColor, form.accentColor, form.sidebarColor, form.topbarColor].every(color => /^#[0-9a-f]{6}$/i.test(color))) {
       setValidationError('Use a six-digit hex color, such as #28665A.');
       return;
     }
     if (logoUrl && !/^https:\/\//i.test(logoUrl)) { setValidationError('Logo URL must begin with https://.'); return; }
     setValidationError('');
-    const data: ProgramBrandingInput = { brandName, logoUrl, primaryColor: form.primaryColor, accentColor: form.accentColor };
+    const data: BrandingForm = { ...form, brandName, logoUrl };
     update.mutate({ data }, {
       onSuccess: () => {
         setForm(data);
@@ -58,7 +66,7 @@ export function BrandingPage() {
   const busy = query.isLoading || update.isPending;
   if (query.isLoading) return <main className="branding-page"><div className="branding-skeleton" /><div className="branding-skeleton" /></main>;
   if (query.isError) return <main className="branding-page"><section className="branding-error"><CircleAlert /><h1>{t('Brand settings could not load.')}</h1><p>{t('Your current identity is unchanged. Try again.')}</p><button className="button button-outline" onClick={() => void query.refetch()}>{t('Retry connection')}</button></section></main>;
-  const updateField = (key: 'primaryColor' | 'accentColor', value: string) => change(key, value);
+  const updateField = (key: BrandingColorField, value: string) => change(key, value);
   return <main className="branding-page">
     <header className="branding-heading"><div><div className="eyebrow">{t('PROGRAM IDENTITY / ADMIN')}</div><h1 className="app-title">{t('Branding')}</h1><p>{t('Set the name, mark and colors participants and staff see across the platform.')}</p></div><span className="branding-access"><Palette size={15} />{t('Admin controls')}</span></header>
     <div className="branding-layout">
@@ -67,7 +75,12 @@ export function BrandingPage() {
         <label className="branding-field"><span>{t('Brand name')}</span><input value={form.brandName} onChange={event => change('brandName', event.target.value)} maxLength={80} required autoComplete="organization" data-testid="input-brand-name" /><small>{t('Shown in the platform navigation and public-facing participant surfaces.')}</small></label>
         <label className="branding-field"><span>{t('Logo URL')} <em>{t('Optional')}</em></span><div className="branding-url"><Image size={16} /><input type="url" value={form.logoUrl || ''} onChange={event => change('logoUrl', event.target.value || null)} placeholder="https://" data-testid="input-brand-logo-url" /></div><small>{t('Use a publicly accessible image URL. Leave blank to use the brand initial.')}</small></label>
         <div className="branding-color-grid">
-          {(['primaryColor', 'accentColor'] as const).map((key, index) => <label className="branding-field branding-color-field" key={key}><span>{t(index ? 'Accent color' : 'Primary color')}</span><div className="branding-color-control"><input aria-label={t(index ? 'Choose accent color' : 'Choose primary color')} type="color" value={form[key]} onChange={event => updateField(key, event.target.value)} data-testid={`input-${key}-picker`} /><input aria-label={t(index ? 'Accent color hex value' : 'Primary color hex value')} value={form[key]} onChange={event => updateField(key, event.target.value)} maxLength={7} pattern="^#[0-9A-Fa-f]{6}$" data-testid={`input-${key}`} /></div><small>{t(index ? 'Highlights, calls to action and emphasis.' : 'Navigation, links and the main program identity.')}</small></label>)}
+          {([
+            ['primaryColor', 'Primary color', 'Choose primary color', 'Primary color hex value', 'Navigation, links and the main program identity.'],
+            ['accentColor', 'Accent color', 'Choose accent color', 'Accent color hex value', 'Highlights, calls to action and emphasis.'],
+            ['sidebarColor', 'Left navigation panel', 'Choose left navigation panel color', 'Left navigation panel hex value', 'The panel text color adjusts automatically for contrast.'],
+            ['topbarColor', 'Top header panel', 'Choose top header panel color', 'Top header panel hex value', 'The panel text color adjusts automatically for contrast.'],
+          ] as const).map(([key, label, pickerLabel, inputLabel, help]) => <label className="branding-field branding-color-field" key={key}><span>{t(label)}</span><div className="branding-color-control"><input aria-label={t(pickerLabel)} type="color" value={form[key]} onChange={event => updateField(key, event.target.value)} data-testid={`input-${key}-picker`} /><input aria-label={t(inputLabel)} value={form[key]} onChange={event => updateField(key, event.target.value)} maxLength={7} pattern="^#[0-9A-Fa-f]{6}$" data-testid={`input-${key}`} /></div><small>{t(help)}</small></label>)}
         </div>
         {validationError && <div className="form-error" role="alert"><CircleAlert size={15} />{t(validationError)}</div>}
         {update.isError && <div className="form-error" role="alert"><CircleAlert size={15} />{t('Branding could not be saved. Check your values and try again.')}</div>}
@@ -76,10 +89,23 @@ export function BrandingPage() {
       </form>
       <aside className="branding-preview-wrap">
         <div className="branding-preview-label"><span>{t('LIVE PREVIEW')}</span><span>{t('Unsaved changes')}</span></div>
-        <section className="branding-preview" style={{ '--preview-primary': form.primaryColor, '--preview-primary-foreground': `hsl(${getAccessibleBrandForeground(form.primaryColor)})`, '--preview-accent': form.accentColor } as CSSProperties} aria-label={t('Branding preview')}>
-          <div className="branding-preview-nav">{form.logoUrl ? <img src={form.logoUrl} alt="" /> : <span className="branding-preview-mark">{form.brandName.slice(0, 1) || 'J'}</span>}<b>{form.brandName || t('Your brand name')}</b><span>{t('PROGRAM HUB')}</span></div>
-          <div className="branding-preview-body"><span className="branding-preview-kicker">{t('YOUR COHORT / LEARNING')}</span><h3>{t('A clear path for what comes next.')}</h3><p>{t('Your program, your next step, and the people moving with you.')}</p><button type="button" tabIndex={-1}>{t('View learning path')} <Check size={13} /></button></div>
-          <div className="branding-preview-swatches"><span><i />{t('Primary')}</span><span><i />{t('Accent')}</span></div>
+        <section className="branding-preview" style={{
+          '--preview-primary': form.primaryColor,
+          '--preview-primary-foreground': `hsl(${getAccessibleBrandForeground(form.primaryColor)})`,
+          '--preview-accent': form.accentColor,
+          '--preview-sidebar': form.sidebarColor,
+          '--preview-sidebar-foreground': getAccessiblePanelForeground(form.sidebarColor),
+          '--preview-topbar': form.topbarColor,
+          '--preview-topbar-foreground': getAccessiblePanelForeground(form.topbarColor),
+        } as CSSProperties} aria-label={t('Branding preview')}>
+          <div className="branding-preview-shell">
+            <aside className="branding-preview-sidebar"><div className="branding-preview-brand">{form.logoUrl ? <img src={form.logoUrl} alt="" /> : <span className="branding-preview-mark">{form.brandName.slice(0, 1) || 'J'}</span>}<b>{form.brandName || t('Your brand name')}</b></div><span className="branding-preview-nav-item">{t('Overview')}</span><span className="branding-preview-nav-item">{t('Programs')}</span></aside>
+            <div className="branding-preview-main">
+              <div className="branding-preview-topbar"><b>{t('Overview')}</b><span>{t('Admin')}</span></div>
+              <div className="branding-preview-body"><span className="branding-preview-kicker">{t('YOUR COHORT / LEARNING')}</span><h3>{t('A clear path for what comes next.')}</h3><p>{t('Your program, your next step, and the people moving with you.')}</p><button type="button" tabIndex={-1}>{t('View learning path')} <Check size={13} /></button></div>
+            </div>
+          </div>
+          <div className="branding-preview-swatches"><span><i style={{ background: 'var(--preview-primary)' }} />{t('Primary')}</span><span><i style={{ background: 'var(--preview-accent)' }} />{t('Accent')}</span><span><i style={{ background: 'var(--preview-sidebar)' }} />{t('Left panel')}</span><span><i style={{ background: 'var(--preview-topbar)' }} />{t('Top panel')}</span></div>
         </section>
         <p className="branding-preview-note">{t('This preview reflects the platform shell and participant-facing learning surfaces.')}</p>
       </aside>

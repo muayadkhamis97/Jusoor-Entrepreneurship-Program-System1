@@ -5,8 +5,8 @@ Read `docs/AGENTS.md` before consuming or editing the system.
 ## Extracted visual rules
 
 - Deep teal anchors the primary action; terracotta emphasizes the editorial phrase and small section markers.
-- Use Fraunces for the primary message and section/dialog titles, DM Sans for UI/body, IBM Plex Mono for short structural labels.
-- Pair an oversized, tight serif headline with a restrained-width body paragraph.
+- The original source mockup used Fraunces for headings; the current system uses DM Sans for all proportional text and IBM Plex Mono for short structural labels.
+- Use a consistent sans-serif hierarchy, with scale and weight distinguishing headlines, section titles, and body copy.
 - Prefer open paper and thin divider rules for supporting regions. Reserve framed panels and shadows for the overlay rather than filling every region with cards.
 - Primary buttons use alternating 3px/14px corners; the language utility uses a capsule.
 - Source content uses generous desktop gutters and collapses the three-column action rail at760px.
@@ -16,13 +16,12 @@ These observations come from the selected mockup's CSS/structure, not written br
 
 ## Current typography revision
 
-The user asked to revise typography and delegated the choice of direction.
-Retain the editorial serif character, but prioritize reading: hero44–88px with
-1.12 line height and−.025em tracking; headings24–32px/1.3; body16px/1.75 up to65ch;
-labels11px/1.55 with lighter Latin tracking. Add Noto Sans Arabic400–700 to the
-three Latin stacks. Inherited or explicit Arabic uses the sans stack, natural
-script spacing and extra line-height headroom. Do not synthesize Arabic italics.
-These are revisions to the extracted typography, not source observations.
+The user requested a sans-serif system. Use DM Sans for all Latin headings and
+body text, Noto Sans Arabic400–700 for Arabic glyphs, and IBM Plex Mono for short
+structural labels. Preserve the readable scale: hero44–88px with1.12 line height
+and−.025em tracking; headings24–32px/1.3; body16px/1.75 up to65ch; labels11px/1.55.
+Arabic uses natural script spacing and extra line-height headroom. Do not synthesize
+Arabic italics. This current choice overrides the serif type in the extracted source.
 
 ## Adaptations and limits
 

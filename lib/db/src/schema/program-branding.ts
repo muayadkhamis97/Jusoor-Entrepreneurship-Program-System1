@@ -8,6 +8,8 @@ export const programBrandingTable = pgTable("jusoor_program_branding", {
   logoUrl: text("logo_url"),
   primaryColor: text("primary_color").notNull().default("#28665a"),
   accentColor: text("accent_color").notNull().default("#d98a46"),
+  sidebarColor: text("sidebar_color").notNull().default("#1f3445"),
+  topbarColor: text("topbar_color").notNull().default("#2d4453"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 

@@ -29,14 +29,14 @@ export const tokens = {
       "chart3": "#71899a",
       "chart4": "#8b7c68",
       "chart5": "#6e708f",
-      "sidebar": "#e8eef3",
-      "sidebarForeground": "#1f3445",
-      "sidebarBorder": "#ccd7e0",
-      "sidebarPrimary": "#3f6f8f",
-      "sidebarPrimaryForeground": "#ffffff",
-      "sidebarAccent": "#f4f7fa",
-      "sidebarAccentForeground": "#1f3445",
-      "sidebarRing": "#3f6f8f"
+      "sidebar": "#1f3445",
+      "sidebarForeground": "#ffffff",
+      "sidebarBorder": "#435460",
+      "sidebarPrimary": "#c5dce9",
+      "sidebarPrimaryForeground": "#1f3445",
+      "sidebarAccent": "#2d4453",
+      "sidebarAccentForeground": "#ffffff",
+      "sidebarRing": "#c5dce9"
     },
     "dark": {
       "primary": "#8eb8cf",
@@ -80,10 +80,9 @@ export const tokens = {
       "sans-serif"
     ],
     "serif": [
-      "Fraunces",
+      "DM Sans",
       "Noto Sans Arabic",
-      "Georgia",
-      "serif"
+      "sans-serif"
     ],
     "mono": [
       "IBM Plex Mono",

@@ -14,4 +14,8 @@ export interface ProgramBranding {
   primaryColor: string;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   accentColor: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  sidebarColor: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  topbarColor: string;
 }

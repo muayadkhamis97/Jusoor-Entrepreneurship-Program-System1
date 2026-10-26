@@ -13,6 +13,8 @@ type BrandingRow = {
   logoUrl: string | null;
   primaryColor: string;
   accentColor: string;
+  sidebarColor: string;
+  topbarColor: string;
   updatedAt: Date;
 };
 
@@ -86,6 +88,8 @@ function savedRow(overrides: Partial<BrandingRow> = {}): BrandingRow {
     logoUrl: null,
     primaryColor: "#28665a",
     accentColor: "#d98a46",
+    sidebarColor: "#1f3445",
+    topbarColor: "#2d4453",
     updatedAt: new Date("2026-10-01T00:00:00.000Z"),
     ...overrides,
   };
@@ -110,6 +114,8 @@ test("GET /branding returns defaults when no settings are saved", async () => {
       logoUrl: null,
       primaryColor: "#28665a",
       accentColor: "#d98a46",
+      sidebarColor: "#1f3445",
+      topbarColor: "#2d4453",
     });
   } finally {
     restoreSelect();
@@ -134,6 +140,8 @@ test("GET /branding normalizes an older saved name without changing its row", as
       logoUrl: null,
       primaryColor: "#28665a",
       accentColor: "#d98a46",
+      sidebarColor: "#1f3445",
+      topbarColor: "#2d4453",
     });
     assert.deepEqual(row, beforeRead);
     assert.equal(writeAttempts, 0);
@@ -161,6 +169,8 @@ test("PUT /branding saves and returns a valid custom brand", async () => {
         logoUrl: "https://cdn.example.test/logo.png",
         primaryColor: "#163b52",
         accentColor: "#e1a447",
+        sidebarColor: "#112233",
+        topbarColor: "#334455",
       }],
     };
     return query;
@@ -172,6 +182,8 @@ test("PUT /branding saves and returns a valid custom brand", async () => {
       logoUrl: "https://cdn.example.test/logo.png",
       primaryColor: "#163B52",
       accentColor: "#E1A447",
+      sidebarColor: "#112233",
+      topbarColor: "#334455",
     });
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.body, {
@@ -179,6 +191,8 @@ test("PUT /branding saves and returns a valid custom brand", async () => {
       logoUrl: "https://cdn.example.test/logo.png",
       primaryColor: "#163b52",
       accentColor: "#e1a447",
+      sidebarColor: "#112233",
+      topbarColor: "#334455",
     });
     assert.deepEqual(insertedValues, {
       id: 1,
@@ -186,6 +200,8 @@ test("PUT /branding saves and returns a valid custom brand", async () => {
       logoUrl: "https://cdn.example.test/logo.png",
       primaryColor: "#163b52",
       accentColor: "#e1a447",
+      sidebarColor: "#112233",
+      topbarColor: "#334455",
     });
     const conflictSet = conflictUpdate?.set as Record<string, unknown>;
     const { updatedAt, ...conflictValues } = conflictSet;
@@ -194,6 +210,8 @@ test("PUT /branding saves and returns a valid custom brand", async () => {
       logoUrl: "https://cdn.example.test/logo.png",
       primaryColor: "#163b52",
       accentColor: "#e1a447",
+      sidebarColor: "#112233",
+      topbarColor: "#334455",
     });
     assert.ok(updatedAt instanceof Date);
   } finally {

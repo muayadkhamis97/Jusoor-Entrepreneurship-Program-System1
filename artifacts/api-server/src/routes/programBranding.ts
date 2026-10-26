@@ -15,6 +15,8 @@ const defaultBranding = {
   logoUrl: null,
   primaryColor: "#28665a",
   accentColor: "#d98a46",
+  sidebarColor: "#1f3445",
+  topbarColor: "#2d4453",
 };
 
 function getVisibleBrandName(brandName: string | null | undefined): string {
@@ -60,6 +62,8 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
     }
   }
 
+  const sidebarColor = (parsed.data.sidebarColor ?? defaultBranding.sidebarColor).toLowerCase();
+  const topbarColor = (parsed.data.topbarColor ?? defaultBranding.topbarColor).toLowerCase();
   const [settings] = await db.insert(programBrandingTable)
     .values({
       id: 1,
@@ -67,6 +71,8 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
       logoUrl: parsed.data.logoUrl,
       primaryColor: parsed.data.primaryColor.toLowerCase(),
       accentColor: parsed.data.accentColor.toLowerCase(),
+      sidebarColor,
+      topbarColor,
     })
     .onConflictDoUpdate({
       target: programBrandingTable.id,
@@ -75,6 +81,8 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
         logoUrl: parsed.data.logoUrl,
         primaryColor: parsed.data.primaryColor.toLowerCase(),
         accentColor: parsed.data.accentColor.toLowerCase(),
+        sidebarColor,
+        topbarColor,
         updatedAt: new Date(),
       },
     })

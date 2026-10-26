@@ -45,6 +45,8 @@ test('functional controls retain mobile text sizing and reduced-motion support',
 
 test('Arabic font and direction support remain explicit in the style contract', () => {
   assert.ok(tokens.fontFamily.sans.includes('Noto Sans Arabic'));
+  assert.deepEqual(tokens.fontFamily.serif, tokens.fontFamily.sans);
+  assert.doesNotMatch(indexHtml, /Fraunces/);
   assert.match(indexHtml, /Noto\+Sans\+Arabic/);
   assert.match(languageCss, /lang="ar"/);
   assert.match(languageCss, /html\[dir="rtl"\]\s+\.analytics-page \.ana-table\s*\{\s*direction:\s*rtl/);

@@ -1,5 +1,7 @@
 const BRAND_DARK_FOREGROUND = '203 28% 19%';
 const BRAND_LIGHT_FOREGROUND = '0 0% 100%';
+const PANEL_DARK_FOREGROUND = '#000000';
+const PANEL_LIGHT_FOREGROUND = '#ffffff';
 
 function relativeLuminance(hex: string): number {
   if (!/^#[0-9a-f]{6}$/i.test(hex)) {
@@ -22,4 +24,32 @@ export function getAccessibleBrandForeground(hex: string): string {
   const darkContrast = contrastAgainst(darkForegroundLuminance, brandLuminance);
   const lightContrast = contrastAgainst(1, brandLuminance);
   return darkContrast >= lightContrast ? BRAND_DARK_FOREGROUND : BRAND_LIGHT_FOREGROUND;
+}
+
+export function getAccessiblePanelForeground(hex: string): string {
+  const backgroundLuminance = relativeLuminance(hex);
+  const darkContrast = contrastAgainst(relativeLuminance(PANEL_DARK_FOREGROUND), backgroundLuminance);
+  const lightContrast = contrastAgainst(relativeLuminance(PANEL_LIGHT_FOREGROUND), backgroundLuminance);
+  return darkContrast >= lightContrast ? PANEL_DARK_FOREGROUND : PANEL_LIGHT_FOREGROUND;
+}
+
+function mixHex(background: string, foreground: string, foregroundWeight: number): string {
+  const channels = [1, 3, 5].map(offset => {
+    const back = Number.parseInt(background.slice(offset, offset + 2), 16);
+    const front = Number.parseInt(foreground.slice(offset, offset + 2), 16);
+    return Math.round(back * (1 - foregroundWeight) + front * foregroundWeight)
+      .toString(16)
+      .padStart(2, '0');
+  });
+  return `#${channels.join('')}`;
+}
+
+export function getPanelSurfaceColors(background: string) {
+  const foreground = getAccessiblePanelForeground(background);
+  return {
+    background,
+    foreground,
+    accent: mixHex(background, foreground, 0.12),
+    border: mixHex(background, foreground, 0.28),
+  };
 }
