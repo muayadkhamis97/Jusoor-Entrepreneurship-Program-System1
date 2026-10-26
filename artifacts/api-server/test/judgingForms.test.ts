@@ -6,7 +6,7 @@ import { after, before, describe, test } from "node:test";
 import express from "express";
 import { drizzle } from "drizzle-orm/node-postgres";
 
-const databaseAvailable = Boolean(process.env.DATABASE_URL);
+const databaseAvailable = Boolean(process.env.TEST_DATABASE_URL);
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.SESSION_SECRET = "isolated-judging-test-key-not-a-real-secret";
 process.env.NODE_ENV = "test";

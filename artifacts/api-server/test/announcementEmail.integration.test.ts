@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { drizzle } from "drizzle-orm/node-postgres";
 
-const databaseAvailable = Boolean(process.env.DATABASE_URL);
+const databaseAvailable = Boolean(process.env.TEST_DATABASE_URL);
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
 const schema = await import("@workspace/db");
