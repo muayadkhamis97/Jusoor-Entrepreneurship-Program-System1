@@ -106,6 +106,7 @@ test("coordinator unlinks the workbook mapping while preserving the external wor
   assert.equal(transactionCalls, 1);
   assert.deepEqual(auditValues, {
     integrationType: "program_google_sheets",
+    initiatorType: "admin",
     actorStaffId: 1,
     actorEmail: "admin@example.test",
     affectedStaffId: null,

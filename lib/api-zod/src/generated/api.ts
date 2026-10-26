@@ -5538,6 +5538,7 @@ export const ClearStaffAssignmentHistoryResponse = zod.object({
 export const GetIntegrationDisconnectHistoryResponseItem = zod.object({
   "id": zod.number().int(),
   "integrationType": zod.enum(['mentor_google_calendar', 'program_google_sheets', 'shared_zoom']),
+  "initiatorType": zod.enum(['admin', 'self_service']),
   "actorStaffId": zod.number().int().nullable(),
   "actorEmail": zod.string().email(),
   "affectedStaffId": zod.number().int().nullable(),

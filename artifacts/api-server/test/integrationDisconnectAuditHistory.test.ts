@@ -46,6 +46,7 @@ before(async () => {
         return [{
           id: 3,
           integrationType: "program_google_sheets",
+          initiatorType: "admin",
           actorStaffId: 8,
           actorEmail: "admin@example.test",
           affectedStaffId: null,
@@ -89,6 +90,7 @@ test("Admins can read the actor, affected program, integration, and timestamp", 
   assert.deepEqual(await response.json(), [{
     id: 3,
     integrationType: "program_google_sheets",
+    initiatorType: "admin",
     actorStaffId: 8,
     actorEmail: "admin@example.test",
     affectedStaffId: null,

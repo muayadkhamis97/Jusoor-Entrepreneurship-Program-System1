@@ -212,7 +212,7 @@ function IntegrationDisconnectAuditHistory() {
       <div><div className="eyebrow">{t('ADMIN HISTORY')}</div><h2 className="app-title"><History size={20} /> {t('Integration disconnects')}</h2></div>
       <span className="section-meta">{t('Latest 250')}</span>
     </div>
-    <p className="assignment-section-copy">{t('Review which Admin disconnected a mentor calendar, program workbook, or shared Zoom account. This history is read-only.')}</p>
+    <p className="assignment-section-copy">{t('Review who disconnected a mentor calendar, program workbook, or shared Zoom account. This history is read-only.')}</p>
     {query.isLoading
       ? <div className="empty-panel">{t('Loading integration history…')}</div>
       : query.isError
@@ -231,7 +231,7 @@ function IntegrationDisconnectAuditHistory() {
                 <td>{new Date(event.createdAt).toLocaleString()}</td>
                 <td>{integrationLabel(event.integrationType)}</td>
                 <td>{affectedResource(event)}</td>
-                <td>{event.actorEmail}</td>
+                <td>{event.actorEmail}{event.initiatorType === 'self_service' ? ` (${t('Self')})` : ''}</td>
               </tr>)}</tbody>
             </table>
           </div>}

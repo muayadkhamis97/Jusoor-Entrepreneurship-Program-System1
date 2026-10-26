@@ -12,7 +12,10 @@ const nativeFetch = globalThis.fetch;
 let server: Server;
 let db: typeof import("@workspace/db").db;
 let restoreUpdate: (() => void) | undefined;
+let restoreInsert: (() => void) | undefined;
+let restoreTransaction: (() => void) | undefined;
 let updateValues: Record<string, unknown> = {};
+let auditValues: Record<string, unknown> | undefined;
 let returnUpdatedMentor = true;
 let updateCondition: SQL | undefined;
 let updateCalls = 0;
@@ -20,6 +23,7 @@ let restoreSelect: (() => void) | undefined;
 let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
 const connectedMentor = {
   id: 71,
+  email: "mentor@example.test",
   role: "mentor",
   status: "active",
   calendlyBookingUrl: "https://calendly.com/mentor",
@@ -32,6 +36,7 @@ let requestStaff: typeof connectedMentor | undefined = { ...connectedMentor };
 beforeEach(() => {
   requestStaff = { ...connectedMentor };
   updateValues = {};
+  auditValues = undefined;
   updateCondition = undefined;
   updateCalls = 0;
   returnUpdatedMentor = true;
@@ -93,6 +98,31 @@ before(async () => {
     };
     return query;
   }) as (...args: never[]) => unknown);
+  const originalInsert = Object.getOwnPropertyDescriptor(db, "insert");
+  Object.defineProperty(db, "insert", {
+    configurable: true,
+    writable: true,
+    value: (table: unknown) => ({
+      values: async (values: Record<string, unknown>) => {
+        auditValues = { ...values };
+        assert.equal(table, (await import("@workspace/db")).integrationDisconnectAuditEventsTable);
+      },
+    }),
+  });
+  restoreInsert = () => {
+    if (originalInsert) Object.defineProperty(db, "insert", originalInsert);
+    else Reflect.deleteProperty(db, "insert");
+  };
+  const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
+  Object.defineProperty(db, "transaction", {
+    configurable: true,
+    writable: true,
+    value: (callback: (transaction: typeof db) => Promise<unknown>) => callback(db),
+  });
+  restoreTransaction = () => {
+    if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
+    else Reflect.deleteProperty(db, "transaction");
+  };
 
   const app = express();
   app.use(express.json());
@@ -115,6 +145,8 @@ before(async () => {
 after(async () => {
   restoreSelect?.();
   restoreUpdate?.();
+  restoreInsert?.();
+  restoreTransaction?.();
   globalThis.fetch = nativeFetch;
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -294,6 +326,17 @@ test("disconnect clears Google credentials and schedule link, then uses Calendly
     googleCalendarSyncToken: null,
   });
   assert.equal("googleCalendarAccountEmail" in updateValues, true);
+  assert.deepEqual(auditValues, {
+    integrationType: "mentor_google_calendar",
+    initiatorType: "self_service",
+    actorStaffId: 71,
+    actorEmail: "mentor@example.test",
+    affectedStaffId: 71,
+    affectedAccountEmail: "mentor@example.test",
+    programId: null,
+    programName: null,
+  });
+  assert.equal(Object.keys(auditValues ?? {}).some((key) => /token|response/i.test(key)), false);
 });
 
 test("revokes the mentor's Google grant before clearing credentials", async () => {
@@ -311,6 +354,7 @@ test("revokes the mentor's Google grant before clearing credentials", async () =
   assert.equal(providerCalls[0]?.url, "https://oauth2.googleapis.com/revoke");
   assert.match(String(providerCalls[0]?.init?.body), /mentor-refresh-token/);
   assert.equal(updateCalls, 1);
+  assert.equal(auditValues?.initiatorType, "self_service");
 });
 
 test("does not clear mentor credentials when Google revocation fails", async () => {
@@ -322,6 +366,7 @@ test("does not clear mentor credentials when Google revocation fails", async () 
   assert.equal(response.status, 502);
   assert.match((await response.json()).error, /connection was not changed/i);
   assert.equal(updateCalls, 0);
+  assert.equal(auditValues, undefined);
 });
 
 test("returns an access error when the mentor record is no longer active", async () => {

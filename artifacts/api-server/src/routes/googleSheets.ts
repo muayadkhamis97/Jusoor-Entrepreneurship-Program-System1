@@ -165,6 +165,7 @@ router.delete("/:programId", requireCoordinator, async (req, res): Promise<void>
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId));
       await tx.insert(integrationDisconnectAuditEventsTable).values({
         integrationType: "program_google_sheets",
+        initiatorType: "admin",
         actorStaffId: staff.id,
         actorEmail: staff.email,
         affectedStaffId: null,

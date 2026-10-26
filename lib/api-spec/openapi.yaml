@@ -6414,6 +6414,9 @@ components:
         integrationType:
           type: string
           enum: [mentor_google_calendar, program_google_sheets, shared_zoom]
+        initiatorType:
+          type: string
+          enum: [admin, self_service]
         actorStaffId: { type: ["integer", "null"] }
         actorEmail: { type: string, format: email }
         affectedStaffId: { type: ["integer", "null"] }
@@ -6424,6 +6427,7 @@ components:
       required:
         - id
         - integrationType
+        - initiatorType
         - actorStaffId
         - actorEmail
         - affectedStaffId

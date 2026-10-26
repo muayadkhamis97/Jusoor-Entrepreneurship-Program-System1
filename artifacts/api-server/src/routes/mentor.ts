@@ -41,6 +41,7 @@ import {
   participantBusinessMembershipsTable,
   programsTable,
   staffMembersTable,
+  integrationDisconnectAuditEventsTable,
   staffProgramAssignmentsTable,
   supportTable,
   userProfilesTable,
@@ -1193,6 +1194,7 @@ router.delete("/google-calendar/connection", async (_req, res): Promise<void> =>
   const staff = res.locals.staff as StaffAccess;
   const [connection] = await db.select({
     id: staffMembersTable.id,
+    googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
     googleCalendarRefreshTokenEncrypted: staffMembersTable.googleCalendarRefreshTokenEncrypted,
     googleCalendarAccessTokenEncrypted: staffMembersTable.googleCalendarAccessTokenEncrypted,
   }).from(staffMembersTable)
@@ -1220,27 +1222,42 @@ router.delete("/google-calendar/connection", async (_req, res): Promise<void> =>
     return;
   }
 
-  const [updated] = await db.update(staffMembersTable)
-    .set({
-      bookingProvider: "calendly",
-      googleCalendarAccountEmail: null,
-      googleCalendarBookingUrl: null,
-      googleCalendarRefreshTokenEncrypted: null,
-      googleCalendarAccessTokenEncrypted: null,
-      googleCalendarAccessTokenExpiresAt: null,
-      googleCalendarSyncToken: null,
-    })
-    .where(and(
-      eq(staffMembersTable.id, staff.id),
-      eq(staffMembersTable.role, "mentor"),
-      eq(staffMembersTable.status, "active"),
-    ))
-    .returning({
-      bookingProvider: staffMembersTable.bookingProvider,
-      calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
-      googleCalendarBookingUrl: staffMembersTable.googleCalendarBookingUrl,
-      googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+  const updated = await db.transaction(async (tx) => {
+    const [mentor] = await tx.update(staffMembersTable)
+      .set({
+        bookingProvider: "calendly",
+        googleCalendarAccountEmail: null,
+        googleCalendarBookingUrl: null,
+        googleCalendarRefreshTokenEncrypted: null,
+        googleCalendarAccessTokenEncrypted: null,
+        googleCalendarAccessTokenExpiresAt: null,
+        googleCalendarSyncToken: null,
+      })
+      .where(and(
+        eq(staffMembersTable.id, staff.id),
+        eq(staffMembersTable.role, "mentor"),
+        eq(staffMembersTable.status, "active"),
+      ))
+      .returning({
+        bookingProvider: staffMembersTable.bookingProvider,
+        calendlyBookingUrl: staffMembersTable.calendlyBookingUrl,
+        googleCalendarBookingUrl: staffMembersTable.googleCalendarBookingUrl,
+        googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+      });
+    if (!mentor) return null;
+
+    await tx.insert(integrationDisconnectAuditEventsTable).values({
+      integrationType: "mentor_google_calendar",
+      initiatorType: "self_service",
+      actorStaffId: staff.id,
+      actorEmail: staff.email,
+      affectedStaffId: staff.id,
+      affectedAccountEmail: connection.googleCalendarAccountEmail,
+      programId: null,
+      programName: null,
     });
+    return mentor;
+  });
 
   if (!updated) {
     res.status(403).json({ error: "Active mentor access is required." });

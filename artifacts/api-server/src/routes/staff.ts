@@ -316,6 +316,7 @@ router.get("/staff/integration-disconnect-history", requireCoordinator, async (_
   const events = await db.select({
     id: integrationDisconnectAuditEventsTable.id,
     integrationType: integrationDisconnectAuditEventsTable.integrationType,
+    initiatorType: integrationDisconnectAuditEventsTable.initiatorType,
     actorStaffId: integrationDisconnectAuditEventsTable.actorStaffId,
     actorEmail: integrationDisconnectAuditEventsTable.actorEmail,
     affectedStaffId: integrationDisconnectAuditEventsTable.affectedStaffId,
@@ -712,6 +713,7 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
   const [target] = await db.select({
     id: staffMembersTable.id,
     email: staffMembersTable.email,
+    googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
     role: staffMembersTable.role,
     googleCalendarRefreshTokenEncrypted: staffMembersTable.googleCalendarRefreshTokenEncrypted,
     googleCalendarAccessTokenEncrypted: staffMembersTable.googleCalendarAccessTokenEncrypted,
@@ -756,10 +758,11 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
     if (!updated) return false;
     await tx.insert(integrationDisconnectAuditEventsTable).values({
       integrationType: "mentor_google_calendar",
+      initiatorType: "admin",
       actorStaffId: staff.id,
       actorEmail: staff.email,
       affectedStaffId: target.id,
-      affectedAccountEmail: target.email,
+      affectedAccountEmail: target.googleCalendarAccountEmail ?? target.email,
       programId: null,
       programName: null,
     });

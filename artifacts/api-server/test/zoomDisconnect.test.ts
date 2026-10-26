@@ -192,6 +192,7 @@ test("revokes Zoom authorization before removing the local connection", async ()
     assert.equal(connection, null);
     assert.deepEqual(auditValues, {
       integrationType: "shared_zoom",
+      initiatorType: "admin",
       actorStaffId: 7,
       actorEmail: "coordinator@example.test",
       affectedStaffId: null,

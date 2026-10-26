@@ -166,6 +166,7 @@ export * from './integrationApiRecordResponse';
 export * from './integrationApiRecordsResponse';
 export * from './integrationApiResource';
 export * from './integrationDisconnectAuditEvent';
+export * from './integrationDisconnectAuditEventInitiatorType';
 export * from './integrationDisconnectAuditEventIntegrationType';
 export * from './integrationDisconnectAuditHistory';
 export * from './judgeDashboard';

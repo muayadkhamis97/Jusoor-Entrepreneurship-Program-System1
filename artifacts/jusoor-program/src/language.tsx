@@ -2319,6 +2319,8 @@ const arabic: Record<string, string> = {
   'Confirm removing announcement': 'تأكيد حذف الإعلان',
   'Filter announcements': 'تصفية الإعلانات',
   'Latest 250 matching': 'أحدث 250 تغييراً مطابقاً',
+  'Self': 'ذاتي',
+  'Review who disconnected a mentor calendar, program workbook, or shared Zoom account. This history is read-only.': 'راجع من ألغى ربط تقويم المرشد أو جدول بيانات البرنامج أو حساب Zoom المشترك. هذا السجل للقراءة فقط.',
   'Affected staff account or application': 'حساب الموظف المتأثر أو الطلب',
   'Email, application ID, founder, or business name': 'البريد الإلكتروني أو رقم الطلب أو اسم رائد الأعمال أو النشاط التجاري',
   'Assignment type': 'نوع التعيين',

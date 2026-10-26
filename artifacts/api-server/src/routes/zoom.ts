@@ -622,6 +622,7 @@ router.post(
           .where(eq(zoomConnectionsTable.provider, "zoom"));
         await tx.insert(integrationDisconnectAuditEventsTable).values({
           integrationType: "shared_zoom",
+          initiatorType: "admin",
           actorStaffId: staff.id,
           actorEmail: staff.email,
           affectedStaffId: null,

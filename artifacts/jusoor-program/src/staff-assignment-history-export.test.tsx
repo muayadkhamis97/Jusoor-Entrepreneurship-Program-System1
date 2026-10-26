@@ -147,4 +147,5 @@ test('integration disconnect history is Admin-only and read-only', () => {
   assert.match(assignmentHistoryUi, /useGetIntegrationDisconnectHistory/);
   assert.match(assignmentHistoryUi, /This history is read-only/);
   assert.match(assignmentHistoryUi, /integration-disconnect-audit-history/);
+  assert.match(assignmentHistoryUi, /event\.initiatorType === 'self_service'.*t\('Self'\)/);
 });

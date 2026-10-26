@@ -5,11 +5,13 @@
  * Program management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { IntegrationDisconnectAuditEventInitiatorType } from './integrationDisconnectAuditEventInitiatorType';
 import type { IntegrationDisconnectAuditEventIntegrationType } from './integrationDisconnectAuditEventIntegrationType';
 
 export interface IntegrationDisconnectAuditEvent {
   id: number;
   integrationType: IntegrationDisconnectAuditEventIntegrationType;
+  initiatorType: IntegrationDisconnectAuditEventInitiatorType;
   /** @nullable */
   actorStaffId: number | null;
   actorEmail: string;

@@ -3098,9 +3098,18 @@ export const IntegrationDisconnectAuditEventIntegrationType = {
   shared_zoom: 'shared_zoom',
 } as const;
 
+export type IntegrationDisconnectAuditEventInitiatorType = typeof IntegrationDisconnectAuditEventInitiatorType[keyof typeof IntegrationDisconnectAuditEventInitiatorType];
+
+
+export const IntegrationDisconnectAuditEventInitiatorType = {
+  admin: 'admin',
+  self_service: 'self_service',
+} as const;
+
 export interface IntegrationDisconnectAuditEvent {
   id: number;
   integrationType: IntegrationDisconnectAuditEventIntegrationType;
+  initiatorType: IntegrationDisconnectAuditEventInitiatorType;
   /** @nullable */
   actorStaffId: number | null;
   actorEmail: string;

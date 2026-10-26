@@ -14,12 +14,14 @@ let staffRole = "coordinator";
 let selectedMentor: {
   id: number;
   email: string;
+  googleCalendarAccountEmail: string | null;
   role: string;
   googleCalendarRefreshTokenEncrypted: string | null;
   googleCalendarAccessTokenEncrypted: string | null;
 } | null = {
   id: 27,
   email: "mentor@example.test",
+  googleCalendarAccountEmail: "mentor@example.test",
   role: "mentor",
   googleCalendarRefreshTokenEncrypted: null,
   googleCalendarAccessTokenEncrypted: null,
@@ -45,6 +47,7 @@ beforeEach(() => {
   selectedMentor = {
     id: 27,
     email: "mentor@example.test",
+    googleCalendarAccountEmail: "mentor@example.test",
     role: "mentor",
     googleCalendarRefreshTokenEncrypted: null,
     googleCalendarAccessTokenEncrypted: null,
@@ -144,6 +147,7 @@ test("coordinator can disconnect a mentor calendar without changing the mentor's
   assert.equal(updateCalls, 1);
   assert.deepEqual(auditValues, {
     integrationType: "mentor_google_calendar",
+    initiatorType: "admin",
     actorStaffId: 1,
     actorEmail: "admin@example.test",
     affectedStaffId: 27,
