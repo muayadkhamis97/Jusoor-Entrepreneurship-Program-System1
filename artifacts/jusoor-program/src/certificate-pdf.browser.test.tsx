@@ -37,6 +37,10 @@ const browserEngines = [
   { name: 'Firefox', type: firefox },
   { name: 'WebKit', type: webkit },
 ] as const;
+const isUnavailableBrowserRuntime = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Executable doesn't exist at|Host system is missing dependencies|error while loading shared libraries|cannot open shared object file/i.test(message);
+};
 const issuedCertificates = new Map([
   ['D35F9C80-2F1A-4D42-8CB3-301C4C9CD8A1', {
     status: 'issued',
@@ -80,7 +84,7 @@ async function unusedPort(): Promise<number> {
   return port;
 }
 
-for (const engine of browserEngines) test(`${engine.name} download renders long English and Arabic details on one landscape A4 page`, { timeout: 120_000 }, async () => {
+for (const engine of browserEngines) test(`${engine.name} download renders long English and Arabic details on one landscape A4 page`, { timeout: 120_000 }, async t => {
   const browserPath = engine.name === 'Chromium'
     ? await import('node:fs/promises').then(({ access }) => access(chromiumPath).then(() => chromiumPath))
     : undefined;
@@ -106,11 +110,18 @@ for (const engine of browserEngines) test(`${engine.name} download renders long 
     });
     await vite.listen();
 
-    browser = await engine.type.launch({
-      ...(browserPath ? { executablePath: browserPath } : {}),
-      headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage'],
-    });
+    try {
+      browser = await engine.type.launch({
+        ...(browserPath ? { executablePath: browserPath } : {}),
+        headless: true,
+        args: ['--no-sandbox', '--disable-dev-shm-usage'],
+      });
+    } catch (error) {
+      if (!isUnavailableBrowserRuntime(error)) throw error;
+      const message = error instanceof Error ? error.message.split('\n')[0] : String(error);
+      t.skip(`${engine.name} is unavailable in this runner: ${message}`);
+      return;
+    }
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
     await page.route('**/api/branding', route => route.fulfill({

@@ -21,6 +21,7 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+packages = ["gtk3", "alsa-lib", "atk", "cairo", "dbus", "gdk-pixbuf", "glib", "pango", "xorg.libX11", "xorg.libXcomposite", "xorg.libXcursor", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXi", "xorg.libXrandr", "xorg.libXrender", "xorg.libxcb"]
 
 [userenv]
 
