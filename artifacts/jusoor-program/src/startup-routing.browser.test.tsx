@@ -454,9 +454,17 @@ test('Arabic translation loading stays deferred and recovers from failed request
     await startupRequest;
     assert.equal(await arabic.page.locator('html').getAttribute('lang'), 'ar');
     assert.equal(await arabic.page.locator('html').getAttribute('dir'), 'rtl');
+    const loadingStatus = arabic.page.getByRole('status');
+    await loadingStatus.getByRole('heading', { name: 'جارٍ تحميل اللغة العربية…' }).waitFor();
+    assert.equal(await loadingStatus.isVisible(), true, 'Arabic-first startup must show a visible loading message.');
+    assert.equal(await loadingStatus.getAttribute('aria-live'), 'polite', 'The loading message must be announced without interrupting screen readers.');
+    assert.equal(await loadingStatus.getAttribute('aria-busy'), 'true', 'The loading state must be marked as busy.');
+    assert.equal(await loadingStatus.locator('p').first().getAttribute('lang'), 'ar');
+    assert.equal(await loadingStatus.locator('p').first().getAttribute('dir'), 'rtl');
     assert.equal(await arabic.page.getByRole('heading', { name: /كل رائد أعمال/ }).count(), 0, 'Arabic content must stay hidden until the dictionary has loaded.');
     releaseStartup?.();
     await arabic.page.getByRole('heading', { name: /كل رائد أعمال/ }).waitFor();
+    assert.equal(await arabic.page.getByRole('status').count(), 0, 'The loading message must disappear after Arabic translations are ready.');
     assert.ok(arabic.arabicRequests.size > 0, 'An Arabic-first session must request the Arabic dictionary.');
 
     const failedArabicStartup = await preparePage('ar');

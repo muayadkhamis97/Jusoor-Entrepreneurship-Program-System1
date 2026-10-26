@@ -157,7 +157,7 @@ function ArabicTranslationRecovery({
     ? 'يرجى الانتظار حتى يتم تحميل ملف اللغة العربية.'
     : 'تحقّق من اتصالك وحاول مجدداً، أو تابع باللغة الإنجليزية.';
 
-  return <main className="auth-status-page" role={loading ? 'status' : 'alert'} aria-live={loading ? 'polite' : 'assertive'}>
+  return <main className="auth-status-page" role={loading ? 'status' : 'alert'} aria-live={loading ? 'polite' : 'assertive'} aria-busy={loading}>
     <div className="brand-mark" aria-hidden="true">J</div>
     <Typography as="h1" variant="heading">{language === 'ar' ? arabicHeading : heading}</Typography>
     <Typography as="p" variant="body" lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'}>
