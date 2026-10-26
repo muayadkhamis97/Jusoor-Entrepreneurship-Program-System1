@@ -371,7 +371,7 @@ test('signed-in visitors reach their role workspace only after session confirmat
   }
 });
 
-test('Arabic translations load only when selected and finish loading before Arabic content renders', { timeout: 120_000 }, async () => {
+test('Arabic translation loading stays deferred and recovers from failed requests', { timeout: 120_000 }, async () => {
   const port = await unusedPort();
   const origin = `http://127.0.0.1:${port}`;
   const priorPort = process.env.PORT;
@@ -458,6 +458,47 @@ test('Arabic translations load only when selected and finish loading before Arab
     releaseStartup?.();
     await arabic.page.getByRole('heading', { name: /كل رائد أعمال/ }).waitFor();
     assert.ok(arabic.arabicRequests.size > 0, 'An Arabic-first session must request the Arabic dictionary.');
+
+    const failedArabicStartup = await preparePage('ar');
+    let startupAttempts = 0;
+    await failedArabicStartup.page.route('**/arabic-translations*', async route => {
+      startupAttempts += 1;
+      if (startupAttempts === 1) {
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+    await failedArabicStartup.page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await failedArabicStartup.page.getByRole('heading', { name: 'تعذّر تحميل اللغة العربية.' }).waitFor();
+    assert.equal(await failedArabicStartup.page.getByRole('button', { name: 'إعادة تحميل الصفحة ومحاولة العربية مجدداً' }).count(), 1);
+    assert.equal(await failedArabicStartup.page.getByRole('button', { name: 'المتابعة باللغة الإنجليزية' }).count(), 1);
+    assert.equal(await failedArabicStartup.page.getByRole('heading', { name: /كل رائد أعمال/ }).count(), 0, 'The app must not render Arabic content without its dictionary.');
+    await failedArabicStartup.page.getByRole('button', { name: 'إعادة تحميل الصفحة ومحاولة العربية مجدداً' }).click();
+    await failedArabicStartup.page.getByRole('heading', { name: /كل رائد أعمال/ }).waitFor();
+    assert.equal(startupAttempts, 2, 'Retrying must issue a fresh Arabic dictionary request.');
+    assert.equal(new URL(failedArabicStartup.page.url()).searchParams.has('jusoor-retry-language'), false, 'The one-time retry flag must be removed once Arabic is ready.');
+    await failedArabicStartup.page.close();
+
+    const failedLanguageSwitch = await preparePage();
+    let switchAttempts = 0;
+    await failedLanguageSwitch.page.route('**/arabic-translations*', async route => {
+      switchAttempts += 1;
+      if (switchAttempts === 1) {
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+    await failedLanguageSwitch.page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await failedLanguageSwitch.page.getByRole('heading', { name: /Every founder/i }).waitFor();
+    await failedLanguageSwitch.page.getByRole('button', { name: 'تغيير اللغة إلى العربية' }).click();
+    await failedLanguageSwitch.page.getByRole('heading', { name: 'Arabic translations could not be loaded.' }).waitFor();
+    await failedLanguageSwitch.page.getByRole('button', { name: 'Continue in English' }).click();
+    await failedLanguageSwitch.page.getByRole('heading', { name: /Every founder/i }).waitFor();
+    assert.equal(await failedLanguageSwitch.page.locator('html').getAttribute('lang'), 'en');
+    assert.equal(await failedLanguageSwitch.page.locator('html').getAttribute('dir'), 'ltr');
+    assert.equal(switchAttempts, 1, 'Continuing in English must not issue another Arabic request.');
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();

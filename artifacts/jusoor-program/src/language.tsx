@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Button as EditorialButton } from '@workspace/program-editorial/components/ui/button';
+import { Typography } from '@workspace/program-editorial/components/ui/typography';
 
 export type AppLanguage = 'en' | 'ar';
 let activeLanguage: AppLanguage = 'en';
@@ -40,7 +42,10 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+const arabicRetryParameter = 'jusoor-retry-language';
+
 function initialLanguage(): AppLanguage {
+  if (new URLSearchParams(window.location.search).get(arabicRetryParameter) === 'ar') return 'ar';
   try {
     return window.localStorage.getItem('jusoor-language') === 'ar' ? 'ar' : 'en';
   } catch {
@@ -53,12 +58,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const language = initialLanguage();
     return { language, ready: language === 'en' };
   });
+  const [arabicLoadError, setArabicLoadError] = useState(false);
   const languageRequest = useRef(0);
   activeLanguage = state.language;
 
   const setLanguage = useCallback(async (language: AppLanguage) => {
     const request = ++languageRequest.current;
-    if (language === 'ar') await loadArabicTranslations();
+    setArabicLoadError(false);
+    if (language === 'ar') {
+      try {
+        await loadArabicTranslations();
+      } catch (error) {
+        if (request === languageRequest.current) {
+          console.error('Arabic translations could not be loaded.', error);
+          setArabicLoadError(true);
+        }
+        return;
+      }
+    }
     if (request !== languageRequest.current) return;
     activeLanguage = language;
     setState({ language, ready: true });
@@ -71,8 +88,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       if (request !== languageRequest.current) return;
       activeLanguage = 'ar';
       setState({ language: 'ar', ready: true });
+      setArabicLoadError(false);
     }).catch(error => {
+      if (request !== languageRequest.current) return;
       console.error('Arabic translations could not be loaded.', error);
+      setArabicLoadError(true);
     });
   }, [state.language, state.ready]);
 
@@ -85,7 +105,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {
       // Keep language switching available when browser storage is disabled.
     }
-  }, [state.language]);
+    if (state.ready) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has(arabicRetryParameter)) {
+        url.searchParams.delete(arabicRetryParameter);
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+    }
+  }, [state.language, state.ready]);
 
   const value = useMemo<LanguageContextValue>(() => ({
     language: state.language,
@@ -93,7 +120,61 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     toggleLanguage: () => setLanguage(state.language === 'en' ? 'ar' : 'en'),
     t: text => translate(text, state.language),
   }), [state.language, setLanguage]);
-  return <LanguageContext.Provider value={value}>{state.ready ? children : null}</LanguageContext.Provider>;
+  const showArabicRecovery = !state.ready || arabicLoadError;
+  return <LanguageContext.Provider value={value}>
+    {showArabicRecovery
+      ? <ArabicTranslationRecovery
+        language={state.language}
+        loading={!arabicLoadError && !state.ready}
+        onRetry={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set(arabicRetryParameter, 'ar');
+          window.location.assign(url);
+        }}
+        onContinueInEnglish={() => void setLanguage('en')}
+      />
+      : children}
+  </LanguageContext.Provider>;
+}
+
+function ArabicTranslationRecovery({
+  language,
+  loading,
+  onRetry,
+  onContinueInEnglish,
+}: {
+  language: AppLanguage;
+  loading: boolean;
+  onRetry: () => void;
+  onContinueInEnglish: () => void;
+}) {
+  const heading = loading ? 'Loading Arabic…' : 'Arabic translations could not be loaded.';
+  const message = loading
+    ? 'Please wait while the Arabic language file loads.'
+    : 'Check your connection and try again, or continue in English.';
+  const arabicHeading = loading ? 'جارٍ تحميل اللغة العربية…' : 'تعذّر تحميل اللغة العربية.';
+  const arabicMessage = loading
+    ? 'يرجى الانتظار حتى يتم تحميل ملف اللغة العربية.'
+    : 'تحقّق من اتصالك وحاول مجدداً، أو تابع باللغة الإنجليزية.';
+
+  return <main className="auth-status-page" role={loading ? 'status' : 'alert'} aria-live={loading ? 'polite' : 'assertive'}>
+    <div className="brand-mark" aria-hidden="true">J</div>
+    <Typography as="h1" variant="heading">{language === 'ar' ? arabicHeading : heading}</Typography>
+    <Typography as="p" variant="body" lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      {language === 'ar' ? arabicMessage : message}
+    </Typography>
+    <Typography as="p" variant="body" lang={language === 'ar' ? 'en' : 'ar'} dir={language === 'ar' ? 'ltr' : 'rtl'}>
+      {language === 'ar' ? message : arabicMessage}
+    </Typography>
+    <div className="auth-actions">
+      {!loading && <EditorialButton variant="primary" type="button" onClick={onRetry}>
+        {language === 'ar' ? 'إعادة تحميل الصفحة ومحاولة العربية مجدداً' : 'Reload and try Arabic again'}
+      </EditorialButton>}
+      <EditorialButton variant="text" type="button" onClick={onContinueInEnglish}>
+        {language === 'ar' ? 'المتابعة باللغة الإنجليزية' : 'Continue in English'}
+      </EditorialButton>
+    </div>
+  </main>;
 }
 
 export function useAppLanguage() {
