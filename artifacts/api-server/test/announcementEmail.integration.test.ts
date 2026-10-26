@@ -27,12 +27,36 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
   try {
     for (const table of tables) {
       assert.match(table, /^jusoor_[a-z_]+$/);
+      // These additive tables may not exist yet in the shared development schema.
+      // Build them locally so this integration test remains isolated and can still
+      // exercise its deliberate missing-table fallback case.
+      if (table === "jusoor_announcement_email_requests" || table === "jusoor_announcement_email_deliveries") continue;
       await connection.query(`CREATE TEMP TABLE ${table} (LIKE public.${table} INCLUDING ALL)`);
       if (table !== "jusoor_announcement_email_requests") {
         await connection.query(`CREATE TEMP SEQUENCE ${table}_test_seq START 100`);
         await connection.query(`ALTER TABLE pg_temp.${table} ALTER COLUMN id SET DEFAULT nextval('pg_temp.${table}_test_seq')`);
       }
     }
+    await connection.query(`
+      CREATE TEMP TABLE jusoor_announcement_email_requests (
+        announcement_id integer PRIMARY KEY REFERENCES jusoor_program_announcements(id) ON DELETE CASCADE,
+        prepared_at timestamptz,
+        paused boolean NOT NULL DEFAULT false,
+        checked_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TEMP TABLE jusoor_announcement_email_deliveries (
+        id serial PRIMARY KEY,
+        announcement_id integer NOT NULL REFERENCES jusoor_announcement_email_requests(announcement_id) ON DELETE CASCADE,
+        email text NOT NULL,
+        status text NOT NULL DEFAULT 'pending',
+        attempted_at timestamptz,
+        sent_at timestamptz
+      );
+      CREATE UNIQUE INDEX jusoor_announcement_email_recipient_unique
+        ON jusoor_announcement_email_deliveries(announcement_id, email);
+      CREATE INDEX jusoor_announcement_email_pending_idx
+        ON jusoor_announcement_email_deliveries(status);
+    `);
     for (const name of methods) Object.defineProperty(db, name, { configurable: true, value: local[name].bind(local) });
     // Do not ever fall through to public tables, even when simulating a missing table.
     await connection.query("SET search_path TO pg_temp");
