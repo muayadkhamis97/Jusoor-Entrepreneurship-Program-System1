@@ -395,10 +395,19 @@ test('Arabic translation loading stays deferred and recovers from failed request
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     });
 
-    const preparePage = async (language?: 'ar') => {
+    const preparePage = async (language?: 'ar', blockStorage = false) => {
       const page = await browser!.newPage();
       const arabicRequests = new Set<string>();
-      if (language) {
+      if (blockStorage) {
+        await page.addInitScript(() => {
+          Object.defineProperty(window, 'localStorage', {
+            configurable: false,
+            get() {
+              throw new DOMException('Storage is disabled for this test.', 'SecurityError');
+            },
+          });
+        });
+      } else if (language) {
         await page.addInitScript(() => window.localStorage.setItem('jusoor-language', 'ar'));
       }
       await page.on('request', request => {
@@ -467,7 +476,7 @@ test('Arabic translation loading stays deferred and recovers from failed request
     assert.equal(await arabic.page.getByRole('status').count(), 0, 'The loading message must disappear after Arabic translations are ready.');
     assert.ok(arabic.arabicRequests.size > 0, 'An Arabic-first session must request the Arabic dictionary.');
 
-    const failedArabicStartup = await preparePage('ar');
+    const failedArabicStartup = await preparePage(undefined, true);
     let startupAttempts = 0;
     await failedArabicStartup.page.route('**/arabic-translations*', async route => {
       startupAttempts += 1;
@@ -477,7 +486,15 @@ test('Arabic translation loading stays deferred and recovers from failed request
       }
       await route.continue();
     });
-    await failedArabicStartup.page.goto(origin, { waitUntil: 'domcontentloaded' });
+    await failedArabicStartup.page.goto(`${origin}?jusoor-retry-language=ar`, { waitUntil: 'domcontentloaded' });
+    assert.equal(await failedArabicStartup.page.evaluate(() => {
+      try {
+        window.localStorage.getItem('jusoor-language');
+        return false;
+      } catch {
+        return true;
+      }
+    }), true, 'The browser test must block local storage throughout the retry.');
     await failedArabicStartup.page.getByRole('heading', { name: 'تعذّر تحميل اللغة العربية.' }).waitFor();
     assert.equal(await failedArabicStartup.page.getByRole('button', { name: 'إعادة تحميل الصفحة ومحاولة العربية مجدداً' }).count(), 1);
     assert.equal(await failedArabicStartup.page.getByRole('button', { name: 'المتابعة باللغة الإنجليزية' }).count(), 1);
