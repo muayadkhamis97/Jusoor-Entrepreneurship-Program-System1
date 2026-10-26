@@ -47,7 +47,7 @@ import {
    FileText, Filter, Handshake, LayoutDashboard, MapPin,
    History, Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
 } from 'lucide-react';
-import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { Link, Route, Switch, useLocation } from 'wouter';
 import { SessionCalendar } from './session-calendar';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
@@ -90,6 +90,7 @@ const AuthPage = lazy(() => import('./clerk-auth-page').then(module => ({ defaul
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const appRootPath = basePath ? `${basePath}/` : '/';
 const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
@@ -310,12 +311,12 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
       })}</nav>
       <div className="sidebar-bottom">
          <div className="sidebar-note"><Sparkles size={15} /><div><b>{t('One journey, in view.')}</b><span>{t('Move each founder forward.')}</span></div></div>
-          <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.primaryRole === 'coordinator' ? brandedAdminRoleLabel(branding?.brandName) : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: basePath || '/' })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
+          <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.primaryRole === 'coordinator' ? brandedAdminRoleLabel(branding?.brandName) : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: appRootPath })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
       </div>
     </aside>
     <main className="main-panel">
         <header className="topbar"><div className="crumb"><span data-testid="breadcrumb-brand-name">{brandName}</span><span className="crumb-slash">/</span><b data-testid="staff-current-page">{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
-       <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: basePath || '/' })} />
+       <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: appRootPath })} />
       <div className="page-content page-enter">{children}</div>
         <footer className="footer footer-brandless"><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
     </main>
@@ -1377,13 +1378,13 @@ function AuthLoading() {
 function AccessDenied({ retry }: { retry?: () => void }) {
   useAppLanguage();
   const { signOut } = useClerk();
-  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask an admin to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
+  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><Shield size={21} /></span><div className="eyebrow">{t('STAFF ACCESS REQUIRED')}</div><h1 className="app-title">{t('This account isn’t approved yet.')}</h1><p>{t('Ask an admin to approve your verified email address, then sign in again.')}</p><div className="auth-actions">{retry && <button className="button button-outline" onClick={retry}>{t('Check access again')}</button>}<button className="button button-primary" onClick={() => void signOut({ redirectUrl: appRootPath })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
 }
 
 function AccessCheckFailed({ retry, sessionExpired = false }: { retry: () => void; sessionExpired?: boolean }) {
   useAppLanguage();
   const { signOut } = useClerk();
-  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><CircleAlert size={21} /></span><div className="eyebrow">{t('ACCESS CHECK')}</div><h1 className="app-title">{t(sessionExpired ? 'Your sign-in needs refreshing.' : 'We couldn’t verify access.')}</h1><p>{t(sessionExpired ? 'Sign out, then sign in again to refresh your session.' : 'Your program data is still protected. Check your connection and try again.')}</p><div className="auth-actions"><button className="button button-outline" onClick={retry}>{t('Try again')}</button><button className="button button-primary" onClick={() => void signOut({ redirectUrl: basePath || '/' })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
+  return <main className="auth-status-page"><LanguageToggle /><span className="denied-icon"><CircleAlert size={21} /></span><div className="eyebrow">{t('ACCESS CHECK')}</div><h1 className="app-title">{t(sessionExpired ? 'Your sign-in needs refreshing.' : 'We couldn’t verify access.')}</h1><p>{t(sessionExpired ? 'Sign out, then sign in again to refresh your session.' : 'Your program data is still protected. Check your connection and try again.')}</p><div className="auth-actions"><button className="button button-outline" onClick={retry}>{t('Try again')}</button><button className="button button-primary" onClick={() => void signOut({ redirectUrl: appRootPath })}><LogOut size={15} /> {t('Sign out')}</button></div></main>;
 }
 
 function AuthenticatedWorkspace() {
@@ -1566,7 +1567,7 @@ function AuthRouter() {
 }
 
 function App() {
-  return <LanguageProvider><TooltipProvider><WouterRouter base={basePath}><Suspense fallback={<AuthLoading />}><ClerkApp /></Suspense></WouterRouter></TooltipProvider></LanguageProvider>;
+  return <LanguageProvider><TooltipProvider><Suspense fallback={<AuthLoading />}><ClerkApp /></Suspense></TooltipProvider></LanguageProvider>;
 }
 
 export default App;
