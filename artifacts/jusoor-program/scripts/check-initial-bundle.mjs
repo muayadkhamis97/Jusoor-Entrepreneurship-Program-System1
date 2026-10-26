@@ -23,15 +23,33 @@ function collectStaticImports(chunkKey) {
 
 collectStaticImports('index.html');
 
-const entryDynamicImports = new Set(entry.dynamicImports ?? []);
+const dynamicallyReachable = new Set();
+function collectDeferredImports(chunkKey, seen = new Set()) {
+  if (seen.has(chunkKey)) return;
+  seen.add(chunkKey);
+
+  const chunk = manifest[chunkKey];
+  if (!chunk) throw new Error(`Manifest import "${chunkKey}" is missing`);
+
+  for (const dynamicChunk of chunk.dynamicImports ?? []) {
+    dynamicallyReachable.add(dynamicChunk);
+    collectDeferredImports(dynamicChunk, seen);
+  }
+  for (const importedChunk of chunk.imports ?? []) {
+    if (importedChunk !== 'index.html') collectDeferredImports(importedChunk, seen);
+  }
+}
+
+collectDeferredImports('index.html');
+
 for (const moduleKey of [
   'src/analytics-surfaces.tsx',
   'src/course-package-player.tsx',
   'src/clerk-auth-page.tsx',
 ]) {
   const module = manifest[moduleKey];
-  if (!entryDynamicImports.has(moduleKey) && moduleKey !== 'src/course-package-player.tsx') {
-    throw new Error(`${moduleKey} must stay dynamically loaded from the application entry`);
+  if (!dynamicallyReachable.has(moduleKey)) {
+    throw new Error(`${moduleKey} must stay dynamically loaded from a route boundary`);
   }
   if (!module?.isDynamicEntry) {
     throw new Error(`${moduleKey} is not emitted as an on-demand JavaScript chunk`);
