@@ -1450,12 +1450,12 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-function ClerkApp() {
+function ClerkApp({ sessionProvided }: { sessionProvided: boolean }) {
   const { language } = useAppLanguage();
-  return <QueryClientProvider client={queryClient}><ConfiguredClerkApp language={language} /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><ConfiguredClerkApp language={language} sessionProvided={sessionProvided} /></QueryClientProvider>;
 }
 
-function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
+function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'ar'; sessionProvided: boolean }) {
   const [, setLocation] = useLocation();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
@@ -1534,6 +1534,15 @@ function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
     },
   };
 
+  const workspace = <>
+    <ClerkQueryClientCacheInvalidator />
+    <AuthRouter />
+    <Toaster />
+  </>;
+  // PublicSessionEntry already owns the verified Clerk session. Nested
+  // providers throw before AuthRouter can make its first access-check request.
+  if (sessionProvided) return workspace;
+
   return <ClerkProvider
     publishableKey={clerkPubKey}
     proxyUrl={clerkProxyUrl}
@@ -1547,9 +1556,7 @@ function ConfiguredClerkApp({ language }: { language: 'en' | 'ar' }) {
     routerPush={to => setLocation(stripBase(to))}
     routerReplace={to => setLocation(stripBase(to), { replace: true })}
   >
-    <ClerkQueryClientCacheInvalidator />
-    <AuthRouter />
-    <Toaster />
+    {workspace}
   </ClerkProvider>;
 }
 
@@ -1566,8 +1573,9 @@ function AuthRouter() {
   return <AuthenticatedWorkspace />;
 }
 
-function App() {
-  return <LanguageProvider><TooltipProvider><Suspense fallback={<AuthLoading />}><ClerkApp /></Suspense></TooltipProvider></LanguageProvider>;
+function App({ sessionProvided = false }: { sessionProvided?: boolean }) {
+  const workspace = <TooltipProvider><Suspense fallback={<AuthLoading />}><ClerkApp sessionProvided={sessionProvided} /></Suspense></TooltipProvider>;
+  return sessionProvided ? workspace : <LanguageProvider>{workspace}</LanguageProvider>;
 }
 
 export default App;

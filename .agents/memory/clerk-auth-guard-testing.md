@@ -8,3 +8,9 @@ For participant app-composition tests, inject both the user-ID resolver and a sy
 **Why:** Clerk's `getAuth()` rejects an unbranded `req.auth` value and treats a session-token object without its required auth fields as signed out. Participant linking also performs a Clerk user lookup unless the resolver is injected.
 
 **How to apply:** Keep production defaults bound to Clerk and keep the real authorization guard mounted. Use participant resolvers when testing participant email linking; use the branded synthetic request handler when the staff middleware's database-backed role resolution is part of the test.
+
+Frontend authentication doubles must enforce Clerk's single-provider invariant rather than treating every provider as a transparent wrapper.
+
+**Why:** Lazy public-to-authenticated startup nested two providers and crashed after successful email verification, while the permissive mock let all signed-in routing tests pass.
+
+**How to apply:** Mirror the SDK's provider-nesting rejection in browser fixtures and check that confirmed sessions reach the server-side access check, including both public-entry handoff and direct workspace links.

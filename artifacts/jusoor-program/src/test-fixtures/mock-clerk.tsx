@@ -3,6 +3,7 @@ import { createContext, createElement, useContext, useEffect, useState, type Rea
 type MockRole = 'coordinator' | 'participant' | null;
 type AuthState = { isLoaded: boolean; isSignedIn: boolean; user: { id: string; firstName: string; fullName: string; primaryEmailAddress: { emailAddress: string } } | null };
 
+const ProviderPresentContext = createContext(false);
 const AuthContext = createContext<AuthState>({
   isLoaded: false,
   isSignedIn: false,
@@ -20,6 +21,11 @@ const initialRole = getMockRole();
 const initiallyPending = initialSession.startsWith('pending-');
 
 export function ClerkProvider({ children }: { children: ReactNode }) {
+  // Mirror Clerk's real single-provider invariant so startup tests cannot
+  // silently accept a tree that crashes immediately after authentication.
+  if (useContext(ProviderPresentContext)) {
+    throw new Error("You've added multiple <ClerkProvider> components in your React component tree. Wrap your components in a single <ClerkProvider>.");
+  }
   const [isLoaded, setIsLoaded] = useState(!initiallyPending);
 
   useEffect(() => {
@@ -36,7 +42,8 @@ export function ClerkProvider({ children }: { children: ReactNode }) {
       : null,
   };
 
-  return createElement(AuthContext.Provider, { value }, children);
+  return createElement(ProviderPresentContext.Provider, { value: true },
+    createElement(AuthContext.Provider, { value }, children));
 }
 
 export function useAuth() {

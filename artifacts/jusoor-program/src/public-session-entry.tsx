@@ -31,7 +31,7 @@ function SessionContent({ mode, onAuthenticated }: { mode: 'landing' | 'particip
   if (!isLoaded) return mode === 'participant'
     ? <main className="auth-status-page" role="status"><p>{t('Checking your staff access…')}</p></main>
     : null;
-  if (isSignedIn) return <Suspense fallback={<main className="auth-status-page" role="status"><p>{t('Checking your staff access…')}</p></main>}><FullApp /></Suspense>;
+  if (isSignedIn) return <Suspense fallback={<main className="auth-status-page" role="status"><p>{t('Checking your staff access…')}</p></main>}><FullApp sessionProvided /></Suspense>;
   if (mode === 'participant') return <Suspense fallback={null}><AuthPage mode="sign-in" participantRedirect /></Suspense>;
   return null;
 }

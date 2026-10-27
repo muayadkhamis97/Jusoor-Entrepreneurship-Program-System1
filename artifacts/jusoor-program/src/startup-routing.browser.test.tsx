@@ -274,6 +274,7 @@ test('signed-in visitors reach their role workspace only after session confirmat
         await page.getByRole('heading', { name: /Welcome, Founder/i }).waitFor();
       }
       assert.equal([...requests].some(pathname => /\/src\/App\.tsx$/.test(pathname)), true, 'A confirmed signed-in visitor must load the authenticated workspace.');
+      assert.equal([...requests].some(pathname => /\/api\/auth\/me$/.test(pathname)), true, 'The authenticated workspace must reuse the session and reach its server-side access check.');
       await page.close();
     };
 
@@ -281,6 +282,13 @@ test('signed-in visitors reach their role workspace only after session confirmat
     await verifyRoleRoute('participant', '/', '/participant');
     await verifyRoleRoute('coordinator', '/participant', '/');
     await verifyRoleRoute('participant', '/participant', '/participant');
+
+    // Deep workspace links still need to create their own (single) provider.
+    const directWorkspace = await createPage('coordinator');
+    await directWorkspace.page.goto(`${origin}${basePath}/programs?testSession=coordinator`, { waitUntil: 'domcontentloaded' });
+    await directWorkspace.page.getByRole('heading', { name: 'Programs', exact: true }).waitFor();
+    assert.equal([...directWorkspace.requests].some(pathname => /\/api\/auth\/me$/.test(pathname)), true);
+    await directWorkspace.page.close();
 
     const signInPage = await browser.newPage();
     await signInPage.route('**/*', async route => {
