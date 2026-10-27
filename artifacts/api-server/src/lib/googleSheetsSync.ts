@@ -31,6 +31,17 @@ type ConnectorClient = Pick<ReplitConnectors, "proxy">;
 type SheetsExecutor = Pick<typeof db, "select" | "insert" | "update">;
 type SourceType = "application" | "judging_response" | "program_snapshot";
 type GoogleSheetsResponse = Awaited<ReturnType<ConnectorClient["proxy"]>>;
+type SnapshotSheetValues = {
+  title: string;
+  headers: readonly string[];
+  rows: (string | number)[][];
+};
+
+const MAX_SHEETS_REQUEST_BYTES = 5 * 1024 * 1024;
+const MAX_SHEETS_VALUE_RANGES = 100;
+const MAX_ROWS_PER_SHEETS_RANGE = 250;
+const SNAPSHOT_STAGE_PREFIX = "__jusoor_snapshot_stage_";
+let snapshotStageSequence = 0;
 
 export class GoogleSheetsError extends Error {
   constructor(message: string, public readonly status?: number) {
@@ -87,6 +98,102 @@ function googleSheetsPath(spreadsheetId: string, suffix: string): string {
     throw new GoogleSheetsError("Google Sheets returned an invalid spreadsheet ID.");
   }
   return `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}${suffix}`;
+}
+
+function columnLabel(columnCount: number): string {
+  let remainder = columnCount;
+  let label = "";
+  while (remainder > 0) {
+    remainder--;
+    label = String.fromCharCode(65 + remainder % 26) + label;
+    remainder = Math.floor(remainder / 26);
+  }
+  return label;
+}
+
+function quotedSheetTitle(title: string): string {
+  return `'${title.replaceAll("'", "''")}'`;
+}
+
+function snapshotValueRanges(
+  sheets: SnapshotSheetValues[],
+  stageTitles: string[],
+): { range: string; values: (string | number)[][] }[] {
+  const ranges: { range: string; values: (string | number)[][] }[] = [];
+  for (let index = 0; index < sheets.length; index++) {
+    const sheet = sheets[index]!;
+    const title = stageTitles[index]!;
+    const values = [[...sheet.headers], ...sheet.rows];
+    let start = 0;
+    while (start < values.length) {
+      let end = Math.min(values.length, start + MAX_ROWS_PER_SHEETS_RANGE);
+      let entry: { range: string; values: (string | number)[][] };
+      while (true) {
+        entry = {
+          range: `${quotedSheetTitle(title)}!A${start + 1}:${columnLabel(sheet.headers.length)}${end}`,
+          values: values.slice(start, end),
+        };
+        const body = { valueInputOption: "RAW", data: [entry] };
+        if (Buffer.byteLength(JSON.stringify(body), "utf8") <= MAX_SHEETS_REQUEST_BYTES) break;
+        if (end - start <= 1) {
+          throw new GoogleSheetsError("A Google Sheets snapshot row exceeds the provider request limit.");
+        }
+        end = start + Math.max(1, Math.floor((end - start) / 2));
+      }
+      ranges.push(entry);
+      start = end;
+    }
+  }
+  return ranges;
+}
+
+function snapshotValueBatches(
+  ranges: { range: string; values: (string | number)[][] }[],
+): { valueInputOption: string; data: { range: string; values: (string | number)[][] }[] }[] {
+  const batches: { valueInputOption: string; data: { range: string; values: (string | number)[][] }[] }[] = [];
+  let data: { range: string; values: (string | number)[][] }[] = [];
+  for (const range of ranges) {
+    const candidate = [...data, range];
+    const body = { valueInputOption: "RAW", data: candidate };
+    if (data.length && (
+      candidate.length > MAX_SHEETS_VALUE_RANGES
+      || Buffer.byteLength(JSON.stringify(body), "utf8") > MAX_SHEETS_REQUEST_BYTES
+    )) {
+      batches.push({ valueInputOption: "RAW", data });
+      data = [range];
+    } else {
+      data = candidate;
+    }
+    if (Buffer.byteLength(JSON.stringify({ valueInputOption: "RAW", data }), "utf8") > MAX_SHEETS_REQUEST_BYTES) {
+      throw new GoogleSheetsError("A Google Sheets snapshot request exceeds the provider request limit.");
+    }
+  }
+  if (data.length) batches.push({ valueInputOption: "RAW", data });
+  return batches;
+}
+
+function sheetMetadata(value: Record<string, unknown>): {
+  title: string;
+  sheetId: number;
+  rowCount: number;
+}[] {
+  if (!Array.isArray(value.sheets)) return [];
+  return value.sheets.flatMap((sheet) => {
+    if (typeof sheet !== "object" || sheet === null || !("properties" in sheet)) return [];
+    const properties = sheet.properties;
+    if (typeof properties !== "object" || properties === null) return [];
+    const { title, sheetId, gridProperties } = properties as {
+      title?: unknown;
+      sheetId?: unknown;
+      gridProperties?: { rowCount?: unknown };
+    };
+    if (typeof title !== "string" || typeof sheetId !== "number") return [];
+    return [{
+      title,
+      sheetId,
+      rowCount: typeof gridProperties?.rowCount === "number" ? gridProperties.rowCount : 1000,
+    }];
+  });
 }
 
 async function requestJson(
@@ -492,14 +599,7 @@ async function writeBatch(
   if (snapshots.length) {
     await ensureProgramSpreadsheetTabs(events[0]!.spreadsheetId, connectors);
     const sheets = await loadProgramSnapshotSheets(snapshots[0]!.programId);
-    const ranges = PROGRAM_SNAPSHOT_SHEETS.map(({ title, headers }) => `'${title}'!A2:${String.fromCharCode(64 + headers.length)}`);
-    await requestJson(connectors, googleSheetsPath(events[0]!.spreadsheetId, "/values:batchClear"), "POST", { ranges });
-    for (const sheet of sheets) {
-      entries.push({
-        range: `'${sheet.title}'!A1:${String.fromCharCode(64 + sheet.headers.length)}${sheet.rows.length + 1}`,
-        values: [[...sheet.headers], ...sheet.rows],
-      });
-    }
+    await writeProgramSnapshotSnapshot(events[0]!.spreadsheetId, sheets, connectors);
   }
   if (!entries.length) return;
   await requestJson(
@@ -508,6 +608,160 @@ async function writeBatch(
     "POST",
     { valueInputOption: "RAW", data: entries },
   );
+}
+
+/**
+ * Writes complete snapshots to hidden staging tabs first, then publishes all
+ * managed ranges with one atomic spreadsheets.batchUpdate request. Until that
+ * final request succeeds, readers continue to see the prior snapshot.
+ */
+export async function writeProgramSnapshotSnapshot(
+  spreadsheetId: string,
+  sheets: SnapshotSheetValues[],
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<void> {
+  if (sheets.length !== PROGRAM_SNAPSHOT_SHEETS.length
+    || sheets.some((sheet, index) => sheet.title !== PROGRAM_SNAPSHOT_SHEETS[index]?.title)) {
+    throw new GoogleSheetsError("The program snapshot does not match the configured workbook tabs.");
+  }
+
+  const metadataResponse = await requestJson(
+    connectors,
+    googleSheetsPath(spreadsheetId, "?fields=sheets(properties(sheetId,title,gridProperties(rowCount)))"),
+    "GET",
+  );
+  const existing = sheetMetadata(metadataResponse);
+  const byTitle = new Map(existing.map((sheet) => [sheet.title, sheet]));
+  const targetSheets = sheets.map((sheet) => {
+    const target = byTitle.get(sheet.title);
+    if (!target) throw new GoogleSheetsError(`The Google Sheets tab “${sheet.title}” is unavailable.`);
+    return target;
+  });
+
+  const stageTitles = sheets.map((_, index) => {
+    snapshotStageSequence = (snapshotStageSequence + 1) % 1_000_000;
+    return `${SNAPSHOT_STAGE_PREFIX}${Date.now()}_${snapshotStageSequence}_${index}`;
+  });
+  const stageRows = sheets.map((sheet) => sheet.rows.length + 1);
+  const stageResponse = await requestJson(connectors, googleSheetsPath(spreadsheetId, ":batchUpdate"), "POST", {
+    requests: sheets.map((sheet, index) => ({
+      addSheet: {
+        properties: {
+          title: stageTitles[index],
+          hidden: true,
+          gridProperties: {
+            rowCount: Math.max(1000, stageRows[index]!),
+            columnCount: sheet.headers.length,
+          },
+        },
+      },
+    })),
+  });
+  const stageSheetIds = Array.isArray(stageResponse.replies)
+    ? stageResponse.replies.flatMap((reply) => {
+      if (typeof reply !== "object" || reply === null || !("addSheet" in reply)) return [];
+      const added = reply.addSheet;
+      if (typeof added !== "object" || added === null || !("properties" in added)) return [];
+      const properties = added.properties;
+      return typeof properties === "object" && properties !== null
+        && "sheetId" in properties && typeof properties.sheetId === "number"
+        ? [properties.sheetId]
+        : [];
+    })
+    : [];
+  // Some connectors omit batchUpdate replies. Resolve IDs by the unique staging
+  // names so the update can still use the same atomic publish operation.
+  let resolvedStageIds = stageSheetIds;
+  if (resolvedStageIds.length !== sheets.length) {
+    const stagedMetadata = await requestJson(
+      connectors,
+      googleSheetsPath(spreadsheetId, "?fields=sheets(properties(sheetId,title,gridProperties(rowCount)))"),
+      "GET",
+    );
+    const stagedByTitle = new Map(sheetMetadata(stagedMetadata).map((sheet) => [sheet.title, sheet.sheetId]));
+    resolvedStageIds = stageTitles.flatMap((title) => {
+      const id = stagedByTitle.get(title);
+      return id === undefined ? [] : [id];
+    });
+  }
+  if (resolvedStageIds.length !== sheets.length) {
+    throw new GoogleSheetsError("Google Sheets did not confirm all temporary snapshot tabs.");
+  }
+
+  try {
+    const valueRanges = snapshotValueRanges(sheets, stageTitles);
+    for (const batch of snapshotValueBatches(valueRanges)) {
+      await requestJson(
+        connectors,
+        googleSheetsPath(spreadsheetId, "/values:batchUpdate"),
+        "POST",
+        batch,
+      );
+    }
+
+    const requests: object[] = [];
+    for (let index = 0; index < sheets.length; index++) {
+      const target = targetSheets[index]!;
+      const sheet = sheets[index]!;
+      const rowCount = stageRows[index]!;
+      if (rowCount > target.rowCount) {
+        requests.push({
+          updateSheetProperties: {
+            properties: { sheetId: target.sheetId, gridProperties: { rowCount } },
+            fields: "gridProperties.rowCount",
+          },
+        });
+      }
+      requests.push({
+        copyPaste: {
+          source: {
+            sheetId: resolvedStageIds[index],
+            startRowIndex: 0,
+            endRowIndex: rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: sheet.headers.length,
+          },
+          destination: {
+            sheetId: target.sheetId,
+            startRowIndex: 0,
+            endRowIndex: rowCount,
+            startColumnIndex: 0,
+            endColumnIndex: sheet.headers.length,
+          },
+          pasteType: "PASTE_VALUES",
+        },
+      });
+      if (target.rowCount > rowCount) {
+        requests.push({
+          repeatCell: {
+            range: {
+              sheetId: target.sheetId,
+              startRowIndex: rowCount,
+              endRowIndex: target.rowCount,
+              startColumnIndex: 0,
+              endColumnIndex: sheet.headers.length,
+            },
+            cell: {},
+            fields: "userEnteredValue",
+          },
+        });
+      }
+    }
+    requests.push(...resolvedStageIds.map((sheetId) => ({ deleteSheet: { sheetId } })));
+    await requestJson(connectors, googleSheetsPath(spreadsheetId, ":batchUpdate"), "POST", { requests });
+  } catch (error) {
+    // The published tabs were not touched unless the atomic commit succeeded.
+    // Remove our temporary tabs when possible; retries remain safe if Google is
+    // currently unavailable and cleanup itself cannot reach the provider.
+    try {
+      await requestJson(connectors, googleSheetsPath(spreadsheetId, ":batchUpdate"), "POST", {
+        requests: resolvedStageIds.map((sheetId) => ({ deleteSheet: { sheetId } })),
+      });
+    } catch {
+      // Preserve the original provider error for the queued retry.
+    }
+    throw error;
+  }
 }
 
 async function markBatchFailed(events: ClaimedEvent[], error: unknown): Promise<void> {

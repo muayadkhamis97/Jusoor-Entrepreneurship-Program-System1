@@ -8,8 +8,142 @@ import {
   ensureProgramSpreadsheetTabs,
   judgingResponseSheetRow,
   queueProgramGoogleSheetsSnapshot,
+  writeProgramSnapshotSnapshot,
 } from "../src/lib/googleSheetsSync";
 import { PROGRAM_SNAPSHOT_SHEETS } from "../src/lib/googleSheetsSnapshots";
+
+const spreadsheetId = "sheet_12345678901234567890";
+
+function makeSnapshot(rowCount: number, cellText = "synthetic test data") {
+  return PROGRAM_SNAPSHOT_SHEETS.map((sheet, index) => ({
+    title: sheet.title,
+    headers: sheet.headers,
+    rows: Array.from({ length: index === 0 ? rowCount : 2 }, (_, row) =>
+      sheet.headers.map((_, column) => column === 0 ? `${index}-${row}` : cellText)),
+  }));
+}
+
+function createFakeSheetsConnector(options: { failValuesAt?: number; failCommitOnce?: boolean } = {}) {
+  type FakeSheet = {
+    sheetId: number;
+    title: string;
+    rowCount: number;
+    values: (string | number)[][];
+  };
+  const sheets = new Map<string, FakeSheet>();
+  PROGRAM_SNAPSHOT_SHEETS.forEach((sheet, index) => sheets.set(sheet.title, {
+    sheetId: index + 1,
+    title: sheet.title,
+    rowCount: 1000,
+    values: [
+      [...sheet.headers, "Coordinator-owned column"],
+      ["old snapshot", "", "", "", "", "", "", "", "", "", "keep this"],
+      ["stale row", "", "", "", "", "", "", "", "", "", "also keep"],
+    ],
+  }));
+  const calls: { path: string; body?: any; bytes: number }[] = [];
+  let nextSheetId = 5;
+  let valuesCalls = 0;
+  let failValuesAt = options.failValuesAt;
+  let failCommitOnce = options.failCommitOnce ?? false;
+
+  const connector = {
+    proxy: async (_service: string, path: string, request: { method: string; body?: any }) => {
+      const body = request.body ?? {};
+      calls.push({ path, body, bytes: Buffer.byteLength(JSON.stringify(body), "utf8") });
+      if (request.method === "GET") {
+        return Response.json({
+          sheets: [...sheets.values()].map(({ sheetId, title, rowCount }) => ({
+            properties: { sheetId, title, gridProperties: { rowCount } },
+          })),
+        });
+      }
+      if (path.endsWith("/values:batchUpdate")) {
+        valuesCalls++;
+        if (failValuesAt === valuesCalls) {
+          failValuesAt = undefined;
+          return Response.json({ error: "synthetic interruption" }, { status: 503 });
+        }
+        for (const entry of body.data ?? []) {
+          const match = /^'([^']+)'!A(\d+):[A-Z]+(\d+)$/.exec(entry.range);
+          assert.ok(match, `unexpected staging range: ${entry.range}`);
+          const sheet = sheets.get(match[1]!);
+          assert.ok(sheet, `missing staging tab ${match[1]}`);
+          const start = Number(match[2]) - 1;
+          for (const [index, row] of entry.values.entries()) {
+            sheet.values[start + index] = [...row];
+          }
+        }
+        return Response.json({});
+      }
+      if (path.endsWith(":batchUpdate")) {
+        const requests = body.requests ?? [];
+        if (requests.every((request: any) => request.addSheet)) {
+          const replies = requests.map((request: any) => {
+            const properties = request.addSheet.properties;
+            const sheet: FakeSheet = {
+              sheetId: nextSheetId++,
+              title: properties.title,
+              rowCount: properties.gridProperties.rowCount,
+              values: [],
+            };
+            sheets.set(sheet.title, sheet);
+            return { addSheet: { properties: { sheetId: sheet.sheetId } } };
+          });
+          return Response.json({ replies });
+        }
+        if (failCommitOnce && requests.some((request: any) => request.copyPaste)) {
+          failCommitOnce = false;
+          return Response.json({ error: "synthetic commit interruption" }, { status: 503 });
+        }
+
+        // Apply the commit to a copy first, as the Sheets batchUpdate endpoint
+        // guarantees that a failed batch does not partially modify target tabs.
+        const draft = new Map([...sheets].map(([title, sheet]) => [title, {
+          ...sheet,
+          values: sheet.values.map((row) => [...row]),
+        }]));
+        const idToSheet = (id: number) => [...draft.values()].find((sheet) => sheet.sheetId === id)!;
+        for (const request of requests) {
+          if (request.updateSheetProperties) {
+            const target = idToSheet(request.updateSheetProperties.properties.sheetId);
+            target.rowCount = request.updateSheetProperties.properties.gridProperties.rowCount;
+          } else if (request.copyPaste) {
+            const source = idToSheet(request.copyPaste.source.sheetId);
+            const target = idToSheet(request.copyPaste.destination.sheetId);
+            const { startRowIndex, endRowIndex, startColumnIndex, endColumnIndex } =
+              request.copyPaste.source;
+            for (let rowIndex = startRowIndex; rowIndex < endRowIndex; rowIndex++) {
+              const row = target.values[rowIndex] ?? [];
+              for (let column = startColumnIndex; column < endColumnIndex; column++) {
+                row[column] = source.values[rowIndex]?.[column] ?? "";
+              }
+              target.values[rowIndex] = row;
+            }
+          } else if (request.repeatCell) {
+            const { sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex } =
+              request.repeatCell.range;
+            const target = idToSheet(sheetId);
+            for (let rowIndex = startRowIndex; rowIndex < endRowIndex; rowIndex++) {
+              const row = target.values[rowIndex] ?? [];
+              for (let column = startColumnIndex; column < endColumnIndex; column++) row[column] = "";
+              target.values[rowIndex] = row;
+            }
+          } else if (request.deleteSheet) {
+            const target = idToSheet(request.deleteSheet.sheetId);
+            draft.delete(target.title);
+          }
+        }
+        sheets.clear();
+        for (const [title, sheet] of draft) sheets.set(title, sheet);
+        return Response.json({});
+      }
+      throw new Error(`Unexpected fake Sheets request: ${path}`);
+    },
+  };
+
+  return { connector, calls, sheets };
+}
 
 test("Google Sheets workbook has all selected program tabs and writes headers as raw values", async () => {
   const calls: { path: string; options: { method: string; body?: unknown } }[] = [];
@@ -42,6 +176,63 @@ test("Google Sheets workbook has all selected program tabs and writes headers as
   assert.deepEqual(headerBody.data.map((item) => item.values[0]), [
     APPLICATION_HEADERS, JUDGING_HEADERS, ...PROGRAM_SNAPSHOT_SHEETS.map((sheet) => sheet.headers),
   ]);
+});
+
+test("an interrupted staging write leaves the previous snapshot visible and retry publishes it", async () => {
+  const fake = createFakeSheetsConnector({ failValuesAt: 1 });
+  const original = fake.sheets.get(PROGRAM_SNAPSHOT_SHEETS[0].title)!.values.map((row) => [...row]);
+  const snapshot = makeSnapshot(1, "new synthetic snapshot");
+
+  await assert.rejects(
+    writeProgramSnapshotSnapshot(spreadsheetId, snapshot, fake.connector as never),
+    /temporarily unavailable/,
+  );
+  assert.deepEqual(fake.sheets.get(PROGRAM_SNAPSHOT_SHEETS[0].title)!.values, original);
+
+  await writeProgramSnapshotSnapshot(spreadsheetId, snapshot, fake.connector as never);
+  const published = fake.sheets.get(PROGRAM_SNAPSHOT_SHEETS[0].title)!.values;
+  assert.deepEqual(published[0], [...snapshot[0]!.headers, "Coordinator-owned column"]);
+  assert.deepEqual(published[1]!.slice(0, snapshot[0]!.headers.length), snapshot[0]!.rows[0]);
+  assert.equal(published[1]![snapshot[0]!.headers.length], "keep this");
+  assert.equal(published[2]![0], "");
+  assert.equal(published[2]![snapshot[0]!.headers.length], "also keep");
+  assert.equal([...fake.sheets.keys()].filter((title) => title.startsWith("__jusoor_snapshot_stage_")).length, 0);
+});
+
+test("an interrupted atomic publish leaves every prior tab intact until retry", async () => {
+  const fake = createFakeSheetsConnector({ failCommitOnce: true });
+  const original = PROGRAM_SNAPSHOT_SHEETS.map(({ title }) =>
+    fake.sheets.get(title)!.values.map((row) => [...row]));
+  const snapshot = makeSnapshot(2, "replacement data");
+
+  await assert.rejects(
+    writeProgramSnapshotSnapshot(spreadsheetId, snapshot, fake.connector as never),
+    /temporarily unavailable/,
+  );
+  assert.deepEqual(
+    PROGRAM_SNAPSHOT_SHEETS.map(({ title }) => fake.sheets.get(title)!.values),
+    original,
+  );
+
+  await writeProgramSnapshotSnapshot(spreadsheetId, snapshot, fake.connector as never);
+  assert.deepEqual(
+    fake.sheets.get(PROGRAM_SNAPSHOT_SHEETS[0].title)!.values[1]!.slice(0, snapshot[0]!.headers.length),
+    snapshot[0]!.rows[0],
+  );
+});
+
+test("large snapshot exports stay below Google request limits and use bounded value batches", async () => {
+  const fake = createFakeSheetsConnector();
+  const snapshot = makeSnapshot(900, "x".repeat(12_000));
+  await writeProgramSnapshotSnapshot(spreadsheetId, snapshot, fake.connector as never);
+
+  const valueCalls = fake.calls.filter(({ path }) => path.endsWith("/values:batchUpdate"));
+  assert.ok(valueCalls.length > 1, "large snapshots should be split into multiple provider calls");
+  assert.ok(valueCalls.every(({ bytes }) => bytes <= 5 * 1024 * 1024));
+  const rangeCounts = valueCalls.map(({ body }) => body.data.length);
+  assert.ok(rangeCounts.every((count: number) => count <= 100));
+  const published = fake.sheets.get(PROGRAM_SNAPSHOT_SHEETS[0].title)!.values;
+  assert.equal(published[900]![0], "0-899");
 });
 
 test("existing workbooks gain only missing category tabs and repeated setup is a no-op", async () => {
