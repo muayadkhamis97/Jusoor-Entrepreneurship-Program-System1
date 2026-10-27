@@ -22,6 +22,7 @@ import {
 } from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import { hasProgramStaffRole } from "../lib/programStaffRoles";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { requireCoordinator } from "../middlewares/staffAccess";
 
@@ -139,7 +140,11 @@ router.post("/support", async (req, res): Promise<void> => {
       return;
     }
   }
-  const [engagement] = await db.insert(supportTable).values(parsed.data).returning();
+  const engagement = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(supportTable).values(parsed.data).returning();
+    await queueProgramGoogleSheetsSnapshot(tx, business.programId);
+    return created;
+  });
   res.status(201).json(CreateSupportResponse.parse(engagement));
 });
 
@@ -179,8 +184,17 @@ router.patch("/support/:id", async (req, res): Promise<void> => {
       ? body.data.scheduledDate.toISOString().slice(0, 10)
       : body.data.scheduledDate,
   };
-  const [engagement] = await db.update(supportTable).set(values)
-    .where(and(eq(supportTable.id, params.data.id), eq(supportTable.businessId, current.businessId))).returning();
+  const engagement = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(supportTable).set(values)
+      .where(and(eq(supportTable.id, params.data.id), eq(supportTable.businessId, current.businessId))).returning();
+    if (updated) {
+      await queueProgramGoogleSheetsSnapshot(tx, currentBusiness.programId);
+      if (nextBusiness.programId !== currentBusiness.programId) {
+        await queueProgramGoogleSheetsSnapshot(tx, nextBusiness.programId);
+      }
+    }
+    return updated;
+  });
   if (!engagement) {
     res.status(404).json({ error: "Support engagement not found" });
     return;
@@ -204,10 +218,14 @@ router.delete("/support/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Support engagement not found." });
     return;
   }
-  const [engagement] = await db.delete(supportTable).where(and(
-    eq(supportTable.id, params.data.id),
-    eq(supportTable.businessId, current.businessId),
-  )).returning();
+  const engagement = await db.transaction(async (tx) => {
+    const [deleted] = await tx.delete(supportTable).where(and(
+      eq(supportTable.id, params.data.id),
+      eq(supportTable.businessId, current.businessId),
+    )).returning();
+    if (deleted) await queueProgramGoogleSheetsSnapshot(tx, business.programId);
+    return deleted;
+  });
   if (!engagement) {
     res.status(404).json({ error: "Support engagement not found" });
     return;

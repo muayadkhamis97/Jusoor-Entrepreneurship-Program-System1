@@ -9,6 +9,7 @@ import { chatMessagesTable, chatReadsTable, chatThreadsTable, db, staffMembersTa
 import { chatActorKey, chatTargets, targetForThread, type ChatActor, type ChatTarget } from "../lib/chatAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import type { ParticipantAccess } from "../middlewares/participantAccess";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 
 function targetCondition(target: ChatTarget) {
   return and(eq(chatThreadsTable.programId, target.programId), eq(chatThreadsTable.kind, target.kind),
@@ -134,6 +135,7 @@ export function createChatRouter(kind: ChatActor["kind"]): IRouter {
       }).onConflictDoNothing().returning();
       if (created) {
         await tx.update(chatThreadsTable).set({ updatedAt: new Date() }).where(eq(chatThreadsTable.id, access.thread.id));
+        await queueProgramGoogleSheetsSnapshot(tx, access.thread.programId);
         return created;
       }
       const [original] = await tx.select().from(chatMessagesTable).where(and(

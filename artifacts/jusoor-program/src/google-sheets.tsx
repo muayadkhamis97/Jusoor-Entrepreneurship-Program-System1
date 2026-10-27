@@ -54,7 +54,7 @@ export function GoogleSheetsPage() {
       onSuccess: () => {
         setFeedback(current => ({
           ...current,
-          [programId]: { kind: 'success', message: copy('Workbook connection created. Initial synchronization is underway.', 'تم إنشاء اتصال جدول البيانات. بدأت المزامنة الأولية.') },
+          [programId]: { kind: 'success', message: copy('Workbook synchronization has been queued. Existing and new data are updating.', 'تمت جدولة مزامنة جدول البيانات. يجري تحديث البيانات الحالية والجديدة.') },
         }));
         void queryClient.invalidateQueries({ queryKey });
       },
@@ -102,7 +102,7 @@ export function GoogleSheetsPage() {
         <div className="gs-hero-copy">
           <div className="gs-eyebrow"><span className="gs-eyebrow-mark"><FileSpreadsheet size={15} aria-hidden="true" /></span>{copy('PROGRAM TOOLS / GOOGLE SHEETS', 'أدوات البرنامج / جداول بيانات Google')}</div>
           <Typography as="h1" variant="hero" className="gs-title">{copy('Program data, kept in sync.', 'بيانات البرنامج، متزامنة باستمرار.')}</Typography>
-          <Typography className="gs-intro">{copy('Create a dedicated workbook for each program and keep its applicant and judging data synchronized.', 'أنشئ جدول بيانات منفصلاً لكل برنامج وحافظ على مزامنة بيانات المتقدمين والتحكيم.')}</Typography>
+          <Typography className="gs-intro">{copy('Create one workbook per program and keep selected program records synchronized.', 'أنشئ جدول بيانات واحداً لكل برنامج وحافظ على مزامنة سجلاته المحددة.')}</Typography>
         </div>
         <aside className="gs-ownership" aria-label={copy('Account and sharing information', 'معلومات الحساب والمشاركة')} data-testid="note-google-sheets-ownership">
           <span className="gs-ownership-icon"><LockKeyhole size={17} aria-hidden="true" /></span>
@@ -113,7 +113,7 @@ export function GoogleSheetsPage() {
 
       <section className="gs-data-note" aria-label={copy('Synchronized data', 'البيانات التي تتم مزامنتها')} data-testid="note-google-sheets-data">
         <div className="gs-data-note-mark"><Check size={15} aria-hidden="true" /></div>
-          <p>{copy('Applicant and guest judge names, contact details, and answers are sent one way from the platform to the workbook. Changes in Sheets do not update platform records.', 'تُرسل أسماء المتقدمين والمحكّمين الضيوف وبيانات الاتصال والإجابات باتجاه واحد من المنصة إلى جدول البيانات. ولا تؤدي التغييرات في Sheets إلى تحديث سجلات المنصة.')}</p>
+          <p>{copy('Each workbook can include applications and judging, business and team records, program sessions and attendance, mentor reports and grant records, and staff and participant chat messages. Data syncs one way; changes in Sheets do not update the platform. Google sharing settings control who can read the workbook, including chat content.', 'يمكن أن يتضمن كل جدول بيانات الطلبات والتحكيم وسجلات الأعمال والفِرق والجلسات والحضور وتقارير المرشدين والمنح ورسائل المحادثة بين الموظفين والمشاركين. تتم المزامنة باتجاه واحد؛ ولا تؤدي التغييرات في Sheets إلى تحديث المنصة. وتحدد إعدادات المشاركة في Google من يمكنه قراءة جدول البيانات، بما في ذلك الرسائل.')}</p>
       </section>
 
       <section className="gs-program-section" aria-labelledby="gs-programs-title">
@@ -173,6 +173,11 @@ export function GoogleSheetsPage() {
                       {status === 'not_connected' && (
                         <Button onClick={() => connect(program.programId)} disabled={createConnection.isPending || retrySync.isPending} data-testid={`button-connect-google-sheets-${program.programId}`}>
                           {isCreating ? copy('Creating workbook…', 'جارٍ إنشاء جدول البيانات…') : copy('Connect Google Sheets', 'ربط جداول بيانات Google')}
+                        </Button>
+                      )}
+                      {status !== 'not_connected' && (
+                        <Button variant="text" onClick={() => connect(program.programId)} disabled={createConnection.isPending || retrySync.isPending} data-testid={`button-sync-all-google-sheets-${program.programId}`}>
+                          <RotateCw size={14} aria-hidden="true" />{isCreating ? copy('Queueing full sync…', 'جارٍ جدولة المزامنة الكاملة…') : copy('Sync all data', 'مزامنة جميع البيانات')}
                         </Button>
                       )}
                       {status === 'needs_attention' && (

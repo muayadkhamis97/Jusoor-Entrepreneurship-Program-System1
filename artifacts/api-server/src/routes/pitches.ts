@@ -20,6 +20,7 @@ import { businessesTable, db, grantReceiptsTable, pitchJudgesTable, pitchesTable
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 import { cents, totalGrantReceived } from "../lib/grant-ledger";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import { hasProgramStaffRole } from "../lib/programStaffRoles";
 
 const router: IRouter = Router();
@@ -156,7 +157,11 @@ router.post("/pitches", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Business not found or not assigned." });
     return;
   }
-  const [record] = await db.insert(pitchesTable).values(parsed.data).returning();
+  const record = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(pitchesTable).values(parsed.data).returning();
+    await queueProgramGoogleSheetsSnapshot(tx, business.programId);
+    return created;
+  });
   res.status(201).json(CreatePitchResponse.parse(record));
 });
 
@@ -208,6 +213,14 @@ router.patch("/pitches/:id", async (req, res): Promise<void> => {
     }
     const [record] = await tx.update(pitchesTable).set(body.data)
       .where(eq(pitchesTable.id, current.id)).returning();
+    if (record) {
+      await queueProgramGoogleSheetsSnapshot(tx, currentBusiness.programId);
+      if (body.data.businessId !== undefined && body.data.businessId !== current.businessId) {
+        const [nextBusiness] = await tx.select({ programId: businessesTable.programId })
+          .from(businessesTable).where(eq(businessesTable.id, body.data.businessId)).limit(1);
+        if (nextBusiness) await queueProgramGoogleSheetsSnapshot(tx, nextBusiness.programId);
+      }
+    }
     return record ? { kind: "updated" as const, record } : { kind: "not_found" as const };
   });
   if (result.kind === "not_found") {
@@ -242,6 +255,7 @@ router.delete("/pitches/:id", async (req, res): Promise<void> => {
       .where(eq(grantReceiptsTable.pitchId, current.id)).limit(1);
     if (receipt) return { kind: "has_receipts" as const };
     await tx.delete(pitchesTable).where(eq(pitchesTable.id, current.id));
+    await queueProgramGoogleSheetsSnapshot(tx, business.programId);
     return { kind: "deleted" as const };
   });
   if (result.kind === "not_found") {

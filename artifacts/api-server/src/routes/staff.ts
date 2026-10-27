@@ -52,6 +52,7 @@ import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staf
 import { hasPostgresErrorCode } from "../lib/postgres-error-utils";
 import { sendStaffInvitationEmail, type StaffInvitationRole } from "../lib/staff-invitation-email";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 
 const router: IRouter = Router();
 const mentorFollowUpEditor = alias(staffMembersTable, "mentor_follow_up_editor");
@@ -542,6 +543,7 @@ router.put("/programs/:programId/staff/:staffId/roles", requireOperationsStaff, 
         affectedApplicationName: null,
       }, previousRoles, nextRoles);
     if (auditEvent) await tx.insert(staffAssignmentAuditEventsTable).values(auditEvent);
+    await queueProgramGoogleSheetsSnapshot(tx, params.data.programId);
   });
   res.json(UpdateProgramStaffRolesResponse.parse({
     staffId: params.data.staffId,
@@ -653,6 +655,7 @@ router.put("/programs/:programId/participant-business-membership", requireOperat
         assignedByStaffId: current.id,
       });
     }
+    await queueProgramGoogleSheetsSnapshot(tx, params.data.programId);
   });
   res.json(AssignParticipantBusinessResponse.parse({
     applicationId: participant.id,

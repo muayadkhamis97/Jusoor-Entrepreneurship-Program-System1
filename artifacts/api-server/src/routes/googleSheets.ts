@@ -10,9 +10,11 @@ import {
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import {
   createProgramSpreadsheet,
+  ensureProgramSpreadsheetTabs,
   GoogleSheetsError,
   lockGoogleSheetsProgram,
   queueProgramGoogleSheetsBackfill,
+  queueProgramGoogleSheetsSnapshot,
   retryFailedGoogleSheetsEvents,
 } from "../lib/googleSheetsSync";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
@@ -99,7 +101,11 @@ router.post("/:programId", async (req, res): Promise<void> => {
       await lockGoogleSheetsProgram(tx, programId);
       const [existing] = await tx.select().from(programGoogleSheetsConnectionsTable)
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId)).limit(1);
-      if (existing) return { connection: existing, created: false };
+      if (existing) {
+        await ensureProgramSpreadsheetTabs(existing.spreadsheetId);
+        await queueProgramGoogleSheetsSnapshot(tx, programId);
+        return { connection: existing, created: false };
+      }
       const [program] = await tx.select({ id: programsTable.id, name: programsTable.name })
         .from(programsTable).where(and(eq(programsTable.id, programId), sql`${programsTable.archivedAt} IS NULL`))
         .limit(1);

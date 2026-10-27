@@ -48,6 +48,7 @@ import {
 } from "@workspace/db";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import { revokeGoogleCalendarAuthorization } from "../lib/googleCalendarSync";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
 import { sendPlatformEmail } from "../lib/platform-email";
@@ -971,7 +972,7 @@ router.post("/support/:id/meeting-reports", async (req, res): Promise<void> => {
         .where(eq(businessesTable.id, business.businessId))
         .for("update")
         .limit(1);
-      return tx.insert(mentorMeetingReportsTable).values({
+      const savedReport = await tx.insert(mentorMeetingReportsTable).values({
         supportId: business.id,
         calendlyMeetingId: meetingProvider === "calendly" ? meetingId! : null,
         googleCalendarMeetingId: meetingProvider === "google_calendar" ? meetingId! : null,
@@ -999,6 +1000,8 @@ router.post("/support/:id/meeting-reports", async (req, res): Promise<void> => {
         teamRecommendations: mentorMeetingReportsTable.teamRecommendations,
         submittedAt: mentorMeetingReportsTable.submittedAt,
       });
+      await queueProgramGoogleSheetsSnapshot(tx, business.programId);
+      return savedReport;
     });
     res.status(201).json(SubmitMentorMeetingReportResponse.parse({
       ...report,

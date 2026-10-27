@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-zod";
 import { businessesTable, db } from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import type { StaffAccess } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
@@ -59,7 +60,11 @@ router.post("/businesses", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Program not found or not assigned." });
     return;
   }
-  const [business] = await db.insert(businessesTable).values(parsed.data).returning();
+  const business = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(businessesTable).values(parsed.data).returning();
+    await queueProgramGoogleSheetsSnapshot(tx, created!.programId);
+    return created!;
+  });
   res.status(201).json(CreateBusinessResponse.parse(business));
 });
 
@@ -106,8 +111,15 @@ router.patch("/businesses/:id", async (req, res): Promise<void> => {
       ? body.data.applicationDate.toISOString().slice(0, 10)
       : body.data.applicationDate,
   };
-  const [business] = await db.update(businessesTable).set(values)
-    .where(and(eq(businessesTable.id, params.data.id), eq(businessesTable.programId, current.programId))).returning();
+  const business = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(businessesTable).set(values)
+      .where(and(eq(businessesTable.id, params.data.id), eq(businessesTable.programId, current.programId))).returning();
+    if (updated) {
+      await queueProgramGoogleSheetsSnapshot(tx, current.programId);
+      if (updated.programId !== current.programId) await queueProgramGoogleSheetsSnapshot(tx, updated.programId);
+    }
+    return updated;
+  });
   if (!business) {
     res.status(404).json({ error: "Business not found" });
     return;
@@ -128,9 +140,13 @@ router.delete("/businesses/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Business not found." });
     return;
   }
-  const [business] = await db.delete(businessesTable)
-    .where(and(eq(businessesTable.id, params.data.id), eq(businessesTable.programId, current.programId)))
-    .returning();
+  const business = await db.transaction(async (tx) => {
+    const [deleted] = await tx.delete(businessesTable)
+      .where(and(eq(businessesTable.id, params.data.id), eq(businessesTable.programId, current.programId)))
+      .returning();
+    if (deleted) await queueProgramGoogleSheetsSnapshot(tx, current.programId);
+    return deleted;
+  });
   if (!business) {
     res.status(404).json({ error: "Business not found" });
     return;

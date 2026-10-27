@@ -13,6 +13,7 @@ import {
   type JudgingQuestionConfig,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { loadProgramSnapshotSheets, PROGRAM_SNAPSHOT_SHEETS } from "./googleSheetsSnapshots";
 
 export const APPLICATIONS_SHEET = "Applications";
 export const JUDGING_RESPONSES_SHEET = "Judging responses";
@@ -28,7 +29,7 @@ export const JUDGING_HEADERS = [
 
 type ConnectorClient = Pick<ReplitConnectors, "proxy">;
 type SheetsExecutor = Pick<typeof db, "select" | "insert" | "update">;
-type SourceType = "application" | "judging_response";
+type SourceType = "application" | "judging_response" | "program_snapshot";
 type GoogleSheetsResponse = Awaited<ReturnType<ConnectorClient["proxy"]>>;
 
 export class GoogleSheetsError extends Error {
@@ -132,6 +133,9 @@ export async function createProgramSpreadsheet(
     sheets: [
       { properties: { title: APPLICATIONS_SHEET, gridProperties: { frozenRowCount: 1, hideGridlines: true } } },
       { properties: { title: JUDGING_RESPONSES_SHEET, gridProperties: { frozenRowCount: 1, hideGridlines: true } } },
+      ...PROGRAM_SNAPSHOT_SHEETS.map(({ title }) => ({
+        properties: { title, gridProperties: { frozenRowCount: 1, hideGridlines: true } },
+      })),
     ],
   });
   if (typeof created.spreadsheetId !== "string") {
@@ -148,10 +152,50 @@ export async function createProgramSpreadsheet(
     data: [
       { range: `${APPLICATIONS_SHEET}!A1:O1`, values: [APPLICATION_HEADERS] },
       { range: `'${JUDGING_RESPONSES_SHEET}'!A1:J1`, values: [JUDGING_HEADERS] },
+      ...PROGRAM_SNAPSHOT_SHEETS.map(({ title, headers }) => ({
+        range: `'${title}'!A1:${String.fromCharCode(64 + headers.length)}1`,
+        values: [headers],
+      })),
     ],
   });
 
   return { spreadsheetId, spreadsheetUrl, title };
+}
+
+export async function ensureProgramSpreadsheetTabs(
+  spreadsheetId: string,
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<void> {
+  const metadata = await requestJson(
+    connectors,
+    googleSheetsPath(spreadsheetId, "?fields=sheets(properties(title))"),
+    "GET",
+  );
+  const existingTitles = new Set(
+    Array.isArray(metadata.sheets)
+      ? metadata.sheets.flatMap((sheet) => {
+        if (typeof sheet !== "object" || sheet === null || !("properties" in sheet)) return [];
+        const properties = sheet.properties;
+        return typeof properties === "object" && properties !== null && "title" in properties && typeof properties.title === "string"
+          ? [properties.title]
+          : [];
+      })
+      : [],
+  );
+  const missing = PROGRAM_SNAPSHOT_SHEETS.filter(({ title }) => !existingTitles.has(title));
+  if (!missing.length) return;
+  await requestJson(connectors, googleSheetsPath(spreadsheetId, ":batchUpdate"), "POST", {
+    requests: missing.map(({ title }) => ({
+      addSheet: { properties: { title, gridProperties: { frozenRowCount: 1, hideGridlines: true } } },
+    })),
+  });
+  await requestJson(connectors, googleSheetsPath(spreadsheetId, "/values:batchUpdate"), "POST", {
+    valueInputOption: "RAW",
+    data: missing.map(({ title, headers }) => ({
+      range: `'${title}'!A1:${String.fromCharCode(64 + headers.length)}1`,
+      values: [headers],
+    })),
+  });
 }
 
 export async function queueGoogleSheetsEvent(
@@ -191,15 +235,20 @@ export async function queueGoogleSheetsEvent(
     .limit(1).for("update");
   if (!connection) return;
 
-  const sheetRow = input.sourceType === "application"
-    ? connection.nextApplicationRow
-    : connection.nextJudgingResponseRow;
-  await executor.update(programGoogleSheetsConnectionsTable).set({
-    ...(input.sourceType === "application"
-      ? { nextApplicationRow: sheetRow + 1 }
-      : { nextJudgingResponseRow: sheetRow + 1 }),
-    updatedAt: now,
-  }).where(eq(programGoogleSheetsConnectionsTable.programId, input.programId));
+  const isSnapshot = input.sourceType === "program_snapshot";
+  const sheetRow = isSnapshot
+    ? 2
+    : input.sourceType === "application"
+      ? connection.nextApplicationRow
+      : connection.nextJudgingResponseRow;
+  if (!isSnapshot) {
+    await executor.update(programGoogleSheetsConnectionsTable).set({
+      ...(input.sourceType === "application"
+        ? { nextApplicationRow: sheetRow + 1 }
+        : { nextJudgingResponseRow: sheetRow + 1 }),
+      updatedAt: now,
+    }).where(eq(programGoogleSheetsConnectionsTable.programId, input.programId));
+  }
   await executor.insert(programGoogleSheetsSyncEventsTable).values({
     programId: input.programId,
     sourceType: input.sourceType,
@@ -210,6 +259,13 @@ export async function queueGoogleSheetsEvent(
     attempts: 0,
     nextAttemptAt: now,
   }).onConflictDoNothing();
+}
+
+export async function queueProgramGoogleSheetsSnapshot(
+  executor: SheetsExecutor,
+  programId: number,
+): Promise<void> {
+  await queueGoogleSheetsEvent(executor, { programId, sourceType: "program_snapshot", sourceId: programId });
 }
 
 async function insertBackfill(
@@ -284,6 +340,7 @@ export async function queueProgramGoogleSheetsBackfill(
     .orderBy(asc(judgingResponsesTable.id));
   await insertBackfill(executor, programId, "application", applications.map(({ id }) => id));
   await insertBackfill(executor, programId, "judging_response", responses.map(({ id }) => id));
+  await queueProgramGoogleSheetsSnapshot(executor, programId);
 }
 
 async function loadApplicationRow(sourceId: number, programId: number) {
@@ -339,9 +396,8 @@ async function loadJudgingResponseRow(sourceId: number, programId: number) {
 }
 
 function rowRange(sourceType: SourceType, row: number): string {
-  return sourceType === "application"
-    ? `${APPLICATIONS_SHEET}!A${row}:O${row}`
-    : `'${JUDGING_RESPONSES_SHEET}'!A${row}:J${row}`;
+  if (sourceType === "program_snapshot") throw new Error("Snapshot events do not use row-level ranges.");
+  return sourceType === "application" ? `${APPLICATIONS_SHEET}!A${row}:O${row}` : `'${JUDGING_RESPONSES_SHEET}'!A${row}:J${row}`;
 }
 
 type ClaimedEvent = {
@@ -397,7 +453,9 @@ async function claimBatch(limit: number): Promise<ClaimedEvent[]> {
 
     return candidates.map((event) => ({
       ...event,
-      sourceType: event.sourceType === "application" ? "application" : "judging_response",
+      sourceType: event.sourceType === "application"
+        ? "application"
+        : event.sourceType === "judging_response" ? "judging_response" : "program_snapshot",
       attempts: event.attempts + 1,
     }));
   });
@@ -408,7 +466,9 @@ async function writeBatch(
   connectors: ConnectorClient,
 ): Promise<void> {
   const entries: { range: string; values: (string | number)[][] }[] = [];
+  const snapshots = events.filter((event) => event.sourceType === "program_snapshot");
   for (const event of events) {
+    if (event.sourceType === "program_snapshot") continue;
     const values = event.sourceType === "application"
       ? await loadApplicationRow(event.sourceId, event.programId)
       : await loadJudgingResponseRow(event.sourceId, event.programId);
@@ -416,6 +476,17 @@ async function writeBatch(
       throw new GoogleSheetsError("A queued source record is no longer available. The platform record is unchanged.");
     }
     entries.push({ range: rowRange(event.sourceType, event.sheetRow), values: [values] });
+  }
+  if (snapshots.length) {
+    const sheets = await loadProgramSnapshotSheets(snapshots[0]!.programId);
+    const ranges = PROGRAM_SNAPSHOT_SHEETS.map(({ title }) => `'${title}'!A2:Z`);
+    await requestJson(connectors, googleSheetsPath(events[0]!.spreadsheetId, "/values:batchClear"), "POST", { ranges });
+    for (const sheet of sheets) {
+      entries.push({
+        range: `'${sheet.title}'!A1:${String.fromCharCode(64 + sheet.headers.length)}${sheet.rows.length + 1}`,
+        values: [[...sheet.headers], ...sheet.rows],
+      });
+    }
   }
   if (!entries.length) return;
   await requestJson(
@@ -531,7 +602,9 @@ export async function retryFailedGoogleSheetsEvents(programId: number): Promise<
       .from(programGoogleSheetsConnectionsTable)
       .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
       .limit(1);
-    if (!connection) throw new GoogleSheetsError("Connect a Google spreadsheet for this program first.", 404);
+  // Spreadsheet sync is optional. Platform writes must succeed when a program
+  // has not connected a workbook yet.
+  if (!connection) return;
     await tx.update(programGoogleSheetsSyncEventsTable).set({
       status: "pending",
       attempts: 0,

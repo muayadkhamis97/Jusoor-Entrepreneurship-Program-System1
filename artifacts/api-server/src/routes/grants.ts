@@ -16,6 +16,7 @@ import {
 } from "@workspace/db";
 import { grantReceiptStatus, totalGrantReceived } from "../lib/grant-ledger";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 
 const router: IRouter = Router();
 router.use(requireCoordinator);
@@ -143,6 +144,12 @@ router.post("/grants/:pitchId/receipts", async (req, res): Promise<void> => {
       notes: body.data.notes?.trim() || null,
       recordedByStaffId: staff.id,
     }).returning();
+    const [business] = await tx.select({ programId: businessesTable.programId })
+      .from(pitchesTable)
+      .innerJoin(businessesTable, eq(pitchesTable.businessId, businessesTable.id))
+      .where(eq(pitchesTable.id, award.id))
+      .limit(1);
+    if (business) await queueProgramGoogleSheetsSnapshot(tx, business.programId);
     return { kind: "created" as const, record, recordedBy: staff.email };
   });
 

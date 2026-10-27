@@ -67,6 +67,7 @@ import {
 } from "@workspace/db";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 import { getAdminInvitedApplicationIds } from "../lib/participantInvitations";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import {
   getZoomAttendanceReport,
   queueZoomAttendanceSync,
@@ -861,6 +862,7 @@ router.put("/analytics/attendance/:sessionId", async (req, res): Promise<void> =
         });
       }
     }
+    await queueProgramGoogleSheetsSnapshot(transaction, programId);
   });
   const updated = await getAttendanceRegister(params.data.sessionId);
   res.json(SaveSessionAttendanceResponse.parse(updated));

@@ -20,6 +20,7 @@ import {
 import { isGoogleDriveRecordingUrl } from "../lib/zoom-recording-alerts";
 import { getRecordingLinkTransition } from "../lib/participant-recording-notices";
 import { activeProgramIdsFor } from "../lib/programScope";
+import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { hasProgramStaffRole } from "../lib/programStaffRoles";
 
@@ -115,6 +116,7 @@ router.post("/sessions", async (req, res): Promise<void> => {
         target: [programAnnouncementsTable.sessionId, programAnnouncementsTable.recordingVersion],
       });
     }
+    if (created.programId !== null) await queueProgramGoogleSheetsSnapshot(tx, created.programId);
     return created;
   });
   res.status(201).json(CreateSessionResponse.parse(session));
@@ -203,6 +205,10 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
         target: [programAnnouncementsTable.sessionId, programAnnouncementsTable.recordingVersion],
       });
     }
+    if (current.programId !== null) await queueProgramGoogleSheetsSnapshot(tx, current.programId);
+    if (session.programId !== null && session.programId !== current.programId) {
+      await queueProgramGoogleSheetsSnapshot(tx, session.programId);
+    }
     return session;
   });
   if (!result) {
@@ -244,10 +250,16 @@ router.delete("/sessions/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Session not found." });
     return;
   }
-  const [session] = await db.delete(sessionsTable).where(and(
-    eq(sessionsTable.id, params.data.id),
-    current.programId === null ? isNull(sessionsTable.programId) : eq(sessionsTable.programId, current.programId),
-  )).returning();
+  const session = await db.transaction(async (tx) => {
+    const [deleted] = await tx.delete(sessionsTable).where(and(
+      eq(sessionsTable.id, params.data.id),
+      current.programId === null ? isNull(sessionsTable.programId) : eq(sessionsTable.programId, current.programId),
+    )).returning();
+    if (deleted?.programId !== null && deleted?.programId !== undefined) {
+      await queueProgramGoogleSheetsSnapshot(tx, deleted.programId);
+    }
+    return deleted;
+  });
   if (!session) {
     res.status(404).json({ error: "Session not found" });
     return;
