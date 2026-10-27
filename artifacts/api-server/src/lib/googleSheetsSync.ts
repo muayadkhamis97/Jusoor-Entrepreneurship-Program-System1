@@ -127,7 +127,7 @@ export async function createProgramSpreadsheet(
   programName: string,
   connectors: ConnectorClient = new ReplitConnectors(),
 ): Promise<{ spreadsheetId: string; spreadsheetUrl: string; title: string }> {
-  const title = `${programName.slice(0, 180)} — Applications and judging responses`;
+  const title = `${programName.slice(0, 180)} — Program records`;
   const created = await requestJson(connectors, "/v4/spreadsheets", "POST", {
     properties: { title },
     sheets: [
@@ -233,6 +233,7 @@ export async function queueGoogleSheetsEvent(
   }).from(programGoogleSheetsConnectionsTable)
     .where(eq(programGoogleSheetsConnectionsTable.programId, input.programId))
     .limit(1).for("update");
+  // Exporting is optional; writes to a program without a workbook remain valid.
   if (!connection) return;
 
   const isSnapshot = input.sourceType === "program_snapshot";
@@ -264,7 +265,18 @@ export async function queueGoogleSheetsEvent(
 export async function queueProgramGoogleSheetsSnapshot(
   executor: SheetsExecutor,
   programId: number,
+  initialize = false,
 ): Promise<void> {
+  // Existing workbooks opt in through "Sync all data" before their additional
+  // tabs (including private conversations) are populated.
+  if (!initialize) {
+    const [enabled] = await executor.select({ id: programGoogleSheetsSyncEventsTable.id })
+      .from(programGoogleSheetsSyncEventsTable).where(and(
+        eq(programGoogleSheetsSyncEventsTable.programId, programId),
+        eq(programGoogleSheetsSyncEventsTable.sourceType, "program_snapshot"),
+      )).limit(1);
+    if (!enabled) return;
+  }
   await queueGoogleSheetsEvent(executor, { programId, sourceType: "program_snapshot", sourceId: programId });
 }
 
@@ -340,7 +352,7 @@ export async function queueProgramGoogleSheetsBackfill(
     .orderBy(asc(judgingResponsesTable.id));
   await insertBackfill(executor, programId, "application", applications.map(({ id }) => id));
   await insertBackfill(executor, programId, "judging_response", responses.map(({ id }) => id));
-  await queueProgramGoogleSheetsSnapshot(executor, programId);
+  await queueProgramGoogleSheetsSnapshot(executor, programId, true);
 }
 
 async function loadApplicationRow(sourceId: number, programId: number) {
@@ -478,8 +490,9 @@ async function writeBatch(
     entries.push({ range: rowRange(event.sourceType, event.sheetRow), values: [values] });
   }
   if (snapshots.length) {
+    await ensureProgramSpreadsheetTabs(events[0]!.spreadsheetId, connectors);
     const sheets = await loadProgramSnapshotSheets(snapshots[0]!.programId);
-    const ranges = PROGRAM_SNAPSHOT_SHEETS.map(({ title }) => `'${title}'!A2:Z`);
+    const ranges = PROGRAM_SNAPSHOT_SHEETS.map(({ title, headers }) => `'${title}'!A2:${String.fromCharCode(64 + headers.length)}`);
     await requestJson(connectors, googleSheetsPath(events[0]!.spreadsheetId, "/values:batchClear"), "POST", { ranges });
     for (const sheet of sheets) {
       entries.push({
@@ -602,9 +615,7 @@ export async function retryFailedGoogleSheetsEvents(programId: number): Promise<
       .from(programGoogleSheetsConnectionsTable)
       .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
       .limit(1);
-  // Spreadsheet sync is optional. Platform writes must succeed when a program
-  // has not connected a workbook yet.
-  if (!connection) return;
+  if (!connection) throw new GoogleSheetsError("Connect a Google spreadsheet for this program first.", 404);
     await tx.update(programGoogleSheetsSyncEventsTable).set({
       status: "pending",
       attempts: 0,
@@ -624,11 +635,31 @@ export async function retryFailedGoogleSheetsEvents(programId: number): Promise<
 }
 
 let workerRunning = false;
+let nextSnapshotRefreshAt = Date.now() + 5 * 60_000;
+export async function refreshEnabledProgramSnapshots(): Promise<void> {
+  const enabled = await db.select({ programId: programGoogleSheetsSyncEventsTable.programId })
+    .from(programGoogleSheetsSyncEventsTable)
+    .innerJoin(programGoogleSheetsConnectionsTable,
+      eq(programGoogleSheetsSyncEventsTable.programId, programGoogleSheetsConnectionsTable.programId))
+    .innerJoin(programsTable, eq(programGoogleSheetsSyncEventsTable.programId, programsTable.id))
+    .where(and(
+      eq(programGoogleSheetsSyncEventsTable.sourceType, "program_snapshot"),
+      eq(programGoogleSheetsSyncEventsTable.status, "synced"),
+    ));
+  for (const { programId } of enabled) {
+    await db.transaction((tx) => queueProgramGoogleSheetsSnapshot(tx, programId));
+  }
+}
+
 export function startGoogleSheetsSyncWorker(): void {
   const tick = async () => {
     if (workerRunning) return;
     workerRunning = true;
     try {
+      if (Date.now() >= nextSnapshotRefreshAt) {
+        await refreshEnabledProgramSnapshots();
+        nextSnapshotRefreshAt = Date.now() + 5 * 60_000;
+      }
       await processGoogleSheetsSyncBatch();
     } catch (error) {
       logger.warn({ err: error }, "Google Sheets sync worker is unavailable; form submissions remain in the platform.");

@@ -103,7 +103,7 @@ router.post("/:programId", async (req, res): Promise<void> => {
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId)).limit(1);
       if (existing) {
         await ensureProgramSpreadsheetTabs(existing.spreadsheetId);
-        await queueProgramGoogleSheetsSnapshot(tx, programId);
+        await queueProgramGoogleSheetsSnapshot(tx, programId, true);
         return { connection: existing, created: false };
       }
       const [program] = await tx.select({ id: programsTable.id, name: programsTable.name })

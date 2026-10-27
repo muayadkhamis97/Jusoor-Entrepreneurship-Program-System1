@@ -75,10 +75,15 @@ before(async () => {
   restoreTransaction = replaceDbMethod("transaction", (async (callback) => {
     const tx = {
       select() {
+        let table: unknown;
+        const rows = () => table === sessionsTable ? [session] : [];
         const query = {
-          from() { return query; },
+          from(value: unknown) { table = value; return query; },
           where() { return query; },
-          limit() { return { for: async () => [session] }; },
+          limit() { return query; },
+          for: async () => rows(),
+          then: (resolve: (value: ReturnType<typeof rows>) => unknown, reject?: (reason: unknown) => unknown) =>
+            Promise.resolve(rows()).then(resolve, reject),
         };
         return query;
       },

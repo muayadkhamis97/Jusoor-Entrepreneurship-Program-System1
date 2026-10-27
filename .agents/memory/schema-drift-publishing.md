@@ -14,3 +14,9 @@ Inspect the ordering of prerequisite parent keys and dependent composite foreign
 **Why:** Publish omitted standalone composite unique indexes in one observed diff. Modeling them as explicit unique constraints made them appear, but the generated order still added dependent foreign keys first. PostgreSQL rejects that order even though the final desired schema is valid.
 
 **How to apply:** Compare development and read-only production catalogs, inspect the generated SQL, and verify it on disposable synthetic fixtures. If prerequisite keys are ordered after their dependent FKs, stage the parent keys through Publish first and add the dependent FKs in a second Publish. Get approval before temporarily removing development integrity constraints, retain application validation, and never bypass Publish with production DDL or truncate parent records merely to add redundant composite uniqueness.
+
+Verify changed CHECK constraint definitions in the actual development catalog after a schema push; a successful push can leave an existing CHECK unchanged.
+
+**Why:** widening an allowed-values CHECK in schema source was reported as applied, but the database still contained its old definition.
+
+**How to apply:** compare `pg_get_constraintdef` with source. If necessary, replace the constraint atomically in development using the authorized database flow, then verify it again. Managed production changes still go through Publish.

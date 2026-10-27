@@ -114,6 +114,7 @@ export function GoogleSheetsPage() {
       <section className="gs-data-note" aria-label={copy('Synchronized data', 'البيانات التي تتم مزامنتها')} data-testid="note-google-sheets-data">
         <div className="gs-data-note-mark"><Check size={15} aria-hidden="true" /></div>
           <p>{copy('Each workbook can include applications and judging, business and team records, program sessions and attendance, mentor reports and grant records, and staff and participant chat messages. Data syncs one way; changes in Sheets do not update the platform. Google sharing settings control who can read the workbook, including chat content.', 'يمكن أن يتضمن كل جدول بيانات الطلبات والتحكيم وسجلات الأعمال والفِرق والجلسات والحضور وتقارير المرشدين والمنح ورسائل المحادثة بين الموظفين والمشاركين. تتم المزامنة باتجاه واحد؛ ولا تؤدي التغييرات في Sheets إلى تحديث المنصة. وتحدد إعدادات المشاركة في Google من يمكنه قراءة جدول البيانات، بما في ذلك الرسائل.')}</p>
+          <p>{copy('For an existing workbook, select “Sync all data” to enable the additional tabs. Once enabled, they refresh automatically within about five minutes. Authentication credentials and private meeting links are never exported.', 'لجدول بيانات موجود، اختر «مزامنة جميع البيانات» لتفعيل علامات التبويب الإضافية. وبعد التفعيل، يتم تحديثها تلقائياً خلال نحو خمس دقائق. لا يتم تصدير بيانات اعتماد تسجيل الدخول أو روابط الاجتماعات الخاصة.')}</p>
       </section>
 
       <section className="gs-program-section" aria-labelledby="gs-programs-title">

@@ -4251,17 +4251,18 @@ paths:
     post:
       operationId: createProgramGoogleSheetsConnection
       tags: [staff]
-      summary: Create a program's Google Sheets workbook and backfill existing records
+      summary: Create or refresh a program workbook with all selected record categories
+      description: Existing workbooks enable expanded program snapshots, including private and business-team chat messages, when this action is requested. Expanded snapshots refresh automatically after enablement.
       parameters:
         - $ref: "#/components/parameters/ProgramId"
       responses:
         "200":
-          description: Existing workbook returned for an idempotent retry
+          description: Existing workbook returned with expanded synchronization queued
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
         "201":
-          description: Workbook created; existing submissions are queued for synchronization
+          description: Workbook created; existing program records are queued for synchronization
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
@@ -4286,7 +4287,7 @@ paths:
     post:
       operationId: retryProgramGoogleSheetsSync
       tags: [staff]
-      summary: Retry failed application and judging-response synchronization
+      summary: Retry failed program-record synchronization
       parameters:
         - $ref: "#/components/parameters/ProgramId"
       responses:

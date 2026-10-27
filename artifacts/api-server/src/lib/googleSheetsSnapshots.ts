@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull, or } from "drizzle-orm";
 import {
   applicationsTable,
   businessesTable,
@@ -63,12 +63,12 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
     endDate: programsTable.endDate,
     applicationDeadline: programsTable.applicationDeadline,
     mentorSessionsPerBusiness: programsTable.mentorSessionsPerBusiness,
+    archivedAt: programsTable.archivedAt,
   }).from(programsTable).where(eq(programsTable.id, programId)).limit(1);
   const programName = program?.name ?? "";
 
   const businesses = await db.select().from(businessesTable)
     .where(eq(businessesTable.programId, programId)).orderBy(asc(businessesTable.id));
-  const businessNames = new Map(businesses.map((business) => [business.id, business.businessName]));
   const businessRows: SheetCell[][] = businesses.map((business) => [
     "Business", business.id, programName, business.businessName, business.founderName, business.email,
     business.stage, "", dateCell(business.applicationDate ?? business.createdAt),
@@ -89,12 +89,28 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
   }).from(participantBusinessMembershipsTable)
     .innerJoin(applicationsTable, eq(participantBusinessMembershipsTable.applicationId, applicationsTable.id))
     .innerJoin(businessesTable, eq(participantBusinessMembershipsTable.businessId, businessesTable.id))
-    .where(eq(businessesTable.programId, programId))
+    .where(and(eq(businessesTable.programId, programId), eq(applicationsTable.programId, programId)))
     .orderBy(asc(participantBusinessMembershipsTable.id));
   businessRows.push(...memberships.map((member) => [
     "Participant business membership", member.id, programName, member.businessName, member.founderName,
     member.email, "Participant", member.status, dateCell(member.assignedAt),
     detailsCell({ businessId: member.businessId, phone: member.phone }),
+  ]));
+
+  const primaryParticipants = await db.select({
+    id: applicationsTable.id,
+    businessName: businessesTable.businessName,
+    name: applicationsTable.founderName,
+    email: applicationsTable.email,
+    status: applicationsTable.status,
+    createdAt: applicationsTable.createdAt,
+  }).from(applicationsTable)
+    .innerJoin(businessesTable, eq(applicationsTable.businessId, businessesTable.id))
+    .where(and(eq(applicationsTable.programId, programId), eq(businessesTable.programId, programId)))
+    .orderBy(asc(applicationsTable.id));
+  businessRows.push(...primaryParticipants.map((person) => [
+    "Primary business participant", person.id, programName, person.businessName, person.name,
+    person.email, "Participant", person.status, dateCell(person.createdAt), "",
   ]));
 
   const staffAssignments = await db.select({
@@ -139,10 +155,11 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
   const operationsRows: SheetCell[][] = [];
   if (program) {
     operationsRows.push([
-      "Program", program.id, program.name, "", "", "", dateCell(program.startDate), program.status,
+      "Program", program.id, program.name, "", "", "", dateCell(program.startDate),
+      program.archivedAt ? "archived" : program.status,
       detailsCell({
         format: program.format, endDate: program.endDate, applicationDeadline: program.applicationDeadline,
-        mentorSessionsPerBusiness: program.mentorSessionsPerBusiness,
+        mentorSessionsPerBusiness: program.mentorSessionsPerBusiness, archivedAt: dateCell(program.archivedAt),
       }),
     ]);
   }
@@ -175,7 +192,12 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
     .innerJoin(sessionsTable, eq(sessionParticipantAttendanceTable.sessionId, sessionsTable.id))
     .innerJoin(applicationsTable, eq(sessionParticipantAttendanceTable.participantId, applicationsTable.id))
     .innerJoin(businessesTable, eq(sessionParticipantAttendanceTable.businessId, businessesTable.id))
-    .where(eq(sessionParticipantAttendanceTable.programId, programId))
+    .where(and(
+      eq(sessionParticipantAttendanceTable.programId, programId),
+      eq(sessionsTable.programId, programId),
+      eq(applicationsTable.programId, programId),
+      eq(businessesTable.programId, programId),
+    ))
     .orderBy(asc(sessionParticipantAttendanceTable.id));
   operationsRows.push(...attendance.map((row) => [
     "Participant attendance", row.id, programName, row.sessionTitle, row.businessName, row.participantName,
@@ -236,7 +258,8 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
   }).from(mentorSessionRequestsTable)
     .innerJoin(businessesTable, eq(mentorSessionRequestsTable.businessId, businessesTable.id))
     .innerJoin(staffMembersTable, eq(mentorSessionRequestsTable.mentorStaffId, staffMembersTable.id))
-    .where(eq(mentorSessionRequestsTable.programId, programId)).orderBy(asc(mentorSessionRequestsTable.id));
+    .where(and(eq(mentorSessionRequestsTable.programId, programId), eq(businessesTable.programId, programId)))
+    .orderBy(asc(mentorSessionRequestsTable.id));
   mentorRows.push(...requests.map((request) => [
     "Additional mentor session request", request.id, programName, request.businessName, request.mentorEmail,
     request.mentorEmail, dateCell(request.createdAt), request.decision ?? request.status,
@@ -303,9 +326,15 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
   }).from(chatMessagesTable)
     .innerJoin(chatThreadsTable, eq(chatMessagesTable.threadId, chatThreadsTable.id))
     .innerJoin(programsTable, eq(chatThreadsTable.programId, programsTable.id))
-    .leftJoin(businessesTable, eq(chatThreadsTable.businessId, businessesTable.id))
-    .leftJoin(applicationsTable, eq(chatThreadsTable.participantId, applicationsTable.id))
-    .where(eq(chatThreadsTable.programId, programId)).orderBy(asc(chatMessagesTable.id));
+    .leftJoin(businessesTable, and(eq(chatThreadsTable.businessId, businessesTable.id), eq(businessesTable.programId, programId)))
+    .leftJoin(applicationsTable, and(eq(chatThreadsTable.participantId, applicationsTable.id), eq(applicationsTable.programId, programId)))
+    .where(and(
+      eq(chatThreadsTable.programId, programId),
+      or(
+        and(eq(chatThreadsTable.kind, "private"), isNotNull(applicationsTable.id)),
+        and(eq(chatThreadsTable.kind, "business"), isNotNull(businessesTable.id)),
+      ),
+    )).orderBy(asc(chatMessagesTable.id));
   const chatRows = chats.map((message) => [
     message.threadId, message.kind, message.programName, message.businessName ?? "",
     message.participantName ?? "", message.senderName, message.senderRole, message.body, dateCell(message.createdAt),

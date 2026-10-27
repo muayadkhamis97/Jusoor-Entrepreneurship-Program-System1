@@ -5,10 +5,13 @@ import {
   JUDGING_HEADERS,
   applicationSheetRow,
   createProgramSpreadsheet,
+  ensureProgramSpreadsheetTabs,
   judgingResponseSheetRow,
+  queueProgramGoogleSheetsSnapshot,
 } from "../src/lib/googleSheetsSync";
+import { PROGRAM_SNAPSHOT_SHEETS } from "../src/lib/googleSheetsSnapshots";
 
-test("Google Sheets workbook has separate application and judging tabs and writes headers as raw values", async () => {
+test("Google Sheets workbook has all selected program tabs and writes headers as raw values", async () => {
   const calls: { path: string; options: { method: string; body?: unknown } }[] = [];
   const connector = {
     proxy: async (_service: string, path: string, options: { method: string; body?: unknown }) => {
@@ -27,14 +30,54 @@ test("Google Sheets workbook has separate application and judging tabs and write
   const createBody = calls[0]?.options.body as {
     sheets: { properties: { title: string } }[];
   };
-  assert.deepEqual(createBody.sheets.map((sheet) => sheet.properties.title), ["Applications", "Judging responses"]);
+  assert.deepEqual(createBody.sheets.map((sheet) => sheet.properties.title), [
+    "Applications", "Judging responses", ...PROGRAM_SNAPSHOT_SHEETS.map((sheet) => sheet.title),
+  ]);
   assert.equal(calls[1]?.path, "/v4/spreadsheets/sheet_12345678901234567890/values:batchUpdate");
   const headerBody = calls[1]?.options.body as {
     valueInputOption: string;
     data: { range: string; values: string[][] }[];
   };
   assert.equal(headerBody.valueInputOption, "RAW");
-  assert.deepEqual(headerBody.data.map((item) => item.values[0]), [APPLICATION_HEADERS, JUDGING_HEADERS]);
+  assert.deepEqual(headerBody.data.map((item) => item.values[0]), [
+    APPLICATION_HEADERS, JUDGING_HEADERS, ...PROGRAM_SNAPSHOT_SHEETS.map((sheet) => sheet.headers),
+  ]);
+});
+
+test("existing workbooks gain only missing category tabs and repeated setup is a no-op", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  let titles = ["Applications", "Judging responses", PROGRAM_SNAPSHOT_SHEETS[0].title];
+  const connector = {
+    proxy: async (_service: string, path: string, options: { method: string; body?: unknown }) => {
+      calls.push({ path, body: options.body });
+      if (options.method === "GET") {
+        return new Response(JSON.stringify({ sheets: titles.map(title => ({ properties: { title } })) }));
+      }
+      if (path.endsWith(":batchUpdate") && !path.includes("/values")) {
+        titles = [...titles, ...PROGRAM_SNAPSHOT_SHEETS.slice(1).map(sheet => sheet.title)];
+      }
+      return new Response("{}");
+    },
+  };
+  await ensureProgramSpreadsheetTabs("sheet_12345678901234567890", connector as never);
+  assert.equal(calls.length, 3);
+  const changes = calls[1]!.body as { requests: { addSheet: { properties: { title: string } } }[] };
+  assert.deepEqual(changes.requests.map(change => change.addSheet.properties.title),
+    PROGRAM_SNAPSHOT_SHEETS.slice(1).map(sheet => sheet.title));
+  await ensureProgramSpreadsheetTabs("sheet_12345678901234567890", connector as never);
+  assert.equal(calls.length, 4);
+});
+
+test("ordinary platform writes do not enable expanded exports for an existing workbook", async () => {
+  let writes = 0;
+  const query = { from() { return this; }, where() { return this; }, limit: async () => [] };
+  const executor = {
+    select: () => query,
+    insert: () => { writes++; throw new Error("Unexpected export enablement"); },
+    update: () => { writes++; throw new Error("Unexpected export enablement"); },
+  };
+  await queueProgramGoogleSheetsSnapshot(executor as never, 7);
+  assert.equal(writes, 0);
 });
 
 test("application exports have a stable column order and preserve untrusted text as plain values", () => {
