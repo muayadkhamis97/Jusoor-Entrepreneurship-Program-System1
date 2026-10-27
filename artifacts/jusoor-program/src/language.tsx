@@ -45,6 +45,7 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const arabicRetryParameter = 'jusoor-retry-language';
 
 function initialLanguage(): AppLanguage {
+  if (typeof window === 'undefined') return 'en';
   if (new URLSearchParams(window.location.search).get(arabicRetryParameter) === 'ar') return 'ar';
   try {
     return window.localStorage.getItem('jusoor-language') === 'ar' ? 'ar' : 'en';

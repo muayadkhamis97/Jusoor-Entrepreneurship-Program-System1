@@ -63,6 +63,7 @@ test('Admin and participant workspaces render Arabic copy and RTL in an isolated
     await page.goto(`${origin}/src/test-fixtures/arabic-role-workspaces.html`, { waitUntil: 'domcontentloaded' });
     await page.locator('[data-testid="page-role-access"]').waitFor();
     await page.getByTestId('button-language-toggle').click();
+    await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
 
     assert.equal(await page.locator('html').getAttribute('lang'), 'ar');
     assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');

@@ -14,3 +14,9 @@ After a deferred translation import fails, retry it through a fresh document loa
 **Why:** The browser test showed that retrying the same dynamic import after an aborted chunk request did not recover; a fresh navigation successfully issued a new request.
 
 **How to apply:** Use a fresh page load for retries of failed deferred chunks, and verify both that a new request occurs and that temporary retry state is removed after success or fallback.
+
+Initial language detection must remain safe during server rendering: select English when `window` is unavailable, and access browser URL or storage state only in a browser.
+
+**Why:** Announcement-reply server-rendering tests exposed that reading `window.location` during the provider's state initializer crashes SSR.
+
+**How to apply:** Guard browser globals before reading persisted locale, and keep browser tests waiting for the asynchronous translation load before asserting `lang`, `dir`, or translated labels.

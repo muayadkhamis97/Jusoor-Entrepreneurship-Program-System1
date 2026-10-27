@@ -2,14 +2,18 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createServer as createNetServer } from 'node:net';
 import path from 'node:path';
-import test from 'node:test';
+import test, { before } from 'node:test';
 import { chromium } from 'playwright-core';
 import { createServer as createViteServer } from 'vite';
 import { getStaffNavigationItems } from './staff-navigation-items';
-import { translate } from './language';
+import { loadArabicTranslations, translate } from './language';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
+
+before(async () => {
+  await loadArabicTranslations();
+});
 
 test('production dialog call sites preserve dirty and pending-action safeguards', async () => {
   const paths = [
