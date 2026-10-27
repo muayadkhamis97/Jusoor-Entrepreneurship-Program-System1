@@ -586,8 +586,18 @@ async function writeBatch(
 ): Promise<void> {
   const entries: { range: string; values: (string | number)[][] }[] = [];
   const snapshots = events.filter((event) => event.sourceType === "program_snapshot");
+  const [exportSettings] = await db.select({
+    businessTeam: programGoogleSheetsConnectionsTable.exportBusinessTeam,
+    operations: programGoogleSheetsConnectionsTable.exportOperations,
+    mentoringGrants: programGoogleSheetsConnectionsTable.exportMentoringGrants,
+    chats: programGoogleSheetsConnectionsTable.exportChats,
+  }).from(programGoogleSheetsConnectionsTable)
+    .where(eq(programGoogleSheetsConnectionsTable.programId, events[0]!.programId))
+    .limit(1);
+  const businessTeamEnabled = exportSettings?.businessTeam ?? true;
   for (const event of events) {
     if (event.sourceType === "program_snapshot") continue;
+    if (!businessTeamEnabled) continue;
     const values = event.sourceType === "application"
       ? await loadApplicationRow(event.sourceId, event.programId)
       : await loadJudgingResponseRow(event.sourceId, event.programId);
@@ -598,8 +608,22 @@ async function writeBatch(
   }
   if (snapshots.length) {
     await ensureProgramSpreadsheetTabs(events[0]!.spreadsheetId, connectors);
-    const sheets = await loadProgramSnapshotSheets(snapshots[0]!.programId);
+    const categories = exportSettings ?? {
+      businessTeam: true,
+      operations: true,
+      mentoringGrants: true,
+      chats: true,
+    };
+    const sheets = await loadProgramSnapshotSheets(snapshots[0]!.programId, categories);
     await writeProgramSnapshotSnapshot(events[0]!.spreadsheetId, sheets, connectors);
+    if (!businessTeamEnabled) {
+      await requestJson(
+        connectors,
+        googleSheetsPath(events[0]!.spreadsheetId, "/values:batchClear"),
+        "POST",
+        { ranges: [`${APPLICATIONS_SHEET}!A2:O`, `'${JUDGING_RESPONSES_SHEET}'!A2:J`] },
+      );
+    }
   }
   if (!entries.length) return;
   await requestJson(

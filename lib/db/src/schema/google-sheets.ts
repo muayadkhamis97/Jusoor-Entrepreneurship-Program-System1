@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { programsTable } from "./programs";
 import { staffMembersTable } from "./staff";
@@ -9,6 +9,10 @@ export const programGoogleSheetsConnectionsTable = pgTable("jusoor_program_googl
   spreadsheetId: text("spreadsheet_id").notNull(),
   spreadsheetUrl: text("spreadsheet_url").notNull(),
   spreadsheetTitle: text("spreadsheet_title").notNull(),
+  exportBusinessTeam: boolean("export_business_team").notNull().default(true),
+  exportOperations: boolean("export_operations").notNull().default(true),
+  exportMentoringGrants: boolean("export_mentoring_grants").notNull().default(true),
+  exportChats: boolean("export_chats").notNull().default(true),
   nextApplicationRow: integer("next_application_row").notNull().default(2),
   nextJudgingResponseRow: integer("next_judging_response_row").notNull().default(2),
   connectedByStaffId: integer("connected_by_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),

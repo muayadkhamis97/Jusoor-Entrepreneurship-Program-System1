@@ -6874,13 +6874,20 @@ export const GetProgramGoogleSheetsStatusesResponseItem = zod.object({
   "lastSyncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
   "pendingCount": zod.int().min(getProgramGoogleSheetsStatusesResponsePendingCountMin),
-  "failedCount": zod.int().min(getProgramGoogleSheetsStatusesResponseFailedCountMin)
+  "failedCount": zod.int().min(getProgramGoogleSheetsStatusesResponseFailedCountMin),
+  "exportCategories": zod.object({
+  "businessTeam": zod.boolean(),
+  "operations": zod.boolean(),
+  "mentoringGrants": zod.boolean(),
+  "chats": zod.boolean()
+})
 })
 export const GetProgramGoogleSheetsStatusesResponse = zod.array(GetProgramGoogleSheetsStatusesResponseItem)
 
 
 /**
- * @summary Create a program's Google Sheets workbook and backfill existing records
+ * Existing workbooks refresh only categories enabled in their program settings. Private and business-team chat content can be included when chat export is enabled.
+ * @summary Create or refresh a program workbook using its selected categories
  */
 export const CreateProgramGoogleSheetsConnectionParams = zod.object({
   "programId": zod.coerce.number().int()
@@ -6903,7 +6910,13 @@ export const CreateProgramGoogleSheetsConnectionResponse = zod.object({
   "lastSyncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
   "pendingCount": zod.int().min(createProgramGoogleSheetsConnectionResponsePendingCountMin),
-  "failedCount": zod.int().min(createProgramGoogleSheetsConnectionResponseFailedCountMin)
+  "failedCount": zod.int().min(createProgramGoogleSheetsConnectionResponseFailedCountMin),
+  "exportCategories": zod.object({
+  "businessTeam": zod.boolean(),
+  "operations": zod.boolean(),
+  "mentoringGrants": zod.boolean(),
+  "chats": zod.boolean()
+})
 })
 
 
@@ -6918,7 +6931,50 @@ export const DisconnectProgramGoogleSheetsResponse = zod.void()
 
 
 /**
- * @summary Retry failed application and judging-response synchronization
+ * @summary Update exported data categories for one program workbook
+ */
+export const UpdateProgramGoogleSheetsCategoriesParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const UpdateProgramGoogleSheetsCategoriesBody = zod.object({
+  "exportCategories": zod.object({
+  "businessTeam": zod.boolean(),
+  "operations": zod.boolean(),
+  "mentoringGrants": zod.boolean(),
+  "chats": zod.boolean()
+})
+})
+
+export const updateProgramGoogleSheetsCategoriesResponsePendingCountMin = 0;
+
+export const updateProgramGoogleSheetsCategoriesResponseFailedCountMin = 0;
+
+
+
+export const UpdateProgramGoogleSheetsCategoriesResponse = zod.object({
+  "programId": zod.int(),
+  "programName": zod.string(),
+  "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
+  "spreadsheetId": zod.string().nullable(),
+  "spreadsheetUrl": zod.url().nullable(),
+  "spreadsheetTitle": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "pendingCount": zod.int().min(updateProgramGoogleSheetsCategoriesResponsePendingCountMin),
+  "failedCount": zod.int().min(updateProgramGoogleSheetsCategoriesResponseFailedCountMin),
+  "exportCategories": zod.object({
+  "businessTeam": zod.boolean(),
+  "operations": zod.boolean(),
+  "mentoringGrants": zod.boolean(),
+  "chats": zod.boolean()
+})
+})
+
+
+/**
+ * @summary Retry failed program-record synchronization
  */
 export const RetryProgramGoogleSheetsSyncParams = zod.object({
   "programId": zod.coerce.number().int()
@@ -6941,7 +6997,13 @@ export const RetryProgramGoogleSheetsSyncResponse = zod.object({
   "lastSyncedAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
   "pendingCount": zod.int().min(retryProgramGoogleSheetsSyncResponsePendingCountMin),
-  "failedCount": zod.int().min(retryProgramGoogleSheetsSyncResponseFailedCountMin)
+  "failedCount": zod.int().min(retryProgramGoogleSheetsSyncResponseFailedCountMin),
+  "exportCategories": zod.object({
+  "businessTeam": zod.boolean(),
+  "operations": zod.boolean(),
+  "mentoringGrants": zod.boolean(),
+  "chats": zod.boolean()
+})
 })
 
 

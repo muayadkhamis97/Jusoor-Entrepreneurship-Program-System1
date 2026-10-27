@@ -11,6 +11,7 @@ import {
   participantBusinessMembershipsTable,
   pitchesTable,
   programsTable,
+  programGoogleSheetsConnectionsTable,
   sessionParticipantAttendanceTable,
   sessionsTable,
   staffAssignmentAuditEventsTable,
@@ -47,13 +48,57 @@ export const PROGRAM_SNAPSHOT_SHEETS = [
   { title: "Staff and participant chats", headers: chatHeaders },
 ] as const;
 
+export type ProgramGoogleSheetsExportCategories = {
+  businessTeam: boolean;
+  operations: boolean;
+  mentoringGrants: boolean;
+  chats: boolean;
+};
+
+export const DEFAULT_PROGRAM_GOOGLE_SHEETS_EXPORT_CATEGORIES: ProgramGoogleSheetsExportCategories = {
+  businessTeam: true,
+  operations: true,
+  mentoringGrants: true,
+  chats: true,
+};
+
+export function filterProgramSnapshotSheetsByCategories(
+  sheets: SnapshotSheet[],
+  categories: ProgramGoogleSheetsExportCategories,
+): SnapshotSheet[] {
+  const enabled = [
+    categories.businessTeam,
+    categories.operations,
+    categories.mentoringGrants,
+    categories.chats,
+  ];
+  return sheets.map((sheet, index) => ({
+    ...sheet,
+    rows: enabled[index] ? sheet.rows : [],
+  }));
+}
+
 const dateCell = (value: Date | string | null | undefined): string => {
   if (!value) return "";
   return value instanceof Date ? value.toISOString() : value;
 };
 const detailsCell = (value: unknown): string => JSON.stringify(value ?? {});
 
-export async function loadProgramSnapshotSheets(programId: number): Promise<SnapshotSheet[]> {
+export async function loadProgramSnapshotSheets(
+  programId: number,
+  categories?: ProgramGoogleSheetsExportCategories,
+): Promise<SnapshotSheet[]> {
+  if (!categories) {
+    const [connection] = await db.select({
+      businessTeam: programGoogleSheetsConnectionsTable.exportBusinessTeam,
+      operations: programGoogleSheetsConnectionsTable.exportOperations,
+      mentoringGrants: programGoogleSheetsConnectionsTable.exportMentoringGrants,
+      chats: programGoogleSheetsConnectionsTable.exportChats,
+    }).from(programGoogleSheetsConnectionsTable)
+      .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
+      .limit(1);
+    categories = connection ?? DEFAULT_PROGRAM_GOOGLE_SHEETS_EXPORT_CATEGORIES;
+  }
   const [program] = await db.select({
     id: programsTable.id,
     name: programsTable.name,
@@ -340,10 +385,10 @@ export async function loadProgramSnapshotSheets(programId: number): Promise<Snap
     message.participantName ?? "", message.senderName, message.senderRole, message.body, dateCell(message.createdAt),
   ]);
 
-  return [
+  return filterProgramSnapshotSheetsByCategories([
     { title: PROGRAM_SNAPSHOT_SHEETS[0].title, headers: businessHeaders, rows: businessRows },
     { title: PROGRAM_SNAPSHOT_SHEETS[1].title, headers: operationsHeaders, rows: operationsRows },
     { title: PROGRAM_SNAPSHOT_SHEETS[2].title, headers: mentorHeaders, rows: mentorRows },
     { title: PROGRAM_SNAPSHOT_SHEETS[3].title, headers: chatHeaders, rows: chatRows },
-  ];
+  ], categories);
 }

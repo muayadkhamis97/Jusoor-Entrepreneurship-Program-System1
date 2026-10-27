@@ -4251,8 +4251,8 @@ paths:
     post:
       operationId: createProgramGoogleSheetsConnection
       tags: [staff]
-      summary: Create or refresh a program workbook with all selected record categories
-      description: Existing workbooks enable expanded program snapshots, including private and business-team chat messages, when this action is requested. Expanded snapshots refresh automatically after enablement.
+      summary: Create or refresh a program workbook using its selected categories
+      description: Existing workbooks refresh only categories enabled in their program settings. Private and business-team chat content can be included when chat export is enabled.
       parameters:
         - $ref: "#/components/parameters/ProgramId"
       responses:
@@ -4283,6 +4283,28 @@ paths:
           description: Coordinator role required
         "404":
           description: Program workbook not found
+  /staff/google-sheets/{programId}/categories:
+    patch:
+      operationId: updateProgramGoogleSheetsCategories
+      tags: [staff]
+      summary: Update exported data categories for one program workbook
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProgramGoogleSheetsExportCategoriesInput" }
+      responses:
+        "200":
+          description: Per-program category export settings were saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "400":
+          description: Export category settings are invalid
+        "404":
+          description: Program is unavailable, outside scope, or has no workbook
   /staff/google-sheets/{programId}/sync:
     post:
       operationId: retryProgramGoogleSheetsSync
@@ -4365,6 +4387,7 @@ components:
         - lastError
         - pendingCount
         - failedCount
+        - exportCategories
       properties:
         programId: { type: integer }
         programName: { type: string }
@@ -4377,6 +4400,22 @@ components:
         lastError: { type: [string, "null"] }
         pendingCount: { type: integer, minimum: 0 }
         failedCount: { type: integer, minimum: 0 }
+        exportCategories: { $ref: "#/components/schemas/ProgramGoogleSheetsExportCategories" }
+    ProgramGoogleSheetsExportCategories:
+      type: object
+      additionalProperties: false
+      required: [businessTeam, operations, mentoringGrants, chats]
+      properties:
+        businessTeam: { type: boolean }
+        operations: { type: boolean }
+        mentoringGrants: { type: boolean }
+        chats: { type: boolean }
+    ProgramGoogleSheetsExportCategoriesInput:
+      type: object
+      additionalProperties: false
+      required: [exportCategories]
+      properties:
+        exportCategories: { $ref: "#/components/schemas/ProgramGoogleSheetsExportCategories" }
     JudgingCriterion:
       type: object
       required: [id, label, description, maxScore]

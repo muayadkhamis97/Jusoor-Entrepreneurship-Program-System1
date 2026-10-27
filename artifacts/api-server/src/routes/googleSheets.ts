@@ -20,6 +20,32 @@ import {
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
 
 const router = Router();
+type ExportCategories = {
+  businessTeam: boolean;
+  operations: boolean;
+  mentoringGrants: boolean;
+  chats: boolean;
+};
+
+const defaultExportCategories: ExportCategories = {
+  businessTeam: true,
+  operations: true,
+  mentoringGrants: true,
+  chats: true,
+};
+
+function parseExportCategories(value: unknown): ExportCategories | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = ["businessTeam", "operations", "mentoringGrants", "chats"];
+  if (Object.keys(record).length !== keys.length || keys.some((key) => typeof record[key] !== "boolean")) return null;
+  return {
+    businessTeam: record.businessTeam as boolean,
+    operations: record.operations as boolean,
+    mentoringGrants: record.mentoringGrants as boolean,
+    chats: record.chats as boolean,
+  };
+}
 
 function routeError(res: import("express").Response, error: unknown): void {
   const status = error instanceof GoogleSheetsError && error.status
@@ -40,6 +66,10 @@ async function visibleProgramSheetStatuses(staff: StaffAccess) {
     spreadsheetId: programGoogleSheetsConnectionsTable.spreadsheetId,
     spreadsheetUrl: programGoogleSheetsConnectionsTable.spreadsheetUrl,
     spreadsheetTitle: programGoogleSheetsConnectionsTable.spreadsheetTitle,
+    exportBusinessTeam: programGoogleSheetsConnectionsTable.exportBusinessTeam,
+    exportOperations: programGoogleSheetsConnectionsTable.exportOperations,
+    exportMentoringGrants: programGoogleSheetsConnectionsTable.exportMentoringGrants,
+    exportChats: programGoogleSheetsConnectionsTable.exportChats,
     connectedAt: programGoogleSheetsConnectionsTable.connectedAt,
     lastSyncedAt: programGoogleSheetsConnectionsTable.lastSyncedAt,
     lastError: programGoogleSheetsConnectionsTable.lastError,
@@ -73,7 +103,17 @@ async function visibleProgramSheetStatuses(staff: StaffAccess) {
         : count.pendingCount > 0
           ? "syncing"
           : "connected";
-    return { ...row, ...count, status };
+    return {
+      ...row,
+      ...count,
+      status,
+      exportCategories: row.spreadsheetId ? {
+        businessTeam: row.exportBusinessTeam,
+        operations: row.exportOperations,
+        mentoringGrants: row.exportMentoringGrants,
+        chats: row.exportChats,
+      } : defaultExportCategories,
+    };
   });
 }
 
@@ -135,6 +175,12 @@ router.post("/:programId", async (req, res): Promise<void> => {
       pendingCount: 0,
       failedCount: 0,
       status: "connected",
+      exportCategories: {
+        businessTeam: result.connection.exportBusinessTeam,
+        operations: result.connection.exportOperations,
+        mentoringGrants: result.connection.exportMentoringGrants,
+        chats: result.connection.exportChats,
+      },
     });
   } catch (error) {
     if (error instanceof GoogleSheetsError && error.status === 404) {
@@ -142,6 +188,58 @@ router.post("/:programId", async (req, res): Promise<void> => {
       return;
     }
     req.log.error({ err: error, programId }, "Google Sheets connection could not be created");
+    routeError(res, error);
+  }
+});
+
+router.patch("/:programId/categories", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const programId = Number(req.params.programId);
+  if (!Number.isSafeInteger(programId) || programId <= 0 || !(await canAccessActiveProgram(staff, programId))) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  const exportCategories = parseExportCategories(req.body?.exportCategories);
+  if (!exportCategories) {
+    res.status(400).json({ error: "Choose a true or false value for each export category." });
+    return;
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await lockGoogleSheetsProgram(tx, programId);
+      const [connection] = await tx.select({
+        exportBusinessTeam: programGoogleSheetsConnectionsTable.exportBusinessTeam,
+      }).from(programGoogleSheetsConnectionsTable)
+        .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
+        .limit(1);
+      if (!connection) throw new GoogleSheetsError("Program workbook not found.", 404);
+
+      await tx.update(programGoogleSheetsConnectionsTable).set({
+        exportBusinessTeam: exportCategories.businessTeam,
+        exportOperations: exportCategories.operations,
+        exportMentoringGrants: exportCategories.mentoringGrants,
+        exportChats: exportCategories.chats,
+        updatedAt: new Date(),
+      }).where(eq(programGoogleSheetsConnectionsTable.programId, programId));
+
+      if (!connection.exportBusinessTeam && exportCategories.businessTeam) {
+        await queueProgramGoogleSheetsBackfill(tx, programId);
+      } else {
+        await queueProgramGoogleSheetsSnapshot(tx, programId, true);
+      }
+    });
+    const statuses = await visibleProgramSheetStatuses(staff);
+    res.json(statuses.find((item) => item.programId === programId) ?? {
+      programId,
+      exportCategories,
+    });
+  } catch (error) {
+    if (error instanceof GoogleSheetsError && error.status === 404) {
+      res.status(404).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error, programId }, "Google Sheets export categories could not be saved");
     routeError(res, error);
   }
 });

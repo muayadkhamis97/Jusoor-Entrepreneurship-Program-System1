@@ -293,6 +293,8 @@ export * from './programBranding';
 export * from './programBrandingInput';
 export * from './programBusinessOption';
 export * from './programFormat';
+export * from './programGoogleSheetsExportCategories';
+export * from './programGoogleSheetsExportCategoriesInput';
 export * from './programGoogleSheetsStatus';
 export * from './programGoogleSheetsStatusStatus';
 export * from './programInput';

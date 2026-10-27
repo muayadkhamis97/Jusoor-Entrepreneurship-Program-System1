@@ -55,6 +55,13 @@ export const ProgramGoogleSheetsStatusStatus = {
   needs_attention: 'needs_attention',
 } as const;
 
+export interface ProgramGoogleSheetsExportCategories {
+  businessTeam: boolean;
+  operations: boolean;
+  mentoringGrants: boolean;
+  chats: boolean;
+}
+
 export interface ProgramGoogleSheetsStatus {
   programId: number;
   programName: string;
@@ -75,6 +82,11 @@ export interface ProgramGoogleSheetsStatus {
   pendingCount: number;
   /** @minimum 0 */
   failedCount: number;
+  exportCategories: ProgramGoogleSheetsExportCategories;
+}
+
+export interface ProgramGoogleSheetsExportCategoriesInput {
+  exportCategories: ProgramGoogleSheetsExportCategories;
 }
 
 export interface JudgingCriterion {

@@ -184,6 +184,7 @@ import type {
   ProgramAnalytics,
   ProgramBranding,
   ProgramBrandingInput,
+  ProgramGoogleSheetsExportCategoriesInput,
   ProgramGoogleSheetsStatus,
   ProgramInput,
   ProgramLifecycleEvent,
@@ -17778,7 +17779,8 @@ export const getCreateProgramGoogleSheetsConnectionUrl = (programId: number,) =>
 }
 
 /**
- * @summary Create a program's Google Sheets workbook and backfill existing records
+ * Existing workbooks refresh only categories enabled in their program settings. Private and business-team chat content can be included when chat export is enabled.
+ * @summary Create or refresh a program workbook using its selected categories
  */
 export const createProgramGoogleSheetsConnection = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
 
@@ -17830,7 +17832,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateProgramGoogleSheetsConnectionMutationVariables = {programId: number}
 
     /**
- * @summary Create a program's Google Sheets workbook and backfill existing records
+ * @summary Create or refresh a program workbook using its selected categories
  */
 export const useCreateProgramGoogleSheetsConnection = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, TError,CreateProgramGoogleSheetsConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -17917,6 +17919,95 @@ export const useDisconnectProgramGoogleSheets = <TError = ErrorType<void>,
       return useMutation(getDisconnectProgramGoogleSheetsMutationOptions(options));
     }
 
+export const getUpdateProgramGoogleSheetsCategoriesUrl = (programId: number,) => {
+
+
+
+
+  return `/api/staff/google-sheets/${programId}/categories`
+}
+
+/**
+ * @summary Update exported data categories for one program workbook
+ */
+export const updateProgramGoogleSheetsCategories = async (programId: number,
+    programGoogleSheetsExportCategoriesInput: ProgramGoogleSheetsExportCategoriesInput, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProgramGoogleSheetsStatus>(getUpdateProgramGoogleSheetsCategoriesUrl(programId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(programGoogleSheetsExportCategoriesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProgramGoogleSheetsCategoriesMutationKey = () => ['updateProgramGoogleSheetsCategories'] as const;
+
+export const getUpdateProgramGoogleSheetsCategoriesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramGoogleSheetsCategories>>, TError,UpdateProgramGoogleSheetsCategoriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProgramGoogleSheetsCategories>>, TError,UpdateProgramGoogleSheetsCategoriesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProgramGoogleSheetsCategoriesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProgramGoogleSheetsCategories>>, UpdateProgramGoogleSheetsCategoriesMutationVariables> = (props) => {
+          const {programId,data} = props ?? {};
+
+          return  updateProgramGoogleSheetsCategories(programId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProgramGoogleSheetsCategoriesMutationResult = NonNullable<Awaited<ReturnType<typeof updateProgramGoogleSheetsCategories>>>
+    export type UpdateProgramGoogleSheetsCategoriesMutationBody = BodyType<ProgramGoogleSheetsExportCategoriesInput>
+    export type UpdateProgramGoogleSheetsCategoriesMutationError = ErrorType<void>
+    export type UpdateProgramGoogleSheetsCategoriesMutationVariables = {programId: number;data: BodyType<ProgramGoogleSheetsExportCategoriesInput>}
+
+    /**
+ * @summary Update exported data categories for one program workbook
+ */
+export const useUpdateProgramGoogleSheetsCategories = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramGoogleSheetsCategories>>, TError,UpdateProgramGoogleSheetsCategoriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProgramGoogleSheetsCategories>>,
+        TError,
+        UpdateProgramGoogleSheetsCategoriesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProgramGoogleSheetsCategoriesMutationOptions(options));
+    }
+
 export const getRetryProgramGoogleSheetsSyncUrl = (programId: number,) => {
 
 
@@ -17926,7 +18017,7 @@ export const getRetryProgramGoogleSheetsSyncUrl = (programId: number,) => {
 }
 
 /**
- * @summary Retry failed application and judging-response synchronization
+ * @summary Retry failed program-record synchronization
  */
 export const retryProgramGoogleSheetsSync = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
 
@@ -17978,7 +18069,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RetryProgramGoogleSheetsSyncMutationVariables = {programId: number}
 
     /**
- * @summary Retry failed application and judging-response synchronization
+ * @summary Retry failed program-record synchronization
  */
 export const useRetryProgramGoogleSheetsSync = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryProgramGoogleSheetsSync>>, TError,RetryProgramGoogleSheetsSyncMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

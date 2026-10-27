@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetProgramGoogleSheetsStatusesQueryKey,
+  type ProgramGoogleSheetsExportCategories,
   useCreateProgramGoogleSheetsConnection,
   useGetProgramGoogleSheetsStatuses,
   useRetryProgramGoogleSheetsSync,
+  useUpdateProgramGoogleSheetsCategories,
 } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
@@ -41,7 +43,9 @@ export function GoogleSheetsPage() {
   });
   const createConnection = useCreateProgramGoogleSheetsConnection();
   const retrySync = useRetryProgramGoogleSheetsSync();
+  const updateCategories = useUpdateProgramGoogleSheetsCategories();
   const [feedback, setFeedback] = useState<Record<number, ActionFeedback>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<number, ProgramGoogleSheetsExportCategories>>({});
   const statuses = statusesQuery.data ?? [];
 
   const connect = (programId: number) => {
@@ -54,7 +58,7 @@ export function GoogleSheetsPage() {
       onSuccess: () => {
         setFeedback(current => ({
           ...current,
-          [programId]: { kind: 'success', message: copy('Workbook synchronization has been queued. Existing and new data are updating.', 'تمت جدولة مزامنة جدول البيانات. يجري تحديث البيانات الحالية والجديدة.') },
+          [programId]: { kind: 'success', message: copy('Workbook refresh queued. Enabled categories are updating.', 'تمت جدولة تحديث جدول البيانات. يجري تحديث الفئات المفعّلة.') },
         }));
         void queryClient.invalidateQueries({ queryKey });
       },
@@ -96,6 +100,44 @@ export function GoogleSheetsPage() {
     });
   };
 
+  const changeCategory = (programId: number, current: ProgramGoogleSheetsExportCategories, key: keyof ProgramGoogleSheetsExportCategories, value: boolean) => {
+    setCategoryDrafts(drafts => ({
+      ...drafts,
+      [programId]: { ...(drafts[programId] ?? current), [key]: value },
+    }));
+    setFeedback(currentFeedback => {
+      const next = { ...currentFeedback };
+      delete next[programId];
+      return next;
+    });
+  };
+
+  const saveCategories = (programId: number, categories: ProgramGoogleSheetsExportCategories) => {
+    updateCategories.mutate({ programId, data: { exportCategories: categories } }, {
+      onSuccess: () => {
+        setCategoryDrafts(drafts => {
+          const next = { ...drafts };
+          delete next[programId];
+          return next;
+        });
+        setFeedback(current => ({
+          ...current,
+          [programId]: { kind: 'success', message: copy('Export choices saved. The selected data is being refreshed.', 'تم حفظ خيارات التصدير. يجري تحديث البيانات المحددة.') },
+        }));
+        void queryClient.invalidateQueries({ queryKey });
+      },
+      onError: error => setFeedback(current => ({
+        ...current,
+        [programId]: {
+          kind: 'error',
+          message: error instanceof Error && error.message
+            ? error.message
+            : copy('Export choices could not be saved. Your previous settings are unchanged.', 'تعذر حفظ خيارات التصدير. لم تتغير الإعدادات السابقة.'),
+        },
+      })),
+    });
+  };
+
   return (
     <PaperSurface className="gs-page" style={getThemeStyle()} dir={ar ? 'rtl' : 'ltr'} data-testid="page-google-sheets">
       <header className="gs-hero">
@@ -113,8 +155,8 @@ export function GoogleSheetsPage() {
 
       <section className="gs-data-note" aria-label={copy('Synchronized data', 'البيانات التي تتم مزامنتها')} data-testid="note-google-sheets-data">
         <div className="gs-data-note-mark"><Check size={15} aria-hidden="true" /></div>
-          <p>{copy('Each workbook can include applications and judging, business and team records, program sessions and attendance, mentor reports and grant records, and staff and participant chat messages. Data syncs one way; changes in Sheets do not update the platform. Google sharing settings control who can read the workbook, including chat content.', 'يمكن أن يتضمن كل جدول بيانات الطلبات والتحكيم وسجلات الأعمال والفِرق والجلسات والحضور وتقارير المرشدين والمنح ورسائل المحادثة بين الموظفين والمشاركين. تتم المزامنة باتجاه واحد؛ ولا تؤدي التغييرات في Sheets إلى تحديث المنصة. وتحدد إعدادات المشاركة في Google من يمكنه قراءة جدول البيانات، بما في ذلك الرسائل.')}</p>
-          <p>{copy('For an existing workbook, select “Sync all data” to enable the additional tabs. Once enabled, they refresh automatically within about five minutes. Authentication credentials and private meeting links are never exported.', 'لجدول بيانات موجود، اختر «مزامنة جميع البيانات» لتفعيل علامات التبويب الإضافية. وبعد التفعيل، يتم تحديثها تلقائياً خلال نحو خمس دقائق. لا يتم تصدير بيانات اعتماد تسجيل الدخول أو روابط الاجتماعات الخاصة.')}</p>
+          <p>{copy('Choose which categories are included for each program below. Data syncs one way; changes in Sheets do not update the platform. These choices do not change Google sharing permissions.', 'اختر الفئات التي تريد تضمينها لكل برنامج أدناه. تتم المزامنة باتجاه واحد؛ ولا تؤدي التغييرات في Sheets إلى تحديث المنصة. لا تغيّر هذه الخيارات أذونات المشاركة في Google.')}</p>
+          <p>{copy('When chat export is on, private one-to-one conversations and business/team chats are included. Anyone who can open the workbook under its Google sharing settings can read those messages. Turning a category off removes its existing workbook data on the next successful sync. Sign-in credentials and private meeting links are never exported.', 'عند تفعيل تصدير المحادثات، تُضمّن المحادثات الخاصة بين شخصين ومحادثات الأعمال والفِرق. يمكن لأي شخص يستطيع فتح جدول البيانات وفق إعدادات المشاركة في Google قراءة هذه الرسائل. يؤدي إيقاف فئة إلى حذف بياناتها الحالية من جدول البيانات عند نجاح المزامنة التالية. لا يتم تصدير بيانات اعتماد تسجيل الدخول أو روابط الاجتماعات الخاصة.')}</p>
       </section>
 
       <section className="gs-program-section" aria-labelledby="gs-programs-title">
@@ -157,6 +199,9 @@ export function GoogleSheetsPage() {
               const createdAt = formatDate(program.connectedAt, locale);
               const syncedAt = formatDate(program.lastSyncedAt, locale);
               const actionFeedback = feedback[program.programId];
+              const categories = categoryDrafts[program.programId] ?? program.exportCategories;
+              const categoriesDirty = Boolean(categoryDrafts[program.programId]);
+              const isSavingCategories = updateCategories.isPending && updateCategories.variables?.programId === program.programId;
 
               return (
                 <article className="gs-program-card" key={program.programId} data-testid={`card-google-sheets-program-${program.programId}`}>
@@ -178,7 +223,7 @@ export function GoogleSheetsPage() {
                       )}
                       {status !== 'not_connected' && (
                         <Button variant="text" onClick={() => connect(program.programId)} disabled={createConnection.isPending || retrySync.isPending} data-testid={`button-sync-all-google-sheets-${program.programId}`}>
-                          <RotateCw size={14} aria-hidden="true" />{isCreating ? copy('Queueing full sync…', 'جارٍ جدولة المزامنة الكاملة…') : copy('Sync all data', 'مزامنة جميع البيانات')}
+                          <RotateCw size={14} aria-hidden="true" />{isCreating ? copy('Queueing refresh…', 'جارٍ جدولة التحديث…') : copy('Refresh enabled data', 'تحديث البيانات المفعّلة')}
                         </Button>
                       )}
                       {status === 'needs_attention' && (
@@ -210,6 +255,42 @@ export function GoogleSheetsPage() {
                       <div className="gs-last-sync"><span className="gs-detail-label">{copy('LAST SYNC', 'آخر مزامنة')}</span><strong data-testid={`text-google-sheets-last-synced-${program.programId}`}>{syncedAt ?? copy('Not synced yet', 'لم تتم المزامنة بعد')}</strong></div>
                     </div>
                   </div>
+
+                  <fieldset className="gs-categories" data-testid={`fieldset-google-sheets-categories-${program.programId}`}>
+                    <legend>{copy('Data included in this workbook', 'البيانات المُدرجة في جدول البيانات')}</legend>
+                    <div className="gs-category-options">
+                      {([
+                        ['businessTeam', 'Business and team records', 'سجلات الأعمال والفِرق'],
+                        ['operations', 'Program operations', 'عمليات البرنامج'],
+                        ['mentoringGrants', 'Mentoring and grants', 'الإرشاد والمنح'],
+                        ['chats', 'Chats, including private conversations', 'المحادثات، بما فيها الخاصة'],
+                      ] as const).map(([key, english, arabic]) => (
+                        <label className="gs-category-option" key={key}>
+                          <input
+                            type="checkbox"
+                            checked={categories[key]}
+                            disabled={status === 'not_connected' || isSavingCategories}
+                            onChange={event => changeCategory(program.programId, categories, key, event.currentTarget.checked)}
+                            data-testid={`checkbox-google-sheets-category-${key}-${program.programId}`}
+                          />
+                          <span>{copy(english, arabic)}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {categories.chats && <p className="gs-category-warning" data-testid={`warning-google-sheets-private-chat-${program.programId}`}>
+                      {copy('Private conversations are included. Workbook readers can read these messages under the existing Google sharing settings.', 'تُضمّن المحادثات الخاصة. يمكن لقراء جدول البيانات الاطلاع على هذه الرسائل وفق إعدادات المشاركة الحالية في Google.')}
+                    </p>}
+                    {status === 'not_connected'
+                      ? <p className="gs-category-hint">{copy('Connect a workbook before changing its export categories.', 'اربط جدول بيانات قبل تغيير فئات التصدير.')}</p>
+                      : <Button
+                        variant="text"
+                        onClick={() => saveCategories(program.programId, categories)}
+                        disabled={!categoriesDirty || isSavingCategories}
+                        data-testid={`button-save-google-sheets-categories-${program.programId}`}
+                      >
+                        {isSavingCategories ? copy('Saving choices…', 'جارٍ حفظ الخيارات…') : copy('Save export choices', 'حفظ خيارات التصدير')}
+                      </Button>}
+                  </fieldset>
 
                   {program.status === 'needs_attention' && (
                     <div className="gs-program-error" role="alert" data-testid={`error-google-sheets-program-${program.programId}`}>
