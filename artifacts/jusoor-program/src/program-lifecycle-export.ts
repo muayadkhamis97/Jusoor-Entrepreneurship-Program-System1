@@ -104,6 +104,7 @@ function affectedDisconnectResource(event: IntegrationDisconnectAuditHistory[num
   if (event.integrationType === 'program_google_sheets') {
     return event.programName || `Program #${event.programId ?? ''}`;
   }
+  if (event.affectedAccountEmail) return `Shared Zoom connection: ${event.affectedAccountEmail}`;
   return 'Shared Zoom connection';
 }
 

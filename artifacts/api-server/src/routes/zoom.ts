@@ -32,6 +32,7 @@ import { queueZoomAttendanceSyncForMeeting } from "../lib/zoom-attendance";
 import {
   createZoomWebhookValidationResponse,
   createOrUpdateZoomMeeting,
+  getZoomAccountEmail,
   getZoomConnection,
   hasZoomOAuthConfiguration,
   revokeZoomAuthorization,
@@ -610,6 +611,12 @@ router.post(
       return;
     }
     try {
+      let affectedAccountEmail: string | null = null;
+      try {
+        affectedAccountEmail = await getZoomAccountEmail();
+      } catch {
+        // Identity lookup is best-effort; a failed lookup must not block revocation.
+      }
       await revokeZoomAuthorization();
       const staff = res.locals.staff as StaffAccess;
       await db.transaction(async (tx) => {
@@ -626,7 +633,7 @@ router.post(
           actorStaffId: staff.id,
           actorEmail: staff.email,
           affectedStaffId: null,
-          affectedAccountEmail: null,
+          affectedAccountEmail,
           programId: null,
           programName: null,
         });

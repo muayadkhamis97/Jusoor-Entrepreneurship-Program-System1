@@ -34,6 +34,10 @@ type ZoomTokenResponse = {
   expires_in?: unknown;
 };
 
+type ZoomUserProfile = {
+  email?: unknown;
+};
+
 type ZoomMeeting = {
   id?: number | string;
   join_url?: unknown;
@@ -227,6 +231,19 @@ export async function getZoomConnection(): Promise<ZoomConnection | null> {
     .where(eq(zoomConnectionsTable.provider, "zoom"))
     .limit(1);
   return connection ?? null;
+}
+
+export async function getZoomAccountEmail(): Promise<string | null> {
+  const profile = await zoomRequest<ZoomUserProfile>("/users/me");
+  if (typeof profile.email !== "string") return null;
+  const email = profile.email.trim();
+  if (
+    email.length > 320 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  ) {
+    return null;
+  }
+  return email;
 }
 
 async function getAccessToken(): Promise<string> {

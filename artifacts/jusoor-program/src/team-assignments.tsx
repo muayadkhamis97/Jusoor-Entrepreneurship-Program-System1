@@ -207,6 +207,7 @@ function IntegrationDisconnectAuditHistory() {
       return event.affectedAccountEmail || `${t('Mentor account')} #${event.affectedStaffId}`;
     }
     if (event.integrationType === 'program_google_sheets') return event.programName || `${t('Program')} #${event.programId}`;
+    if (event.affectedAccountEmail) return `${t('Shared Zoom connection')}: ${event.affectedAccountEmail}`;
     return t('Shared Zoom connection');
   };
 

@@ -189,7 +189,7 @@ test('integration disconnect CSV includes timestamp, integration, affected resou
       actorStaffId: 2,
       actorEmail: 'admin@example.com',
       affectedStaffId: null,
-      affectedAccountEmail: null,
+      affectedAccountEmail: 'zoom-account@example.com',
       programId: null,
       programName: null,
       createdAt: '2026-10-16T12:14:00.000Z',
@@ -201,7 +201,7 @@ test('integration disconnect CSV includes timestamp, integration, affected resou
   assert.match(csv.slice(1), /^"Timestamp \(UTC\)","Integration","Affected mentor or program","Acting Admin"/);
   assert.match(csv, /"2026-10-14T10:12:00\.000Z","Mentor Google Calendar","mentor@example\.com","admin@example\.com"/);
   assert.match(csv, /"2026-10-15T11:13:00\.000Z","Program Google Sheets","Spring founders","mentor@example\.com \(Self\)"/);
-  assert.match(csv, /"2026-10-16T12:14:00\.000Z","Shared Zoom connection","Shared Zoom connection","admin@example\.com"/);
+  assert.match(csv, /"2026-10-16T12:14:00\.000Z","Shared Zoom connection","Shared Zoom connection: zoom-account@example\.com","admin@example\.com"/);
 });
 
 test('integration disconnect CSV neutralizes formula-like actor and resource values', () => {

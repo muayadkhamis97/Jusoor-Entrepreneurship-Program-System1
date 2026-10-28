@@ -15,6 +15,12 @@ let auditValues: Record<string, unknown> | undefined;
 let pendingAuditValues: Record<string, unknown> | undefined;
 let auditInsertFails = false;
 let providerCalls: Array<{ url: string; init?: RequestInit }> = [];
+let zoomProfileResponse: unknown = {
+  email: "zoom-account@example.test",
+  access_token: "must-not-be-persisted",
+  refresh_token: "must-not-be-persisted",
+  provider_payload: { account_owner: "not-an-audit-field" },
+};
 
 function replaceDbMethod(
   name: "select" | "insert" | "delete",
@@ -148,7 +154,8 @@ test("revokes Zoom authorization before removing the local connection", async ()
       where: async () => {
         deleteCalls += 1;
         assert.equal(table, zoomConnectionsTable);
-        assert.equal(providerCalls.length, 1);
+        assert.equal(providerCalls.length, 2);
+        assert.equal(providerCalls[1]?.url, "https://zoom.us/oauth/revoke");
         connection = null;
       },
     }),
@@ -189,22 +196,37 @@ test("revokes Zoom authorization before removing the local connection", async ()
   pendingAuditValues = undefined;
   auditInsertFails = false;
   providerCalls = [];
+  zoomProfileResponse = {
+    email: "zoom-account@example.test",
+    access_token: "must-not-be-persisted",
+    refresh_token: "must-not-be-persisted",
+    provider_payload: { account_owner: "not-an-audit-field" },
+  };
   await saveZoomConnection({
     accessToken: "zoom-access-token",
     refreshToken: "zoom-refresh-token",
     expiresIn: 3600,
   }, 7);
   globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
-    providerCalls.push({ url: String(input), init });
+    const url = String(input);
+    providerCalls.push({ url, init });
+    if (url === "https://api.zoom.us/v2/users/me") {
+      if (zoomProfileResponse === null) return new Response(null, { status: 503 });
+      return new Response(JSON.stringify(zoomProfileResponse), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
     return new Response(null, { status: 200 });
   }) as typeof fetch;
 
   try {
     const response = await requestDisconnect();
     assert.equal(response.status, 204);
-    assert.equal(providerCalls.length, 1);
-    assert.equal(providerCalls[0]?.url, "https://zoom.us/oauth/revoke");
-    assert.match(String(providerCalls[0]?.init?.body), /zoom-refresh-token/);
+    assert.equal(providerCalls.length, 2);
+    assert.equal(providerCalls[0]?.url, "https://api.zoom.us/v2/users/me");
+    assert.equal(providerCalls[1]?.url, "https://zoom.us/oauth/revoke");
+    assert.match(String(providerCalls[1]?.init?.body), /zoom-refresh-token/);
     assert.equal(deleteCalls, 1);
     assert.equal(connection, null);
     assert.deepEqual(auditValues, {
@@ -213,10 +235,29 @@ test("revokes Zoom authorization before removing the local connection", async ()
       actorStaffId: 7,
       actorEmail: "coordinator@example.test",
       affectedStaffId: null,
-      affectedAccountEmail: null,
+      affectedAccountEmail: "zoom-account@example.test",
       programId: null,
       programName: null,
     });
+    assert.doesNotMatch(JSON.stringify(auditValues), /must-not-be-persisted|provider_payload/);
+
+    await saveZoomConnection({
+      accessToken: "zoom-access-token",
+      refreshToken: "zoom-refresh-token",
+      expiresIn: 3600,
+    }, 7);
+    deleteCalls = 0;
+    auditValues = undefined;
+    pendingAuditValues = undefined;
+    providerCalls = [];
+    zoomProfileResponse = null;
+
+    const unavailableIdentityResponse = await requestDisconnect();
+    assert.equal(unavailableIdentityResponse.status, 204);
+    assert.equal(providerCalls.length, 2);
+    assert.equal(deleteCalls, 1);
+    assert.equal(connection, null);
+    assert.equal(auditValues?.affectedAccountEmail, null);
 
     await saveZoomConnection({
       accessToken: "zoom-access-token",
@@ -231,10 +272,36 @@ test("revokes Zoom authorization before removing the local connection", async ()
 
     const failedResponse = await requestDisconnect();
     assert.equal(failedResponse.status, 502);
-    assert.equal(providerCalls.length, 1);
+    assert.equal(providerCalls.length, 2);
     assert.equal(connection?.provider, "zoom");
     assert.equal(deleteCalls, 1);
     assert.equal(auditValues, undefined);
+
+    await saveZoomConnection({
+      accessToken: "zoom-access-token",
+      refreshToken: "zoom-refresh-token",
+      expiresIn: 3600,
+    }, 7);
+    deleteCalls = 0;
+    auditInsertFails = false;
+    providerCalls = [];
+    zoomProfileResponse = { email: "not-an-email" };
+
+    const unverifiedIdentityResponse = await requestDisconnect();
+    assert.equal(unverifiedIdentityResponse.status, 204);
+    assert.equal(providerCalls.length, 2);
+    assert.equal(deleteCalls, 1);
+    assert.equal(connection, null);
+    assert.deepEqual(auditValues, {
+      integrationType: "shared_zoom",
+      initiatorType: "admin",
+      actorStaffId: 7,
+      actorEmail: "coordinator@example.test",
+      affectedStaffId: null,
+      affectedAccountEmail: null,
+      programId: null,
+      programName: null,
+    });
   } finally {
     restoreDelete();
     restoreInsert();
@@ -275,6 +342,7 @@ test("keeps the local Zoom connection when provider revocation fails", async () 
   auditValues = undefined;
   pendingAuditValues = undefined;
   auditInsertFails = false;
+  zoomProfileResponse = { email: "zoom-account@example.test" };
   const { saveZoomConnection } = await import("../src/lib/zoom");
   deleteCalls = 0;
   await saveZoomConnection({
