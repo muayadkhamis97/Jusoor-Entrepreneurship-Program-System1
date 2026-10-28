@@ -4,6 +4,7 @@ export * from "./chat-messages";
 export * from "./chat-reads";
 export * from "./judging-forms";
 export * from "./judging-form-link-history";
+export * from "./judging-form-status-history";
 export * from "./judging-form-businesses";
 export * from "./judging-responses";
 export * from "./google-sheets";

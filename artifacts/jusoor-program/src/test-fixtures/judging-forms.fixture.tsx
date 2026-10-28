@@ -2,9 +2,10 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   getGetJudgingFormQueryKey, getListBusinessesQueryKey, getListJudgingFormLinkHistoryQueryKey, getListJudgingFormResponsesQueryKey,
+  getListJudgingFormStatusHistoryQueryKey,
   getListJudgingFormsQueryKey, getListProgramsQueryKey,
 } from '@workspace/api-client-react';
-import type { Business, JudgingFormDetail, JudgingFormSummary, JudgingResponsePage, Program } from '@workspace/api-client-react';
+import type { Business, JudgingFormDetail, JudgingFormStatusHistoryEntry, JudgingFormSummary, JudgingResponsePage, Program } from '@workspace/api-client-react';
 import { JudgingFormsPage } from '../judging-form-surfaces';
 import { LanguageProvider, LanguageToggle } from '../language';
 import '../index.css';
@@ -51,6 +52,10 @@ if (seed === 'coverage') {
   };
   client.setQueryData(getGetJudgingFormQueryKey(501), detail);
   client.setQueryData(getListJudgingFormLinkHistoryQueryKey(501), []);
+  const statusHistory: JudgingFormStatusHistoryEntry[] = [{
+    id: 1, actorEmail: 'coordinator@example.test', fromStatus: 'draft', toStatus: 'open', changedAt: created,
+  }];
+  client.setQueryData(getListJudgingFormStatusHistoryQueryKey(501), statusHistory);
   client.setQueryData(getListJudgingFormResponsesQueryKey(501), responses);
 }
 

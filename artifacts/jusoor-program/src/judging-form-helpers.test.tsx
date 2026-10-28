@@ -96,6 +96,14 @@ test('share-link replacement confirmation and feedback have Arabic translations'
   ]) assert.ok(hasArabicTranslation(message), message);
 });
 
+test('status-change history and its loading states have Arabic translations', () => {
+  for (const message of [
+    'STATUS CHANGE HISTORY', 'Status change history',
+    'New status changes show the staff identity and time. Earlier changes were not recorded. Share tokens are never included.',
+    'Loading status history…', 'Status history could not load.', 'No status changes have been recorded.',
+  ]) assert.ok(hasArabicTranslation(message), message);
+});
+
 test('judging forms navigation is limited to operational staff roles', () => {
   assert.ok(canAccessStaffNavigationPath('coordinator', '/judging-forms'));
   assert.ok(canAccessStaffNavigationPath('staff', '/judging-forms'));

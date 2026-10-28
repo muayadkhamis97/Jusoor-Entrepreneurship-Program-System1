@@ -4189,6 +4189,18 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/JudgingFormLinkHistoryEntry" } }
+  /staff/judging-forms/{formId}/status-history:
+    parameters:
+      - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listJudgingFormStatusHistory
+      summary: Read status changes and staff identities for an authorized form
+      responses:
+        "200":
+          description: Newest-first status history without share tokens
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/JudgingFormStatusHistoryEntry" } }
   /staff/judging-forms/{formId}/responses:
     parameters:
       - { name: formId, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -4488,6 +4500,15 @@ components:
         id: { type: integer }
         actorEmail: { type: string }
         replacedAt: { type: string, format: date-time }
+    JudgingFormStatusHistoryEntry:
+      type: object
+      required: [id, actorEmail, fromStatus, toStatus, changedAt]
+      properties:
+        id: { type: integer }
+        actorEmail: { type: string }
+        fromStatus: { type: string, enum: [draft, open, closed] }
+        toStatus: { type: string, enum: [draft, open, closed] }
+        changedAt: { type: string, format: date-time }
     PublicJudgingForm:
       type: object
       required: [id, title, instructions, programName, criteria, questions, businesses]

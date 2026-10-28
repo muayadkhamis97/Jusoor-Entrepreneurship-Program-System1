@@ -2,11 +2,12 @@ import { Router } from "express";
 import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import {
   CreateJudgingFormBody, CreateJudgingFormResponse, GetJudgingFormResponse, ListJudgingFormsResponse,
-  ListJudgingFormLinkHistoryResponse, ListJudgingFormResponsesQueryParams, ListJudgingFormResponsesResponse, UpdateJudgingFormBody,
+  ListJudgingFormLinkHistoryResponse, ListJudgingFormStatusHistoryResponse,
+  ListJudgingFormResponsesQueryParams, ListJudgingFormResponsesResponse, UpdateJudgingFormBody,
   UpdateJudgingFormResponse, UpdateJudgingFormStatusBody, UpdateJudgingFormStatusResponse,
   type JudgingFormInput,
 } from "@workspace/api-zod";
-import { businessesTable, db, judgingFormBusinessesTable, judgingFormLinkHistoryTable, judgingFormsTable, judgingResponsesTable, programsTable } from "@workspace/db";
+import { businessesTable, db, judgingFormBusinessesTable, judgingFormLinkHistoryTable, judgingFormStatusHistoryTable, judgingFormsTable, judgingResponsesTable, programsTable } from "@workspace/db";
 import { requireOperationsStaff, type StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import {
@@ -105,6 +106,12 @@ router.patch("/:formId/status", async (req, res) => {
       const businesses = await judgingBusinesses(form, tx, true);
       if (!businesses.length) throw new JudgingFormError(400, "No selected businesses remain in this program.");
     }
+    if (parsed.data.status !== form.status) {
+      await tx.insert(judgingFormStatusHistoryTable).values({
+        formId: id, actorStaffId: staff.id, actorEmail: staff.email,
+        fromStatus: form.status, toStatus: parsed.data.status,
+      });
+    }
     await tx.update(judgingFormsTable).set({
       status: parsed.data.status, publishedAt: form.publishedAt ?? new Date(), updatedAt: new Date(),
     }).where(eq(judgingFormsTable.id, id));
@@ -137,6 +144,19 @@ router.get("/:formId/link-history", async (req, res) => {
     .where(eq(judgingFormLinkHistoryTable.formId, form.id))
     .orderBy(desc(judgingFormLinkHistoryTable.id));
   res.json(ListJudgingFormLinkHistoryResponse.parse(rows));
+});
+router.get("/:formId/status-history", async (req, res) => {
+  const { form } = await staffJudgingForm(res.locals.staff as StaffAccess, Number(req.params.formId));
+  const rows = await db.select({
+    id: judgingFormStatusHistoryTable.id,
+    actorEmail: judgingFormStatusHistoryTable.actorEmail,
+    fromStatus: judgingFormStatusHistoryTable.fromStatus,
+    toStatus: judgingFormStatusHistoryTable.toStatus,
+    changedAt: judgingFormStatusHistoryTable.changedAt,
+  }).from(judgingFormStatusHistoryTable)
+    .where(eq(judgingFormStatusHistoryTable.formId, form.id))
+    .orderBy(desc(judgingFormStatusHistoryTable.id));
+  res.json(ListJudgingFormStatusHistoryResponse.parse(rows));
 });
 router.get("/:formId/responses", async (req, res) => {
   const { form } = await staffJudgingForm(res.locals.staff as StaffAccess, Number(req.params.formId));

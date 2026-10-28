@@ -122,6 +122,7 @@ import type {
   JudgingFormDetail,
   JudgingFormInput,
   JudgingFormLinkHistoryEntry,
+  JudgingFormStatusHistoryEntry,
   JudgingFormStatusInput,
   JudgingFormSummary,
   JudgingResponseInput,
@@ -17412,6 +17413,83 @@ export function useListJudgingFormLinkHistory<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListJudgingFormLinkHistoryQueryOptions(formId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListJudgingFormStatusHistoryUrl = (formId: number,) => {
+
+
+
+
+  return `/api/staff/judging-forms/${formId}/status-history`
+}
+
+/**
+ * @summary Read status changes and staff identities for an authorized form
+ */
+export const listJudgingFormStatusHistory = async (formId: number, options?: Parameters<typeof customFetch>[1]): Promise<JudgingFormStatusHistoryEntry[]> => {
+
+  return customFetch<JudgingFormStatusHistoryEntry[]>(getListJudgingFormStatusHistoryUrl(formId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListJudgingFormStatusHistoryQueryKey = (formId: number,) => {
+    return [
+    `/api/staff/judging-forms/${formId}/status-history`
+    ] as const;
+    }
+
+
+export const getListJudgingFormStatusHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listJudgingFormStatusHistory>>, TError = ErrorType<unknown>>(formId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormStatusHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListJudgingFormStatusHistoryQueryKey(formId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listJudgingFormStatusHistory>>> = ({ signal }) => listJudgingFormStatusHistory(formId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: formId !== null && formId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormStatusHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListJudgingFormStatusHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listJudgingFormStatusHistory>>>
+export type ListJudgingFormStatusHistoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read status changes and staff identities for an authorized form
+ */
+
+export function useListJudgingFormStatusHistory<TData = Awaited<ReturnType<typeof listJudgingFormStatusHistory>>, TError = ErrorType<unknown>>(
+ formId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listJudgingFormStatusHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListJudgingFormStatusHistoryQueryOptions(formId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

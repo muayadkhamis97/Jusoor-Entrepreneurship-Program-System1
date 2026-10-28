@@ -196,6 +196,32 @@ export interface JudgingFormLinkHistoryEntry {
   replacedAt: string;
 }
 
+export type JudgingFormStatusHistoryEntryFromStatus = typeof JudgingFormStatusHistoryEntryFromStatus[keyof typeof JudgingFormStatusHistoryEntryFromStatus];
+
+
+export const JudgingFormStatusHistoryEntryFromStatus = {
+  draft: 'draft',
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export type JudgingFormStatusHistoryEntryToStatus = typeof JudgingFormStatusHistoryEntryToStatus[keyof typeof JudgingFormStatusHistoryEntryToStatus];
+
+
+export const JudgingFormStatusHistoryEntryToStatus = {
+  draft: 'draft',
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface JudgingFormStatusHistoryEntry {
+  id: number;
+  actorEmail: string;
+  fromStatus: JudgingFormStatusHistoryEntryFromStatus;
+  toStatus: JudgingFormStatusHistoryEntryToStatus;
+  changedAt: string;
+}
+
 export interface PublicJudgingForm {
   id: number;
   title: string;

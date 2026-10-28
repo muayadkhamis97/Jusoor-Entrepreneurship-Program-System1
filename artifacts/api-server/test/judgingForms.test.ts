@@ -63,6 +63,9 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     const historyMigration = readFileSync(new URL("../../../lib/db/migrations/20261023_judging_form_link_history.sql", import.meta.url), "utf8")
       .replace(/^BEGIN;\s*/, "").replace(/COMMIT;\s*$/, "").replaceAll("CREATE TABLE ", "CREATE TEMP TABLE ");
     await client.query(historyMigration);
+    const statusHistoryMigration = readFileSync(new URL("../../../lib/db/migrations/20261028_judging_form_status_history.sql", import.meta.url), "utf8")
+      .replace(/^BEGIN;\s*/, "").replace(/COMMIT;\s*$/, "").replaceAll("CREATE TABLE ", "CREATE TEMP TABLE ");
+    await client.query(statusHistoryMigration);
     const isolated = drizzle(client);
     for (const key of ["select", "insert", "update", "delete"] as const) Object.defineProperty(db, key, { configurable: true, value: isolated[key].bind(isolated) });
     Object.defineProperty(db, "transaction", { configurable: true, value: async (callback: (tx: typeof isolated) => Promise<unknown>) => {
@@ -141,6 +144,16 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     const opened = await staff(`/${formId}/status`, "PATCH", { status: "open" });
     assert.equal(opened.status, 200);
     assert.equal((await opened.json()).shareToken, token);
+    const statusHistory = await staff(`/${formId}/status-history`);
+    assert.equal(statusHistory.status, 200);
+    const firstStatus = await statusHistory.json();
+    assert.equal(firstStatus.length, 1);
+    assert.deepEqual(
+      [firstStatus[0].actorEmail, firstStatus[0].fromStatus, firstStatus[0].toStatus],
+      ["staff@example.test", "draft", "open"],
+    );
+    assert.ok(Number.isFinite(Date.parse(firstStatus[0].changedAt)));
+    assert.ok(!JSON.stringify(firstStatus).includes(token));
     const publicResponse = await guest();
     assert.equal(publicResponse.status, 200);
     assert.equal(publicResponse.headers.get("cache-control"), "no-store");
@@ -260,6 +273,11 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     const coordinatorHistory = await (await staff(`/${foreignId}/link-history`, "GET", undefined, "coordinator")).json();
     assert.equal(coordinatorHistory.length, 1);
     assert.equal(coordinatorHistory[0].actorEmail, "admin@example.test");
+    const coordinatorStatusHistory = await (await staff(`/${foreignId}/status-history`, "GET", undefined, "coordinator")).json();
+    assert.equal(coordinatorStatusHistory.length, 1);
+    assert.equal(coordinatorStatusHistory[0].actorEmail, "admin@example.test");
+    assert.equal((await staff(`/${foreignId}/status-history`)).status, 404);
+    assert.equal((await staff(`/${formId}/status-history`, "GET", undefined, "judge")).status, 403);
     for (const role of ["judge", "mentor", "trainer"]) {
       assert.equal((await staff("", "GET", undefined, role)).status, 403);
       assert.equal((await staff("", "POST", definition, role)).status, 403);
@@ -282,6 +300,12 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
   });
   test("closing blocks new assessments, preserves retry receipts and never unlocks scoring rules", async () => {
     assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "closed" })).status, 200);
+    let statusHistory = await (await staff(`/${formId}/status-history`)).json();
+    assert.deepEqual(statusHistory.map((entry: any) => [entry.fromStatus, entry.toStatus]), [["open", "closed"], ["draft", "open"]]);
+    assert.deepEqual(statusHistory.map((entry: any) => entry.actorEmail), ["staff@example.test", "staff@example.test"]);
+    assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "closed" })).status, 200);
+    assert.equal(await (await staff(`/${formId}/status-history`)).json().then((rows: any[]) => rows.length), 2,
+      "repeating the current status does not create an audit event");
     assert.equal((await guest()).status, 410);
     assert.equal((await guest("POST", { ...assessment, judgeEmail: "other@example.test", clientSubmissionId: randomUUID() })).status, 410);
     const previousToken = token;
@@ -302,6 +326,10 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     assert.equal((await guest("POST", assessment)).status, 200);
     assert.equal((await staff(`/${formId}`, "PATCH", definition)).status, 409);
     assert.equal((await staff(`/${formId}/status`, "PATCH", { status: "open" })).status, 200);
+    statusHistory = await (await staff(`/${formId}/status-history`)).json();
+    assert.deepEqual(statusHistory.map((entry: any) => [entry.fromStatus, entry.toStatus]), [
+      ["closed", "open"], ["open", "closed"], ["draft", "open"],
+    ]);
     await client.query("DELETE FROM jusoor_businesses WHERE id=201");
     const afterBusinessRemoval = await (await staff(`/${formId}`)).json();
     assert.equal(afterBusinessRemoval.responseCount, 57, "historical assessment snapshots survive removed businesses");

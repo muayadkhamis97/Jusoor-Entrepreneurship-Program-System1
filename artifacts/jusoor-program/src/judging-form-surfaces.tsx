@@ -3,8 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { CircleAlert, ClipboardCopy, Eye, Lock, Plus, RefreshCw, Trash2, Trophy } from 'lucide-react';
 import {
-  getGetJudgingFormQueryKey, getListBusinessesQueryKey, getListJudgingFormLinkHistoryQueryKey, getListJudgingFormResponsesQueryKey, getListJudgingFormsQueryKey,
-  useCreateJudgingForm, useGetJudgingForm, useListBusinesses, useListJudgingFormLinkHistory, useListJudgingFormResponses, useListJudgingForms, useListPrograms,
+  getGetJudgingFormQueryKey, getListBusinessesQueryKey, getListJudgingFormLinkHistoryQueryKey, getListJudgingFormResponsesQueryKey, getListJudgingFormStatusHistoryQueryKey, getListJudgingFormsQueryKey,
+  useCreateJudgingForm, useGetJudgingForm, useListBusinesses, useListJudgingFormLinkHistory, useListJudgingFormResponses, useListJudgingFormStatusHistory, useListJudgingForms, useListPrograms,
   useRotateJudgingFormShareLink, useUpdateJudgingForm, useUpdateJudgingFormStatus,
 } from '@workspace/api-client-react';
 import type { JudgingFormDetail, JudgingFormSummary } from '@workspace/api-client-react';
@@ -97,6 +97,7 @@ function FormWorkspace({ formId }: { formId: number }) {
       {frozen && <StatusControls form={form} />}
     </div>
     {frozen ? <FrozenConfig form={form} /> : <FormEditor key={form.id} formId={form.id} initial={draftFromDetail(form)} />}
+    {frozen && <StatusHistoryPanel form={form} />}
     {frozen && <CoveragePanel form={form} />}
     <SharePanel form={form} />
     {frozen && <ResponsesPanel form={form} />}
@@ -131,6 +132,7 @@ function StatusControls({ form }: { form: JudgingFormDetail }) {
       await mutation.mutateAsync({ formId: form.id, data: { status: next } });
       void queryClient.invalidateQueries({ queryKey: getGetJudgingFormQueryKey(form.id) });
       void queryClient.invalidateQueries({ queryKey: getListJudgingFormsQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: getListJudgingFormStatusHistoryQueryKey(form.id) });
     } catch (caught) { setError(staffErrorMessage(errorStatus(caught), 'The form status could not be changed. Try again.')); }
   };
   return <div className="jf-status-controls">
@@ -139,6 +141,30 @@ function StatusControls({ form }: { form: JudgingFormDetail }) {
     </Button>
     <small className="field-hint">{t(next === 'closed' ? 'Closing keeps every response. You can reopen later.' : 'Reopening accepts responses again with the same locked questions.')}</small>
     {error && <div className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
+  </div>;
+}
+
+function StatusHistoryPanel({ form }: { form: JudgingFormDetail }) {
+  const history = useListJudgingFormStatusHistory(form.id, {
+    query: {
+      enabled: form.publishedAt !== null,
+      queryKey: getListJudgingFormStatusHistoryQueryKey(form.id),
+      refetchInterval: 30_000,
+    },
+  });
+  const statusName: Record<JudgingFormSummary['status'], string> = {
+    draft: 'Draft', open: 'Accepting responses', closed: 'Closed',
+  };
+  return <div className="panel jf-section jf-link-history" aria-label={t('Status change history')} data-testid="judging-status-history">
+    <div className="jf-section-head"><Typography as="h3" variant="label">{t('STATUS CHANGE HISTORY')}</Typography></div>
+    <p className="field-hint">{t('New status changes show the staff identity and time. Earlier changes were not recorded. Share tokens are never included.')}</p>
+    {history.isLoading ? <p className="field-hint" role="status">{t('Loading status history…')}</p>
+      : history.isError ? <LoadError message="Status history could not load." retry={() => void history.refetch()} />
+        : !history.data?.length ? <p className="field-hint">{t('No status changes have been recorded.')}</p>
+          : <ul className="jf-history-list">{history.data.map(entry => <li key={entry.id} data-testid={`judging-status-history-${entry.id}`}>
+            <span>{entry.actorEmail}<br /><small>{t(statusName[entry.fromStatus])} → {t(statusName[entry.toStatus])}</small></span>
+            <time dateTime={entry.changedAt}>{dateTime(entry.changedAt)}</time>
+          </li>)}</ul>}
   </div>;
 }
 

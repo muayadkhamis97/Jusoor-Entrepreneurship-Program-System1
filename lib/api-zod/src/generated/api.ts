@@ -6710,6 +6710,26 @@ export const ListJudgingFormLinkHistoryResponse = zod.array(ListJudgingFormLinkH
 
 
 /**
+ * @summary Read status changes and staff identities for an authorized form
+ */
+
+
+
+export const ListJudgingFormStatusHistoryParams = zod.object({
+  "formId": zod.coerce.number().int().min(1)
+})
+
+export const ListJudgingFormStatusHistoryResponseItem = zod.object({
+  "id": zod.int(),
+  "actorEmail": zod.string(),
+  "fromStatus": zod.enum(['draft', 'open', 'closed']),
+  "toStatus": zod.enum(['draft', 'open', 'closed']),
+  "changedAt": zod.coerce.date()
+})
+export const ListJudgingFormStatusHistoryResponse = zod.array(ListJudgingFormStatusHistoryResponseItem)
+
+
+/**
  * @summary Read private judging responses for an authorized form
  */
 

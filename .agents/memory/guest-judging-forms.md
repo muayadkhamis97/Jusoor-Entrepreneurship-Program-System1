@@ -14,3 +14,9 @@ Freeze the rubric and business selection after the first opening, including when
 **Why:** Changing a published scoring definition would make earlier and later assessments incomparable.
 
 **How to apply:** A new rubric needs a new form, not edits that reinterpret existing responses.
+
+Status-change audit history can identify the staff member and time only for changes recorded after tracking is introduced; earlier actor/timestamp data cannot be reconstructed.
+
+**Why:** Existing forms retain only their current status, not a record of past status transitions.
+
+**How to apply:** Do not invent or backfill historical actors or times. Make the tracking start limitation clear when reviewing history.
