@@ -24,6 +24,7 @@ else
   printf '\nNOTE: PostgreSQL integration tests are skipped. Set TEST_DATABASE_URL to a dedicated disposable PostgreSQL database with the application schema and run pnpm run test:api:integration to include them.\n'
   run_check "API package tests (database integration suites skipped)" pnpm run test:api
 fi
+run_check "Mentor request review-versus-withdrawal race test" pnpm run test:api:mentor-race
 run_check "Jusoor web unit tests" pnpm run test:web
 run_check "API production build" pnpm --filter @workspace/api-server run build
 run_check "Jusoor web production build" env PORT=19333 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/jusoor-program run build
