@@ -11,6 +11,8 @@ let db: typeof import("@workspace/db").db;
 let restoreSelect: (() => void) | undefined;
 let restoreTransaction: (() => void) | undefined;
 let staffRole = "coordinator";
+let actingStaffId = 1;
+let actingStaffEmail = "admin@example.test";
 let selectedMentor: {
   id: number;
   email: string;
@@ -46,6 +48,8 @@ function replaceDbMethod(name: "select" | "transaction", replacement: (...args: 
 
 beforeEach(() => {
   staffRole = "coordinator";
+  actingStaffId = 1;
+  actingStaffEmail = "admin@example.test";
   selectedMentor = {
     id: 27,
     email: "mentor@example.test",
@@ -121,7 +125,7 @@ before(async () => {
   const app = express();
   app.use(pinoHttp());
   app.use((_req, res, next) => {
-    res.locals.staff = { id: 1, email: "admin@example.test", role: staffRole };
+    res.locals.staff = { id: actingStaffId, email: actingStaffEmail, role: staffRole };
     next();
   });
   app.use("/api", staffRouter);
@@ -166,6 +170,25 @@ test("coordinator can disconnect a mentor calendar without changing the mentor's
     initiatorType: "admin",
     actorStaffId: 1,
     actorEmail: "admin@example.test",
+    affectedStaffId: 27,
+    affectedAccountEmail: "mentor@example.test",
+    programId: null,
+    programName: null,
+  });
+});
+
+test("Admin disconnect of their own mentor calendar remains Admin-initiated", async () => {
+  actingStaffId = 27;
+  actingStaffEmail = "mentor@example.test";
+
+  const response = await disconnectMentorCalendar();
+
+  assert.equal(response.status, 204);
+  assert.deepEqual(auditValues, {
+    integrationType: "mentor_google_calendar",
+    initiatorType: "admin",
+    actorStaffId: 27,
+    actorEmail: "mentor@example.test",
     affectedStaffId: 27,
     affectedAccountEmail: "mentor@example.test",
     programId: null,

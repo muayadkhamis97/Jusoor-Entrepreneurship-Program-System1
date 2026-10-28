@@ -244,7 +244,7 @@ function IntegrationDisconnectAuditHistory() {
                 <td>{new Date(event.createdAt).toLocaleString()}</td>
                 <td>{integrationLabel(event.integrationType)}</td>
                 <td>{affectedResource(event)}</td>
-                <td>{event.actorEmail}{event.initiatorType === 'self_service' ? ` (${t('Self')})` : ''}</td>
+                <td>{event.actorEmail} ({event.initiatorType === 'self_service' ? t('Self') : t('Admin')})</td>
               </tr>)}</tbody>
             </table>
           </div>}

@@ -304,7 +304,7 @@ test("returns 403 if the active mentor no longer exists when saving", async () =
   assert.deepEqual(await response.json(), { error: "Active mentor access is required." });
 });
 
-test("disconnect clears Google credentials and schedule link, then uses Calendly", async () => {
+test("mentor self-disconnect is recorded as self-service when actor and affected account match", async () => {
   updateValues = {};
   returnUpdatedMentor = true;
 

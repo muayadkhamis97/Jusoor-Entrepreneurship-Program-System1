@@ -109,12 +109,12 @@ function affectedDisconnectResource(event: IntegrationDisconnectAuditHistory[num
 }
 
 export function buildIntegrationDisconnectHistoryCsv(events: IntegrationDisconnectAuditHistory): string {
-  const headers = ['Timestamp (UTC)', 'Integration', 'Affected mentor or program', 'Acting Admin'];
+  const headers = ['Timestamp (UTC)', 'Integration', 'Affected mentor or program', 'Initiator'];
   const rows = events.map(event => [
     new Date(event.createdAt).toISOString(),
     integrationDisconnectLabel(event.integrationType),
     affectedDisconnectResource(event),
-    `${event.actorEmail}${event.initiatorType === 'self_service' ? ' (Self)' : ''}`,
+    `${event.actorEmail} (${event.initiatorType === 'self_service' ? 'Self' : 'Admin'})`,
   ]);
 
   return `\uFEFF${[headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
