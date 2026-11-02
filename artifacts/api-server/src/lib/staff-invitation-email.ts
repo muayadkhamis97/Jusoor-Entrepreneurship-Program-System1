@@ -9,6 +9,7 @@ export type StaffInvitationEmailInput = {
   email: string;
   role: StaffInvitationRole;
   programNames: string[];
+  resendRequestId?: string;
 };
 
 type EmailSender = (message: PlatformEmail) => Promise<void>;
@@ -65,7 +66,9 @@ export function buildStaffInvitationEmail(input: StaffInvitationEmailInput, bran
     subject: `${brand}: Your invitation to join the program team`,
     text,
     html,
-    idempotencyKey: `staff-invitation-${input.staffId}`,
+    idempotencyKey: input.resendRequestId
+      ? `staff-invitation-${input.staffId}-resend-${input.resendRequestId}`
+      : `staff-invitation-${input.staffId}`,
   };
 }
 

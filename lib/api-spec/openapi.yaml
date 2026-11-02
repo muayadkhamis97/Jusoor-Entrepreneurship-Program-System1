@@ -3402,6 +3402,36 @@ paths:
           description: Email already has an application or invitation for this program
         "503":
           description: Business-team assignment migration is not applied
+  /staff/participant-invitations/{id}/resend:
+    post:
+      operationId: resendParticipantInvitation
+      tags: [staff]
+      summary: Resend an invitation to an unlinked participant
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationEmailResendRequest"
+      responses:
+        "200":
+          description: Existing participant invitation resent or renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParticipantInvitation"
+        "400":
+          description: Invalid invitation
+        "403":
+          description: Admin access required
+        "404":
+          description: Invitation not found
+        "409":
+          description: Participant already has an account or the program is archived
+        "503":
+          description: Invitation email delivery failed
   /staff/mentor-booking-status:
     get:
       operationId: getMentorBookingStatus
@@ -3558,6 +3588,36 @@ paths:
           description: Invitation email delivery failed
         "403":
           description: Coordinator role required
+  /staff/{id}/resend-invitation-email:
+    post:
+      operationId: resendStaffInvitationEmail
+      tags: [staff]
+      summary: Resend an invitation to an unlinked staff member
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationEmailResendRequest"
+      responses:
+        "200":
+          description: Current staff access and invitation email delivery status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffMember"
+        "400":
+          description: Staff account is no longer awaiting an invitation
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Staff member not found
+        "409":
+          description: Staff invitation is not available for resend
+        "503":
+          description: Invitation email delivery failed
   /programs/{programId}/team-assignments:
     get:
       operationId: getProgramTeamAssignments
@@ -5651,6 +5711,11 @@ components:
         displayName: { type: string, minLength: 2, maxLength: 160 }
         businessId: { type: integer, minimum: 1 }
       required: [email, businessId]
+    InvitationEmailResendRequest:
+      type: object
+      properties:
+        requestId: { type: string, format: uuid }
+      required: [requestId]
     ParticipantAnnouncement:
       type: object
       properties:

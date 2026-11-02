@@ -19,6 +19,9 @@ import {
   GetProgramTeamAssignmentsResponse,
   GetStaffAssignmentHistoryQueryParams,
   ListStaffResponse,
+  ResendStaffInvitationEmailBody,
+  ResendStaffInvitationEmailParams,
+  ResendStaffInvitationEmailResponse,
   UpdateMentorBookingFollowUpBody,
   UpdateMentorBookingFollowUpParams,
   UpdateProgramStaffRolesBody,
@@ -1014,6 +1017,62 @@ router.post("/staff/:id/retry-invitation-email", requireCoordinator, async (req,
 
   const [memberWithAssignments] = await withProgramIds([updated]);
   res.json(CreateStaffResponse.parse(memberWithAssignments));
+});
+
+router.post("/staff/:id/resend-invitation-email", requireCoordinator, async (req, res): Promise<void> => {
+  const params = ResendStaffInvitationEmailParams.safeParse(req.params);
+  const body = ResendStaffInvitationEmailBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+
+  const [member] = await db.select().from(staffMembersTable)
+    .where(eq(staffMembersTable.id, params.data.id)).limit(1);
+  if (!member) {
+    res.status(404).json({ error: "Staff member not found." });
+    return;
+  }
+  if (member.status !== "invited") {
+    res.status(400).json({ error: "This staff account is no longer awaiting an invitation." });
+    return;
+  }
+  if (member.invitationEmailStatus !== "delivered" && member.invitationEmailStatus !== null) {
+    res.status(409).json({ error: "This staff invitation is not available for resend." });
+    return;
+  }
+  if (!["coordinator", "staff", "trainer", "mentor", "judge"].includes(member.role)) {
+    res.status(400).json({ error: "This staff invitation has an unsupported role." });
+    return;
+  }
+
+  const assignments = await db.select({ programId: staffProgramAssignmentsTable.programId })
+    .from(staffProgramAssignmentsTable)
+    .where(eq(staffProgramAssignmentsTable.staffId, member.id));
+  const programIds = assignments.map(({ programId }) => programId);
+  const programs = programIds.length > 0
+    ? await db.select({ id: programsTable.id, name: programsTable.name })
+      .from(programsTable).where(inArray(programsTable.id, programIds))
+    : [];
+
+  try {
+    await sendStaffInvitationEmail({
+      staffId: member.id,
+      email: member.email,
+      role: member.role as StaffInvitationRole,
+      programNames: programs.map(({ name }) => name),
+      resendRequestId: body.data.requestId,
+    });
+  } catch {
+    console.error("Staff invitation resend could not be confirmed", member.id);
+    res.status(503).json({
+      error: "The resend could not be confirmed. Check the connected Gmail account before trying again.",
+    });
+    return;
+  }
+
+  const [memberWithAssignments] = await withProgramIds([member]);
+  res.json(ResendStaffInvitationEmailResponse.parse(memberWithAssignments));
 });
 
 router.patch("/staff/:id", requireCoordinator, async (req, res): Promise<void> => {

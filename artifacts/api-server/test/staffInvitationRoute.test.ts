@@ -101,6 +101,16 @@ async function postRetryInvitation(staffId: number): Promise<Response> {
   });
 }
 
+async function postResendInvitation(staffId: number, body: unknown): Promise<Response> {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return fetch(`http://127.0.0.1:${address.port}/api/staff/${staffId}/resend-invitation-email`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 function resetState() {
   staffMembers.length = 0;
   staffAssignments.length = 0;
@@ -183,10 +193,11 @@ before(async () => {
       return new Response(JSON.stringify({}));
     }
     if (path.endsWith("/messages/send")) {
-      assert.equal(
-        staffMembers[0]?.invitationEmailStatus,
-        "pending",
-        "delivery is recorded as pending before the Gmail send is attempted",
+      assert.ok(
+        staffMembers[0]?.invitationEmailStatus === "pending" ||
+          staffMembers[0]?.invitationEmailStatus === "delivered" ||
+          staffMembers[0]?.invitationEmailStatus === null,
+        "new invitations are pending while explicit resends preserve the recorded status",
       );
       const raw = (options?.body as { raw: string }).raw;
       const decoded = Buffer.from(raw, "base64url").toString("utf8");
@@ -308,4 +319,51 @@ test("specialist-role invitation clearly reports the missing role schema before 
   assert.equal(staffMembers.length, 0);
   assert.equal(insertAttempts.length, 0);
   assert.equal(connectorCalls.length, 0);
+});
+
+test("Admin can resend a delivered staff invitation without changing access status", async () => {
+  resetState();
+  failNextSend = false;
+  staffMembers.push({
+    id: 8,
+    email: "mentor@example.test",
+    role: "mentor",
+    status: "invited",
+    invitationEmailStatus: "delivered",
+    createdAt: new Date("2026-10-17T12:00:00.000Z"),
+  });
+
+  const response = await postResendInvitation(8, {
+    requestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0",
+  });
+  const result = await response.json();
+
+  assert.equal(response.status, 200, JSON.stringify(result));
+  assert.equal(result.invitationEmailStatus, "delivered");
+  assert.equal(staffMembers[0]?.invitationEmailStatus, "delivered");
+  assert.equal(sendMessageIds.length, 1);
+  assert.equal(successfulDeliveries.length, 1);
+  assert.match(sendMessageIds[0] ?? "", /^[0-9a-f]{64}@platform\.invalid$/);
+});
+
+test("Admin can resend a legacy staff invitation without a recorded delivery status", async () => {
+  resetState();
+  failNextSend = false;
+  staffMembers.push({
+    id: 9,
+    email: "legacy.staff@example.test",
+    role: "staff",
+    status: "invited",
+    invitationEmailStatus: null,
+    createdAt: new Date("2026-10-17T12:00:00.000Z"),
+  });
+
+  const response = await postResendInvitation(9, {
+    requestId: "a7fb6a6b-3f8b-4615-91a9-5290b7682a21",
+  });
+  const result = await response.json();
+
+  assert.equal(response.status, 200, JSON.stringify(result));
+  assert.equal(result.invitationEmailStatus, null);
+  assert.equal(successfulDeliveries.length, 1);
 });

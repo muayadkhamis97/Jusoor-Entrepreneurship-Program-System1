@@ -5287,6 +5287,31 @@ export const CreateParticipantInvitationResponse = zod.object({
 
 
 /**
+ * @summary Resend an invitation to an unlinked participant
+ */
+export const ResendParticipantInvitationParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ResendParticipantInvitationBody = zod.object({
+  "requestId": zod.uuid()
+})
+
+export const ResendParticipantInvitationResponse = zod.object({
+  "id": zod.int(),
+  "email": zod.email(),
+  "participantName": zod.string(),
+  "programId": zod.int(),
+  "programName": zod.string(),
+  "businessId": zod.int(),
+  "businessName": zod.string(),
+  "status": zod.enum(['pending', 'active', 'expired']),
+  "createdAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
  */
 export const getMentorBookingStatusResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
@@ -5452,6 +5477,33 @@ export const RetryStaffInvitationEmailParams = zod.object({
 })
 
 export const RetryStaffInvitationEmailResponse = zod.object({
+  "id": zod.int(),
+  "email": zod.email(),
+  "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "primaryRole": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),
+  "status": zod.enum(['invited', 'active']),
+  "invitationEmailStatus": zod.union([zod.enum(['pending', 'delivered', 'failed']),zod.null()]),
+  "programIds": zod.array(zod.int()),
+  "programRoles": zod.array(zod.object({
+  "programId": zod.int(),
+  "role": zod.enum(['trainer', 'mentor', 'judge'])
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Resend an invitation to an unlinked staff member
+ */
+export const ResendStaffInvitationEmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ResendStaffInvitationEmailBody = zod.object({
+  "requestId": zod.uuid()
+})
+
+export const ResendStaffInvitationEmailResponse = zod.object({
   "id": zod.int(),
   "email": zod.email(),
   "role": zod.enum(['coordinator', 'staff', 'trainer', 'mentor', 'judge']),

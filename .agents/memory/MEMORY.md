@@ -25,6 +25,7 @@
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
 - [Announcement email safety](announcement-email-safety.md) — Opt in per message, snapshot accepted recipients at publication, and hold ambiguous Gmail outcomes rather than risk duplicate sends.
+- [Invitation resend safety](invitation-resend-safety.md) — Give each explicit resend a distinct request ID; reuse it for retries and warn when Gmail delivery is uncertain.
 - [Mentor session targets](mentor-session-targets.md) — Each program sets a per-business 1:1 target; reports count toward it, and mentors can request more from authorized staff.
 - [Coaching and mentoring terminology](coaching-mentoring-terminology.md) — Coaching and mentoring refer to one service, not separate program categories.
 - [Schema drift and publishing](schema-drift-publishing.md) — Compare actual schemas with source; inspect composite-FK dependency order and stage prerequisite keys first if necessary.

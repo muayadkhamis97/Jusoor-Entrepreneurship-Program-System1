@@ -1872,6 +1872,10 @@ export interface ParticipantInvitationInput {
   businessId: number;
 }
 
+export interface InvitationEmailResendRequest {
+  requestId: string;
+}
+
 export type AnnouncementKind = typeof AnnouncementKind[keyof typeof AnnouncementKind];
 
 

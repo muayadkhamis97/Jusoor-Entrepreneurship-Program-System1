@@ -20,6 +20,7 @@ import { ClerkProvider, useAuth, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { arSA } from '@clerk/localizations';
+import { Button } from '@workspace/program-editorial/components/ui/button';
 import {
   getGetAuthMeQueryKey, getGetBusinessQueryKey, getGetDashboardQueryKey, getGetMentorBookingStatusQueryKey, getGetZoomStatusQueryKey, getListBusinessesQueryKey,
   getListPitchesQueryKey, getListProgramsQueryKey, getListSessionsQueryKey, getListStaffQueryKey, getListPitchJudgesQueryKey,
@@ -34,7 +35,7 @@ import {
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
    useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail, useCreateParticipantInvitation, useListParticipantInvitations,
-  useRetryStaffInvitationEmail,
+  useResendParticipantInvitation, useResendStaffInvitationEmail, useRetryStaffInvitationEmail,
 } from '@workspace/api-client-react';
 import type {
   Business, BusinessInput, BusinessStage, BusinessUpdate, MentorBookingStatus, MentorBookingFollowUpUpdate, PitchInput,
@@ -1150,6 +1151,8 @@ function TeamPage() {
   const create = useCreateStaff();
   const createParticipantInvitation = useCreateParticipantInvitation();
   const retryStaffInvitationEmail = useRetryStaffInvitationEmail();
+  const resendStaffInvitationEmail = useResendStaffInvitationEmail();
+  const resendParticipantInvitation = useResendParticipantInvitation();
   const update = useUpdateStaff();
   const remove = useDeleteStaff();
   const [editing, setEditing] = useState<StaffMember | null | undefined>(undefined);
@@ -1161,7 +1164,22 @@ function TeamPage() {
   } | null>(null);
   const [staffInviteSuccess, setStaffInviteSuccess] = useState(false);
   const [retryingStaffId, setRetryingStaffId] = useState<number | null>(null);
+  const [resendingStaffId, setResendingStaffId] = useState<number | null>(null);
+  const [resendingParticipantId, setResendingParticipantId] = useState<number | null>(null);
+  const [resendFeedback, setResendFeedback] = useState<{
+    kind: 'staff' | 'participant';
+    id: number;
+    success: boolean;
+  } | null>(null);
+  const resendRequestIds = useRef(new Map<string, string>());
   const [inviteInstructionsStatus, setInviteInstructionsStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const resendRequestIdFor = (key: string) => {
+    const existing = resendRequestIds.current.get(key);
+    if (existing) return existing;
+    const requestId = crypto.randomUUID();
+    resendRequestIds.current.set(key, requestId);
+    return requestId;
+  };
   const programAssignmentField: Field = {
     name: 'programIds',
     label: 'Assigned programs',
@@ -1257,13 +1275,38 @@ function TeamPage() {
             <td><span className={`role-label ${member.role === 'coordinator' ? 'role-coordinator' : ''}`}>{member.role === 'coordinator' ? <Shield size={13} /> : <Users size={13} />}{display(member.role)}</span></td>
             <td>{member.role === 'coordinator' ? t('All programs') : member.programIds.map(id => programNames.get(id) || `Archived program ${id}`).join(', ') || t('No active programs')}</td>
             <td><Badge value={member.status} label={member.status === 'invited' ? 'Account not linked' : 'Active'} /></td>
-            <td>{member.invitationEmailStatus
-              ? <div className="row-actions">
+            <td>
+              <div className="row-actions">
+                {member.invitationEmailStatus &&
                 <Badge
                   value={member.invitationEmailStatus}
                   label={t(member.invitationEmailStatus === 'delivered' ? 'Delivered' : member.invitationEmailStatus === 'failed' ? 'Failed' : 'Pending')}
-                />
-                {member.status === 'invited' && member.invitationEmailStatus !== 'delivered' && <button
+                />}
+                {member.status === 'invited' && (member.invitationEmailStatus === 'delivered' || member.invitationEmailStatus === null) && <Button
+                  variant="primary"
+                  className="shrink-0 px-3 py-2 text-[11px]"
+                  onClick={() => {
+                    const key = `staff:${member.id}`;
+                    setResendFeedback(null);
+                    setResendingStaffId(member.id);
+                    resendStaffInvitationEmail.mutate({ id: member.id, data: { requestId: resendRequestIdFor(key) } }, {
+                      onSuccess: () => {
+                        resendRequestIds.current.delete(key);
+                        setResendFeedback({ kind: 'staff', id: member.id, success: true });
+                        invalidate(client, [getListStaffQueryKey()]);
+                      },
+                      onError: () => {
+                        setResendFeedback({ kind: 'staff', id: member.id, success: false });
+                        invalidate(client, [getListStaffQueryKey()]);
+                      },
+                      onSettled: () => setResendingStaffId(null),
+                    });
+                  }}
+                  disabled={resendStaffInvitationEmail.isPending}
+                  aria-label={`${t('Resend invitation')} for ${member.email}`}
+                  data-testid={`button-resend-staff-invitation-${member.id}`}
+                >{resendingStaffId === member.id ? t('Resending…') : t('Resend invitation')}</Button>}
+                {member.status === 'invited' && member.invitationEmailStatus && member.invitationEmailStatus !== 'delivered' && <button
                   className="button button-quiet"
                   onClick={() => {
                     setRetryingStaffId(member.id);
@@ -1278,7 +1321,8 @@ function TeamPage() {
                   data-testid={`button-retry-staff-invitation-${member.id}`}
                 >{retryingStaffId === member.id ? t('Retrying…') : t('Retry email')}</button>}
               </div>
-              : '—'}</td>
+              {resendFeedback?.kind === 'staff' && resendFeedback.id === member.id && <small role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
+            </td>
             <td>{dateLabel(member.createdAt)}</td>
             <td><div className="row-actions align-right"><button className="icon-button" onClick={() => setEditing(member)} aria-label={`Change role for ${member.email}`} data-testid={`button-edit-staff-${member.id}`}><Pencil size={15} /></button><button className="icon-button icon-danger" onClick={() => setDeleting(member)} aria-label={`Revoke ${member.email}`} data-testid={`button-delete-staff-${member.id}`}><Trash2 size={15} /></button></div></td>
           </tr>)}
@@ -1296,12 +1340,42 @@ function TeamPage() {
       {participantInvitationsQuery.isLoading ? <LoadingState label="Loading participant invitations" /> :
         participantInvitationsQuery.isError ? <div className="form-error" role="alert"><CircleAlert size={16} /><span>{t('Could not load participant invitations.')}{participantListError?.data?.error ? ` ${t(participantListError.data.error)}` : ''}</span><button className="button button-quiet" onClick={() => void participantInvitationsQuery.refetch()}>{t('Retry')}</button></div> :
           participantInvitations.length === 0 ? <p className="empty-inline">{t('No invitations have been sent yet.')}</p> :
-            <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('PARTICIPANT')}</th><th>{t('PROGRAM / BUSINESS')}</th><th>{t('ACCOUNT')}</th><th>{t('ADDED')}</th></tr></thead><tbody>
+            <div className="table-wrap"><table><thead><tr><th>{t('EMAIL')}</th><th>{t('PARTICIPANT')}</th><th>{t('PROGRAM / BUSINESS')}</th><th>{t('ACCOUNT')}</th><th>{t('ADDED')}</th><th>{t('ACTIONS')}</th></tr></thead><tbody>
               {participantInvitations.map(invitation => <tr key={invitation.id} data-testid={`row-participant-invitation-${invitation.id}`}>
                 <td><b>{invitation.email}</b></td><td>{invitation.participantName}</td>
                 <td>{invitation.programName}<div className="table-secondary">{invitation.businessName}</div></td>
                 <td><Badge value={invitation.status} label={invitation.status === 'active' ? 'Joined' : invitation.status === 'expired' ? 'Expired' : 'Waiting for sign-in'} /></td>
                 <td>{dateLabel(invitation.createdAt)}</td>
+                <td>
+                  {invitation.status !== 'active' && <Button
+                    variant="primary"
+                    className="shrink-0 px-3 py-2 text-[11px]"
+                    onClick={() => {
+                      const key = `participant:${invitation.id}`;
+                      setResendFeedback(null);
+                      setResendingParticipantId(invitation.id);
+                      resendParticipantInvitation.mutate({
+                        id: invitation.id,
+                        data: { requestId: resendRequestIdFor(key) },
+                      }, {
+                        onSuccess: () => {
+                          resendRequestIds.current.delete(key);
+                          setResendFeedback({ kind: 'participant', id: invitation.id, success: true });
+                          invalidate(client, [getListParticipantInvitationsQueryKey()]);
+                        },
+                        onError: () => {
+                          setResendFeedback({ kind: 'participant', id: invitation.id, success: false });
+                          invalidate(client, [getListParticipantInvitationsQueryKey()]);
+                        },
+                        onSettled: () => setResendingParticipantId(null),
+                      });
+                    }}
+                    disabled={resendParticipantInvitation.isPending}
+                    aria-label={`${t('Resend invitation')} for ${invitation.email}`}
+                    data-testid={`button-resend-participant-invitation-${invitation.id}`}
+                  >{resendingParticipantId === invitation.id ? t('Resending…') : t('Resend invitation')}</Button>}
+                  {resendFeedback?.kind === 'participant' && resendFeedback.id === invitation.id && <small role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
+                </td>
               </tr>)}
             </tbody></table></div>}
     </section>

@@ -34,6 +34,7 @@ let applicationValues: Record<string, unknown> | undefined;
 let membershipValues: Record<string, unknown> | undefined;
 let invitationValues: Record<string, unknown> | undefined;
 let sentMessages: string[] = [];
+let linkedUserId: string | null = null;
 const originalSelect = Object.getOwnPropertyDescriptor(db, "select");
 const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
 const originalConnectorProxy = ReplitConnectors.prototype.proxy;
@@ -85,6 +86,9 @@ before(async () => {
         const query = {
           from(nextTable: unknown) {
             table = nextTable;
+            return query;
+          },
+          innerJoin() {
             return query;
           },
           where() {
@@ -200,6 +204,7 @@ beforeEach(() => {
   membershipValues = undefined;
   invitationValues = undefined;
   sentMessages = [];
+  linkedUserId = null;
 });
 
 after(async () => {
@@ -243,6 +248,15 @@ function rowsForTransaction(table: unknown): Record<string, unknown>[] {
   }
   if (table === participantInvitationsTable && !existingInvitationMissing && invitationValues) {
     return [{
+      id: 51,
+      email: applicationValues?.email,
+      participantName: applicationValues?.founderName,
+      programId: business.programId,
+      programName: "Spring Program",
+      programArchivedAt: null,
+      businessId: business.id,
+      businessName: business.businessName,
+      clerkUserId: linkedUserId,
       createdAt: invitationValues.createdAt,
       expiresAt: invitationValues.expiresAt,
     }];
@@ -257,6 +271,16 @@ async function invite(body: unknown): Promise<Response> {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return fetch(`http://127.0.0.1:${address.port}/api/staff/participant-invitations`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function resendInvitation(id: number, body: unknown): Promise<Response> {
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return fetch(`http://127.0.0.1:${address.port}/api/staff/participant-invitations/${id}/resend`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -338,6 +362,45 @@ test("a duplicate invitation reuses its record and does not send duplicate email
   assert.equal(response.status, 200);
   assert.equal((await response.json()).id, 51);
   assert.equal(sentMessages.length, 1, "same invitation delivery identity must not send a second email");
+});
+
+test("Admin can resend a participant invitation, renew an expired one, and stops after account linking", async () => {
+  const firstResponse = await invite({
+    email: "participant@example.test",
+    displayName: "Participant",
+    businessId: business.id,
+  });
+  const firstInvitation = await firstResponse.json();
+  assert.equal(firstResponse.status, 201);
+  duplicateApplication = true;
+
+  const requestId = "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0";
+  const resend = await resendInvitation(51, { requestId });
+  const resendBody = await resend.text();
+  assert.equal(resend.status, 200, resendBody);
+  const resentInvitation = JSON.parse(resendBody);
+  assert.equal(resentInvitation.expiresAt, firstInvitation.expiresAt, "a pending resend keeps its existing expiry");
+  assert.equal(sentMessages.length, 2);
+
+  invitationValues = {
+    applicationId: 51,
+    createdAt: new Date("2026-09-01T12:00:00.000Z"),
+    expiresAt: new Date("2026-10-01T12:00:00.000Z"),
+  };
+  const renewedResponse = await resendInvitation(51, {
+    requestId: "a7fb6a6b-3f8b-4615-91a9-5290b7682a21",
+  });
+  const renewed = await renewedResponse.json();
+  assert.equal(renewedResponse.status, 200, JSON.stringify(renewed));
+  assert.ok(Math.abs(new Date(renewed.expiresAt).getTime() - Date.now() - 30 * 24 * 60 * 60 * 1000) < 5_000);
+  assert.ok(new Date(renewed.createdAt).getTime() > new Date("2026-10-01T12:00:00.000Z").getTime());
+
+  linkedUserId = "user_linked";
+  const activeResponse = await resendInvitation(51, {
+    requestId: "00e0458f-cfc9-4ee4-beb1-39b450dc8f95",
+  });
+  assert.equal(activeResponse.status, 409);
+  assert.equal(sentMessages.length, 3, "linked participants do not receive another invitation");
 });
 
 test("an expired invitation can be renewed, while a non-invitation application remains a conflict", async () => {

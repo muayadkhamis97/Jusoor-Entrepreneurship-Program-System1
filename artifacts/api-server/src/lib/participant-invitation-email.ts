@@ -9,6 +9,7 @@ export type ParticipantInvitationEmailInput = {
   programName: string;
   businessName: string;
   expiresAt: Date;
+  resendRequestId?: string;
 };
 
 type EmailSender = (message: PlatformEmail) => Promise<void>;
@@ -55,7 +56,9 @@ export function buildParticipantInvitationEmail(
     subject: `${brand}: Your program invitation`,
     text,
     html,
-    idempotencyKey: `participant-invitation-${input.applicationId}-${input.expiresAt.getTime()}`,
+    idempotencyKey: input.resendRequestId
+      ? `participant-invitation-${input.applicationId}-resend-${input.resendRequestId}`
+      : `participant-invitation-${input.applicationId}-${input.expiresAt.getTime()}`,
   };
 }
 

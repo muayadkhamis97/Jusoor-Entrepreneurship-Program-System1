@@ -70,3 +70,18 @@ test("staff invitation safely includes the current Unicode brand in subject and 
   assert.match(message.text, /reply to this email/);
   assert.equal(message.idempotencyKey, "staff-invitation-46");
 });
+
+test("an explicit staff resend gets a stable, separate delivery identity", () => {
+  const input = {
+    staffId: 47,
+    email: "mentor@example.com",
+    role: "mentor" as const,
+    programNames: [],
+  };
+  const first = buildStaffInvitationEmail({ ...input, resendRequestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0" });
+  const retry = buildStaffInvitationEmail({ ...input, resendRequestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0" });
+  const nextResend = buildStaffInvitationEmail({ ...input, resendRequestId: "a7fb6a6b-3f8b-4615-91a9-5290b7682a21" });
+
+  assert.equal(first.idempotencyKey, retry.idempotencyKey);
+  assert.notEqual(first.idempotencyKey, nextResend.idempotencyKey);
+});

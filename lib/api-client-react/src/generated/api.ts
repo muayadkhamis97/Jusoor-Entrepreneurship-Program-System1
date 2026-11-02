@@ -116,6 +116,7 @@ import type {
   IntegrationApiRecordsResponse,
   IntegrationApiResource,
   IntegrationDisconnectAuditHistory,
+  InvitationEmailResendRequest,
   JudgeDashboard,
   JudgePitch,
   JudgeScorecardInput,
@@ -14026,6 +14027,95 @@ export const useCreateParticipantInvitation = <TError = ErrorType<void>,
       return useMutation(getCreateParticipantInvitationMutationOptions(options));
     }
 
+export const getResendParticipantInvitationUrl = (id: number,) => {
+
+
+
+
+  return `/api/staff/participant-invitations/${id}/resend`
+}
+
+/**
+ * @summary Resend an invitation to an unlinked participant
+ */
+export const resendParticipantInvitation = async (id: number,
+    invitationEmailResendRequest: InvitationEmailResendRequest, options?: Parameters<typeof customFetch>[1]): Promise<ParticipantInvitation> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ParticipantInvitation>(getResendParticipantInvitationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(invitationEmailResendRequest)
+  }
+);}
+
+
+
+
+
+export const getResendParticipantInvitationMutationKey = () => ['resendParticipantInvitation'] as const;
+
+export const getResendParticipantInvitationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendParticipantInvitation>>, TError,ResendParticipantInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendParticipantInvitation>>, TError,ResendParticipantInvitationMutationVariables, TContext> => {
+
+const mutationKey = getResendParticipantInvitationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendParticipantInvitation>>, ResendParticipantInvitationMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resendParticipantInvitation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendParticipantInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof resendParticipantInvitation>>>
+    export type ResendParticipantInvitationMutationBody = BodyType<InvitationEmailResendRequest>
+    export type ResendParticipantInvitationMutationError = ErrorType<void>
+    export type ResendParticipantInvitationMutationVariables = {id: number;data: BodyType<InvitationEmailResendRequest>}
+
+    /**
+ * @summary Resend an invitation to an unlinked participant
+ */
+export const useResendParticipantInvitation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendParticipantInvitation>>, TError,ResendParticipantInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendParticipantInvitation>>,
+        TError,
+        ResendParticipantInvitationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResendParticipantInvitationMutationOptions(options));
+    }
+
 export const getGetMentorBookingStatusUrl = () => {
 
 
@@ -14666,6 +14756,95 @@ export const useRetryStaffInvitationEmail = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRetryStaffInvitationEmailMutationOptions(options));
+    }
+
+export const getResendStaffInvitationEmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/staff/${id}/resend-invitation-email`
+}
+
+/**
+ * @summary Resend an invitation to an unlinked staff member
+ */
+export const resendStaffInvitationEmail = async (id: number,
+    invitationEmailResendRequest: InvitationEmailResendRequest, options?: Parameters<typeof customFetch>[1]): Promise<StaffMember> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StaffMember>(getResendStaffInvitationEmailUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(invitationEmailResendRequest)
+  }
+);}
+
+
+
+
+
+export const getResendStaffInvitationEmailMutationKey = () => ['resendStaffInvitationEmail'] as const;
+
+export const getResendStaffInvitationEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendStaffInvitationEmail>>, TError,ResendStaffInvitationEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendStaffInvitationEmail>>, TError,ResendStaffInvitationEmailMutationVariables, TContext> => {
+
+const mutationKey = getResendStaffInvitationEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendStaffInvitationEmail>>, ResendStaffInvitationEmailMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resendStaffInvitationEmail(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendStaffInvitationEmailMutationResult = NonNullable<Awaited<ReturnType<typeof resendStaffInvitationEmail>>>
+    export type ResendStaffInvitationEmailMutationBody = BodyType<InvitationEmailResendRequest>
+    export type ResendStaffInvitationEmailMutationError = ErrorType<void>
+    export type ResendStaffInvitationEmailMutationVariables = {id: number;data: BodyType<InvitationEmailResendRequest>}
+
+    /**
+ * @summary Resend an invitation to an unlinked staff member
+ */
+export const useResendStaffInvitationEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendStaffInvitationEmail>>, TError,ResendStaffInvitationEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendStaffInvitationEmail>>,
+        TError,
+        ResendStaffInvitationEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResendStaffInvitationEmailMutationOptions(options));
     }
 
 export const getGetProgramTeamAssignmentsUrl = (programId: number,) => {

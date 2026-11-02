@@ -48,3 +48,13 @@ test("participant invitation escapes its brand and keeps its original retry iden
   assert.match(message.text, /reply to this email/);
   assert.equal(message.idempotencyKey, "participant-invitation-42-1794830400000");
 });
+
+test("an explicit participant resend gets a stable, separate delivery identity", () => {
+  const first = buildParticipantInvitationEmail({ ...input, resendRequestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0" });
+  const retry = buildParticipantInvitationEmail({ ...input, resendRequestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0" });
+  const nextResend = buildParticipantInvitationEmail({ ...input, resendRequestId: "a7fb6a6b-3f8b-4615-91a9-5290b7682a21" });
+
+  assert.equal(first.idempotencyKey, retry.idempotencyKey);
+  assert.notEqual(first.idempotencyKey, nextResend.idempotencyKey);
+  assert.match(first.idempotencyKey, /resend-3e1346e6-b86f-4b7a-8f2a-521932ea1cc0$/);
+});

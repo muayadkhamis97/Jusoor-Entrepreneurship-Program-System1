@@ -4,6 +4,9 @@ import {
   CreateParticipantInvitationBody,
   CreateParticipantInvitationResponse,
   ListParticipantInvitationsResponse,
+  ResendParticipantInvitationBody,
+  ResendParticipantInvitationParams,
+  ResendParticipantInvitationResponse,
 } from "@workspace/api-zod";
 import {
   applicationsTable,
@@ -254,6 +257,111 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
     businessName: business.businessName,
     status: "pending",
     expiresAt: created.expiresAt,
+  }));
+});
+
+router.post("/staff/participant-invitations/:id/resend", requireCoordinator, async (req, res): Promise<void> => {
+  const params = ResendParticipantInvitationParams.safeParse(req.params);
+  const body = ResendParticipantInvitationBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  if (!(await invitationSchemaReady())) {
+    res.status(503).json({ error: "Participant invitations require the additive participant invitation migration." });
+    return;
+  }
+
+  const current = res.locals.staff as { id: number } | undefined;
+  const result = await db.transaction(async (tx) => {
+    const [record] = await tx.select({
+      id: applicationsTable.id,
+      email: applicationsTable.email,
+      participantName: applicationsTable.founderName,
+      programId: applicationsTable.programId,
+      programName: programsTable.name,
+      programArchivedAt: programsTable.archivedAt,
+      businessId: businessesTable.id,
+      businessName: businessesTable.businessName,
+      clerkUserId: applicationsTable.clerkUserId,
+      createdAt: participantInvitationsTable.createdAt,
+      expiresAt: participantInvitationsTable.expiresAt,
+    }).from(participantInvitationsTable)
+      .innerJoin(applicationsTable, eq(applicationsTable.id, participantInvitationsTable.applicationId))
+      .innerJoin(programsTable, eq(programsTable.id, applicationsTable.programId))
+      .innerJoin(businessesTable, eq(businessesTable.id, applicationsTable.businessId))
+      .where(eq(participantInvitationsTable.applicationId, params.data.id))
+      .limit(1)
+      .for("update");
+
+    if (!record) return { kind: "not-found" as const };
+    if (record.clerkUserId) return { kind: "already-active" as const };
+    if (record.programArchivedAt) return { kind: "archived" as const };
+
+    const now = new Date();
+    if (!isParticipantInvitationExpired(record.expiresAt, now)) {
+      return { kind: "ready" as const, record };
+    }
+
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const [renewed] = await tx.update(participantInvitationsTable)
+      .set({
+        invitedByStaffId: current?.id ?? null,
+        createdAt: now,
+        expiresAt,
+      })
+      .where(eq(participantInvitationsTable.applicationId, record.id))
+      .returning({
+        createdAt: participantInvitationsTable.createdAt,
+        expiresAt: participantInvitationsTable.expiresAt,
+      });
+    if (!renewed) return { kind: "not-found" as const };
+
+    return { kind: "ready" as const, record: { ...record, ...renewed } };
+  });
+
+  if (result.kind === "not-found") {
+    res.status(404).json({ error: "Participant invitation not found." });
+    return;
+  }
+  if (result.kind === "already-active") {
+    res.status(409).json({ error: "This participant already has an account." });
+    return;
+  }
+  if (result.kind === "archived") {
+    res.status(409).json({ error: "Invitations cannot be resent for an archived program." });
+    return;
+  }
+
+  try {
+    await sendParticipantInvitationEmail({
+      applicationId: result.record.id,
+      email: result.record.email,
+      participantName: result.record.participantName,
+      programName: result.record.programName,
+      businessName: result.record.businessName,
+      expiresAt: result.record.expiresAt,
+      resendRequestId: body.data.requestId,
+    });
+  } catch {
+    console.error("Participant invitation resend could not be confirmed", result.record.id);
+    res.status(503).json({
+      error: "The resend could not be confirmed. Check the connected Gmail account before trying again.",
+    });
+    return;
+  }
+
+  res.json(ResendParticipantInvitationResponse.parse({
+    id: result.record.id,
+    email: result.record.email,
+    participantName: result.record.participantName,
+    programId: result.record.programId,
+    programName: result.record.programName,
+    businessId: result.record.businessId,
+    businessName: result.record.businessName,
+    status: "pending",
+    createdAt: result.record.createdAt,
+    expiresAt: result.record.expiresAt,
   }));
 });
 

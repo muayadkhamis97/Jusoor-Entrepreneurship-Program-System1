@@ -169,6 +169,7 @@ export * from './integrationDisconnectAuditEvent';
 export * from './integrationDisconnectAuditEventInitiatorType';
 export * from './integrationDisconnectAuditEventIntegrationType';
 export * from './integrationDisconnectAuditHistory';
+export * from './invitationEmailResendRequest';
 export * from './judgeDashboard';
 export * from './judgePitch';
 export * from './judgeScorecardInput';
