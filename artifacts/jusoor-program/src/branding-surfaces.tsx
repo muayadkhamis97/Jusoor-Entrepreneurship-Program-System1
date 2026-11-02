@@ -93,6 +93,7 @@ export function BrandingPage() {
           '--preview-primary': form.primaryColor,
           '--preview-primary-foreground': `hsl(${getAccessibleBrandForeground(form.primaryColor)})`,
           '--preview-accent': form.accentColor,
+          '--preview-accent-foreground': `hsl(${getAccessibleBrandForeground(form.accentColor)})`,
           '--preview-sidebar': form.sidebarColor,
           '--preview-sidebar-foreground': getAccessiblePanelForeground(form.sidebarColor),
           '--preview-topbar': form.topbarColor,

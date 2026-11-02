@@ -52,8 +52,8 @@
 .button-primary,
 .ana-button.primary,
 .api-button-primary {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
 .button-outline,

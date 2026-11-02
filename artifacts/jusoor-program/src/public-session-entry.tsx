@@ -54,7 +54,7 @@ export function PublicSessionEntry({ mode, onAuthenticated }: { mode: 'landing' 
       socialButtonsVariant: 'blockButton' as const,
     },
     variables: {
-      colorPrimary: branding?.primaryColor || '#28665a',
+      colorPrimary: branding?.accentColor || '#d98a46',
       colorForeground: '#203744',
       colorMutedForeground: '#687c82',
       colorDanger: '#b85042',

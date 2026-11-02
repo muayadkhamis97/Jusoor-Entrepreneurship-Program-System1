@@ -1462,6 +1462,7 @@ function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'a
   const branding = brandingQuery.data;
   const brandName = getDisplayBrandName(branding?.brandName);
   const primaryColor = branding?.primaryColor || '#28665a';
+  const accentColor = branding?.accentColor || '#d98a46';
   const sidebarColor = branding?.sidebarColor || '#1f3445';
   const topbarColor = branding?.topbarColor || '#2d4453';
   useEffect(() => {
@@ -1478,10 +1479,12 @@ function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'a
     const sidebar = getPanelSurfaceColors(sidebarColor);
     const topbar = getPanelSurfaceColors(topbarColor);
     const foreground = getAccessibleBrandForeground(branding.primaryColor);
+    const accentForeground = getAccessibleBrandForeground(branding.accentColor);
     document.documentElement.style.setProperty('--primary', primaryHsl);
     document.documentElement.style.setProperty('--ring', primaryHsl);
     document.documentElement.style.setProperty('--accent', accentHsl);
     document.documentElement.style.setProperty('--primary-foreground', foreground);
+    document.documentElement.style.setProperty('--accent-foreground', accentForeground);
     document.documentElement.style.setProperty('--sidebar', toHsl(sidebar.background));
     document.documentElement.style.setProperty('--sidebar-foreground', toHsl(sidebar.foreground));
     document.documentElement.style.setProperty('--sidebar-primary', toHsl(sidebar.foreground));
@@ -1506,7 +1509,7 @@ function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'a
       socialButtonsVariant: 'blockButton' as const,
     },
     variables: {
-      colorPrimary: primaryColor,
+      colorPrimary: accentColor,
       colorForeground: '#203744',
       colorMutedForeground: '#687c82',
       colorDanger: '#b85042',

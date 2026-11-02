@@ -43,7 +43,7 @@
 .branding-preview-kicker{font:9px var(--app-font-mono);letter-spacing:.08em;color:var(--preview-primary)}
 .branding-preview-body h3{max-width:300px;margin:11px 0 7px;font:700 clamp(20px,2vw,27px)/1.15 var(--app-font-serif);letter-spacing:-.04em}
 .branding-preview-body p{margin:0 0 16px;color:hsl(var(--muted-foreground));font-size:11px;line-height:1.55}
-.branding-preview-body button{display:inline-flex;align-items:center;gap:7px;padding:9px 11px;border:0;border-radius:6px;background:var(--preview-primary);color:var(--preview-primary-foreground);font-size:10px;font-weight:700}
+.branding-preview-body button{display:inline-flex;align-items:center;gap:7px;padding:9px 11px;border:0;border-radius:6px;background:var(--preview-accent);color:var(--preview-accent-foreground);font-size:10px;font-weight:700}
 .branding-preview-body button svg{color:var(--preview-accent)}
 .branding-preview-swatches{display:flex;flex-wrap:wrap;gap:12px;padding:11px 15px;border-top:1px solid hsl(var(--border));color:hsl(var(--muted-foreground));font-size:9px}
 .branding-preview-swatches span{display:flex;align-items:center;gap:6px}.branding-preview-swatches i{width:11px;height:11px;border-radius:3px}

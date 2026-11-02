@@ -167,17 +167,27 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     });
     assert.deepEqual(focusStyle, { outlineStyle: 'solid', outlineWidth: '2px' }, 'Keyboard focus should use the shared visible focus ring.');
 
-    const primaryForeground = getAccessibleBrandForeground('#e8a33d');
-    await page.evaluate(({ primaryToken, accentToken, foreground }) => {
+    const primaryColor = '#713ab8';
+    const accentColor = '#e8a33d';
+    const primaryForeground = getAccessibleBrandForeground(primaryColor);
+    const accentForeground = getAccessibleBrandForeground(accentColor);
+    await page.evaluate(({ primaryToken, accentToken, foreground, accentForeground, accentHex }) => {
       document.documentElement.style.setProperty('--primary', primaryToken);
       document.documentElement.style.setProperty('--ring', primaryToken);
       document.documentElement.style.setProperty('--accent', accentToken);
       document.documentElement.style.setProperty('--primary-foreground', foreground);
+      document.documentElement.style.setProperty('--accent-foreground', accentForeground);
       document.documentElement.style.setProperty('--app-font-sans', 'Georgia, serif');
       const preview = document.querySelector('.branding-preview') as HTMLElement;
-      preview.style.setProperty('--preview-primary', '#e8a33d');
-      preview.style.setProperty('--preview-primary-foreground', `hsl(${foreground})`);
-    }, { primaryToken: hexToHslToken('#e8a33d'), accentToken: hexToHslToken('#713ab8'), foreground: primaryForeground });
+      preview.style.setProperty('--preview-accent', accentHex);
+      preview.style.setProperty('--preview-accent-foreground', `hsl(${accentForeground})`);
+    }, {
+      primaryToken: hexToHslToken(primaryColor),
+      accentToken: hexToHslToken(accentColor),
+      foreground: primaryForeground,
+      accentForeground,
+      accentHex: accentColor,
+    });
     const customTheme = await page.evaluate(() => {
       const primaryButton = document.querySelector('.workspace .button-primary')!;
       const secondaryButton = document.querySelector('.workspace .button-outline')!;
@@ -195,8 +205,22 @@ test('workspace, analytics, API and grant controls share the same design tokens'
       const iconStyle = getComputedStyle(iconButton);
       const fieldStyle = getComputedStyle(field);
       const rootStyle = getComputedStyle(document.documentElement);
+      const accentProbe = document.createElement('span');
+      accentProbe.style.backgroundColor = 'hsl(var(--accent))';
+      document.body.append(accentProbe);
+      const accentBackground = getComputedStyle(accentProbe).backgroundColor;
+      accentProbe.remove();
+      const previewAccentProbe = document.createElement('span');
+      previewAccentProbe.style.backgroundColor = 'var(--preview-accent)';
+      const preview = document.querySelector('.branding-preview')!;
+      preview.append(previewAccentProbe);
+      const previewAccentBackground = getComputedStyle(previewAccentProbe).backgroundColor;
+      previewAccentProbe.remove();
       return {
         primary: rootStyle.getPropertyValue('--primary').trim(),
+        accent: rootStyle.getPropertyValue('--accent').trim(),
+        accentBackground,
+        previewAccentBackground,
         buttonBackground: buttonStyle.backgroundColor,
         buttonForeground: buttonStyle.color,
         secondaryBackground: secondaryStyle.backgroundColor,
@@ -218,8 +242,11 @@ test('workspace, analytics, API and grant controls share the same design tokens'
         fieldFont: fieldStyle.fontFamily,
       };
     });
-    assert.equal(customTheme.primary, hexToHslToken('#e8a33d'), 'The fixture should apply a light custom brand primary.');
-    assert.ok(contrastRatio(customTheme.buttonForeground, customTheme.buttonBackground) >= 4.5, 'Custom primary-button text should meet WCAG AA contrast.');
+    assert.equal(customTheme.primary, hexToHslToken(primaryColor), 'The fixture should apply the custom brand primary.');
+    assert.equal(customTheme.accent, hexToHslToken(accentColor), 'The fixture should apply the light custom brand accent.');
+    assert.equal(customTheme.buttonBackground, customTheme.accentBackground, 'Primary actions should use the Accent color, not Primary.');
+    assert.equal(customTheme.previewBackground, customTheme.previewAccentBackground, 'The live branding preview should show Accent on its action button.');
+    assert.ok(contrastRatio(customTheme.buttonForeground, customTheme.buttonBackground) >= 4.5, 'Custom accent-button text should meet WCAG AA contrast.');
     assert.ok(contrastRatio(customTheme.secondaryForeground, customTheme.secondaryBackground) >= 4.5, 'Secondary-button text should remain readable with custom branding.');
     assert.ok(contrastRatio(customTheme.dangerForeground, customTheme.dangerBackground) >= 4.5, 'Destructive-button text should remain readable with custom branding.');
     assert.equal(customTheme.disabledOpacity, '1', 'Disabled controls should not fade their text and background together.');

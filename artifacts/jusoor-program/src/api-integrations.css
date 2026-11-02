@@ -133,8 +133,8 @@
 .api-secret-modal > p,.api-revoke-modal > p { margin:0 0 16px; color:var(--api-muted); font-size:11px; line-height:1.6; }
 .api-secret-value { display:flex; align-items:center; gap:9px; padding:9px; border:1px solid hsl(var(--primary) / .26); border-radius:6px; background:hsl(var(--primary) / .045); }
 .api-secret-value code { flex:1; min-width:0; overflow:auto; color:var(--api-ink); font:11px var(--app-font-mono); white-space:nowrap; }
-.api-secret-value button { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:6px; min-height:31px; padding:0 9px; border:0; border-radius:5px; color:hsl(var(--primary-foreground)); background:var(--api-teal); font-size:9px; font-weight:700; }
-.api-secret-value button.copied { background:hsl(var(--primary) / .85); }
+.api-secret-value button { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:6px; min-height:31px; padding:0 9px; border:0; border-radius:5px; color:hsl(var(--accent-foreground)); background:hsl(var(--accent)); font-size:9px; font-weight:700; }
+.api-secret-value button.copied { background:hsl(var(--accent) / .85); }
 .api-secret-warning { display:flex; gap:9px; margin-top:12px; padding:10px; border:1px solid hsl(var(--accent) / .25); border-radius:5px; color:var(--api-ink); background:hsl(var(--accent) / .07); font-size:9px; line-height:1.55; }
 .api-secret-warning svg { flex:none; color:hsl(var(--accent)); }
 .api-secret-warning b { color:var(--api-ink); }

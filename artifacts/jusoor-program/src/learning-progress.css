@@ -51,8 +51,8 @@
 .lp-button { display:inline-flex; justify-content:center; align-items:center; gap:7px; min-height:34px; padding:0 11px; border:1px solid transparent; border-radius:6px; font-size:9px; font-weight:700; cursor:pointer; transition:background .16s,border-color .16s,transform .16s; white-space:nowrap; }
 .lp-button:hover:not(:disabled) { transform:translateY(-1px); }
 .lp-button:disabled { opacity:.56; cursor:not-allowed; }
-.lp-button-primary { color:hsl(var(--primary-foreground)); background:var(--lp-teal); }
-.lp-button-primary:hover:not(:disabled) { background:hsl(var(--primary) / .88); }
+.lp-button-primary { color:hsl(var(--accent-foreground)); background:hsl(var(--accent)); }
+.lp-button-primary:hover:not(:disabled) { background:hsl(var(--accent) / .88); }
 .lp-button-outline { color:var(--lp-teal); border-color:hsl(var(--primary) / .25); background:var(--lp-card); }
 .lp-button-quiet { border-color:var(--lp-line); color:var(--lp-muted); background:transparent; }
 .lp-lower { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:12px; padding:0 20px 19px; }

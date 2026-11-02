@@ -4,6 +4,7 @@ type PublicBranding = {
   brandName?: string | null;
   logoUrl?: string | null;
   primaryColor?: string | null;
+  accentColor?: string | null;
 };
 
 export function usePublicBranding() {
