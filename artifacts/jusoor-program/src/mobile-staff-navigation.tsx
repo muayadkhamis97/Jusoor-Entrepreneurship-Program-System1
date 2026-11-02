@@ -32,7 +32,7 @@ export function MobileStaffNavigation({
           {items.map(({ href, label, icon: Icon }) => {
             const active = isStaffNavigationItemActive(currentPath, href);
             return <DropdownMenuItem asChild key={href}>
-              <Link href={href} aria-current={active ? 'page' : undefined} data-testid={`mobile-menu-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`}>
+              <Link href={href} title={t(label)} aria-current={active ? 'page' : undefined} data-testid={`mobile-menu-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`}>
                 <Icon size={16} aria-hidden="true" />
                 <span>{t(label)}</span>
               </Link>
@@ -47,6 +47,7 @@ export function MobileStaffNavigation({
             href={href}
             key={href}
             className={active ? 'mobile-active' : undefined}
+            title={t(label)}
             aria-current={active ? 'page' : undefined}
             data-testid={`mobile-nav-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`}
           >
@@ -56,7 +57,7 @@ export function MobileStaffNavigation({
         );
       })}
       <LanguageToggle />
-      <button type="button" className="mobile-signout" onClick={onSignOut}>
+      <button type="button" className="mobile-signout" title={t('Sign out')} onClick={onSignOut}>
         <LogOut size={17} aria-hidden="true" />
         <span>{t('Sign out')}</span>
       </button>

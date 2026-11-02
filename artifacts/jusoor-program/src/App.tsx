@@ -8,6 +8,7 @@ import './program-controls.css';
 import { PublicLanding } from './public-landing';
 import { getAccessibleBrandForeground, getPanelSurfaceColors } from './branding-contrast';
 import { sessionProgramField } from './session-form-requirements';
+import { installIconTooltipFallback } from './icon-tooltip-fallback';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
 import { lazy, Suspense, type ChangeEvent, type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -307,7 +308,7 @@ function Shell({ children, staff, displayName }: { children: ReactNode; staff: S
        <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
        <nav className="side-nav" aria-label={t('Main navigation')}>{nav.map(item => {
          const Icon = item.icon; const active = isStaffNavigationItemActive(path, item.href);
-         return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
+         return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} title={t(item.label)} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
       })}</nav>
       <div className="sidebar-bottom">
          <div className="sidebar-note"><Sparkles size={15} /><div><b>{t('One journey, in view.')}</b><span>{t('Move each founder forward.')}</span></div></div>
@@ -1574,6 +1575,7 @@ function AuthRouter() {
 }
 
 function App({ sessionProvided = false }: { sessionProvided?: boolean }) {
+  useEffect(() => installIconTooltipFallback(), []);
   const workspace = <TooltipProvider><Suspense fallback={<AuthLoading />}><ClerkApp sessionProvided={sessionProvided} /></Suspense></TooltipProvider>;
   return sessionProvided ? workspace : <LanguageProvider>{workspace}</LanguageProvider>;
 }
