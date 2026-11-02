@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import {
   ArrowRight, BookOpen, BriefcaseBusiness, CalendarDays, Check, ClipboardCheck,
-  FileText, Handshake, LockKeyhole, MessageCircle, Presentation, Shield,
-  UserRound, Users, Video, X,
+  FileText, Handshake, LockKeyhole, MessageCircle, Presentation, Shield, UserRound,
+  Users, X,
 } from 'lucide-react';
-import { t, useAppLanguage } from './language';
+import { currentLanguage, t, useAppLanguage } from './language';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 type RoleKey = 'coordinator' | 'staff' | 'participant' | 'trainer' | 'mentor' | 'judge';
@@ -104,6 +104,161 @@ const previewData: Record<RoleKey, { headline: string; note: string; items: { la
   },
 };
 
+const actualWorkspaceHeadings: Record<RoleKey, { kicker: string; title: string; description: string }> = {
+  coordinator: {
+    kicker: 'OPERATIONS / LIVE VIEW',
+    title: 'Good work, moving.',
+    description: 'A clear view of the founders, milestones and next moments in your program.',
+  },
+  staff: {
+    kicker: 'OPERATIONS / LIVE VIEW',
+    title: 'Good work, moving.',
+    description: 'A clear view of the founders, milestones and next moments in your program.',
+  },
+  participant: {
+    kicker: 'YOUR PROGRAM JOURNEY / PRIVATE VIEW',
+    title: 'Welcome,',
+    description: 'Your application status, upcoming sessions and support in one place.',
+  },
+  trainer: {
+    kicker: 'COHORT DELIVERY / TRAINER DESK',
+    title: 'The work, in motion.',
+    description: 'Your sessions, participant answers and open questions — together.',
+  },
+  mentor: {
+    kicker: 'FOUNDER ENABLEMENT / MENTOR DESK',
+    title: 'Support, with context.',
+    description: 'Your assigned engagements and the next useful step for each founder.',
+  },
+  judge: {
+    kicker: 'PITCH & DEMO DAY / JUDGE DESK',
+    title: 'A fair read, clearly scored.',
+    description: 'Review the ventures assigned to you and submit an individual scorecard for each.',
+  },
+};
+const previewUserName = 'Amina Saeed';
+const previewUserInitials = previewUserName.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+const previewSessionDate = new Date('2026-10-18T12:00:00');
+
+function PreviewBrand({ participant = false }: { participant?: boolean }) {
+  return <div className={participant ? 'intake-brand' : 'brand'} aria-label={t('Program Hub')}>
+    <span className="brand-mark" aria-hidden="true">J</span>
+    <span><b>{t('Program Hub')}</b><small>{t('PROGRAM HUB')}</small></span>
+  </div>;
+}
+
+function PreviewActions({ role, actions }: { role: RoleKey; actions: string[] }) {
+  return <div className="preview-actions" aria-label={t('Available actions')}>
+    {actions.map(action => <button type="button" disabled key={action} className="button button-quiet preview-action-button" data-testid={`preview-action-${role}-${slug(action)}`}>{t(action)}<ArrowRight size={12} /></button>)}
+  </div>;
+}
+
+function PreviewNote() {
+  return <div className="preview-bottom-note"><LockKeyhole size={13} /><span>{t('Preview only — illustrative data; actions disabled; no role access is granted.')}</span></div>;
+}
+
+function OperationsWorkspacePreview({ role, preview }: { role: RoleKey; preview: typeof previewData[RoleKey] }) {
+  const headings = actualWorkspaceHeadings[role];
+  const navigation = role === 'coordinator'
+    ? ['Overview', 'Businesses', 'Programs', 'Sessions', 'Analytics', 'Team']
+    : ['Overview', 'Businesses', 'Programs', 'Sessions', 'Support'];
+  return <div className="preview-operations-layout">
+    <aside className="preview-operations-sidebar" aria-label={t('Main navigation')}>
+      <PreviewBrand />
+      <div className="preview-operations-tag"><span />{t('PROGRAM OPERATIONS')}</div>
+      <nav className="preview-operations-nav">{navigation.map((label, index) => <div className={`preview-operations-nav-item ${index === 0 ? 'active' : ''}`} key={label}>
+        {index === 0 ? <BriefcaseBusiness size={13} /> : index === 1 ? <Users size={13} /> : index === 2 ? <BookOpen size={13} /> : index === 3 ? <CalendarDays size={13} /> : <MessageCircle size={13} />}
+        <span>{t(label)}</span>
+      </div>)}</nav>
+        <div className="preview-operations-profile"><span>{previewUserInitials}</span><div><b>{t(role === 'coordinator' ? 'Admin' : 'Program Staff')}</b><small>{t('Program team')}</small></div></div>
+    </aside>
+    <div className="preview-operations-main">
+      <div className="preview-operations-topbar"><div><span>{t('PROGRAM HUB')}</span><i>/</i><b>{t('Overview')}</b></div><div><CalendarDays size={12} />{t('Today')}<span className="preview-operations-role">{t(role === 'coordinator' ? 'ADMIN' : 'STAFF')}</span></div></div>
+      <nav className="preview-operations-mobile-nav" aria-label={t('Main navigation')}>{navigation.slice(0, 4).map(label => <span key={label}>{t(label)}</span>)}</nav>
+      <main className="preview-operations-content">
+        <header className="page-heading preview-workspace-heading" data-testid={`preview-heading-${role}`}>
+          <div><div className="eyebrow">{t(headings.kicker)}</div><h1 className="app-title">{t(headings.title)}</h1><p>{t(headings.description)}</p></div>
+        </header>
+        <section className="preview-operations-metrics" aria-label={t('Program overview')}>
+          {preview.items.map((item, index) => <article className="metric-card" key={item.label}>
+            <div className="metric-top"><span>{t(item.label)}</span><span className={`metric-icon metric-icon-${index}`}><BriefcaseBusiness size={13} /></span></div>
+            <b className="metric-value">{index === 0 ? '24' : index === 1 ? '8' : '3'}</b>
+            <span className="metric-bottom">{t(item.tag)}</span>
+          </article>)}
+        </section>
+        <section className="panel preview-operations-list">
+          <div className="preview-operations-list-head"><div><div className="eyebrow">{t('PROGRAM SNAPSHOT')}</div><h2>{t(preview.headline)}</h2></div><span>{t('ILLUSTRATIVE')}</span></div>
+          {preview.items.map(item => <div className="preview-operations-row" key={item.title}><span className="preview-operations-row-icon"><BriefcaseBusiness size={13} /></span><div><b>{translatePreviewCopy(item.title)}</b><small>{translatePreviewCopy(item.meta)}</small></div><span>{t(item.tag)}</span></div>)}
+          <PreviewActions role={role} actions={preview.actions} />
+        </section>
+      </main>
+    </div>
+  </div>;
+}
+
+function SpecialistWorkspacePreview({ role, preview }: { role: RoleKey; preview: typeof previewData[RoleKey] }) {
+  const headings = actualWorkspaceHeadings[role];
+  const previewLanguage = currentLanguage() === 'ar' ? 'EN' : 'AR';
+  const sectionTitle = role === 'trainer' ? 'Assigned sessions' : role === 'mentor' ? 'Your support engagements' : 'Founder presentations';
+  const sectionKicker = role === 'trainer' ? 'TEACHING CALENDAR' : role === 'mentor' ? 'YOUR ENGAGEMENTS' : 'YOUR SCORECARDS';
+  const first = preview.items[0];
+  return <div className="preview-specialist-shell">
+    <header className="preview-specialist-topbar">
+      <PreviewBrand />
+      <div className="preview-specialist-actions">
+        <button type="button" className="button button-quiet" disabled><Users size={12} />{t('All pages')}</button>
+        <span className="role-chip">{t(roles.find(item => item.id === role)!.title)}</span>
+        <span className="preview-specialist-user"><i>{previewUserInitials}</i><b>{previewUserName}</b></span>
+        <span className="preview-language">{previewLanguage}</span>
+        <button type="button" className="button button-quiet preview-signout" disabled>{t('Sign out')}</button>
+      </div>
+    </header>
+    <main className="preview-specialist-main">
+      <header className="role-heading preview-workspace-heading" data-testid={`preview-heading-${role}`}>
+        <div><div className="eyebrow">{t(headings.kicker)}</div><h1 className="app-title">{t(headings.title)}</h1><p>{t(headings.description)}</p></div>
+        <span className="role-count">{preview.items.length} {t(role === 'trainer' ? 'assigned sessions' : role === 'mentor' ? 'engagements' : 'assigned ventures')}</span>
+      </header>
+      <section className="role-feature-grid preview-specialist-feature">
+        <article className="role-feature"><div className="eyebrow">{t(role === 'trainer' ? 'UP NEXT' : role === 'mentor' ? 'NEXT STEP' : 'ASSIGNED PITCH')}</div><h2>{translatePreviewCopy(first.title)}</h2><p>{translatePreviewCopy(first.meta)}</p><button type="button" disabled className="button button-primary preview-specialist-feature-action">{t(preview.actions[0])}<ArrowRight size={12} /></button></article>
+        <article className="role-note"><Check size={16} /><div><b>{t(role === 'trainer' ? 'Participant responses' : role === 'mentor' ? 'Assigned support' : 'Your scorecards')}</b><span>{t(role === 'trainer' ? 'Review work and respond within your assigned sessions.' : role === 'mentor' ? 'Work only with founders assigned to you.' : 'Only assigned ventures appear in your judging workspace.')}</span></div></article>
+      </section>
+      <section className="role-section">
+        <div className="role-section-title"><div><div className="eyebrow">{t(sectionKicker)}</div><h2>{t(sectionTitle)}</h2></div></div>
+        <div className="role-list">{preview.items.slice(1).concat(preview.items.slice(0, 1)).map(item => <article className="role-row" key={item.title}>
+          <span className="role-date"><CalendarDays size={15} /></span>
+          <div className="role-row-copy"><b>{translatePreviewCopy(item.title)}</b><span>{translatePreviewCopy(item.meta)}</span></div>
+          <span className="badge badge-neutral"><span />{t(item.tag)}</span>
+        </article>)}</div>
+        <PreviewActions role={role} actions={preview.actions.slice(1)} />
+      </section>
+    </main>
+  </div>;
+}
+
+function ParticipantWorkspacePreview({ role, preview }: { role: RoleKey; preview: typeof previewData[RoleKey] }) {
+  const first = preview.items[0];
+  const previewLanguage = currentLanguage() === 'ar' ? 'EN' : 'AR';
+  return <div className="preview-participant-shell">
+    <header className="intake-top preview-participant-top">
+      <PreviewBrand participant />
+      <div className="intake-header-actions"><span className="preview-language">{previewLanguage}</span><span className="text-link">{t('Program hub')}<ArrowRight size={12} /></span></div>
+    </header>
+    <main className="participant-wrap preview-participant-main">
+      <header className="participant-header preview-workspace-heading" data-testid={`preview-heading-${role}`}>
+        <div><div className="eyebrow">{t(actualWorkspaceHeadings.participant.kicker)}</div><h1>{t(actualWorkspaceHeadings.participant.title)} {previewUserName.split(' ')[0]}.</h1><p>{t(actualWorkspaceHeadings.participant.description)}</p></div>
+      </header>
+      <section className="participant-program">
+        <div><div className="eyebrow">{t('YOUR PROGRAM')}</div><h3>{translatePreviewCopy(first.title)}</h3><p>{translatePreviewCopy(first.meta)}</p></div>
+        <div className="program-window"><span>{t('APPLICATION STATUS')}</span><b>{t(first.tag)}</b></div>
+      </section>
+      <section className="participant-grid preview-participant-grid">
+        <article className="participant-card"><h3>{t('Upcoming session')}</h3><div className="participant-entry"><span className="date-block"><b>{previewSessionDate.getDate()}</b><span>{previewSessionDate.toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></span><div className="participant-entry-copy"><b>{translatePreviewCopy(preview.items[1].title)}</b><span>{translatePreviewCopy(preview.items[1].meta)}</span><span className="participant-entry-links">{t('Join session')}</span></div></div></article>
+        <article className="participant-card"><h3>{t('Your next step')}</h3><div className="participant-stage"><span>{translatePreviewCopy(preview.items[2]?.title ?? preview.items[1].title)}</span><b>{t(preview.items[2]?.tag ?? preview.items[1].tag)}</b></div><div className="preview-participant-actions"><PreviewActions role={role} actions={preview.actions} /></div></article>
+      </section>
+    </main>
+  </div>;
+}
+
 function AccessMark({ value }: { value: Access }) {
   if (value === 'full') return <span className="access-mark access-yes"><Check size={13} /><span>{t('Allowed')}</span></span>;
   if (value === 'limited') return <span className="access-mark access-limited"><span className="access-dot" /><span>{t('Scoped')}</span></span>;
@@ -158,17 +313,13 @@ export function RoleAccessPage() {
         </TabsTrigger>)}
       </TabsList>
       <TabsContent value={selected} className="role-preview-tab mt-0 outline-none" aria-label={`${t(role.title)} ${t('workspace preview')}`} data-testid="panel-role-preview">
-      <article className="role-preview">
-        <div className="preview-window-top"><div className="preview-brand"><span className="brand-mark" aria-hidden="true" /><span><b>{t('Program Hub')}</b><small>{t('PROGRAM HUB')}</small></span></div><div className="preview-window-context"><span className="preview-window-dot" /> {t(role.title).toUpperCase()} {t('WORKSPACE')}</div><span className="preview-lock"><LockKeyhole size={13} /> {t('VISUAL PREVIEW')}</span></div>
-        <div className="preview-body">
-          <aside className="preview-rail"><span className="preview-rail-label">{t('WORKSPACE')}</span><div className="preview-nav-item active"><BriefcaseBusiness size={14} />{t(selected === 'participant' ? 'My journey' : selected === 'judge' ? 'Assigned pitches' : selected === 'mentor' ? 'My engagements' : selected === 'trainer' ? 'Cohort desk' : 'Overview')}</div><div className="preview-nav-item"><CalendarDays size={14} />{t(selected === 'participant' ? 'Sessions' : selected === 'judge' ? 'Scorecards' : selected === 'mentor' ? 'Schedule' : 'Program work')}</div><div className="preview-nav-item"><MessageCircle size={14} />{t(selected === 'trainer' || selected === 'participant' ? 'Questions' : 'Support')}</div><div className="preview-rail-rule" /><div className="preview-role-identity"><span>{t(role.title).split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{t(role.title)}</b><small>{t(role.kind)}</small></div></div></aside>
-          <div className="preview-workspace-content">
-            <div className="preview-workspace-heading"><div><div className="eyebrow">{t(preview.note).toUpperCase()}</div><h3>{t(preview.headline)}</h3></div><span className="illustrative-stamp">{t('ILLUSTRATIVE')}</span></div>
-            <div className="preview-item-list">{preview.items.map((item, index) => <div className="preview-item" key={item.title} data-testid={`preview-item-${selected}-${index}`}><span className={`preview-item-icon preview-tone-${index}`} aria-hidden="true">{selected === 'participant' && index === 1 ? <Video size={15} /> : selected === 'trainer' && index === 2 ? <ClipboardCheck size={15} /> : selected === 'judge' && index === 1 ? <Presentation size={15} /> : selected === 'mentor' && index === 1 ? <FileText size={15} /> : <BriefcaseBusiness size={15} />}</span><div className="preview-item-copy"><small>{t(item.label)}</small><b>{translatePreviewCopy(item.title)}</b><span>{translatePreviewCopy(item.meta)}</span></div><span className="preview-item-tag">{t(item.tag)}</span></div>)}</div>
-            <div className="preview-actions"><span>{t('AVAILABLE IN THIS ROLE')}</span><div>{preview.actions.map(action => <button type="button" disabled key={action} className="preview-action-button" data-testid={`preview-action-${selected}-${slug(action)}`}>{t(action)}<ArrowRight size={12} /></button>)}</div></div>
-          </div>
-        </div>
-        <div className="preview-bottom-note"><LockKeyhole size={13} /><span>{t('Preview only — illustrative data; actions disabled; no role access is granted.')}</span></div>
+      <article className={`role-preview role-preview-${selected}`}>
+        {selected === 'participant'
+          ? <ParticipantWorkspacePreview role={selected} preview={preview} />
+          : selected === 'trainer' || selected === 'mentor' || selected === 'judge'
+            ? <SpecialistWorkspacePreview role={selected} preview={preview} />
+            : <OperationsWorkspacePreview role={selected} preview={preview} />}
+        <PreviewNote />
       </article>
       </TabsContent>
       </Tabs>

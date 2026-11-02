@@ -92,20 +92,19 @@ test('Admin and participant workspaces render Arabic copy and RTL in an isolated
       );
     };
 
-    for (const [role, expectedHeadline] of [
-      ['coordinator', 'نظرة سريعة على عمليات البرنامج'],
-      ['staff', 'نظرة عامة على تنفيذ البرنامج'],
-      ['participant', 'رحلتك الريادية'],
-      ['trainer', 'مهام المجموعة المسندة'],
-      ['mentor', 'جلسات الدعم المسندة'],
-      ['judge', 'المشاريع المسندة للتقييم'],
-    ] as const) {
+    for (const role of ['coordinator', 'staff', 'participant', 'trainer', 'mentor', 'judge'] as const) {
       await page.getByTestId(`button-preview-${role}`).click();
-      await page.getByRole('heading', { name: expectedHeadline }).waitFor();
+      await page.getByTestId(`preview-heading-${role}`).waitFor();
       await assertWithinPhoneViewport(`[data-testid="button-preview-${role}"]`);
       await assertWithinPhoneViewport('[data-testid="panel-role-preview"]');
-      await assertWithinPhoneViewport('.preview-workspace-heading h3');
+      await assertWithinPhoneViewport(`[data-testid="preview-heading-${role}"]`);
       await assertWithinPhoneViewport(`.preview-action-button`);
+      const frameSelector = role === 'participant'
+        ? '.preview-participant-shell'
+        : role === 'trainer' || role === 'mentor' || role === 'judge'
+          ? '.preview-specialist-shell'
+          : '.preview-operations-layout';
+      assert.equal(await page.locator(`[data-testid="panel-role-preview"] ${frameSelector}`).count(), 1, `${role} should use the same workspace frame family as its real page.`);
       await assertNoDocumentHorizontalOverflow();
     }
 

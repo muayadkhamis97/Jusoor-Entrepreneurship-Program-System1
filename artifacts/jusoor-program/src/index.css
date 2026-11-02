@@ -128,14 +128,6 @@ body { @apply bg-background text-foreground font-sans antialiased; margin: 0; }
   right: auto;
   left: 9px;
 }
-[dir="rtl"] .preview-window-context {
-  margin-right: auto;
-  margin-left: 0;
-}
-[dir="rtl"] .preview-rail {
-  border-right: 0;
-  border-left: 1px solid hsl(var(--border));
-}
 [dir="rtl"] .ana-interval,
 [dir="rtl"] .ana-table { text-align: right; }
 [dir="rtl"] .ana-filter-title {

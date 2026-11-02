@@ -5,6 +5,7 @@ import { CommunicationsPage, ParticipantAnnouncements } from '../communications-
 import { LanguageProvider, LanguageToggle } from '../language';
 import { RoleAccessPage } from '../role-access';
 import '../index.css';
+import '../role-workspace.css';
 import '../role-access.css';
 import '../calendar-communications.css';
 
