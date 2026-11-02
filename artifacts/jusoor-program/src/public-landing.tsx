@@ -1,3 +1,4 @@
+import { type CSSProperties } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ShieldCheck } from 'lucide-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
@@ -5,15 +6,25 @@ import { Typography } from '@workspace/program-editorial/components/ui/typograph
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
 import { getDisplayBrandName, shouldShowBrandCaption, useAppLanguage } from './language';
+import { getBrandingThemeTokens } from './branding-contrast';
 import './public-landing.css';
 
-export function PublicLanding({ brandName, logoUrl }: { brandName?: string | null; logoUrl?: string | null }) {
+export function PublicLanding({ brandName, logoUrl, primaryColor, accentColor }: {
+  brandName?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+}) {
   const { language, toggleLanguage, t } = useAppLanguage();
   const [, navigate] = useLocation();
   const brand = getDisplayBrandName(brandName);
+  const themeStyle = {
+    ...getThemeStyle(),
+    ...getBrandingThemeTokens(primaryColor, accentColor),
+  } as CSSProperties;
 
   return (
-    <PaperSurface grain className="editorial-landing" style={getThemeStyle()}>
+    <PaperSurface grain className="editorial-landing" style={themeStyle}>
       <main lang={language} dir={language === 'ar' ? 'rtl' : 'ltr'}>
         <header className="editorial-top">
           <Link href="/" className="editorial-brand" aria-label={brand}>

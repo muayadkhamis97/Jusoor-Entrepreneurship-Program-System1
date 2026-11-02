@@ -4,6 +4,7 @@ import test from 'node:test';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
 import { tokens } from '@workspace/program-editorial/tokens';
 import { getDisplayBrandName, hasArabicTranslation, loadArabicTranslations } from './language';
+import { getAccessibleBrandForeground, getBrandingThemeTokens } from './branding-contrast';
 
 await loadArabicTranslations();
 
@@ -57,6 +58,17 @@ test('landing uses configured branding with a neutral fallback and package primi
   }
 });
 
+test('landing applies saved primary and accent colors with readable action text', () => {
+  const primaryColor = '#28665a';
+  const accentColor = '#d98a46';
+  const theme = getBrandingThemeTokens(primaryColor, accentColor);
+  assert.match(source, /getBrandingThemeTokens\(primaryColor, accentColor\)/);
+  assert.match(source, /accentColor\?: string \| null/);
+  assert.equal(theme['--accent-foreground'], getAccessibleBrandForeground(accentColor));
+  assert.ok(theme['--accent']);
+  assert.ok(theme['--primary']);
+});
+
 test('core user-facing screens and service errors contain no fixed retired identity', () => {
   const files = [
     'App.tsx', 'public-landing.tsx', 'role-surfaces.tsx', 'intake-surfaces.tsx',
@@ -100,7 +112,7 @@ test('scoped theme derives color, radius and fonts from the shared tokens withou
   assert.match(light['--editorial-font-serif'], /sans-serif/);
   assert.doesNotMatch(light['--editorial-font-serif'], /Fraunces|Georgia/);
   assert.match(light['--app-font-sans'], /Noto Sans Arabic/);
-  assert.equal(tokens.color.light.background, '#f4f7fa');
+  assert.equal(tokens.color.light.background, '#F8F7FA');
   assert.equal(tokens.color.light.primary, '#3f6f8f');
   assert.equal(light['--primary'], hexToHslChannels(tokens.color.light.primary));
   assert.equal(Object.keys(light).filter(key => key.startsWith('--')).length, 36);

@@ -20,7 +20,12 @@ function LoadingScreen() {
 
 function PublicLandingRoute() {
   const brandingQuery = usePublicBranding();
-  return <PublicLanding brandName={brandingQuery.data?.brandName} logoUrl={brandingQuery.data?.logoUrl} />;
+  return <PublicLanding
+    brandName={brandingQuery.data?.brandName}
+    logoUrl={brandingQuery.data?.logoUrl}
+    primaryColor={brandingQuery.data?.primaryColor}
+    accentColor={brandingQuery.data?.accentColor}
+  />;
 }
 
 function StartupRoutes() {

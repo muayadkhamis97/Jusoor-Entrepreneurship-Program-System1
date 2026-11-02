@@ -6,7 +6,7 @@ import './session-recording.css';
 import './language.css';
 import './program-controls.css';
 import { PublicLanding } from './public-landing';
-import { getAccessibleBrandForeground, getPanelSurfaceColors } from './branding-contrast';
+import { getBrandingThemeTokens, getPanelSurfaceColors } from './branding-contrast';
 import { sessionProgramField } from './session-form-requirements';
 import { installIconTooltipFallback } from './icon-tooltip-fallback';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
@@ -1369,7 +1369,12 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
 function AuthLanding() {
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
-  return <PublicLanding brandName={branding?.brandName} logoUrl={branding?.logoUrl} />;
+  return <PublicLanding
+    brandName={branding?.brandName}
+    logoUrl={branding?.logoUrl}
+    primaryColor={branding?.primaryColor}
+    accentColor={branding?.accentColor}
+  />;
 }
 
 function AuthLoading() {
@@ -1461,7 +1466,6 @@ function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'a
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const branding = brandingQuery.data;
   const brandName = getDisplayBrandName(branding?.brandName);
-  const primaryColor = branding?.primaryColor || '#28665a';
   const accentColor = branding?.accentColor || '#d98a46';
   const sidebarColor = branding?.sidebarColor || '#1f3445';
   const topbarColor = branding?.topbarColor || '#2d4453';
@@ -1475,16 +1479,12 @@ function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'a
       return `${Math.round(h)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
     };
     const primaryHsl = toHsl(branding.primaryColor);
-    const accentHsl = toHsl(branding.accentColor);
     const sidebar = getPanelSurfaceColors(sidebarColor);
     const topbar = getPanelSurfaceColors(topbarColor);
-    const foreground = getAccessibleBrandForeground(branding.primaryColor);
-    const accentForeground = getAccessibleBrandForeground(branding.accentColor);
-    document.documentElement.style.setProperty('--primary', primaryHsl);
+    for (const [name, value] of Object.entries(getBrandingThemeTokens(branding.primaryColor, branding.accentColor))) {
+      if (value) document.documentElement.style.setProperty(name, value);
+    }
     document.documentElement.style.setProperty('--ring', primaryHsl);
-    document.documentElement.style.setProperty('--accent', accentHsl);
-    document.documentElement.style.setProperty('--primary-foreground', foreground);
-    document.documentElement.style.setProperty('--accent-foreground', accentForeground);
     document.documentElement.style.setProperty('--sidebar', toHsl(sidebar.background));
     document.documentElement.style.setProperty('--sidebar-foreground', toHsl(sidebar.foreground));
     document.documentElement.style.setProperty('--sidebar-primary', toHsl(sidebar.foreground));
