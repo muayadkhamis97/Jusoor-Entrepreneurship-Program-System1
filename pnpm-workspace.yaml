@@ -165,6 +165,8 @@ overrides:
   body-parser@>=2.0.0 <2.4.0: '2.4.0'
   fast-uri@>=3.0.0 <3.1.9: '3.1.9'
   markdown-it@>=14.0.0 <14.3.3: '14.3.3'
+  # TypeDoc still requests v10; GHSA-g3hv-75wg-m249 is fixed only in v11.
+  minimatch@>=10.0.0 <11.0.1: '11.0.3'
   postcss-selector-parser@<7.1.6: '7.1.6'
   source-map-js@>=1.0.0 <1.2.2: '1.2.2'
 
