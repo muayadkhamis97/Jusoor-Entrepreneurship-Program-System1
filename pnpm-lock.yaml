@@ -484,6 +484,10 @@ importers:
         version: 4.6.7
 
   artifacts/mockup-sandbox:
+    dependencies:
+      '@workspace/program-editorial':
+        specifier: workspace:*
+        version: link:../program-editorial
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
