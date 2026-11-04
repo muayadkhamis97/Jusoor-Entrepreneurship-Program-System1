@@ -16,7 +16,7 @@ const {
   programBrandingTable,
   programsTable,
 } = await import("@workspace/db");
-const { default: participantInvitationsRouter } = await import("../src/routes/participantInvitations");
+const { default: apiRouter } = await import("../src/routes");
 
 const business = {
   id: 21,
@@ -185,11 +185,15 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
-  app.use((_req, res, next) => {
-    res.locals.staff = { id: 6, email: "admin@example.test", role: "coordinator" };
+  app.use((req, res, next) => {
+    res.locals.staff = {
+      id: 6,
+      email: "admin@example.test",
+      role: req.get("x-test-staff-role") ?? "coordinator",
+    };
     next();
   });
-  app.use("/api", participantInvitationsRouter);
+  app.use("/api", apiRouter);
   server = createServer(app);
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
 });
@@ -277,12 +281,12 @@ async function invite(body: unknown): Promise<Response> {
   });
 }
 
-async function resendInvitation(id: number, body: unknown): Promise<Response> {
+async function resendInvitation(id: number, body: unknown, role = "coordinator"): Promise<Response> {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return fetch(`http://127.0.0.1:${address.port}/api/staff/participant-invitations/${id}/resend`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-test-staff-role": role },
     body: JSON.stringify(body),
   });
 }
@@ -401,6 +405,17 @@ test("Admin can resend a participant invitation, renew an expired one, and stops
   });
   assert.equal(activeResponse.status, 409);
   assert.equal(sentMessages.length, 3, "linked participants do not receive another invitation");
+});
+
+test("only Admins can resend participant invitations through the shared API mount", async () => {
+  for (const role of ["staff", "trainer", "mentor", "judge"]) {
+    const response = await resendInvitation(51, {
+      requestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0",
+    }, role);
+    assert.equal(response.status, 403, `${role} should be forbidden`);
+    assert.deepEqual(await response.json(), { error: "Admin access is required for this action." });
+    assert.equal(sentMessages.length, 0, `${role} must not trigger a Gmail send`);
+  }
 });
 
 test("an expired invitation can be renewed, while a non-invitation application remains a conflict", async () => {

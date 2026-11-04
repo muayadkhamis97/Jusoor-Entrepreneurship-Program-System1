@@ -15,7 +15,7 @@ const {
   staffProgramAssignmentsTable,
   staffProgramRolesTable,
 } = await import("@workspace/db");
-const { default: staffRouter } = await import("../src/routes/staff");
+const { default: apiRouter } = await import("../src/routes");
 
 type StaffMember = {
   id: number;
@@ -101,12 +101,16 @@ async function postRetryInvitation(staffId: number): Promise<Response> {
   });
 }
 
-async function postResendInvitation(staffId: number, body: unknown): Promise<Response> {
+async function postResendInvitation(
+  staffId: number,
+  body: unknown,
+  role = "coordinator",
+): Promise<Response> {
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   return fetch(`http://127.0.0.1:${address.port}/api/staff/${staffId}/resend-invitation-email`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-test-staff-role": role },
     body: JSON.stringify(body),
   });
 }
@@ -216,11 +220,15 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
-  app.use((_req, res, next) => {
-    res.locals.staff = { id: 2, email: "admin@example.test", role: "coordinator" };
+  app.use((req, res, next) => {
+    res.locals.staff = {
+      id: 2,
+      email: "admin@example.test",
+      role: req.get("x-test-staff-role") ?? "coordinator",
+    };
     next();
   });
-  app.use("/api", staffRouter);
+  app.use("/api", apiRouter);
   server = createServer(app);
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
 });
@@ -366,4 +374,29 @@ test("Admin can resend a legacy staff invitation without a recorded delivery sta
   assert.equal(response.status, 200, JSON.stringify(result));
   assert.equal(result.invitationEmailStatus, null);
   assert.equal(successfulDeliveries.length, 1);
+});
+
+test("only Admins can resend team invitations through the shared API mount", async () => {
+  for (const role of ["staff", "trainer", "mentor", "judge"]) {
+    resetState();
+    staffMembers.push({
+      id: 10,
+      email: "team-member@example.test",
+      role: "mentor",
+      status: "invited",
+      invitationEmailStatus: "delivered",
+      createdAt: new Date("2026-10-17T12:00:00.000Z"),
+    });
+
+    const response = await postResendInvitation(10, {
+      requestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0",
+    }, role);
+    assert.equal(response.status, 403, `${role} should be forbidden`);
+    assert.deepEqual(await response.json(), { error: "Admin access is required for this action." });
+    assert.equal(
+      connectorCalls.filter(call => call.path.endsWith("/messages/send")).length,
+      0,
+      `${role} must not trigger a Gmail send`,
+    );
+  }
 });
