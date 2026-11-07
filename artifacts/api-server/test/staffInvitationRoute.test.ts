@@ -376,6 +376,32 @@ test("Admin can resend a legacy staff invitation without a recorded delivery sta
   assert.equal(successfulDeliveries.length, 1);
 });
 
+test("Admin cannot resend a team invitation after the account becomes active", async () => {
+  resetState();
+  staffMembers.push({
+    id: 11,
+    email: "active.team-member@example.test",
+    role: "mentor",
+    status: "active",
+    invitationEmailStatus: "delivered",
+    createdAt: new Date("2026-10-17T12:00:00.000Z"),
+  });
+
+  const response = await postResendInvitation(11, {
+    requestId: "3e1346e6-b86f-4b7a-8f2a-521932ea1cc0",
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    error: "This staff account is no longer awaiting an invitation.",
+  });
+  assert.equal(
+    connectorCalls.filter(call => call.path.endsWith("/messages/send")).length,
+    0,
+    "an active team account must not trigger a Gmail send",
+  );
+});
+
 test("only Admins can resend team invitations through the shared API mount", async () => {
   for (const role of ["staff", "trainer", "mentor", "judge"]) {
     resetState();
