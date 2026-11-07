@@ -2,6 +2,7 @@
   display: grid;
   gap: calc(var(--spacing) * 4);
   min-width: 0;
+  container: team-access / inline-size;
 }
 
 .team-access-header {
@@ -111,11 +112,11 @@
 }
 
 .team-access-directory-table .team-access-col-date {
-  width: 13%;
+  width: 14%;
 }
 
 .team-access-staff-table .team-access-col-actions {
-  width: 27%;
+  width: 26%;
 }
 
 .team-access-participant-table .team-access-col-person {
@@ -249,6 +250,7 @@
   gap: var(--spacing);
   min-height: calc(var(--spacing) * 8);
   padding-inline: calc(var(--spacing) * 1.5);
+  white-space: nowrap;
 }
 
 .team-access-danger-action {
@@ -367,7 +369,12 @@
   padding: calc(var(--spacing) * 5);
 }
 
-@media (max-width: 900px) {
+/*
+ * The workspace sidebar takes a meaningful part of the browser width. Base
+ * the directory layout on the page's available width, not the full viewport,
+ * so medium desktop windows don't squeeze the actions into narrow columns.
+ */
+@container team-access (max-width: 1040px) {
   .team-access-directory-table colgroup,
   .team-access-directory-table thead {
     display: none;
@@ -383,9 +390,9 @@
 
   .team-access-directory-table tbody tr {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
     gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
-    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5);
     border-block-end: 1px solid hsl(var(--border));
   }
 
@@ -396,6 +403,7 @@
   .team-access-directory-table td {
     padding: 0;
     border: 0;
+    width: auto;
   }
 
   .team-access-person-cell,
@@ -403,8 +411,24 @@
     grid-column: 1 / -1;
   }
 
+  .team-access-staff-table .team-access-scope-cell {
+    grid-column: 1;
+  }
+
+  .team-access-staff-table .team-access-date-cell {
+    grid-column: 2;
+  }
+
+  .team-access-participant-table .team-access-scope-cell {
+    grid-column: 1;
+  }
+
+  .team-access-participant-table .team-access-date-cell {
+    grid-column: 2;
+  }
+
   .team-access-directory-table td.team-access-actions-cell {
-    padding-block-start: calc(var(--spacing) * 2);
+    padding-block-start: calc(var(--spacing) * 2.5);
     border-block-start: 1px solid hsl(var(--border));
   }
 
@@ -420,6 +444,7 @@
 
   .team-access-action-list {
     justify-content: flex-start;
+    gap: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3);
   }
 
   .team-access-active-access {
@@ -431,7 +456,7 @@
   }
 }
 
-@media (max-width: 700px) {
+@container team-access (max-width: 720px) {
   .team-access-header {
     align-items: stretch;
     flex-direction: column;
@@ -468,7 +493,7 @@
   }
 }
 
-@media (max-width: 560px) {
+@container team-access (max-width: 560px) {
   .team-access-directory-table tbody tr {
     grid-template-columns: minmax(0, 1fr);
   }

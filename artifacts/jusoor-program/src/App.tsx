@@ -1343,6 +1343,7 @@ function TeamPage() {
                     {staff.map(member => (
                       <tr key={member.id} data-testid={`row-staff-${member.id}`}>
                         <td className="team-access-person-cell">
+                          <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('EMAIL')}</Typography></span>
                           <div className="team-access-member-identity">
                             <span aria-hidden="true" className="team-access-avatar">{member.email.slice(0, 1).toUpperCase()}</span>
                             <div className="team-access-member-copy">
