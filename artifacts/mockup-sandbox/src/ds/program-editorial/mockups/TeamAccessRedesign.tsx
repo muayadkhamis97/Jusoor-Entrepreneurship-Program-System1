@@ -250,9 +250,9 @@ export function TeamAccessRedesign() {
   }
 
   return (
-    <main dir="auto" className="min-h-dvh bg-background px-4 py-6 text-foreground sm:px-6 sm:py-8 lg:px-10">
-      <div className="mx-auto grid w-full max-w-6xl gap-6">
-        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <main dir="auto" className="min-h-dvh bg-background px-4 py-6 text-foreground sm:px-6 sm:py-8 lg:px-8 lg:py-6">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:gap-5">
+        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between lg:gap-4">
           <div>
             <Typography variant="label" tone="accent" className="mb-2">TEAM / ACCESS</Typography>
             <Typography as="h1" variant="heading" className="mb-2 text-3xl">Team access</Typography>
@@ -275,9 +275,9 @@ export function TeamAccessRedesign() {
           </div>
         )}
 
-        <PaperSurface variant="panel" className="p-4 sm:p-5">
+        <PaperSurface variant="panel" className="p-4 sm:p-5 lg:p-4">
           <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary lg:size-9">
               <ShieldCheck aria-hidden="true" className="size-5" />
             </span>
             <div>
@@ -290,7 +290,7 @@ export function TeamAccessRedesign() {
         </PaperSurface>
 
         <PaperSurface variant="panel" className="overflow-hidden">
-          <div className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+          <div className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:gap-3 lg:px-5 lg:py-4">
             <div>
               <Typography variant="label" tone="accent" className="mb-1">APPROVED ACCOUNTS</Typography>
               <div className="flex flex-wrap items-center gap-3">
@@ -303,9 +303,9 @@ export function TeamAccessRedesign() {
             </span>
           </div>
 
-          <div className="grid gap-3 p-3 sm:p-4">
+          <div className="grid gap-3 p-3 sm:p-4 lg:gap-2 lg:p-3">
             {staff.length === 0 ? (
-              <div className="grid justify-items-center gap-3 rounded-lg border border-dashed border-border px-5 py-8 text-center">
+              <div className="grid justify-items-center gap-3 rounded-lg border border-dashed border-border px-5 py-8 text-center lg:gap-2 lg:px-4 lg:py-6">
                 <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground"><Users aria-hidden="true" className="size-5" /></span>
                 <div>
                   <Typography as="h3" variant="heading" className="text-base">No team members yet</Typography>
@@ -314,7 +314,7 @@ export function TeamAccessRedesign() {
                 <Button variant="primary" onClick={() => setDialog({ type: "team-invite" })}>Invite team member</Button>
               </div>
             ) : staff.map((member) => (
-              <article key={member.email} className="grid gap-4 rounded-lg border border-border bg-background p-4 sm:grid-cols-2 sm:items-center lg:grid-cols-3">
+              <article key={member.email} className="grid gap-4 rounded-lg border border-border bg-background p-4 sm:grid-cols-2 sm:items-center lg:grid-cols-3 lg:gap-3 lg:p-3">
                 <div className="flex min-w-0 items-start gap-3">
                   <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 font-semibold text-primary">
                     {member.email[0].toUpperCase()}
@@ -328,7 +328,7 @@ export function TeamAccessRedesign() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:gap-2">
                   <div className="grid content-start gap-1">
                     <span className="text-xs text-muted-foreground">ROLE</span>
                     <span className="inline-flex items-center gap-2 font-medium"><Users aria-hidden="true" className="size-4 text-primary" />{member.role}</span>
@@ -343,7 +343,7 @@ export function TeamAccessRedesign() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 sm:border-0 sm:pt-0 lg:justify-end">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 sm:border-0 sm:pt-0 lg:justify-end lg:gap-x-2">
                   {member.delivery && (
                     <Button variant="text" className="inline-flex min-h-10 items-center gap-2" onClick={() => resendStaffInvitation(member.email)}>
                       <Mail aria-hidden="true" className="size-4" /> Resend invitation
@@ -362,7 +362,7 @@ export function TeamAccessRedesign() {
         </PaperSurface>
 
         <PaperSurface variant="panel" className="overflow-hidden">
-          <div className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+          <div className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6 lg:gap-3 lg:px-5 lg:py-4">
             <div>
               <Typography variant="label" tone="accent" className="mb-1">PARTICIPANT ACCESS</Typography>
               <Typography as="h2" variant="heading" className="text-xl">Participant invitations</Typography>
@@ -374,7 +374,7 @@ export function TeamAccessRedesign() {
           </div>
 
           {participants.length === 0 ? (
-            <div className="grid justify-items-center gap-3 px-5 py-9 text-center">
+            <div className="grid justify-items-center gap-3 px-5 py-9 text-center lg:gap-2 lg:px-4 lg:py-7">
               <span className="grid size-12 place-items-center rounded-full bg-muted text-muted-foreground"><Mail aria-hidden="true" className="size-5" /></span>
               <div>
                 <Typography as="h3" variant="heading" className="text-base">No invitations have been sent yet.</Typography>
@@ -383,7 +383,7 @@ export function TeamAccessRedesign() {
             </div>
           ) : (
             <>
-              <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:gap-2 lg:px-5 lg:py-3">
                 <div>
                   <Typography as="h3" variant="heading" className="text-base">Recent invitations</Typography>
                   <Typography className="mt-1 text-sm">Illustrative sample records for this design preview.</Typography>
@@ -398,9 +398,9 @@ export function TeamAccessRedesign() {
                   />
                 </label>
               </div>
-              <div className="grid gap-3 px-3 pb-3 sm:px-4">
+              <div className="grid gap-3 px-3 pb-3 sm:px-4 lg:gap-2 lg:px-3 lg:pb-2">
                 {filteredParticipants.length ? filteredParticipants.map((participant) => (
-                  <article key={participant.email} className="grid gap-4 rounded-lg border border-border bg-background p-4 sm:grid-cols-2 sm:items-center lg:grid-cols-3">
+                  <article key={participant.email} className="grid gap-4 rounded-lg border border-border bg-background p-4 sm:grid-cols-2 sm:items-center lg:grid-cols-3 lg:gap-3 lg:p-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Typography as="h3" variant="body" className="font-semibold text-foreground">{participant.name}</Typography>

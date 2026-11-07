@@ -397,3 +397,87 @@
     align-items: flex-start;
   }
 }
+
+@media (min-width: 701px) {
+  .team-access-page {
+    gap: calc(var(--spacing) * 5);
+  }
+
+  .team-access-header {
+    gap: calc(var(--spacing) * 5);
+  }
+
+  .team-access-header-actions > button,
+  .team-access-search {
+    min-height: calc(var(--spacing) * 10);
+  }
+
+  .team-access-note {
+    gap: calc(var(--spacing) * 2.5);
+    padding: calc(var(--spacing) * 3.5);
+  }
+
+  .team-access-note-icon,
+  .team-access-avatar {
+    flex-basis: calc(var(--spacing) * 9);
+    width: calc(var(--spacing) * 9);
+    height: calc(var(--spacing) * 9);
+  }
+
+  .team-access-section-head {
+    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
+  }
+
+  .team-access-section-title {
+    gap: var(--spacing);
+  }
+
+  .team-access-member-list,
+  .team-access-participant-list {
+    padding-inline: calc(var(--spacing) * 4);
+  }
+
+  .team-access-member,
+  .team-access-participant {
+    gap: calc(var(--spacing) * 4);
+    padding-block: calc(var(--spacing) * 3);
+  }
+
+  .team-access-member-identity,
+  .team-access-participant-title {
+    gap: calc(var(--spacing) * 2);
+  }
+
+  .team-access-statuses {
+    margin-top: var(--spacing);
+  }
+
+  .team-access-member-meta,
+  .team-access-participant-meta {
+    gap: calc(var(--spacing) * 3);
+  }
+
+  .team-access-member-actions,
+  .team-access-participant-actions {
+    column-gap: calc(var(--spacing) * 2);
+  }
+
+  .team-access-empty {
+    gap: calc(var(--spacing) * 2.5);
+    padding: calc(var(--spacing) * 7) calc(var(--spacing) * 4);
+  }
+
+  .team-access-empty-icon {
+    width: calc(var(--spacing) * 10);
+    height: calc(var(--spacing) * 10);
+  }
+
+  .team-access-participant-toolbar {
+    gap: calc(var(--spacing) * 3);
+    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+  }
+
+  .team-access-search {
+    width: min(100%, 20rem);
+  }
+}
