@@ -1,18 +1,21 @@
 .team-access-page {
   display: grid;
-  gap: calc(var(--spacing) * 6);
+  gap: calc(var(--spacing) * 4);
+  min-width: 0;
 }
 
 .team-access-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: calc(var(--spacing) * 6);
+  gap: calc(var(--spacing) * 4);
+  padding-block-end: calc(var(--spacing) * 3);
+  border-block-end: 1px solid hsl(var(--border));
 }
 
 .team-access-heading-copy {
   display: grid;
-  gap: calc(var(--spacing) * 2);
+  gap: calc(var(--spacing) * 1);
   min-width: 0;
 }
 
@@ -31,28 +34,28 @@
 }
 
 .team-access-header-actions > button {
-  min-height: calc(var(--spacing) * 11);
+  min-height: calc(var(--spacing) * 10);
 }
 
 .team-access-note {
   display: flex;
   align-items: flex-start;
   gap: calc(var(--spacing) * 3);
-  padding: calc(var(--spacing) * 4);
+  padding: calc(var(--spacing) * 3);
   border: 1px solid hsl(var(--border));
-  border-inline-start: calc(var(--spacing) * 1) solid hsl(var(--accent));
-  background: hsl(var(--accent) / 0.07);
+  border-radius: var(--radius);
+  background: hsl(var(--card));
 }
 
 .team-access-note-icon {
   display: grid;
-  flex: 0 0 calc(var(--spacing) * 10);
+  flex: 0 0 calc(var(--spacing) * 9);
   place-items: center;
-  width: calc(var(--spacing) * 10);
-  height: calc(var(--spacing) * 10);
+  width: calc(var(--spacing) * 9);
+  height: calc(var(--spacing) * 9);
   border-radius: var(--radius);
-  background: hsl(var(--accent) / 0.12);
-  color: hsl(var(--accent));
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
 .team-access-note-copy {
@@ -61,9 +64,8 @@
 
 .team-access-note-copy p,
 .team-access-empty p {
-  margin: calc(var(--spacing) * 2) 0 0;
+  margin: calc(var(--spacing) * 1) 0 0;
   color: hsl(var(--muted-foreground));
-  line-height: 1.6;
 }
 
 .team-access-section-head {
@@ -71,13 +73,13 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: calc(var(--spacing) * 4);
-  padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6);
-  border-bottom: 1px solid hsl(var(--border));
+  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
+  border-block-end: 1px solid hsl(var(--border));
 }
 
 .team-access-section-title {
   display: grid;
-  gap: calc(var(--spacing) * 2);
+  gap: var(--spacing);
   min-width: 0;
 }
 
@@ -86,56 +88,103 @@
   align-items: center;
   gap: calc(var(--spacing) * 2);
   color: hsl(var(--muted-foreground));
+  text-align: end;
 }
 
-.team-access-member-list,
-.team-access-participant-list {
-  padding-inline: calc(var(--spacing) * 5);
+.team-access-directory-wrap {
+  width: 100%;
+  min-width: 0;
 }
 
-.team-access-member,
-.team-access-participant {
-  display: grid;
-  align-items: center;
-  gap: calc(var(--spacing) * 5);
-  padding-block: calc(var(--spacing) * 4);
-  border-bottom: 1px solid hsl(var(--border));
+.team-access-directory-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.team-access-member:last-child,
-.team-access-participant:last-child {
-  border-bottom: 0;
+.team-access-staff-table .team-access-col-person {
+  width: 34%;
 }
 
-.team-access-member {
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.25fr) minmax(0, auto);
+.team-access-staff-table .team-access-col-scope {
+  width: 26%;
+}
+
+.team-access-directory-table .team-access-col-date {
+  width: 13%;
+}
+
+.team-access-staff-table .team-access-col-actions {
+  width: 27%;
+}
+
+.team-access-participant-table .team-access-col-person {
+  width: 32%;
+}
+
+.team-access-participant-table .team-access-col-business {
+  width: 34%;
+}
+
+.team-access-participant-table .team-access-col-actions {
+  width: 21%;
+}
+
+.team-access-directory-table th {
+  padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+  border-block-end: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.55);
+  color: hsl(var(--muted-foreground));
+  text-align: start;
+  vertical-align: middle;
+}
+
+.team-access-directory-table td {
+  padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3);
+  border-block-end: 1px solid hsl(var(--border));
+  text-align: start;
+  vertical-align: middle;
+}
+
+.team-access-directory-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.team-access-person-cell,
+.team-access-scope-cell,
+.team-access-date-cell,
+.team-access-actions-cell {
+  min-width: 0;
 }
 
 .team-access-member-identity {
   display: flex;
-  align-items: flex-start;
-  gap: calc(var(--spacing) * 3);
+  align-items: center;
+  gap: calc(var(--spacing) * 2);
   min-width: 0;
 }
 
 .team-access-avatar {
   display: grid;
-  flex: 0 0 calc(var(--spacing) * 10);
+  flex: 0 0 calc(var(--spacing) * 8);
   place-items: center;
-  width: calc(var(--spacing) * 10);
-  height: calc(var(--spacing) * 10);
+  width: calc(var(--spacing) * 8);
+  height: calc(var(--spacing) * 8);
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  background: hsl(var(--accent) / 0.1);
-  color: hsl(var(--accent));
-  font-weight: 600;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
-.team-access-member-copy {
+.team-access-member-copy,
+.team-access-participant-person {
+  display: grid;
+  gap: var(--spacing);
   min-width: 0;
 }
 
-.team-access-email {
+.team-access-email,
+.team-access-secondary {
   overflow-wrap: anywhere;
 }
 
@@ -144,59 +193,65 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: calc(var(--spacing) * 2);
+  gap: var(--spacing);
 }
 
-.team-access-statuses {
-  margin-top: calc(var(--spacing) * 2);
-}
-
-.team-access-member-meta {
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr) minmax(0, 0.8fr);
-  gap: calc(var(--spacing) * 4);
-  min-width: 0;
-}
-
-.team-access-meta-item {
-  display: grid;
-  align-content: start;
-  gap: calc(var(--spacing) * 1);
-  min-width: 0;
-}
-
-.team-access-meta-value {
+.team-access-scope-value {
   display: flex;
   align-items: center;
-  gap: calc(var(--spacing) * 2);
+  flex-wrap: wrap;
+  gap: calc(var(--spacing) * 1.25);
   min-width: 0;
+}
+
+.team-access-role-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing);
+  font-weight: 600;
+}
+
+.team-access-scope-separator,
+.team-access-program-value,
+.team-access-secondary {
+  color: hsl(var(--muted-foreground));
+}
+
+.team-access-program-value,
+.team-access-date-value,
+.team-access-meta-value {
   overflow-wrap: anywhere;
 }
 
-.team-access-member-actions,
-.team-access-participant-actions {
+.team-access-meta-stack {
+  display: grid;
+  gap: var(--spacing);
+  min-width: 0;
+}
+
+.team-access-directory-table td.team-access-actions-cell {
+  text-align: end;
+}
+
+.team-access-action-list {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: calc(var(--spacing) * 1) calc(var(--spacing) * 3);
-  min-width: 0;
+  gap: var(--spacing);
 }
 
-.team-access-row-action {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 2);
-  min-height: calc(var(--spacing) * 10);
-  padding-inline: calc(var(--spacing) * 2);
-}
-
+.team-access-row-action,
 .team-access-danger-action {
   display: inline-flex;
   align-items: center;
-  gap: calc(var(--spacing) * 2);
-  min-height: calc(var(--spacing) * 10);
-  padding-inline: calc(var(--spacing) * 2);
+  justify-content: center;
+  gap: var(--spacing);
+  min-height: calc(var(--spacing) * 8);
+  padding-inline: calc(var(--spacing) * 1.5);
+}
+
+.team-access-danger-action {
   border: 0;
   border-radius: var(--radius);
   background: transparent;
@@ -215,18 +270,32 @@
   outline-offset: 2px;
 }
 
-.team-access-feedback {
-  flex-basis: 100%;
-  overflow-wrap: anywhere;
+.team-access-mobile-label {
+  display: none;
 }
 
-.team-access-feedback.is-success {
+.team-access-feedback {
+  display: block;
+  margin-block-start: var(--spacing);
+  overflow-wrap: anywhere;
+  text-align: end;
+}
+
+.team-access-feedback.is-success,
+.team-access-active-access {
   color: hsl(var(--primary));
 }
 
 .team-access-feedback.is-error,
 .team-access-error {
   color: hsl(var(--destructive));
+}
+
+.team-access-active-access {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--spacing) * 1.5);
 }
 
 .team-access-empty {
@@ -240,11 +309,11 @@
 .team-access-empty-icon {
   display: grid;
   place-items: center;
-  width: calc(var(--spacing) * 12);
-  height: calc(var(--spacing) * 12);
+  width: calc(var(--spacing) * 10);
+  height: calc(var(--spacing) * 10);
   border-radius: var(--radius);
-  background: hsl(var(--accent) / 0.1);
-  color: hsl(var(--accent));
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
 }
 
 .team-access-empty-match {
@@ -260,15 +329,15 @@
   align-items: center;
   justify-content: space-between;
   gap: calc(var(--spacing) * 4);
-  padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
+  padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5);
 }
 
 .team-access-search {
   display: flex;
   align-items: center;
   gap: calc(var(--spacing) * 2);
-  width: min(100%, 22rem);
-  min-height: calc(var(--spacing) * 11);
+  width: min(100%, 20rem);
+  min-height: calc(var(--spacing) * 10);
   padding-inline: calc(var(--spacing) * 3);
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
@@ -288,31 +357,6 @@
 
 .team-access-secondary {
   display: block;
-  overflow-wrap: anywhere;
-  color: hsl(var(--muted-foreground));
-}
-
-.team-access-participant {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, auto);
-}
-
-.team-access-participant-person {
-  display: grid;
-  gap: calc(var(--spacing) * 1);
-  min-width: 0;
-}
-
-.team-access-participant-meta {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
-  gap: calc(var(--spacing) * 4);
-  min-width: 0;
-}
-
-.team-access-meta-stack {
-  display: grid;
-  gap: calc(var(--spacing) * 1);
-  min-width: 0;
 }
 
 .team-access-error {
@@ -323,18 +367,67 @@
   padding: calc(var(--spacing) * 5);
 }
 
-@media (max-width: 1100px) {
-  .team-access-member,
-  .team-access-participant {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+@media (max-width: 900px) {
+  .team-access-directory-table colgroup,
+  .team-access-directory-table thead {
+    display: none;
   }
 
-  .team-access-member-actions,
-  .team-access-participant-actions {
+  .team-access-directory-table,
+  .team-access-directory-table tbody,
+  .team-access-directory-table tr,
+  .team-access-directory-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .team-access-directory-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+    border-block-end: 1px solid hsl(var(--border));
+  }
+
+  .team-access-directory-table tbody tr:last-child {
+    border-block-end: 0;
+  }
+
+  .team-access-directory-table td {
+    padding: 0;
+    border: 0;
+  }
+
+  .team-access-person-cell,
+  .team-access-actions-cell {
     grid-column: 1 / -1;
+  }
+
+  .team-access-directory-table td.team-access-actions-cell {
+    padding-block-start: calc(var(--spacing) * 2);
+    border-block-start: 1px solid hsl(var(--border));
+  }
+
+  .team-access-directory-table td.team-access-actions-cell {
+    text-align: start;
+  }
+
+  .team-access-mobile-label {
+    display: block;
+    margin-block-end: var(--spacing);
+    color: hsl(var(--muted-foreground));
+  }
+
+  .team-access-action-list {
     justify-content: flex-start;
-    padding-top: calc(var(--spacing) * 3);
-    border-top: 1px solid hsl(var(--border));
+  }
+
+  .team-access-active-access {
+    justify-content: flex-start;
+  }
+
+  .team-access-feedback {
+    text-align: start;
   }
 }
 
@@ -345,9 +438,9 @@
   }
 
   .team-access-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     width: 100%;
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .team-access-header-actions > button {
@@ -360,9 +453,8 @@
     padding-inline: calc(var(--spacing) * 4);
   }
 
-  .team-access-member-meta,
-  .team-access-participant-meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .team-access-section-meta {
+    text-align: start;
   }
 
   .team-access-participant-toolbar {
@@ -374,110 +466,19 @@
   .team-access-search {
     width: 100%;
   }
-
-  .team-access-member-list,
-  .team-access-participant-list {
-    padding-inline: calc(var(--spacing) * 4);
-  }
 }
 
-@media (max-width: 420px) {
-  .team-access-member,
-  .team-access-participant {
+@media (max-width: 560px) {
+  .team-access-directory-table tbody tr {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .team-access-member-actions,
-  .team-access-participant-actions {
-    grid-column: auto;
-    justify-content: flex-start;
-  }
-
-  .team-access-section-meta {
-    align-items: flex-start;
-  }
-}
-
-@media (min-width: 701px) {
-  .team-access-page {
-    gap: calc(var(--spacing) * 5);
-  }
-
-  .team-access-header {
-    gap: calc(var(--spacing) * 5);
-  }
-
-  .team-access-header-actions > button,
-  .team-access-search {
-    min-height: calc(var(--spacing) * 10);
-  }
-
-  .team-access-note {
-    gap: calc(var(--spacing) * 2.5);
-    padding: calc(var(--spacing) * 3.5);
-  }
-
-  .team-access-note-icon,
-  .team-access-avatar {
-    flex-basis: calc(var(--spacing) * 9);
-    width: calc(var(--spacing) * 9);
-    height: calc(var(--spacing) * 9);
+  .team-access-scope-cell,
+  .team-access-date-cell {
+    grid-column: 1 / -1;
   }
 
   .team-access-section-head {
-    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 5);
-  }
-
-  .team-access-section-title {
-    gap: var(--spacing);
-  }
-
-  .team-access-member-list,
-  .team-access-participant-list {
-    padding-inline: calc(var(--spacing) * 4);
-  }
-
-  .team-access-member,
-  .team-access-participant {
-    gap: calc(var(--spacing) * 4);
-    padding-block: calc(var(--spacing) * 3);
-  }
-
-  .team-access-member-identity,
-  .team-access-participant-title {
     gap: calc(var(--spacing) * 2);
-  }
-
-  .team-access-statuses {
-    margin-top: var(--spacing);
-  }
-
-  .team-access-member-meta,
-  .team-access-participant-meta {
-    gap: calc(var(--spacing) * 3);
-  }
-
-  .team-access-member-actions,
-  .team-access-participant-actions {
-    column-gap: calc(var(--spacing) * 2);
-  }
-
-  .team-access-empty {
-    gap: calc(var(--spacing) * 2.5);
-    padding: calc(var(--spacing) * 7) calc(var(--spacing) * 4);
-  }
-
-  .team-access-empty-icon {
-    width: calc(var(--spacing) * 10);
-    height: calc(var(--spacing) * 10);
-  }
-
-  .team-access-participant-toolbar {
-    gap: calc(var(--spacing) * 3);
-    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
-  }
-
-  .team-access-search {
-    width: min(100%, 20rem);
   }
 }

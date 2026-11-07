@@ -1280,7 +1280,7 @@ function TeamPage() {
         <div className="team-access-heading-copy">
           <Typography variant="label" tone="accent">{t('TEAM / ACCESS')}</Typography>
           <Typography as="h1" variant="heading">{t('Team access')}</Typography>
-          <p className="team-access-summary">{t('Invite the right people into each part of the founder journey.')}</p>
+          <Typography as="p" variant="body" className="team-access-summary">{t('Invite the right people into each part of the founder journey.')}</Typography>
         </div>
         <div className="team-access-header-actions">
           <Button variant="text" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant">
@@ -1296,132 +1296,153 @@ function TeamPage() {
         <span className="team-access-note-icon"><Shield aria-hidden="true" size={20} /></span>
         <div className="team-access-note-copy">
           <Typography as="h2" variant="body">{t('Every role is tied to a verified email.')}</Typography>
-          <p>{t('Choose admin, program staff, trainer, mentor or judge access. A branded invitation email will be sent after the access record is saved. Members must use the same verified email address.')}</p>
+          <Typography as="p" variant="body">{t('Choose admin, program staff, trainer, mentor or judge access. A branded invitation email will be sent after the access record is saved. Members must use the same verified email address.')}</Typography>
         </div>
       </aside>
 
       {staffInviteSuccess && <div className="participant-invite-success" role="status" data-testid="staff-invite-success"><b>{t('Invitation email sent.')}</b><p>{t('The person can create an account or sign in using the same verified email address.')}</p></div>}
 
-      <PaperSurface variant="panel" className="overflow-hidden">
+      <PaperSurface variant="panel" className="team-access-panel overflow-hidden">
         <div className="team-access-section-head">
           <div className="team-access-section-title">
             <Typography variant="label" tone="accent">{t('APPROVED ACCOUNTS')}</Typography>
             <Typography as="h2" variant="heading">{staff.length} {t('team')} {t(staff.length === 1 ? 'member' : 'members')}</Typography>
           </div>
-          <span className="team-access-section-meta"><Users aria-hidden="true" size={16} />{t('Only admins can change access')}</span>
+          <Typography as="span" variant="body" className="team-access-section-meta"><Users aria-hidden="true" size={16} />{t('Only admins can change access')}</Typography>
         </div>
 
-        <div className="team-access-member-list">
-          {query.isLoading ? <LoadingState label="Loading staff access" /> :
-            query.isError ? <ErrorState retry={() => void query.refetch()} /> :
-              staff.length === 0 ? (
-                <div className="team-access-empty">
-                  <span className="team-access-empty-icon"><Users aria-hidden="true" size={20} /></span>
-                  <div>
-                    <Typography as="h3" variant="heading">{t('No staff access has been added.')}</Typography>
-                    <p>{t('Add an admin or program staff email to approve the team.')}</p>
-                  </div>
-                  <Button variant="primary" onClick={() => setEditing(null)}><UserPlus aria-hidden="true" size={16} />{t('Add the first staff member')}</Button>
+        {query.isLoading ? <LoadingState label="Loading staff access" /> :
+          query.isError ? <ErrorState retry={() => void query.refetch()} /> :
+            staff.length === 0 ? (
+              <div className="team-access-empty">
+                <span className="team-access-empty-icon"><Users aria-hidden="true" size={20} /></span>
+                <div>
+                  <Typography as="h3" variant="heading">{t('No staff access has been added.')}</Typography>
+                  <Typography variant="body">{t('Add an admin or program staff email to approve the team.')}</Typography>
                 </div>
-              ) : staff.map(member => (
-                <article className="team-access-member" key={member.id} data-testid={`row-staff-${member.id}`}>
-                  <div className="team-access-member-identity">
-                    <span aria-hidden="true" className="team-access-avatar">{member.email.slice(0, 1).toUpperCase()}</span>
-                    <div className="team-access-member-copy">
-                      <Typography as="h3" variant="body" className="team-access-email">{member.email}</Typography>
-                      <div className="team-access-statuses">
-                        <Badge value={member.status} label={member.status === 'invited' ? 'Account not linked' : 'Active'} />
-                        {member.invitationEmailStatus && <Badge
-                          value={member.invitationEmailStatus}
-                          label={t(member.invitationEmailStatus === 'delivered' ? 'Delivered' : member.invitationEmailStatus === 'failed' ? 'Failed' : 'Pending')}
-                        />}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="team-access-member-meta">
-                    <div className="team-access-meta-item">
-                      <Typography variant="label">{t('ROLE')}</Typography>
-                      <span className="team-access-meta-value">{member.role === 'coordinator' ? <Shield aria-hidden="true" size={15} /> : <Users aria-hidden="true" size={15} />}{display(member.role)}</span>
-                    </div>
-                    <div className="team-access-meta-item">
-                      <Typography variant="label">{t('PROGRAMS')}</Typography>
-                      <Typography variant="body" className="team-access-meta-value">{member.role === 'coordinator' ? t('All programs') : member.programIds.map(id => programNames.get(id) || `Archived program ${id}`).join(', ') || t('No active programs')}</Typography>
-                    </div>
-                    <div className="team-access-meta-item">
-                      <Typography variant="label">{t('ADDED')}</Typography>
-                      <Typography variant="body" className="team-access-meta-value">{dateLabel(member.createdAt)}</Typography>
-                    </div>
-                  </div>
-
-                  <div className="team-access-member-actions">
-                    {member.status === 'invited' && (member.invitationEmailStatus === 'delivered' || member.invitationEmailStatus === null) && <Button
-                      variant="text"
-                      className="team-access-row-action"
-                      onClick={() => {
-                        const key = `staff:${member.id}`;
-                        setResendFeedback(null);
-                        setResendingStaffId(member.id);
-                        resendStaffInvitationEmail.mutate({ id: member.id, data: { requestId: resendRequestIdFor(key) } }, {
-                          onSuccess: () => {
-                            resendRequestIds.current.delete(key);
-                            setResendFeedback({ kind: 'staff', id: member.id, success: true });
-                            invalidate(client, [getListStaffQueryKey()]);
-                          },
-                          onError: () => {
-                            setResendFeedback({ kind: 'staff', id: member.id, success: false });
-                            invalidate(client, [getListStaffQueryKey()]);
-                          },
-                          onSettled: () => setResendingStaffId(null),
-                        });
-                      }}
-                      disabled={resendStaffInvitationEmail.isPending}
-                      aria-label={`${t('Resend invitation')} for ${member.email}`}
-                      data-testid={`button-resend-staff-invitation-${member.id}`}
-                    ><Mail aria-hidden="true" size={16} />{resendingStaffId === member.id ? t('Resending…') : t('Resend invitation')}</Button>}
-                    {member.status === 'invited' && member.invitationEmailStatus && member.invitationEmailStatus !== 'delivered' && <Button
-                      variant="text"
-                      className="team-access-row-action"
-                      onClick={() => {
-                        setRetryingStaffId(member.id);
-                        retryStaffInvitationEmail.mutate({ id: member.id }, {
-                          onSuccess: () => invalidate(client, [getListStaffQueryKey()]),
-                          onError: () => invalidate(client, [getListStaffQueryKey()]),
-                          onSettled: () => setRetryingStaffId(null),
-                        });
-                      }}
-                      disabled={retryStaffInvitationEmail.isPending}
-                      aria-label={`${t('Retry email')} for ${member.email}`}
-                      data-testid={`button-retry-staff-invitation-${member.id}`}
-                    ><Mail aria-hidden="true" size={16} />{retryingStaffId === member.id ? t('Retrying…') : t('Retry email')}</Button>}
-                    <Button
-                      variant="text"
-                      className="team-access-row-action"
-                      onClick={() => setEditing(member)}
-                      aria-label={`${t('Change team role')} for ${member.email}`}
-                      data-testid={`button-edit-staff-${member.id}`}
-                    ><Pencil aria-hidden="true" size={16} />{t('Change team role')}</Button>
-                    <button
-                      type="button"
-                      className="team-access-danger-action"
-                      onClick={() => setDeleting(member)}
-                      aria-label={`${t('Revoke access')} for ${member.email}`}
-                      data-testid={`button-delete-staff-${member.id}`}
-                    ><Trash2 aria-hidden="true" size={16} />{t('Revoke access')}</button>
-                    {resendFeedback?.kind === 'staff' && resendFeedback.id === member.id && <small className={`team-access-feedback ${resendFeedback.success ? 'is-success' : 'is-error'}`} role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
-                  </div>
-                </article>
-              ))}
-        </div>
+                <Button variant="primary" onClick={() => setEditing(null)}><UserPlus aria-hidden="true" size={16} />{t('Add the first staff member')}</Button>
+              </div>
+            ) : (
+              <div className="team-access-directory-wrap">
+                <table className="team-access-directory-table team-access-staff-table" aria-label={t('APPROVED ACCOUNTS')}>
+                  <colgroup>
+                    <col className="team-access-col-person" />
+                    <col className="team-access-col-scope" />
+                    <col className="team-access-col-date" />
+                    <col className="team-access-col-actions" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col"><Typography as="span" variant="label">{t('EMAIL')}</Typography></th>
+                      <th scope="col"><Typography as="span" variant="label">{t('ROLE')} / {t('PROGRAMS')}</Typography></th>
+                      <th scope="col"><Typography as="span" variant="label">{t('ADDED')}</Typography></th>
+                      <th scope="col"><Typography as="span" variant="label">{t('ACTIONS')}</Typography></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staff.map(member => (
+                      <tr key={member.id} data-testid={`row-staff-${member.id}`}>
+                        <td className="team-access-person-cell">
+                          <div className="team-access-member-identity">
+                            <span aria-hidden="true" className="team-access-avatar">{member.email.slice(0, 1).toUpperCase()}</span>
+                            <div className="team-access-member-copy">
+                              <Typography as="h3" variant="body" className="team-access-email"><strong>{member.email}</strong></Typography>
+                              <div className="team-access-statuses">
+                                <Badge value={member.status} label={member.status === 'invited' ? 'Account not linked' : 'Active'} />
+                                {member.invitationEmailStatus && <Badge
+                                  value={member.invitationEmailStatus}
+                                  label={t(member.invitationEmailStatus === 'delivered' ? 'Delivered' : member.invitationEmailStatus === 'failed' ? 'Failed' : 'Pending')}
+                                />}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="team-access-scope-cell">
+                          <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ROLE')} / {t('PROGRAMS')}</Typography></span>
+                          <div className="team-access-scope-value">
+                            <Typography as="span" variant="body" className="team-access-role-value">{member.role === 'coordinator' ? <Shield aria-hidden="true" size={15} /> : <Users aria-hidden="true" size={15} />}<strong>{display(member.role)}</strong></Typography>
+                            <span className="team-access-scope-separator" aria-hidden="true">·</span>
+                            <Typography as="span" variant="body" className="team-access-program-value">{member.role === 'coordinator' ? t('All programs') : member.programIds.map(id => programNames.get(id) || `Archived program ${id}`).join(', ') || t('No active programs')}</Typography>
+                          </div>
+                        </td>
+                        <td className="team-access-date-cell">
+                          <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ADDED')}</Typography></span>
+                          <Typography as="span" variant="body" className="team-access-date-value">{dateLabel(member.createdAt)}</Typography>
+                        </td>
+                        <td className="team-access-actions-cell">
+                          <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ACTIONS')}</Typography></span>
+                          <div className="team-access-action-list">
+                            {member.status === 'invited' && (member.invitationEmailStatus === 'delivered' || member.invitationEmailStatus === null) && <Button
+                              variant="text"
+                              className="team-access-row-action"
+                              onClick={() => {
+                                const key = `staff:${member.id}`;
+                                setResendFeedback(null);
+                                setResendingStaffId(member.id);
+                                resendStaffInvitationEmail.mutate({ id: member.id, data: { requestId: resendRequestIdFor(key) } }, {
+                                  onSuccess: () => {
+                                    resendRequestIds.current.delete(key);
+                                    setResendFeedback({ kind: 'staff', id: member.id, success: true });
+                                    invalidate(client, [getListStaffQueryKey()]);
+                                  },
+                                  onError: () => {
+                                    setResendFeedback({ kind: 'staff', id: member.id, success: false });
+                                    invalidate(client, [getListStaffQueryKey()]);
+                                  },
+                                  onSettled: () => setResendingStaffId(null),
+                                });
+                              }}
+                              disabled={resendStaffInvitationEmail.isPending}
+                              aria-label={`${t('Resend invitation')} for ${member.email}`}
+                              data-testid={`button-resend-staff-invitation-${member.id}`}
+                            ><Mail aria-hidden="true" size={16} />{resendingStaffId === member.id ? t('Resending…') : t('Resend invitation')}</Button>}
+                            {member.status === 'invited' && member.invitationEmailStatus && member.invitationEmailStatus !== 'delivered' && <Button
+                              variant="text"
+                              className="team-access-row-action"
+                              onClick={() => {
+                                setRetryingStaffId(member.id);
+                                retryStaffInvitationEmail.mutate({ id: member.id }, {
+                                  onSuccess: () => invalidate(client, [getListStaffQueryKey()]),
+                                  onError: () => invalidate(client, [getListStaffQueryKey()]),
+                                  onSettled: () => setRetryingStaffId(null),
+                                });
+                              }}
+                              disabled={retryStaffInvitationEmail.isPending}
+                              aria-label={`${t('Retry email')} for ${member.email}`}
+                              data-testid={`button-retry-staff-invitation-${member.id}`}
+                            ><Mail aria-hidden="true" size={16} />{retryingStaffId === member.id ? t('Retrying…') : t('Retry email')}</Button>}
+                            <Button
+                              variant="text"
+                              className="team-access-row-action"
+                              onClick={() => setEditing(member)}
+                              aria-label={`${t('Change team role')} for ${member.email}`}
+                              data-testid={`button-edit-staff-${member.id}`}
+                            ><Pencil aria-hidden="true" size={16} />{t('Change team role')}</Button>
+                            <button
+                              type="button"
+                              className="team-access-danger-action"
+                              onClick={() => setDeleting(member)}
+                              aria-label={`${t('Revoke access')} for ${member.email}`}
+                              data-testid={`button-delete-staff-${member.id}`}
+                            ><Trash2 aria-hidden="true" size={16} />{t('Revoke access')}</button>
+                          </div>
+                          {resendFeedback?.kind === 'staff' && resendFeedback.id === member.id && <small className={`team-access-feedback ${resendFeedback.success ? 'is-success' : 'is-error'}`} role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
       </PaperSurface>
 
-      <PaperSurface variant="panel" className="overflow-hidden">
+      <PaperSurface variant="panel" className="team-access-panel overflow-hidden">
         <div className="team-access-section-head">
           <div className="team-access-section-title">
             <Typography variant="label" tone="accent">{t('PARTICIPANT ACCESS')}</Typography>
             <Typography as="h2" variant="heading">{t('Participant invitations')}</Typography>
           </div>
-          <span className="team-access-section-meta">{t('Program and existing business access')}</span>
+          <Typography as="span" variant="body" className="team-access-section-meta">{t('Program and existing business access')}</Typography>
         </div>
 
         {participantInviteSuccess && <div className="participant-invite-success" role="status" data-testid="participant-invite-success">
@@ -1439,7 +1460,7 @@ function TeamPage() {
                 <span className="team-access-empty-icon"><Mail aria-hidden="true" size={20} /></span>
                 <div>
                   <Typography as="h3" variant="heading">{t('No invitations have been sent yet.')}</Typography>
-                  <p>{t('When a founder is invited, their program and business will appear here.')}</p>
+                  <Typography variant="body">{t('When a founder is invited, their program and business will appear here.')}</Typography>
                 </div>
               </div>
             ) : (
@@ -1461,61 +1482,84 @@ function TeamPage() {
                 {filteredParticipantInvitations.length === 0 ? (
                   <div className="team-access-empty-match"><Search aria-hidden="true" size={17} /><span>{t('No invitations match that search.')}</span></div>
                 ) : (
-                  <div className="team-access-participant-list">
-                    {filteredParticipantInvitations.map(invitation => (
-                      <article className="team-access-participant" key={invitation.id} data-testid={`row-participant-invitation-${invitation.id}`}>
-                        <div className="team-access-participant-person">
-                          <div className="team-access-participant-title">
-                            <Typography as="h3" variant="body" className="team-access-email">{invitation.participantName || invitation.email}</Typography>
-                            <Badge value={invitation.status} label={invitation.status === 'active' ? 'Joined' : invitation.status === 'expired' ? 'Expired' : 'Waiting for sign-in'} />
-                          </div>
-                          <span className="team-access-secondary">{invitation.email}</span>
-                        </div>
-                        <div className="team-access-participant-meta">
-                          <div className="team-access-meta-item">
-                            <Typography variant="label">{t('PROGRAM / BUSINESS')}</Typography>
-                            <div className="team-access-meta-stack">
-                              <Typography variant="body" className="team-access-meta-value">{invitation.programName}</Typography>
-                              <span className="team-access-secondary">{invitation.businessName}</span>
-                            </div>
-                          </div>
-                          <div className="team-access-meta-item">
-                            <Typography variant="label">{t('ADDED')}</Typography>
-                            <Typography variant="body" className="team-access-meta-value">{dateLabel(invitation.createdAt)}</Typography>
-                          </div>
-                        </div>
-                        <div className="team-access-participant-actions">
-                          {invitation.status !== 'active' && <Button
-                            variant="text"
-                            className="team-access-row-action"
-                            onClick={() => {
-                              const key = `participant:${invitation.id}`;
-                              setResendFeedback(null);
-                              setResendingParticipantId(invitation.id);
-                              resendParticipantInvitation.mutate({
-                                id: invitation.id,
-                                data: { requestId: resendRequestIdFor(key) },
-                              }, {
-                                onSuccess: () => {
-                                  resendRequestIds.current.delete(key);
-                                  setResendFeedback({ kind: 'participant', id: invitation.id, success: true });
-                                  invalidate(client, [getListParticipantInvitationsQueryKey()]);
-                                },
-                                onError: () => {
-                                  setResendFeedback({ kind: 'participant', id: invitation.id, success: false });
-                                  invalidate(client, [getListParticipantInvitationsQueryKey()]);
-                                },
-                                onSettled: () => setResendingParticipantId(null),
-                              });
-                            }}
-                            disabled={resendParticipantInvitation.isPending}
-                            aria-label={`${t('Resend invitation')} for ${invitation.email}`}
-                            data-testid={`button-resend-participant-invitation-${invitation.id}`}
-                          ><Mail aria-hidden="true" size={16} />{resendingParticipantId === invitation.id ? t('Resending…') : t('Resend invitation')}</Button>}
-                          {resendFeedback?.kind === 'participant' && resendFeedback.id === invitation.id && <small className={`team-access-feedback ${resendFeedback.success ? 'is-success' : 'is-error'}`} role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
-                        </div>
-                      </article>
-                    ))}
+                  <div className="team-access-directory-wrap">
+                    <table className="team-access-directory-table team-access-participant-table" aria-label={t('Participant invitations')}>
+                      <colgroup>
+                        <col className="team-access-col-person" />
+                        <col className="team-access-col-business" />
+                        <col className="team-access-col-date" />
+                        <col className="team-access-col-actions" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th scope="col"><Typography as="span" variant="label">{t('PARTICIPANT')}</Typography></th>
+                          <th scope="col"><Typography as="span" variant="label">{t('PROGRAM / BUSINESS')}</Typography></th>
+                          <th scope="col"><Typography as="span" variant="label">{t('ADDED')}</Typography></th>
+                          <th scope="col"><Typography as="span" variant="label">{t('ACTIONS')}</Typography></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredParticipantInvitations.map(invitation => (
+                          <tr key={invitation.id} data-testid={`row-participant-invitation-${invitation.id}`}>
+                            <td className="team-access-person-cell">
+                              <div className="team-access-participant-person">
+                                <div className="team-access-participant-title">
+                                  <Typography as="h3" variant="body" className="team-access-email"><strong>{invitation.participantName || invitation.email}</strong></Typography>
+                                  <Badge value={invitation.status} label={invitation.status === 'active' ? 'Joined' : invitation.status === 'expired' ? 'Expired' : 'Waiting for sign-in'} />
+                                </div>
+                                <Typography as="span" variant="body" className="team-access-secondary">{invitation.email}</Typography>
+                              </div>
+                            </td>
+                            <td className="team-access-scope-cell">
+                              <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('PROGRAM / BUSINESS')}</Typography></span>
+                              <div className="team-access-meta-stack">
+                                <Typography variant="body" className="team-access-meta-value">{invitation.programName}</Typography>
+                                <Typography as="span" variant="body" className="team-access-secondary">{invitation.businessName}</Typography>
+                              </div>
+                            </td>
+                            <td className="team-access-date-cell">
+                              <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ADDED')}</Typography></span>
+                              <Typography as="span" variant="body" className="team-access-date-value">{dateLabel(invitation.createdAt)}</Typography>
+                            </td>
+                            <td className="team-access-actions-cell">
+                              <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ACTIONS')}</Typography></span>
+                              <div className="team-access-action-list">
+                                {invitation.status !== 'active' ? <Button
+                                  variant="text"
+                                  className="team-access-row-action"
+                                  onClick={() => {
+                                    const key = `participant:${invitation.id}`;
+                                    setResendFeedback(null);
+                                    setResendingParticipantId(invitation.id);
+                                    resendParticipantInvitation.mutate({
+                                      id: invitation.id,
+                                      data: { requestId: resendRequestIdFor(key) },
+                                    }, {
+                                      onSuccess: () => {
+                                        resendRequestIds.current.delete(key);
+                                        setResendFeedback({ kind: 'participant', id: invitation.id, success: true });
+                                        invalidate(client, [getListParticipantInvitationsQueryKey()]);
+                                      },
+                                      onError: () => {
+                                        setResendFeedback({ kind: 'participant', id: invitation.id, success: false });
+                                        invalidate(client, [getListParticipantInvitationsQueryKey()]);
+                                      },
+                                      onSettled: () => setResendingParticipantId(null),
+                                    });
+                                  }}
+                                  disabled={resendParticipantInvitation.isPending}
+                                  aria-label={`${t('Resend invitation')} for ${invitation.email}`}
+                                  data-testid={`button-resend-participant-invitation-${invitation.id}`}
+                                ><Mail aria-hidden="true" size={16} />{resendingParticipantId === invitation.id ? t('Resending…') : t('Resend invitation')}</Button> : (
+                                  <Typography as="span" variant="body" className="team-access-active-access"><Check aria-hidden="true" size={16} />{t('Access active')}</Typography>
+                                )}
+                              </div>
+                              {resendFeedback?.kind === 'participant' && resendFeedback.id === invitation.id && <small className={`team-access-feedback ${resendFeedback.success ? 'is-success' : 'is-error'}`} role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </>

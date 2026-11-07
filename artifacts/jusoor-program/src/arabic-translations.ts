@@ -35,6 +35,7 @@ export const arabicTranslations: Record<string, string> = {
   'All mentors': 'جميع المرشدين',
   'APPLICATION DEADLINE': 'الموعد النهائي للتقديم',
   'APPROVED ACCOUNTS': 'الحسابات المعتمدة',
+  'Access active': 'الوصول مفعّل',
   'EMAIL DELIVERY': 'تسليم البريد الإلكتروني',
   'Delivered': 'تم التسليم',
   'BOOKING PROVIDER': 'منصة الحجز',
