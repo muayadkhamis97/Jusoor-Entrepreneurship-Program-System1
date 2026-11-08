@@ -12,6 +12,7 @@
     "test:unit": "tsx --test $(find src -maxdepth 1 -type f -name '*.test.tsx' ! -name '*.browser.test.tsx' -print | sort)",
     "test:browser": "tsx --test src/*.browser.test.tsx",
     "test:ui-browser": "tsx --test src/dialog-accessibility.browser.test.tsx",
+    "test:team-directory": "tsx --test src/team-directory.browser.test.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

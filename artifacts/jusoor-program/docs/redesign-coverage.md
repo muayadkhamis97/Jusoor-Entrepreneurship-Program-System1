@@ -59,6 +59,45 @@ Program Editorial remains the shared source of colors, fonts, spacing and primit
 
 ## Verification and limits
 
+### Repeatable Team directory regression
+
+Run `pnpm run test:web:team-directory` from the workspace root (or
+`pnpm --filter @workspace/jusoor-program run test:team-directory`). The check
+is also included in `pnpm run verify` and the existing `test:browser` glob.
+It uses `playwright-core`, Chromium at `/repl/tools/bin/chromium` (override with
+`CHROMIUM_PATH`), and an automatically allocated local Vite port. A missing
+browser fails explicitly rather than skipping the check.
+
+- `src/team-directory.browser.test.tsx` renders the **real exported TeamPage
+  and Shell**, including desktop/mobile navigation, directory markup, production
+  stylesheets and the imported Program Editorial Button. There is no copied
+  directory/button implementation or illustrative role preview.
+- `src/test-fixtures/team-directory*` supplies fixed dates, reserved-domain long
+  emails, bilingual long founder/business/program names, active and unlinked
+  staff, null/delivered/pending/failed delivery states, and active/pending/expired
+  participant invitations. All existing staff action combinations and participant
+  resend/active-access combinations are asserted individually.
+- Each state runs at **1024, 1280, 1440 and 390px in both English and Arabic
+  RTL**. Assertions check the sidebar/content boundary, document overflow, painted
+  label bounds (including clipping ancestors), icon/label vertical alignment,
+  action containment, native Tab access, visible focus, accessible naming and
+  pointer hit targets. No screenshot-baseline approval is needed.
+- Negative controls temporarily introduce overflowing content, clipped action
+  labels, displaced icons and a non-tabbable action; the assertions must catch
+  each before normal checks continue.
+- Vite resolves test-only service stubs **only for App's imports**. No production
+  route or authentication bypass is added; the fixture mounts view components
+  directly, without a signed-in session. The Clerk stub only supplies inert
+  sign-out behavior for Shell. The production Clerk guards are unchanged.
+- Every mutation is inert: it cannot fetch, email, save roles or remove accounts.
+  Local resend-error callbacks create the real uncertain-result alert for both
+  staff and participants (uncertainty is feedback, not a new API delivery status).
+  Retry and confirmed revoke are also exercised without changing fixture data.
+  Browser routing blocks and fails on any API, non-GET or external request.
+- This is a deterministic **layout/action regression**, not an authenticated
+  permissions, Gmail delivery or backend invitation-safety test. It does not use
+  production accounts, connect to a database, or validate real authentication.
+
 - App and design-system typechecks pass.
 - **153 unit tests pass**, including Button composition/link semantics, requested neutral colors, tooltip positioning, wrapping permission columns and integration heading regressions.
 - Production Vite build passes. Existing upstream source-map/PURE-annotation warnings remain non-fatal.

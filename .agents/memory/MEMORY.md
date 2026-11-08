@@ -35,3 +35,4 @@
 - [Guest judging forms](guest-judging-forms.md) — Public links use self-reported identity; freeze published rubrics and keep guest assessments separate from verified judge scores.
 - [Program Google Sheets](program-google-sheets.md) — Each program has its own workbook; show status and link only to Admins and staff assigned to that active program.
 - [Workspace content-width breakpoints](workspace-layout-breakpoints.md) — Base staff-page layouts on width remaining beside the persistent sidebar, and keep important action labels grouped.
+- [Browser layout measurement](browser-layout-measurement.md) — Measure painted text and icons; native button scroll height alone can falsely report vertical clipping.

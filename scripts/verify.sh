@@ -26,14 +26,15 @@ else
 fi
 run_check "Mentor request review-versus-withdrawal race test" pnpm run test:api:mentor-race
 run_check "Jusoor web unit tests" pnpm run test:web
+run_check "Team directory bilingual responsive browser regression" pnpm run test:web:team-directory
 run_check "API production build" pnpm --filter @workspace/api-server run build
 run_check "Jusoor web production build" env PORT=19333 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/jusoor-program run build
 
-printf '\nSKIPPED: browser-only certificate tests. Run pnpm --filter @workspace/jusoor-program run test:browser in a runner with compatible Chromium, Firefox, and WebKit executables.\n'
+printf '\nSKIPPED: other browser suites (including certificates). The Team directory Chromium regression above is included. Run pnpm --filter @workspace/jusoor-program run test:browser in a runner with compatible Chromium, Firefox, and WebKit executables for all browser suites.\n'
 
 if ((${#failed_checks[@]} > 0)); then
   printf '\nValidation failed in: %s\n' "${failed_checks[*]}"
   exit 1
 fi
 
-printf '\nAll included validation checks passed. Browser-only certificate tests were skipped.\n'
+printf '\nAll included validation checks passed, including the Team directory browser regression. Other browser suites were skipped.\n'

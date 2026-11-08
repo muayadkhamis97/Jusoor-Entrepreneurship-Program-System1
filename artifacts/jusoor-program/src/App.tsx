@@ -290,7 +290,7 @@ function ConfirmDialog({ item, onCancel, onConfirm, loading, error }: { item: st
   </AccessibleDialogSurface>;
 }
 
-function Shell({ children, staff, displayName }: { children: ReactNode; staff: StaffMember; displayName: string }) {
+export function Shell({ children, staff, displayName }: { children: ReactNode; staff: StaffMember; displayName: string }) {
   const [path] = useLocation();
   const { signOut } = useClerk();
   const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
@@ -1139,7 +1139,7 @@ function MentorFollowUpEditor({ mentor, today, onSaved }: { mentor: MentorBookin
   </div>;
 }
 
-function TeamPage() {
+export function TeamPage() {
   const query = useListStaff();
   const staff = query.data || [];
   const participantInvitationsQuery = useListParticipantInvitations();
