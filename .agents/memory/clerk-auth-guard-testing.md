@@ -1,6 +1,6 @@
 ---
 name: Clerk guard testing
-description: How to test Express authorization guards without Clerk session tokens or external auth calls.
+description: Isolated guard tests and identity provisioning for programmatic Clerk browser fixtures.
 ---
 
 For participant app-composition tests, inject both the user-ID resolver and a synthetic verified-primary-email resolver into the production participant authorization middleware. For full staff-auth tests, a synthetic `req.auth` handler can exercise the production staff guard when it carries Clerk's global auth brand and a session-token auth object (`tokenType`, `userId`, `sessionStatus`, and `sessionClaims`).
@@ -14,3 +14,9 @@ Frontend authentication doubles must enforce Clerk's single-provider invariant r
 **Why:** Lazy public-to-authenticated startup nested two providers and crashed after successful email verification, while the permissive mock let all signed-in routing tests pass.
 
 **How to apply:** Mirror the SDK's provider-nesting rejection in browser fixtures and check that confirmed sessions reach the server-side access check, including both public-entry handoff and direct workspace links.
+
+For programmatic browser checks, an invited synthetic staff row may need explicit linking to the test session's actual user ID rather than relying on email auto-linking.
+
+**Why:** A programmatic session showed the synthetic verified email in the browser, but the server-side invitation binding still did not establish staff access. Binding only the newly created test row to that session's user ID allowed the real database-backed guard to authorize the intended role.
+
+**How to apply:** Keep normal authentication and authorization unchanged. Provision a unique synthetic staff identity, obtain its signed-in user ID without logging tokens, and link only that fixture when automatic email binding is unavailable. Remove test fixtures afterward; never grant test access by changing real accounts or bypassing guards.

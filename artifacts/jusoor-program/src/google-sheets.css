@@ -20,8 +20,8 @@
 
 .gs-hero-copy { min-width: 0; }
 .gs-eyebrow { display: flex; align-items: center; gap: 8px; color: var(--gs-primary); font: 700 11px/1.45 var(--app-font-mono); letter-spacing: .06em; }
-.gs-eyebrow-mark { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid hsl(var(--primary) / .22); border-radius: 7px; }
-.gs-title { margin: 14px 0 8px !important; font-size: clamp(2.25rem, 4.2vw, 4rem) !important; }
+.gs-eyebrow-mark { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid hsl(var(--primary) / .22); border-radius:var(--radius); }
+.gs-title { margin: 14px 0 8px !important; font-size: var(--ph-title) !important; }
 .gs-intro { max-width: 62ch; }
 
 .gs-ownership {
@@ -34,7 +34,7 @@
   border-radius: var(--radius);
   background: hsl(var(--primary) / .045);
 }
-.gs-ownership-icon { display: grid; place-items: center; width: 32px; height: 32px; grid-row: span 2; border-radius: 8px; color: var(--gs-primary); background: hsl(var(--primary) / .1); }
+.gs-ownership-icon { display: grid; place-items: center; width: 32px; height: 32px; grid-row: span 2; border-radius:var(--radius); color: var(--gs-primary); background: hsl(var(--primary) / .1); }
 .gs-ownership-label { align-self: center; color: var(--gs-primary) !important; }
 .gs-ownership-copy { grid-column: 1 / -1; max-width: none; font-size: 13px !important; line-height: 1.55 !important; }
 
@@ -48,7 +48,7 @@
   border-radius: var(--radius);
   background: hsl(var(--primary) / .045);
 }
-.gs-data-note-mark { display: grid; place-items: center; flex: 0 0 23px; width: 23px; height: 23px; border-radius: 6px; color: var(--gs-primary); background: hsl(var(--primary) / .1); }
+.gs-data-note-mark { display: grid; place-items: center; flex: 0 0 23px; width: 23px; height: 23px; border-radius:var(--radius); color: var(--gs-primary); background: hsl(var(--primary) / .1); }
 .gs-data-note p { margin: 1px 0 0; color: var(--gs-ink); font-size: 12px; line-height: 1.6; }
 
 .gs-section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin-bottom: 13px; }
@@ -62,7 +62,7 @@
 .gs-program-card { min-width: 0; padding: 17px 5px; border-bottom: 1px solid var(--gs-line); }
 .gs-program-card-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .gs-program-identity { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.gs-program-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid hsl(var(--primary) / .16); border-radius: 9px; color: var(--gs-primary); background: hsl(var(--primary) / .055); }
+.gs-program-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid hsl(var(--primary) / .16); border-radius:var(--radius); color: var(--gs-primary); background: hsl(var(--primary) / .055); }
 .gs-program-name-wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-width: 0; }
 .gs-program-name { max-width: 100%; font-size: 19px !important; line-height: 1.35 !important; }
 .gs-status { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 4px 8px; border-radius: 999px; font: 11px/1.4 var(--app-font-mono); }
@@ -113,7 +113,7 @@
 .gs-state-empty { flex-direction: column; justify-content: center; min-height: 210px; text-align: center; }
 .gs-state-empty h3 { font-size: 20px !important; }
 .gs-state-empty p { max-width: 52ch; margin: 2px 0 0; font-size: 12px !important; }
-.gs-empty-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 2px; border-radius: 10px; color: var(--gs-primary); background: hsl(var(--primary) / .08); }
+.gs-empty-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 2px; border-radius:var(--radius-lg); color: var(--gs-primary); background: hsl(var(--primary) / .08); }
 
 .gs-skeleton-list { display: grid; gap: 9px; padding: 13px 0; }
 .gs-skeleton-list span { display: block; height: 86px; border: 1px solid hsl(var(--border) / .55); border-radius: var(--radius); background: linear-gradient(100deg, hsl(var(--muted)) 20%, hsl(var(--card)) 45%, hsl(var(--muted)) 70%); background-size: 220% 100%; animation: gs-shimmer 1.4s ease-in-out infinite; }

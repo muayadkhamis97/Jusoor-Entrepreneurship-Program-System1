@@ -3,6 +3,8 @@
  * resolve to Program Editorial's generated theme tokens.
  */
 
+:root { --ph-title: 1.5rem; --ph-display: clamp(2rem, 3.6vw, 2.75rem); }
+
 :where(.workspace, .intake-page, .role-workspace, .analytics-page, .auth-page) {
   color: hsl(var(--foreground));
   font-family: var(--app-font-sans);
@@ -189,4 +191,57 @@
   :where(.nav-link, .profile-signout, .mobile-signout, .session-join, .row-arrow) {
     transition-duration: 0ms;
   }
+}
+
+/* ---------------------------------------------------------------
+ * Compact desktop workspace (redesign). One shared layer; page CSS
+ * should not re-declare these sizes. Tokens only.
+ * ------------------------------------------------------------- */
+.sidebar { width: 232px; flex-basis: 232px; padding: 20px 14px 14px; }
+.main-panel { margin-inline-start: 232px; }
+.nav-link { min-height: 36px; font-size: 13px; gap: 10px; }
+.topbar { height: 52px; flex-basis: 52px; padding-inline: calc(var(--spacing) * 6); }
+.page-heading h1, .role-heading h1, .participant-header h1 { font-size: var(--ph-title); line-height: 1.25; letter-spacing: -.01em; margin: 4px 0 2px; }
+.page-heading p { font-size: .8125rem; }
+.metric-value { font-size: 1.5rem; margin-top: 6px; letter-spacing: -.02em; }
+
+/* Tables: fit the content area; scroll inside the wrapper only when needed. */
+.table-wrap table, .ana-table-scroll table { min-width: 640px; }
+thead th { font: 600 11px/1.4 var(--app-font-mono); letter-spacing: .04em; padding: 8px 12px; background: hsl(var(--muted) / .5); }
+tbody td { font-size: 13px; padding: 9px 12px; vertical-align: middle; }
+tbody tr:hover > td { background: hsl(var(--muted) / .3); }
+
+/* Readable status badges (were 8px). */
+.badge { gap: 6px; padding: 3px 8px; font-size: 11px; line-height: 1.4; font-weight: 500; border: 1px solid transparent; }
+.badge > span:first-child:empty { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+
+.icon-button { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); }
+.icon-button:hover { background: hsl(var(--muted)); }
+.form-control { height: 36px; font-size: 13px; }
+textarea.form-control { height: auto; }
+
+/* Dialogs */
+.modal-card, .confirm-card { border-radius: var(--radius-lg); box-shadow: 0 16px 48px hsl(var(--foreground) / .18); }
+.modal-head h2, .confirm-card h2 { font-size: 1.125rem; line-height: 1.3; }
+
+/* Empty / error states: composed, not oversized. */
+.empty-panel { padding: calc(var(--spacing) * 8) calc(var(--spacing) * 5); gap: calc(var(--spacing) * 2); }
+.empty-panel h3 { font-size: .9375rem; margin: 0; }
+.empty-panel p { font-size: .8125rem; margin: 0; }
+
+/* Public / participant / specialist surfaces share the same heading scale. */
+.intake-brand small, .intake-footer { font-size: 11px; }
+.participant-card, .application-detail-card, .intake-aside { border-color: hsl(var(--border)); background: hsl(var(--card)); }
+.participant-entry-copy b { font-size: 13px; }
+.participant-entry-copy span, .participant-entry-links a { font-size: 12px; }
+
+@media (max-width: 1100px) {
+  .sidebar { width: 208px; flex-basis: 208px; }
+  .main-panel { margin-inline-start: 208px; }
+  .page-content { padding-inline: calc(var(--spacing) * 5); }
+}
+@media (max-width: 760px) {
+  .main-panel { margin-inline-start: 0; }
+  .page-content { padding-inline: calc(var(--spacing) * 4); }
+  .page-heading { flex-direction: column; align-items: stretch; }
 }

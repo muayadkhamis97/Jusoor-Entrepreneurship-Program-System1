@@ -28,12 +28,15 @@ export function BrandingPage() {
   const query = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const update = useUpdateProgramBranding();
   const [form, setForm] = useState<BrandingForm>(defaults);
+  const [savedForm, setSavedForm] = useState<BrandingForm>(defaults);
   const [initialized, setInitialized] = useState(false);
   const [saved, setSaved] = useState(false);
   const [validationError, setValidationError] = useState('');
   useEffect(() => {
     if (query.data && !initialized) {
-      setForm({ ...query.data, brandName: getDisplayBrandName(query.data.brandName) });
+      const initialForm = { ...query.data, brandName: getDisplayBrandName(query.data.brandName) };
+      setForm(initialForm);
+      setSavedForm(initialForm);
       setInitialized(true);
     }
   }, [query.data, initialized]);
@@ -57,12 +60,14 @@ export function BrandingPage() {
     update.mutate({ data }, {
       onSuccess: () => {
         setForm(data);
+        setSavedForm(data);
         setSaved(true);
         void client.invalidateQueries({ queryKey: getGetProgramBrandingQueryKey() });
       },
     });
   };
   const restore = () => { setForm(defaults); setSaved(false); setValidationError(''); };
+  const hasUnsavedChanges = (Object.keys(defaults) as (keyof BrandingForm)[]).some(key => form[key] !== savedForm[key]);
   const busy = query.isLoading || update.isPending;
   if (query.isLoading) return <main className="branding-page"><div className="branding-skeleton" /><div className="branding-skeleton" /></main>;
   if (query.isError) return <main className="branding-page"><section className="branding-error"><CircleAlert /><h1>{t('Brand settings could not load.')}</h1><p>{t('Your current identity is unchanged. Try again.')}</p><button className="button button-outline" onClick={() => void query.refetch()}>{t('Retry connection')}</button></section></main>;
@@ -88,7 +93,7 @@ export function BrandingPage() {
         <div className="branding-actions"><button type="button" className="button button-quiet" onClick={restore} disabled={busy}><RotateCcw size={14} />{t('Restore default settings')}</button><button type="submit" className="button button-primary" disabled={busy} data-testid="button-save-branding">{update.isPending ? t('Saving…') : <><Save size={15} />{t('Save branding')}</>}</button></div>
       </form>
       <aside className="branding-preview-wrap">
-        <div className="branding-preview-label"><span>{t('LIVE PREVIEW')}</span><span>{t('Unsaved changes')}</span></div>
+        <div className="branding-preview-label"><span>{t('LIVE PREVIEW')}</span>{hasUnsavedChanges && <span>{t('Unsaved changes')}</span>}</div>
         <section className="branding-preview" style={{
           '--preview-primary': form.primaryColor,
           '--preview-primary-foreground': `hsl(${getAccessibleBrandForeground(form.primaryColor)})`,

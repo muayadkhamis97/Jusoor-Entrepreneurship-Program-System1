@@ -2,7 +2,7 @@
   margin: 0 0 18px;
   padding: 19px 21px;
   border: 1px solid hsl(var(--border));
-  border-radius: 14px;
+  border-radius:var(--radius-lg);
   background: hsl(var(--card));
   box-shadow: 0 8px 24px hsl(var(--foreground) / .035);
 }
@@ -17,7 +17,7 @@
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius:var(--radius-lg);
   color: hsl(var(--primary));
   background: hsl(var(--primary) / .08);
 }
@@ -29,7 +29,7 @@
 .participant-business-card {
   padding: 15px;
   border: 1px solid hsl(var(--border));
-  border-radius: 11px;
+  border-radius:var(--radius-lg);
   background: hsl(var(--background));
 }
 .participant-business-card + .participant-business-card { margin-top: 10px; }
@@ -41,7 +41,7 @@
 }
 .participant-business-title > div > span {
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: 12px;
 }
 .participant-business-title h3 {
   margin: 4px 0 0;
@@ -82,12 +82,12 @@
   border-radius: 50%;
   color: hsl(var(--primary));
   background: hsl(var(--primary) / .10);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 .participant-business-member small {
   color: hsl(var(--primary));
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
 }
 .participant-business-privacy,
@@ -97,13 +97,13 @@
   gap: 7px;
   margin: 13px 0 0;
   color: hsl(var(--muted-foreground));
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .participant-business-privacy svg { flex: 0 0 auto; color: hsl(var(--primary)); }
 .participant-team-loading {
   height: 48px;
-  border-radius: 8px;
+  border-radius:var(--radius);
   background: linear-gradient(90deg, hsl(var(--muted) / .55), hsl(var(--muted) / .22), hsl(var(--muted) / .55));
   background-size: 200% 100%;
   animation: team-loading 1.4s ease infinite;
@@ -114,7 +114,7 @@
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid hsl(var(--destructive) / .22);
-  border-radius: 7px;
+  border-radius:var(--radius);
   background: hsl(var(--destructive) / .04);
 }
 .participant-team-error p { margin: 0; }
@@ -128,7 +128,7 @@
   margin: 18px 0 12px;
   padding: 16px 18px;
   border: 1px solid hsl(var(--primary) / .2);
-  border-radius: 9px;
+  border-radius:var(--radius);
   background: hsl(var(--primary) / .045);
 }
 .participant-next-action h2 { margin: 5px 0; color: hsl(var(--foreground)); font-size: 16px; }

@@ -128,13 +128,13 @@ export function ApiIntegrationsPage() {
     <header className="api-hero">
       <div className="api-hero-copy">
         <div className="api-eyebrow"><span className="api-eyebrow-mark"><Code2 size={14} /></span>{copy('ADMIN TOOLS / DEVELOPER API', 'أدوات المسؤول / واجهة المطورين')}</div>
-        <h1>{copy('Connect the systems<br />that move your cohort.', 'اربط الأنظمة التي<br />تدفع مجموعتك للأمام.')}</h1>
+        <h1>{copy('Connect the systems that move your cohort.', 'اربط الأنظمة التي تدفع مجموعتك للأمام.')}</h1>
         <p>{copy('Issue scoped credentials for trusted integrations. Every key belongs to one program, and every change stays auditable.', 'أنشئ بيانات اعتماد محددة للتكاملات الموثوقة. يرتبط كل مفتاح ببرنامج واحد، وتبقى كل التغييرات قابلة للتدقيق.')}</p>
       </div>
       <div className="api-hero-aside">
         <div className="api-shield"><ShieldCheck size={19} /></div>
         <div className="api-hero-aside-label">{copy('PROGRAM-BOUND ACCESS', 'وصول مرتبط بالبرنامج')}</div>
-        <strong>{copy('One key.<br />One cohort.', 'مفتاح واحد.<br />مجموعة واحدة.')}</strong>
+        <strong>{copy('One key. One cohort.', 'مفتاح واحد. مجموعة واحدة.')}</strong>
         <span>{copy('No cross-program visibility.', 'لا وصول إلى برامج أخرى.')}</span>
         <div className="api-key-count"><b>{String(activeCount).padStart(2, '0')}</b><span>{copy('ACTIVE KEYS', 'مفاتيح نشطة')}</span></div>
       </div>

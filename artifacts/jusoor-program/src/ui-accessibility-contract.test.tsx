@@ -73,6 +73,17 @@ test('dense assignment tables expose a keyboard-focusable labelled scroll region
   }
 });
 
+test('permission columns can wrap instead of forcing an oversized RTL matrix', () => {
+  assert.match(roleAccessCss, /\.access-table\{[^}]*table-layout:fixed/);
+  assert.match(roleAccessCss, /\.matrix-area\{[^}]*min-width:0/);
+  assert.match(roleAccessCss, /\.access-mark\{[^}]*white-space:normal/);
+});
+
+test('integration headings do not render HTML line-break strings as visible text', () => {
+  const source = readFileSync(new URL('./api-integrations.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /copy\(['"][^'"]*<br\s*\/?>/);
+});
+
 test('participant business-team failures have an alert and a retry action', () => {
   assert.match(intakeSurfaces, /participant-team-error[^]*role="alert"/);
   assert.match(intakeSurfaces, /button-retry-business-team/);

@@ -34,9 +34,7 @@
   flex-wrap: wrap;
 }
 
-.team-access-header-actions > button {
-  min-height: calc(var(--spacing) * 10);
-}
+
 
 .team-access-note {
   display: flex;
@@ -253,18 +251,6 @@
   white-space: nowrap;
 }
 
-.team-access-danger-action {
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: hsl(var(--destructive));
-  font: inherit;
-  cursor: pointer;
-}
-
-.team-access-danger-action:hover {
-  background: hsl(var(--destructive) / 0.08);
-}
 
 .team-access-danger-action:focus-visible,
 .team-access-search:focus-within {
@@ -370,140 +356,69 @@
 }
 
 /*
- * The workspace sidebar takes a meaningful part of the browser width. Base
- * the directory layout on the page's available width, not the full viewport,
- * so medium desktop windows don't squeeze the actions into narrow columns.
+ * Redesigned directory: each row is a grid sized from the page's own width
+ * (container query), so 1024px windows beside the sidebar keep one compact
+ * row with actions on a single line.
  */
-@container team-access (max-width: 1040px) {
-  .team-access-directory-table colgroup,
-  .team-access-directory-table thead {
-    display: none;
-  }
+.team-access-directory-table thead tr,
+.team-access-directory-table tbody tr {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) minmax(5.5rem, .7fr) auto;
+  align-items: center;
+  column-gap: calc(var(--spacing) * 4);
+  padding-inline: calc(var(--spacing) * 4);
+  border-block-end: 1px solid hsl(var(--border));
+}
+.team-access-directory-table colgroup { display: none; }
+.team-access-directory-table thead, .team-access-directory-table tbody { display: block; }
+.team-access-directory-table thead tr { background: hsl(var(--muted) / .5); }
+.team-access-directory-table th, .team-access-directory-table td { display: block; padding: calc(var(--spacing) * 2) 0; border: 0; }
+.team-access-directory-table td { padding-block: calc(var(--spacing) * 2.5); }
+.team-access-directory-table tbody tr:last-child { border-block-end: 0; }
+.team-access-directory-table tbody tr:hover { background: hsl(var(--muted) / .35); }
+.team-access-directory-table th:last-child { text-align: end; }
+.team-access-action-list { flex-wrap: nowrap; gap: calc(var(--spacing) * 1.5); }
+.team-access-avatar { flex-basis: calc(var(--spacing) * 7); width: calc(var(--spacing) * 7); height: calc(var(--spacing) * 7); font-size: .75rem; font-weight: 600; }
+.team-access-member-copy, .team-access-participant-person { gap: calc(var(--spacing) * .75); }
+.team-access-panel :is(h2) { font-size: 1.0625rem; line-height: 1.3; }
+.team-access-panel :is(h3) { font-size: .8125rem; line-height: 1.35; margin: 0; }
+.team-access-panel td, .team-access-panel td :is(p, span) { font-size: .8125rem; line-height: 1.4; }
+.team-access-panel .team-access-secondary, .team-access-panel .team-access-program-value { font-size: .75rem; }
+.team-access-section-head { padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4); align-items: center; }
+.team-access-participant-toolbar { padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 4); border-block-end: 1px solid hsl(var(--border)); }
+.team-access-participant-toolbar h3 { font-size: .875rem; margin: 0; }
+.team-access-search { min-height: calc(var(--spacing) * 9); background: hsl(var(--card)); }
+.team-access-empty { padding: calc(var(--spacing) * 6) calc(var(--spacing) * 4); gap: calc(var(--spacing) * 2); }
+.team-access-empty h3 { font-size: .9375rem; margin: 0; }
+.team-access-note { padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3); align-items: center; }
+.team-access-note h2 { font-size: .8125rem; font-weight: 600; margin: 0; }
+.team-access-note p { font-size: .75rem; }
+.team-access-note-icon { flex-basis: calc(var(--spacing) * 8); width: calc(var(--spacing) * 8); height: calc(var(--spacing) * 8); }
+.team-access-header h1 { font-size: 1.5rem; line-height: 1.25; margin: 0; }
 
-  .team-access-directory-table,
-  .team-access-directory-table tbody,
-  .team-access-directory-table tr,
-  .team-access-directory-table td {
-    display: block;
-    width: 100%;
-  }
-
+@container team-access (max-width: 900px) {
+  .team-access-directory-table thead tr { display: none; }
   .team-access-directory-table tbody tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
-    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
-    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5);
-    border-block-end: 1px solid hsl(var(--border));
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+    row-gap: 0;
   }
-
-  .team-access-directory-table tbody tr:last-child {
-    border-block-end: 0;
-  }
-
-  .team-access-directory-table td {
-    padding: 0;
-    border: 0;
-    width: auto;
-  }
-
-  .team-access-person-cell,
-  .team-access-actions-cell {
-    grid-column: 1 / -1;
-  }
-
-  .team-access-staff-table .team-access-scope-cell {
-    grid-column: 1;
-  }
-
-  .team-access-staff-table .team-access-date-cell {
-    grid-column: 2;
-  }
-
-  .team-access-participant-table .team-access-scope-cell {
-    grid-column: 1;
-  }
-
-  .team-access-participant-table .team-access-date-cell {
-    grid-column: 2;
-  }
-
-  .team-access-directory-table td.team-access-actions-cell {
-    padding-block-start: calc(var(--spacing) * 2.5);
-    border-block-start: 1px solid hsl(var(--border));
-  }
-
-  .team-access-directory-table td.team-access-actions-cell {
-    text-align: start;
-  }
-
-  .team-access-mobile-label {
-    display: block;
-    margin-block-end: var(--spacing);
-    color: hsl(var(--muted-foreground));
-  }
-
-  .team-access-action-list {
-    justify-content: flex-start;
-    gap: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3);
-  }
-
-  .team-access-active-access {
-    justify-content: flex-start;
-  }
-
-  .team-access-feedback {
-    text-align: start;
-  }
+  .team-access-actions-cell { grid-column: 1 / -1; padding-block-start: 0 !important; }
+  .team-access-action-list { justify-content: flex-start; flex-wrap: wrap; }
+  .team-access-feedback { text-align: start; }
+  .team-access-active-access { justify-content: flex-start; }
+  .team-access-mobile-label { display: block; margin-block-end: 2px; color: hsl(var(--muted-foreground)); }
+  .team-access-person-cell .team-access-mobile-label, .team-access-actions-cell .team-access-mobile-label { display: none; }
 }
 
-@container team-access (max-width: 720px) {
-  .team-access-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .team-access-header-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    width: 100%;
-  }
-
-  .team-access-header-actions > button {
-    width: 100%;
-  }
-
-  .team-access-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-    padding-inline: calc(var(--spacing) * 4);
-  }
-
-  .team-access-section-meta {
-    text-align: start;
-  }
-
-  .team-access-participant-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-    padding-inline: calc(var(--spacing) * 4);
-  }
-
-  .team-access-search {
-    width: 100%;
-  }
+@container team-access (max-width: 640px) {
+  .team-access-header { flex-direction: column; align-items: stretch; }
+  .team-access-header-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .team-access-header-actions > button { width: 100%; }
+  .team-access-section-head, .team-access-participant-toolbar { flex-direction: column; align-items: flex-start; }
+  .team-access-search { width: 100%; }
+  .team-access-directory-table tbody tr { grid-template-columns: minmax(0, 1fr); }
+  .team-access-directory-table td { padding-block: calc(var(--spacing) * 1.5); }
 }
-
-@container team-access (max-width: 560px) {
-  .team-access-directory-table tbody tr {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .team-access-scope-cell,
-  .team-access-date-cell {
-    grid-column: 1 / -1;
-  }
-
-  .team-access-section-head {
-    gap: calc(var(--spacing) * 2);
-  }
+@container team-access (max-width: 380px) {
+  .team-access-header-actions { grid-template-columns: 1fr; }
 }

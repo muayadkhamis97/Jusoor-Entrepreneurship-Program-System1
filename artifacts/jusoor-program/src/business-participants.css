@@ -9,7 +9,7 @@
 .business-participant-avatar { display: grid; flex: 0 0 32px; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: hsl(var(--primary) / .1); color: hsl(var(--primary)); font-size: 11px; font-weight: 700; }
 .business-participant-identity { display: grid; min-width: 0; gap: 3px; }
 .business-participant-identity strong { overflow-wrap: anywhere; color: hsl(var(--foreground)); font-size: 11px; }
-.business-participant-identity small { overflow-wrap: anywhere; color: hsl(var(--muted-foreground)); font-size: 10px; }
+.business-participant-identity small { overflow-wrap: anywhere; color: hsl(var(--muted-foreground)); font-size: 12px; }
 .business-participant-invite { border-block-start: 1px solid hsl(var(--border)); padding-block-start: 16px; }
 .business-participant-invite-copy { margin: 5px 0 11px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.5; }
 .business-participant-invite-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

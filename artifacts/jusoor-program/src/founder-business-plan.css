@@ -1,6 +1,6 @@
 .founder-plan-section { margin-top:42px; }
 .founder-plan-list { display:grid; gap:15px; }
-.founder-plan-card { overflow:hidden; background:hsl(var(--card)); border:1px solid hsl(var(--border)); border-radius:10px; box-shadow:var(--shadow-card); }
+.founder-plan-card { overflow:hidden; background:hsl(var(--card)); border:1px solid hsl(var(--border)); border-radius:var(--radius-lg); box-shadow:none; }
 .founder-plan-head { display:flex; align-items:center; gap:13px; min-height:86px; padding:15px 20px; color:hsl(var(--sidebar-foreground)); background:hsl(var(--sidebar)); }
 .founder-plan-form { padding:5px 20px 19px; }
 .founder-plan-form .idea-step { padding-top:17px; padding-bottom:17px; }

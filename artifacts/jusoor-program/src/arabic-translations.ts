@@ -716,6 +716,8 @@ export const arabicTranslations: Record<string, string> = {
   'Add an admin or program staff email to approve the team.': 'أضف بريد المسؤول أو أحد أعضاء فريق البرنامج للموافقة على الدخول.',
   'Add the first staff member': 'إضافة أول عضو للفريق',
   'Change team role': 'تغيير دور عضو الفريق',
+  'Edit role': 'تعديل الدور',
+  'Revoke': 'إلغاء الوصول',
   'Choose the permissions this team member should have.': 'اختر الصلاحيات المناسبة لهذا العضو.',
   'Invite a team member': 'دعوة عضو للفريق',
   'Save access and send a branded invitation to this verified email. The person should sign in using the same address.': 'احفظ الصلاحية وأرسل دعوة تحمل هوية المنصة إلى هذا البريد الموثّق. يجب على المدعو تسجيل الدخول باستخدام البريد نفسه.',

@@ -51,8 +51,10 @@ hero44–88px/1.12 with restrained tracking, headings24–32px/1.3, body16px/1.7
 with a65ch maximum reading width, short labels11px/1.55. Arabic uses extra
 line-height headroom, no added tracking and no synthetic italic emphasis.
 
-Button accepts native button props and `variant="primary" | "text" | "pill"`,
-with an optional decorative `arrow`. It is not an anchor or routing component.
+Button accepts native button props, `variant="primary" | "secondary" | "text" | "danger" | "pill"`, `size="sm" | "md"`,
+with an optional decorative `arrow`. Use `asChild` with a single link/router-link child to preserve
+link semantics without nesting a button. `buttonStyles(options)` exposes the same visual recipe
+for headless actions that own their element; do not maintain a second local button recipe.
 Typography accepts `variant="hero" | "heading" | "body" | "label"` and
 `tone="default" | "accent"` (small accent labels have a contrast-adjusted blend), native
 attributes and semantic `as`. PaperSurface accepts `variant="paper" | "panel"`

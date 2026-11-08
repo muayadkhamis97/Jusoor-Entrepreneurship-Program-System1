@@ -9,7 +9,6 @@ import './program-controls.css';
 import { PublicLanding } from './public-landing';
 import { getBrandingThemeTokens, getPanelSurfaceColors } from './branding-contrast';
 import { sessionProgramField } from './session-form-requirements';
-import { installIconTooltipFallback } from './icon-tooltip-fallback';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
 import { lazy, Suspense, type ChangeEvent, type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -1283,11 +1282,11 @@ function TeamPage() {
           <Typography as="p" variant="body" className="team-access-summary">{t('Invite the right people into each part of the founder journey.')}</Typography>
         </div>
         <div className="team-access-header-actions">
-          <Button variant="text" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant">
+          <Button variant="secondary" onClick={() => { setParticipantInviteSuccess(null); setInviteInstructionsStatus('idle'); setInvitingParticipant(true); }} data-testid="button-invite-participant">
             <UserPlus aria-hidden="true" size={16} /> {t('Invite participant')}
           </Button>
-          <Button variant="primary" arrow onClick={() => { setStaffInviteSuccess(false); setEditing(null); }} data-testid="button-add-staff">
-            {t('Invite team member')}
+          <Button variant="primary" onClick={() => { setStaffInviteSuccess(false); setEditing(null); }} data-testid="button-add-staff">
+            <UserPlus aria-hidden="true" size={16} />{t('Invite team member')}
           </Button>
         </div>
       </header>
@@ -1374,7 +1373,7 @@ function TeamPage() {
                           <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ACTIONS')}</Typography></span>
                           <div className="team-access-action-list">
                             {member.status === 'invited' && (member.invitationEmailStatus === 'delivered' || member.invitationEmailStatus === null) && <Button
-                              variant="text"
+                              variant="secondary" size="sm"
                               className="team-access-row-action"
                               onClick={() => {
                                 const key = `staff:${member.id}`;
@@ -1398,7 +1397,7 @@ function TeamPage() {
                               data-testid={`button-resend-staff-invitation-${member.id}`}
                             ><Mail aria-hidden="true" size={16} />{resendingStaffId === member.id ? t('Resending…') : t('Resend invitation')}</Button>}
                             {member.status === 'invited' && member.invitationEmailStatus && member.invitationEmailStatus !== 'delivered' && <Button
-                              variant="text"
+                              variant="secondary" size="sm"
                               className="team-access-row-action"
                               onClick={() => {
                                 setRetryingStaffId(member.id);
@@ -1413,19 +1412,19 @@ function TeamPage() {
                               data-testid={`button-retry-staff-invitation-${member.id}`}
                             ><Mail aria-hidden="true" size={16} />{retryingStaffId === member.id ? t('Retrying…') : t('Retry email')}</Button>}
                             <Button
-                              variant="text"
+                              variant="secondary" size="sm"
                               className="team-access-row-action"
                               onClick={() => setEditing(member)}
                               aria-label={`${t('Change team role')} for ${member.email}`}
                               data-testid={`button-edit-staff-${member.id}`}
-                            ><Pencil aria-hidden="true" size={16} />{t('Change team role')}</Button>
-                            <button
-                              type="button"
+                            ><Pencil aria-hidden="true" size={16} />{t('Edit role')}</Button>
+                            <Button
+                              variant="danger" size="sm"
                               className="team-access-danger-action"
                               onClick={() => setDeleting(member)}
                               aria-label={`${t('Revoke access')} for ${member.email}`}
                               data-testid={`button-delete-staff-${member.id}`}
-                            ><Trash2 aria-hidden="true" size={16} />{t('Revoke access')}</button>
+                            ><Trash2 aria-hidden="true" size={16} />{t('Revoke')}</Button>
                           </div>
                           {resendFeedback?.kind === 'staff' && resendFeedback.id === member.id && <small className={`team-access-feedback ${resendFeedback.success ? 'is-success' : 'is-error'}`} role={resendFeedback.success ? 'status' : 'alert'}>{t(resendFeedback.success ? 'Invitation resent.' : 'Resend could not be confirmed. Check Gmail before trying again.')}</small>}
                         </td>
@@ -1449,13 +1448,13 @@ function TeamPage() {
         {participantInviteSuccess && <div className="participant-invite-success" role="status" data-testid="participant-invite-success">
           <div><b>{t('Invitation email sent.')}</b><p>{t('Ask this participant to create an account or sign in using')} <strong>{participantInviteSuccess.email}</strong> {t('before the invitation expires on')} <strong>{dateLabel(participantInviteSuccess.expiresAt.toISOString())}</strong>.</p></div>
           <div className="participant-invite-links"><Link href="/sign-up">{t('Create account')}</Link><Link href="/sign-in">{t('Sign in')}</Link></div>
-          <button type="button" className="button button-quiet" onClick={() => void copyParticipantSignInInstructions()} data-testid="button-copy-participant-instructions">{t('Copy sign-in instructions')}</button>
+          <Button variant="secondary" size="sm" onClick={() => void copyParticipantSignInInstructions()} data-testid="button-copy-participant-instructions">{t('Copy sign-in instructions')}</Button>
           {inviteInstructionsStatus === 'copied' && <small>{t('Instructions copied.')}</small>}
           {inviteInstructionsStatus === 'error' && <small role="alert">{t('Could not copy instructions. Share the steps above instead.')}</small>}
         </div>}
 
         {participantInvitationsQuery.isLoading ? <LoadingState label="Loading participant invitations" /> :
-          participantInvitationsQuery.isError ? <div className="team-access-error" role="alert"><CircleAlert aria-hidden="true" size={17} /><span>{t('Could not load participant invitations.')}{participantListError?.data?.error ? ` ${t(participantListError.data.error)}` : ''}</span><Button variant="text" onClick={() => void participantInvitationsQuery.refetch()}>{t('Retry')}</Button></div> :
+          participantInvitationsQuery.isError ? <div className="team-access-error" role="alert"><CircleAlert aria-hidden="true" size={17} /><span>{t('Could not load participant invitations.')}{participantListError?.data?.error ? ` ${t(participantListError.data.error)}` : ''}</span><Button variant="secondary" size="sm" onClick={() => void participantInvitationsQuery.refetch()}><RefreshCw aria-hidden="true" />{t('Retry')}</Button></div> :
             participantInvitations.length === 0 ? (
               <div className="team-access-empty">
                 <span className="team-access-empty-icon"><Mail aria-hidden="true" size={20} /></span>
@@ -1526,7 +1525,7 @@ function TeamPage() {
                               <span className="team-access-mobile-label"><Typography as="span" variant="label">{t('ACTIONS')}</Typography></span>
                               <div className="team-access-action-list">
                                 {invitation.status !== 'active' ? <Button
-                                  variant="text"
+                                  variant="secondary" size="sm"
                                   className="team-access-row-action"
                                   onClick={() => {
                                     const key = `participant:${invitation.id}`;
@@ -1840,7 +1839,6 @@ function AuthRouter() {
 }
 
 function App({ sessionProvided = false }: { sessionProvided?: boolean }) {
-  useEffect(() => installIconTooltipFallback(), []);
   const workspace = <TooltipProvider><Suspense fallback={<AuthLoading />}><ClerkApp sessionProvided={sessionProvided} /></Suspense></TooltipProvider>;
   return sessionProvided ? workspace : <LanguageProvider>{workspace}</LanguageProvider>;
 }
