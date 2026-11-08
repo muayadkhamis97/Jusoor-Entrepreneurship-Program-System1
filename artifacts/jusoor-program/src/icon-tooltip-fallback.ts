@@ -42,6 +42,19 @@ export function installIconTooltipFallback(root: HTMLElement = document.body) {
     return control;
   }
 
+  function syncContent(element: HTMLElement) {
+    const label = labelFor(element);
+    const direction = win!.getComputedStyle(element).direction;
+    const language = element.closest('[lang]')?.getAttribute('lang') || doc.documentElement.lang;
+    const changed = tooltip.textContent !== label || tooltip.dir !== direction || tooltip.lang !== language;
+    // The tooltip lives inside the observed tree. Avoid writing unchanged
+    // attributes, which would schedule another observer callback.
+    if (tooltip.textContent !== label) tooltip.textContent = label;
+    if (tooltip.dir !== direction) tooltip.dir = direction;
+    if (tooltip.lang !== language) tooltip.lang = language;
+    return changed;
+  }
+
   function clearTimer() {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
@@ -76,7 +89,7 @@ export function installIconTooltipFallback(root: HTMLElement = document.body) {
 
   function show(element: HTMLElement) {
     clearTimer();
-    if (element === dismissedAnchor || !element.isConnected || !labelFor(element)) return;
+    if (element === dismissedAnchor || !element.isConnected || controlFor(element) !== element || !labelFor(element)) return;
     hide();
     anchor = element;
     const title = element.getAttribute('title');
@@ -85,9 +98,7 @@ export function installIconTooltipFallback(root: HTMLElement = document.body) {
       element.removeAttribute('title');
       element.setAttribute('data-program-tooltip', tooltip.id);
     }
-    tooltip.textContent = labelFor(element);
-    tooltip.dir = win!.getComputedStyle(element).direction;
-    tooltip.lang = element.closest('[lang]')?.getAttribute('lang') || doc.documentElement.lang;
+    syncContent(element);
     const descriptions = new Set((element.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean));
     descriptions.add(tooltip.id);
     element.setAttribute('aria-describedby', [...descriptions].join(' '));
@@ -135,13 +146,20 @@ export function installIconTooltipFallback(root: HTMLElement = document.body) {
 
   const observer = new MutationObserver(() => {
     if (!anchor) return;
-    if (!anchor.isConnected || !labelFor(anchor)) hide();
-    else if (tooltip.textContent !== labelFor(anchor)) {
-      tooltip.textContent = labelFor(anchor);
-      position();
-    }
+    // Explicit tooltips may mount after the focus event has already reached
+    // this delegated fallback. Hand description ownership back when they do.
+    if (!anchor.isConnected || controlFor(anchor) !== anchor || !labelFor(anchor)) hide();
+    else if (syncContent(anchor)) position();
   });
-  observer.observe(root, { attributes: true, attributeFilter: ['aria-label', 'title'], childList: true, subtree: true });
+  observer.observe(root, {
+    attributes: true,
+    attributeFilter: ['aria-label', 'title', 'data-tooltip', 'aria-describedby', 'lang', 'dir'],
+    childList: true,
+    subtree: true,
+  });
+  if (root !== doc.documentElement) {
+    observer.observe(doc.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] });
+  }
   root.addEventListener('pointerover', pointerOver);
   root.addEventListener('pointerout', pointerOut);
   root.addEventListener('focusin', focusIn);

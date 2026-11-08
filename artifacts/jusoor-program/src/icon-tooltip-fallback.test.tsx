@@ -42,7 +42,7 @@ test('fallback descriptions support focus, dismissal, translations and cleanup',
   assert.match(source, /addEventListener\('focusin', focusIn\)/);
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /setAttribute\('aria-describedby'/);
-  assert.match(source, /tooltip\.textContent = labelFor/);
+  assert.match(source, /syncContent\(anchor\)/);
   assert.match(source, /removeEventListener\('focusin', focusIn\)/);
   assert.match(source, /observer\.disconnect\(\)/);
   assert.match(source, /tooltip\.remove\(\)/);
