@@ -103,7 +103,6 @@ export const requireIntegrationApiKey: RequestHandler = async (req, res, next): 
       `integration-api-key:${key.id}`,
       RATE_LIMIT,
       RATE_WINDOW_MS,
-      now,
     );
     if (!rateLimit.allowed) {
       res.setHeader("Retry-After", rateLimit.retryAfterSeconds);

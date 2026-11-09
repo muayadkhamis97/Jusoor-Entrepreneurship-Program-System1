@@ -72,6 +72,9 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
     const statusHistoryMigration = readFileSync(new URL("../../../lib/db/migrations/20261028_judging_form_status_history.sql", import.meta.url), "utf8")
       .replace(/^BEGIN;\s*/, "").replace(/COMMIT;\s*$/, "").replaceAll("CREATE TABLE ", "CREATE TEMP TABLE ");
     await client.query(statusHistoryMigration);
+    const googleSheetsMigration = readFileSync(new URL("../../../lib/db/migrations/20261022_google_sheets_sync.sql", import.meta.url), "utf8")
+      .replace(/^BEGIN;\s*/, "").replace(/COMMIT;\s*$/, "").replaceAll("CREATE TABLE ", "CREATE TEMP TABLE ");
+    await client.query(googleSheetsMigration);
     const isolated = drizzle(client);
     for (const key of ["select", "insert", "update", "delete"] as const) Object.defineProperty(db, key, { configurable: true, value: isolated[key].bind(isolated) });
     Object.defineProperty(db, "transaction", { configurable: true, value: async (callback: (tx: typeof isolated) => Promise<unknown>) => {

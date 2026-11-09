@@ -29,12 +29,11 @@ test("database rate limits remain global under concurrent requests and reset aft
   const key = `database-rate-limit-test:${randomUUID()}`;
   const maximum = 4;
   const periodMs = 60_000;
-  const now = Date.now();
   const keyHash = rateLimitKeyHash(key, maximum, periodMs);
 
   try {
     const concurrentRequests = await Promise.all(
-      Array.from({ length: 20 }, () => consumeDatabaseRateLimit(key, maximum, periodMs, now)),
+      Array.from({ length: 20 }, () => consumeDatabaseRateLimit(key, maximum, periodMs)),
     );
     assert.equal(concurrentRequests.filter(result => result.allowed).length, maximum);
     assert.equal(concurrentRequests.filter(result => !result.allowed).length, 16);
@@ -46,7 +45,11 @@ test("database rate limits remain global under concurrent requests and reset aft
     assert.equal(stored.hitCount, maximum + 1, "Over-limit hits are capped to avoid counter overflow.");
     assert.notEqual(stored.keyHash, key, "Raw limiter keys must not be persisted.");
 
-    const afterWindow = await consumeDatabaseRateLimit(key, maximum, periodMs, now + periodMs + 1);
+    await pool.query(
+      "UPDATE jusoor_rate_limit_counters SET window_started_at = statement_timestamp() - interval '61 seconds' WHERE key_hash = $1",
+      [keyHash],
+    );
+    const afterWindow = await consumeDatabaseRateLimit(key, maximum, periodMs);
     assert.equal(afterWindow.allowed, true);
   } finally {
     await db.delete(rateLimitCountersTable).where(eq(rateLimitCountersTable.keyHash, keyHash));

@@ -18,7 +18,8 @@ export function rateLimitKeyHash(key: string, maximum: number, periodMs: number)
     .digest("hex");
 }
 
-async function pruneExpiredCounters(nowMs: number): Promise<void> {
+async function pruneExpiredCounters(): Promise<void> {
+  const nowMs = Date.now();
   if (nowMs < nextCleanupAt) return;
   nextCleanupAt = nowMs + cleanupIntervalMs;
   try {
@@ -39,31 +40,29 @@ export async function consumeDatabaseRateLimit(
   key: string,
   maximum: number,
   periodMs: number,
-  nowMs = Date.now(),
 ): Promise<DatabaseRateLimitResult> {
   if (!key || !Number.isSafeInteger(maximum) || maximum < 1 ||
       !Number.isSafeInteger(periodMs) || periodMs < 1 ||
-      !Number.isFinite(nowMs)) {
+      maximum > 2_147_483_646) {
     throw new Error("Invalid database rate-limit parameters.");
   }
 
-  await pruneExpiredCounters(nowMs);
+  await pruneExpiredCounters();
 
-  const now = new Date(nowMs);
   const keyHash = rateLimitKeyHash(key, maximum, periodMs);
-  const expiredBefore = new Date(nowMs - periodMs);
-  const expiredWindow = sql`${rateLimitCountersTable.windowStartedAt} <= ${expiredBefore}`;
+  const databaseNow = sql`statement_timestamp()`;
+  const expiredWindow = sql`${rateLimitCountersTable.windowStartedAt} <= statement_timestamp() - (${periodMs} * interval '1 millisecond')`;
   const [counter] = await db.insert(rateLimitCountersTable).values({
     keyHash,
-    windowStartedAt: now,
+    windowStartedAt: databaseNow,
     hitCount: 1,
-    updatedAt: now,
+    updatedAt: databaseNow,
   }).onConflictDoUpdate({
     target: rateLimitCountersTable.keyHash,
     set: {
-      windowStartedAt: sql`CASE WHEN ${expiredWindow} THEN ${now} ELSE ${rateLimitCountersTable.windowStartedAt} END`,
+      windowStartedAt: sql`CASE WHEN ${expiredWindow} THEN statement_timestamp() ELSE ${rateLimitCountersTable.windowStartedAt} END`,
       hitCount: sql`CASE WHEN ${expiredWindow} THEN 1 ELSE LEAST(${rateLimitCountersTable.hitCount} + 1, ${maximum + 1}) END`,
-      updatedAt: now,
+      updatedAt: databaseNow,
     },
   }).returning({
     windowStartedAt: rateLimitCountersTable.windowStartedAt,
@@ -74,6 +73,6 @@ export async function consumeDatabaseRateLimit(
   const windowEndsAt = counter.windowStartedAt.getTime() + periodMs;
   return {
     allowed: counter.hitCount <= maximum,
-    retryAfterSeconds: Math.max(1, Math.ceil((windowEndsAt - nowMs) / 1000)),
+    retryAfterSeconds: Math.max(1, Math.ceil((windowEndsAt - Date.now()) / 1000)),
   };
 }
