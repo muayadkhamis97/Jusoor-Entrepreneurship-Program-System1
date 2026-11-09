@@ -10,6 +10,7 @@
     "test:api": "env -i PATH=\"$PATH\" HOME=\"$HOME\" CI=1 NODE_ENV=test DATABASE_URL=postgres://validation:validation@127.0.0.1:1/validation TEST_DATABASE_URL= SESSION_SECRET=validation-only-session-secret pnpm --filter @workspace/api-server run test",
     "test:api:integration": "test -n \"$TEST_DATABASE_URL\" || { echo 'Set TEST_DATABASE_URL to a dedicated disposable PostgreSQL test database with the application schema.' >&2; exit 1; }; env -i PATH=\"$PATH\" HOME=\"$HOME\" CI=1 NODE_ENV=test DATABASE_URL=\"$TEST_DATABASE_URL\" TEST_DATABASE_URL=\"$TEST_DATABASE_URL\" SESSION_SECRET=validation-only-session-secret pnpm --filter @workspace/api-server run test",
     "test:api:mentor-race": "bash scripts/test-mentor-request-race.sh",
+    "test:api:google-calendar-lock": "bash scripts/test-google-calendar-sync-lease.sh",
     "test:web": "pnpm --filter @workspace/jusoor-program run test:unit",
     "test:web:team-directory": "pnpm --filter @workspace/jusoor-program run test:team-directory",
     "test": "pnpm run test:api && pnpm run test:web",

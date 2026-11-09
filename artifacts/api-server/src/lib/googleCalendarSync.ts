@@ -9,8 +9,10 @@ import {
   businessesTable,
   db,
   googleCalendarMeetingsTable,
+  pool,
   staffMembersTable,
   supportTable,
+  type PoolClient,
 } from "@workspace/db";
 import { logger } from "./logger";
 
@@ -18,7 +20,10 @@ const googleCalendarEventsScope = "https://www.googleapis.com/auth/calendar.even
 const calendarApiBase = "https://www.googleapis.com/calendar/v3";
 const workerIntervalMs = 5 * 60_000;
 const maxPagesPerSync = 20;
+// Two-key PostgreSQL advisory locks: a fixed namespace plus mentor staff ID.
+const googleCalendarSyncLockNamespace = 0x4a43414c;
 const genericMeetingName = "Mentoring session";
+export type GoogleCalendarSyncClient = PoolClient;
 const googleCalendarEventFields =
   "nextPageToken,nextSyncToken,items(id,status,updated,start(dateTime,timeZone),end(dateTime,timeZone),attendees(email),organizer(email))";
 
@@ -403,7 +408,7 @@ async function fetchAndStoreEvents(
   return { processed, matched };
 }
 
-export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<void> {
+async function syncGoogleCalendarMentorUnlocked(mentorStaffId: number): Promise<void> {
   const [mentor] = await db.select({
     id: staffMembersTable.id,
     status: staffMembersTable.status,
@@ -428,6 +433,61 @@ export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<v
     googleCalendarRefreshTokenEncrypted: mentor.googleCalendarRefreshTokenEncrypted,
   }, accessToken);
   logger.info({ mentorStaffId, ...result }, "Google Calendar booking sync completed");
+}
+
+/**
+ * Keep the lock on a dedicated PostgreSQL session for the full sync. Unlike a
+ * process-local mutex, this prevents separate autoscale replicas from
+ * consuming the same mentor's Calendar sync token concurrently.
+ */
+export async function withGoogleCalendarSyncLease(
+  mentorStaffId: number,
+  sync: () => Promise<void>,
+  connect: () => Promise<GoogleCalendarSyncClient> = () => pool.connect(),
+): Promise<boolean> {
+  const client = await connect();
+  let acquired = false;
+  let releaseError: Error | undefined;
+
+  try {
+    let result;
+    try {
+      result = await client.query<{ locked: boolean }>(
+        "SELECT pg_try_advisory_lock($1, $2) AS locked",
+        [googleCalendarSyncLockNamespace, mentorStaffId],
+      );
+    } catch (error) {
+      releaseError = error instanceof Error ? error : new Error("Google Calendar lock query failed.");
+      throw error;
+    }
+
+    acquired = result.rows[0]?.locked === true;
+    if (!acquired) return false;
+    await sync();
+    return true;
+  } finally {
+    if (acquired) {
+      try {
+        await client.query(
+          "SELECT pg_advisory_unlock($1, $2)",
+          [googleCalendarSyncLockNamespace, mentorStaffId],
+        );
+      } catch (error) {
+        // Destroy this session on release: returning it to the pool with a
+        // session-level advisory lock could block future syncs indefinitely.
+        releaseError = error instanceof Error ? error : new Error("Google Calendar lock release failed.");
+        logger.error({ err: error, mentorStaffId }, "Could not release Google Calendar sync lock");
+      }
+    }
+    client.release(releaseError);
+  }
+}
+
+export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<void> {
+  await withGoogleCalendarSyncLease(
+    mentorStaffId,
+    () => syncGoogleCalendarMentorUnlocked(mentorStaffId),
+  );
 }
 
 let workerTimer: ReturnType<typeof setInterval> | undefined;

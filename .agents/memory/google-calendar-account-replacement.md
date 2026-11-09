@@ -29,3 +29,15 @@ dashboard and making it available under mentor settings.
 **How to apply:** Keep settings reachable from the mentor workspace, retain
 dashboard setup for mentors without a connection, and direct connected mentors
 with a missing schedule link to Settings.
+
+## Calendar sync worker coordination
+
+Run each mentor's background calendar sync under a PostgreSQL session advisory
+lock keyed by mentor ID, and release it on the same checked-out connection.
+
+**Why:** The API uses autoscale replicas, so process-local guards cannot prevent
+replicas from reading and advancing the same Google Calendar sync token at once.
+
+**How to apply:** Keep the lock around every entry point that performs a mentor
+sync. If unlock fails, discard the database connection so a held session lock
+cannot be returned to the pool.
