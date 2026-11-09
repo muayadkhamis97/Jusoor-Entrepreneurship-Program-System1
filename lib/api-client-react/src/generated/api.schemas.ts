@@ -3192,6 +3192,11 @@ export interface ParticipantBusinessTeam {
   members: ParticipantBusinessTeamMember[];
 }
 
+export type MentorBookingStatusProgramsItem = {
+  programId: number;
+  programName: string;
+};
+
 export interface MentorBookingStatus {
   staffId: number;
   email: string;
@@ -3199,6 +3204,14 @@ export interface MentorBookingStatus {
   bookingProvider: MentorBookingProvider;
   calendlyConnected: boolean;
   googleCalendarConnected: boolean;
+  /** @nullable */
+  googleCalendarSyncLastSuccessAt: string | null;
+  /** @nullable */
+  googleCalendarSyncLastFailureAt: string | null;
+  /** @minimum 0 */
+  googleCalendarSyncConsecutiveFailures: number;
+  googleCalendarSyncNeedsReauthorization: boolean;
+  programs?: MentorBookingStatusProgramsItem[];
   /**
      * @nullable
      * @pattern ^\d{4}-\d{2}-\d{2}$

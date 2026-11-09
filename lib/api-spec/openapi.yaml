@@ -3436,7 +3436,7 @@ paths:
     get:
       operationId: getMentorBookingStatus
       tags: [staff]
-      summary: List mentor booking provider, connection status, and Calendly follow-up state for coordinators
+      summary: List mentor booking provider, Calendar sync health, and follow-up state for coordinators
       responses:
         "200":
           description: Mentor accounts, selected booking provider, and provider connection statuses
@@ -6629,11 +6629,23 @@ components:
         bookingProvider: { $ref: "#/components/schemas/MentorBookingProvider" }
         calendlyConnected: { type: boolean }
         googleCalendarConnected: { type: boolean }
+        googleCalendarSyncLastSuccessAt: { type: ["string", "null"], format: date-time }
+        googleCalendarSyncLastFailureAt: { type: ["string", "null"], format: date-time }
+        googleCalendarSyncConsecutiveFailures: { type: integer, minimum: 0 }
+        googleCalendarSyncNeedsReauthorization: { type: boolean }
+        programs:
+          type: array
+          items:
+            type: object
+            properties:
+              programId: { type: integer }
+              programName: { type: string }
+            required: [programId, programName]
         calendlyFollowUpDate: { type: ["string", "null"], pattern: '^\d{4}-\d{2}-\d{2}$' }
         calendlyFollowUpNote: { type: ["string", "null"], maxLength: 1000 }
         calendlyFollowUpUpdatedByEmail: { type: ["string", "null"], format: email }
         calendlyFollowUpUpdatedAt: { type: ["string", "null"], format: date-time }
-      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected, calendlyFollowUpDate, calendlyFollowUpNote, calendlyFollowUpUpdatedByEmail, calendlyFollowUpUpdatedAt]
+      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected, googleCalendarSyncLastSuccessAt, googleCalendarSyncLastFailureAt, googleCalendarSyncConsecutiveFailures, googleCalendarSyncNeedsReauthorization, calendlyFollowUpDate, calendlyFollowUpNote, calendlyFollowUpUpdatedByEmail, calendlyFollowUpUpdatedAt]
     MentorBookingFollowUpUpdate:
       type: object
       properties:

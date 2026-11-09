@@ -14125,7 +14125,7 @@ export const getGetMentorBookingStatusUrl = () => {
 }
 
 /**
- * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
+ * @summary List mentor booking provider, Calendar sync health, and follow-up state for coordinators
  */
 export const getMentorBookingStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<MentorBookingStatus[]> => {
 
@@ -14172,7 +14172,7 @@ export type GetMentorBookingStatusQueryError = ErrorType<void>
 
 
 /**
- * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
+ * @summary List mentor booking provider, Calendar sync health, and follow-up state for coordinators
  */
 
 export function useGetMentorBookingStatus<TData = Awaited<ReturnType<typeof getMentorBookingStatus>>, TError = ErrorType<void>>(

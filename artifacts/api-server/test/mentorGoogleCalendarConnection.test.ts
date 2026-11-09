@@ -324,6 +324,10 @@ test("mentor self-disconnect is recorded as self-service when actor and affected
     googleCalendarAccessTokenEncrypted: null,
     googleCalendarAccessTokenExpiresAt: null,
     googleCalendarSyncToken: null,
+    googleCalendarSyncLastSuccessAt: null,
+    googleCalendarSyncLastFailureAt: null,
+    googleCalendarSyncConsecutiveFailures: 0,
+    googleCalendarSyncNeedsReauthorization: false,
   });
   assert.equal("googleCalendarAccountEmail" in updateValues, true);
   assert.deepEqual(auditValues, {

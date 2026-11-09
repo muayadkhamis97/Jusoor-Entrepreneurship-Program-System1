@@ -21,11 +21,16 @@ type MentorRecord = {
   calendlyFollowUpUpdatedByStaffId: number | null;
   calendlyFollowUpUpdatedAt: Date | null;
   googleCalendarAccountEmail: string | null;
+  googleCalendarSyncLastSuccessAt: Date | null;
+  googleCalendarSyncLastFailureAt: Date | null;
+  googleCalendarSyncConsecutiveFailures: number;
+  googleCalendarSyncNeedsReauthorization: boolean;
 };
 
 let mentor: MentorRecord;
 let updateCalls: number;
 let selectCalls: number;
+let requestSelectCalls: number;
 
 function resetMentor(overrides: Partial<MentorRecord> = {}): void {
   mentor = {
@@ -40,10 +45,15 @@ function resetMentor(overrides: Partial<MentorRecord> = {}): void {
     calendlyFollowUpUpdatedByStaffId: null,
     calendlyFollowUpUpdatedAt: null,
     googleCalendarAccountEmail: null,
+    googleCalendarSyncLastSuccessAt: null,
+    googleCalendarSyncLastFailureAt: null,
+    googleCalendarSyncConsecutiveFailures: 0,
+    googleCalendarSyncNeedsReauthorization: false,
     ...overrides,
   };
   updateCalls = 0;
   selectCalls = 0;
+  requestSelectCalls = 0;
 }
 
 function projectedMentor(): Omit<MentorRecord, "role"> & { calendlyFollowUpUpdatedByEmail: string | null } {
@@ -81,6 +91,7 @@ before(async () => {
 
   restoreSelect = replaceDbMethod("select", (() => {
     selectCalls += 1;
+    const call = ++requestSelectCalls;
     const query = {
       from() {
         return this;
@@ -96,8 +107,13 @@ before(async () => {
       },
       limit: async () => mentor.role === "mentor" ? [{ ...projectedMentor(), role: mentor.role }] : [],
       orderBy: async () => mentor.role === "mentor" ? [projectedMentor()] : [],
-      then(resolve: (rows: Array<{ staffId: number }>) => unknown, reject?: (error: unknown) => unknown) {
-        return Promise.resolve(mentor.role === "mentor" ? [{ staffId: mentor.staffId }] : [])
+      then(resolve: (rows: Array<Record<string, unknown>>) => unknown, reject?: (error: unknown) => unknown) {
+        const rows = call === 1 && mentor.role === "mentor"
+          ? [{ staffId: mentor.staffId }]
+          : call === 2 && mentor.role === "mentor"
+            ? [{ staffId: mentor.staffId, programId: 9, programName: "Spring cohort" }]
+            : [];
+        return Promise.resolve(rows)
           .then(resolve, reject);
       },
     };
@@ -128,6 +144,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
+    requestSelectCalls = 0;
     const id = Number(req.header("x-staff-id") ?? 1);
     res.locals.staff = {
       id,
@@ -191,6 +208,10 @@ test("persists follow-up details and returns them from a fresh mentor status req
     calendlyFollowUpNote: "Discuss onboarding",
     calendlyFollowUpUpdatedByEmail: "coordinator-1@example.com",
     calendlyFollowUpUpdatedAt: "timestamp",
+    googleCalendarSyncLastSuccessAt: null,
+    googleCalendarSyncLastFailureAt: null,
+    googleCalendarSyncConsecutiveFailures: 0,
+    googleCalendarSyncNeedsReauthorization: false,
   });
   assert.ok(Number.isFinite(Date.parse(String(updateResult.calendlyFollowUpUpdatedAt))));
 
@@ -209,6 +230,11 @@ test("persists follow-up details and returns them from a fresh mentor status req
     calendlyFollowUpNote: "Discuss onboarding",
     calendlyFollowUpUpdatedByEmail: "coordinator-1@example.com",
     calendlyFollowUpUpdatedAt: updateResult.calendlyFollowUpUpdatedAt,
+    googleCalendarSyncLastSuccessAt: null,
+    googleCalendarSyncLastFailureAt: null,
+    googleCalendarSyncConsecutiveFailures: 0,
+    googleCalendarSyncNeedsReauthorization: false,
+    programs: [{ programId: 9, programName: "Spring cohort" }],
   }]);
 
   const secondUpdate = await updateFollowUp(mentor.staffId, "2026-11-05", "Revised follow-up", "coordinator", 2);
@@ -288,6 +314,29 @@ test("Google-connected mentors need no follow-up even without Calendly or a sche
   assert.equal(result.calendlyConnected, false);
   assert.equal("googleCalendarAccountEmail" in result, false);
   assert.equal(result.calendlyFollowUpNote, "Old follow-up retained");
+});
+
+test("coordinator status exposes safe repeated-failure and reconnect guidance within program scope", async () => {
+  resetMentor({
+    bookingProvider: "google_calendar",
+    googleCalendarAccountEmail: "private-google@example.test",
+    googleCalendarSyncLastSuccessAt: new Date("2026-11-08T10:00:00.000Z"),
+    googleCalendarSyncLastFailureAt: new Date("2026-11-09T10:00:00.000Z"),
+    googleCalendarSyncConsecutiveFailures: 4,
+    googleCalendarSyncNeedsReauthorization: true,
+  });
+
+  const response = await request("/api/staff/mentor-booking-status");
+  assert.equal(response.status, 200);
+  const [result] = await response.json();
+  assert.equal(result.googleCalendarSyncConsecutiveFailures, 4);
+  assert.equal(result.googleCalendarSyncNeedsReauthorization, true);
+  assert.equal(result.googleCalendarSyncLastSuccessAt, "2026-11-08T10:00:00.000Z");
+  assert.equal(result.googleCalendarSyncLastFailureAt, "2026-11-09T10:00:00.000Z");
+  assert.deepEqual(result.programs, [{ programId: 9, programName: "Spring cohort" }]);
+  assert.equal("googleCalendarAccountEmail" in result, false);
+  assert.equal("googleCalendarRefreshTokenEncrypted" in result, false);
+  assert.equal("providerError" in result, false);
 });
 
 test("denies follow-up updates from non-coordinator accounts before accessing records", async () => {

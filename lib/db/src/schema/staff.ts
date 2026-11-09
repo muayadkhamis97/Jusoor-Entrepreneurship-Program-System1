@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { date, integer, pgTable, serial, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { boolean, date, integer, pgTable, serial, text, timestamp, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 export type StaffInvitationEmailStatus = "pending" | "delivered" | "failed";
@@ -24,6 +24,10 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
   googleCalendarAccessTokenEncrypted: text("google_calendar_access_token_encrypted"),
   googleCalendarAccessTokenExpiresAt: timestamp("google_calendar_access_token_expires_at", { withTimezone: true }),
   googleCalendarSyncToken: text("google_calendar_sync_token"),
+  googleCalendarSyncLastSuccessAt: timestamp("google_calendar_sync_last_success_at", { withTimezone: true }),
+  googleCalendarSyncLastFailureAt: timestamp("google_calendar_sync_last_failure_at", { withTimezone: true }),
+  googleCalendarSyncConsecutiveFailures: integer("google_calendar_sync_consecutive_failures").notNull().default(0),
+  googleCalendarSyncNeedsReauthorization: boolean("google_calendar_sync_needs_reauthorization").notNull().default(false),
   calendlyWebhookTokenHash: text("calendly_webhook_token_hash").unique(),
   calendlyWebhookTokenEncrypted: text("calendly_webhook_token_encrypted"),
   calendlyWebhookSecretEncrypted: text("calendly_webhook_secret_encrypted"),

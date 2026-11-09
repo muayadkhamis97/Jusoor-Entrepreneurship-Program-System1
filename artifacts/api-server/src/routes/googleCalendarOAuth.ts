@@ -238,6 +238,10 @@ router.get("/callback", async (req, res): Promise<void> => {
         googleCalendarAccessTokenEncrypted: encryptGoogleCalendarToken(tokenData.access_token),
         googleCalendarAccessTokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
         googleCalendarSyncToken: null,
+        googleCalendarSyncLastSuccessAt: null,
+        googleCalendarSyncLastFailureAt: null,
+        googleCalendarSyncConsecutiveFailures: 0,
+        googleCalendarSyncNeedsReauthorization: false,
         googleCalendarBookingUrl: sql`case
           when lower(coalesce(${staffMembersTable.googleCalendarAccountEmail}, '')) <> ${profile.email.trim().toLowerCase()}
           then null

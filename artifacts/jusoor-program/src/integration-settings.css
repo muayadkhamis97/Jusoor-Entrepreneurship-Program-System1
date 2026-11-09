@@ -88,6 +88,32 @@
   color: hsl(var(--primary));
 }
 
+.integration-settings-calendar-sync {
+  display: grid;
+  gap: var(--spacing);
+  margin-top: calc(var(--spacing) * 2);
+  padding-inline-start: calc(var(--spacing) * 3);
+  border-inline-start: 2px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+}
+
+.integration-settings-calendar-sync > strong {
+  color: hsl(var(--foreground));
+}
+
+.integration-settings-calendar-sync.is-warning {
+  border-color: hsl(var(--destructive));
+}
+
+.integration-settings-calendar-sync.is-warning > strong {
+  color: hsl(var(--destructive));
+}
+
+.integration-settings-calendar-sync small {
+  font-size: 0.75rem;
+}
+
 .integration-settings-actions {
   flex-wrap: wrap;
   justify-content: flex-end;

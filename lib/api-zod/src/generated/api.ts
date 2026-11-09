@@ -5312,8 +5312,10 @@ export const ResendParticipantInvitationResponse = zod.object({
 
 
 /**
- * @summary List mentor booking provider, connection status, and Calendly follow-up state for coordinators
+ * @summary List mentor booking provider, Calendar sync health, and follow-up state for coordinators
  */
+export const getMentorBookingStatusResponseGoogleCalendarSyncConsecutiveFailuresMin = 0;
+
 export const getMentorBookingStatusResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getMentorBookingStatusResponseCalendlyFollowUpNoteMax = 1000;
 
@@ -5326,6 +5328,14 @@ export const GetMentorBookingStatusResponseItem = zod.object({
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyConnected": zod.boolean(),
   "googleCalendarConnected": zod.boolean(),
+  "googleCalendarSyncLastSuccessAt": zod.coerce.date().nullable(),
+  "googleCalendarSyncLastFailureAt": zod.coerce.date().nullable(),
+  "googleCalendarSyncConsecutiveFailures": zod.int().min(getMentorBookingStatusResponseGoogleCalendarSyncConsecutiveFailuresMin),
+  "googleCalendarSyncNeedsReauthorization": zod.boolean(),
+  "programs": zod.array(zod.object({
+  "programId": zod.int(),
+  "programName": zod.string()
+})).optional(),
   "calendlyFollowUpDate": zod.string().regex(getMentorBookingStatusResponseCalendlyFollowUpDateRegExp).nullable(),
   "calendlyFollowUpNote": zod.string().max(getMentorBookingStatusResponseCalendlyFollowUpNoteMax).nullable(),
   "calendlyFollowUpUpdatedByEmail": zod.email().nullable(),
@@ -5361,6 +5371,8 @@ export const UpdateMentorBookingFollowUpBody = zod.object({
   "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpBodyCalendlyFollowUpNoteMax).nullable()
 })
 
+export const updateMentorBookingFollowUpResponseGoogleCalendarSyncConsecutiveFailuresMin = 0;
+
 export const updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax = 1000;
 
@@ -5373,6 +5385,14 @@ export const UpdateMentorBookingFollowUpResponse = zod.object({
   "bookingProvider": zod.enum(['calendly', 'google_calendar']),
   "calendlyConnected": zod.boolean(),
   "googleCalendarConnected": zod.boolean(),
+  "googleCalendarSyncLastSuccessAt": zod.coerce.date().nullable(),
+  "googleCalendarSyncLastFailureAt": zod.coerce.date().nullable(),
+  "googleCalendarSyncConsecutiveFailures": zod.int().min(updateMentorBookingFollowUpResponseGoogleCalendarSyncConsecutiveFailuresMin),
+  "googleCalendarSyncNeedsReauthorization": zod.boolean(),
+  "programs": zod.array(zod.object({
+  "programId": zod.int(),
+  "programName": zod.string()
+})).optional(),
   "calendlyFollowUpDate": zod.string().regex(updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp).nullable(),
   "calendlyFollowUpNote": zod.string().max(updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax).nullable(),
   "calendlyFollowUpUpdatedByEmail": zod.email().nullable(),

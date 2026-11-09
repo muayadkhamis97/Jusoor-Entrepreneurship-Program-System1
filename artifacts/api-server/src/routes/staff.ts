@@ -38,9 +38,9 @@ import {
   participantBusinessMembershipsTable,
   programsTable,
   staffMembersTable,
+  staffProgramAssignmentsTable,
   staffAssignmentAuditEventsTable,
   integrationDisconnectAuditEventsTable,
-  staffProgramAssignmentsTable,
   staffProgramRolesTable,
   sessionsTable,
   trainingAssignmentsTable,
@@ -672,9 +672,13 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
   const primaryMentors = await db.select({ staffId: staffMembersTable.id })
     .from(staffMembersTable)
     .where(eq(staffMembersTable.role, "mentor"));
-  let programMentors: { staffId: number }[] = [];
+  let programMentors: { staffId: number; programId: number; programName: string }[] = [];
   try {
-    programMentors = await db.select({ staffId: staffProgramRolesTable.staffId })
+    programMentors = await db.select({
+      staffId: staffProgramRolesTable.staffId,
+      programId: programsTable.id,
+      programName: programsTable.name,
+    })
       .from(staffProgramRolesTable)
       .innerJoin(programsTable, eq(programsTable.id, staffProgramRolesTable.programId))
       .where(and(
@@ -688,6 +692,26 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     ...primaryMentors.map(({ staffId }) => staffId),
     ...programMentors.map(({ staffId }) => staffId),
   ])];
+  const programsByMentor = new Map<number, Map<number, { programId: number; programName: string }>>();
+  const addProgram = (staffId: number, programId: number, programName: string) => {
+    const programs = programsByMentor.get(staffId) ?? new Map();
+    programs.set(programId, { programId, programName });
+    programsByMentor.set(staffId, programs);
+  };
+  for (const program of programMentors) addProgram(program.staffId, program.programId, program.programName);
+  if (primaryMentors.length > 0) {
+    const assignedPrograms = await db.select({
+      staffId: staffProgramAssignmentsTable.staffId,
+      programId: programsTable.id,
+      programName: programsTable.name,
+    }).from(staffProgramAssignmentsTable)
+      .innerJoin(programsTable, eq(programsTable.id, staffProgramAssignmentsTable.programId))
+      .where(and(
+        inArray(staffProgramAssignmentsTable.staffId, primaryMentors.map(({ staffId }) => staffId)),
+        isNull(programsTable.archivedAt),
+      ));
+    for (const program of assignedPrograms) addProgram(program.staffId, program.programId, program.programName);
+  }
   const mentors = mentorIds.length ? await db.select({
     staffId: staffMembersTable.id,
     email: staffMembersTable.email,
@@ -699,13 +723,22 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     calendlyFollowUpUpdatedByEmail: mentorFollowUpEditor.email,
     calendlyFollowUpUpdatedAt: staffMembersTable.calendlyFollowUpUpdatedAt,
     googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+    googleCalendarSyncLastSuccessAt: staffMembersTable.googleCalendarSyncLastSuccessAt,
+    googleCalendarSyncLastFailureAt: staffMembersTable.googleCalendarSyncLastFailureAt,
+    googleCalendarSyncConsecutiveFailures: staffMembersTable.googleCalendarSyncConsecutiveFailures,
+    googleCalendarSyncNeedsReauthorization: staffMembersTable.googleCalendarSyncNeedsReauthorization,
   }).from(staffMembersTable)
     .leftJoin(mentorFollowUpEditor, eq(mentorFollowUpEditor.id, staffMembersTable.calendlyFollowUpUpdatedByStaffId))
     .where(inArray(staffMembersTable.id, mentorIds))
     .orderBy(asc(staffMembersTable.email)) : [];
 
-  res.json(GetMentorBookingStatusResponse.parse(mentors.map(({ calendlyBookingUrl, googleCalendarAccountEmail, ...mentor }) => ({
+  res.json(GetMentorBookingStatusResponse.parse(mentors.map(({
+    calendlyBookingUrl,
+    googleCalendarAccountEmail,
+    ...mentor
+  }) => ({
     ...mentor,
+    programs: [...(programsByMentor.get(mentor.staffId)?.values() ?? [])],
     calendlyConnected: Boolean(calendlyBookingUrl),
     googleCalendarConnected: Boolean(googleCalendarAccountEmail),
   }))));
@@ -760,6 +793,10 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
       googleCalendarAccessTokenEncrypted: null,
       googleCalendarAccessTokenExpiresAt: null,
       googleCalendarSyncToken: null,
+      googleCalendarSyncLastSuccessAt: null,
+      googleCalendarSyncLastFailureAt: null,
+      googleCalendarSyncConsecutiveFailures: 0,
+      googleCalendarSyncNeedsReauthorization: false,
       })
       .where(eq(staffMembersTable.id, target.id))
       .returning({ id: staffMembersTable.id });
@@ -836,6 +873,10 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
       calendlyFollowUpNote: staffMembersTable.calendlyFollowUpNote,
       calendlyFollowUpUpdatedAt: staffMembersTable.calendlyFollowUpUpdatedAt,
       googleCalendarAccountEmail: staffMembersTable.googleCalendarAccountEmail,
+      googleCalendarSyncLastSuccessAt: staffMembersTable.googleCalendarSyncLastSuccessAt,
+      googleCalendarSyncLastFailureAt: staffMembersTable.googleCalendarSyncLastFailureAt,
+      googleCalendarSyncConsecutiveFailures: staffMembersTable.googleCalendarSyncConsecutiveFailures,
+      googleCalendarSyncNeedsReauthorization: staffMembersTable.googleCalendarSyncNeedsReauthorization,
     });
   if (!updated) {
     res.status(400).json({ error: "Follow-up details can only be changed before Calendly is connected." });

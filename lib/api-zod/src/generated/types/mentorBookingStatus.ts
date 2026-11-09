@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MentorBookingProvider } from './mentorBookingProvider';
+import type { MentorBookingStatusProgramsItem } from './mentorBookingStatusProgramsItem';
 import type { StaffStatus } from './staffStatus';
 
 export interface MentorBookingStatus {
@@ -15,6 +16,14 @@ export interface MentorBookingStatus {
   bookingProvider: MentorBookingProvider;
   calendlyConnected: boolean;
   googleCalendarConnected: boolean;
+  /** @nullable */
+  googleCalendarSyncLastSuccessAt: Date | null;
+  /** @nullable */
+  googleCalendarSyncLastFailureAt: Date | null;
+  /** @minimum 0 */
+  googleCalendarSyncConsecutiveFailures: number;
+  googleCalendarSyncNeedsReauthorization: boolean;
+  programs?: MentorBookingStatusProgramsItem[];
   /**
      * @nullable
      * @pattern ^\d{4}-\d{2}-\d{2}$

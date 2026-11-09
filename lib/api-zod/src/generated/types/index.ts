@@ -219,6 +219,7 @@ export * from './mentorBookingProvider';
 export * from './mentorBookingSettings';
 export * from './mentorBookingSettingsInput';
 export * from './mentorBookingStatus';
+export * from './mentorBookingStatusProgramsItem';
 export * from './mentorCompletedMeetingOccurrence';
 export * from './mentorCompletedMeetingOccurrenceMeetingProvider';
 export * from './mentorDashboard';

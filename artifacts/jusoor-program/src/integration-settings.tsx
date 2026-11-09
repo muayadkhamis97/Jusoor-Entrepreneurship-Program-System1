@@ -35,7 +35,9 @@ export function IntegrationSettings() {
   const calendarKey = getGetMentorBookingStatusQueryKey();
   const sheetsKey = getGetProgramGoogleSheetsStatusesQueryKey();
   const zoomKey = getGetZoomStatusQueryKey();
-  const calendars = useGetMentorBookingStatus({ query: { queryKey: calendarKey, refetchOnWindowFocus: true } });
+  const calendars = useGetMentorBookingStatus({
+    query: { queryKey: calendarKey, refetchOnWindowFocus: true, refetchInterval: 60_000 },
+  });
   const sheets = useGetProgramGoogleSheetsStatuses({ query: { queryKey: sheetsKey, refetchOnWindowFocus: true } });
   const zoom = useGetZoomStatus({ query: { queryKey: zoomKey, refetchOnWindowFocus: true } });
   const disconnectCalendar = useDisconnectStaffGoogleCalendar();
@@ -45,6 +47,7 @@ export function IntegrationSettings() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [actionError, setActionError] = useState('');
   const busy = disconnectCalendar.isPending || disconnectSheets.isPending || disconnectZoom.isPending;
+  const locale = ar ? 'ar-JO' : 'en-GB';
 
   const refresh = async () => {
     await Promise.all([
@@ -140,6 +143,61 @@ export function IntegrationSettings() {
             <div className="integration-settings-details">
               <strong>{mentor.email}</strong>
               <span><CheckCircle2 size={14} aria-hidden="true" />{copy('Connected', 'متصل')}</span>
+              <div
+                className={`integration-settings-calendar-sync${mentor.googleCalendarSyncNeedsReauthorization || mentor.googleCalendarSyncConsecutiveFailures >= 3 ? ' is-warning' : ''}`}
+                role="status"
+                data-testid={`google-calendar-sync-status-${mentor.staffId}`}
+              >
+                <strong>
+                  {mentor.googleCalendarSyncNeedsReauthorization
+                    ? copy('Reconnect required', 'يلزم إعادة الاتصال')
+                    : mentor.googleCalendarSyncConsecutiveFailures >= 3
+                      ? copy('Repeated sync failures', 'إخفاقات متكررة في المزامنة')
+                      : mentor.googleCalendarSyncConsecutiveFailures > 0
+                        ? copy('Sync retrying', 'إعادة محاولة المزامنة')
+                        : mentor.googleCalendarSyncLastSuccessAt
+                          ? copy('Calendar sync is current', 'مزامنة التقويم حديثة')
+                          : copy('First sync is pending', 'المزامنة الأولى معلقة')}
+                </strong>
+                <span>
+                  {mentor.googleCalendarSyncNeedsReauthorization
+                    ? copy(
+                      'Ask the mentor to reconnect Google Calendar. Meeting history may be out of date.',
+                      'اطلب من المرشد إعادة ربط تقويم Google. قد يكون سجل الاجتماعات قديماً.',
+                    )
+                    : mentor.googleCalendarSyncConsecutiveFailures > 0
+                      ? copy(
+                        `The last ${mentor.googleCalendarSyncConsecutiveFailures} sync attempt${mentor.googleCalendarSyncConsecutiveFailures === 1 ? '' : 's'} failed. Retries will continue.`,
+                        `فشلت آخر ${mentor.googleCalendarSyncConsecutiveFailures} محاولة مزامنة. ستستمر إعادة المحاولة.`,
+                      )
+                      : mentor.googleCalendarSyncLastSuccessAt
+                        ? copy(
+                          `Last successful sync: ${new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}`,
+                          `آخر مزامنة ناجحة: ${new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}`,
+                        )
+                        : copy('No successful sync has completed yet.', 'لم تكتمل أي مزامنة ناجحة بعد.')}
+                </span>
+                {mentor.googleCalendarSyncLastFailureAt && mentor.googleCalendarSyncConsecutiveFailures > 0 && (
+                  <small>
+                    {copy('Latest failed attempt', 'أحدث محاولة فاشلة')}: {new Date(mentor.googleCalendarSyncLastFailureAt).toLocaleString(locale)}
+                  </small>
+                )}
+                {mentor.googleCalendarSyncLastSuccessAt && mentor.googleCalendarSyncConsecutiveFailures > 0 && (
+                  <small>
+                    {copy('Last successful sync', 'آخر مزامنة ناجحة')}: {new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}
+                  </small>
+                )}
+                {mentor.googleCalendarSyncLastSuccessAt && mentor.googleCalendarSyncConsecutiveFailures === 0 && (
+                  <small>
+                    {copy('Last successful sync', 'آخر مزامنة ناجحة')}: {new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}
+                  </small>
+                )}
+                {mentor.programs?.length ? (
+                  <small>
+                    {copy('Programs', 'البرامج')}: {mentor.programs.map(program => program.programName).join(', ')}
+                  </small>
+                ) : null}
+              </div>
             </div>
             <Button variant="pill" className="integration-settings-disconnect" onClick={() => { setActionError(''); setTarget({ kind: 'calendar', id: mentor.staffId, label: mentor.email }); }} disabled={busy} data-testid={`button-disconnect-google-calendar-${mentor.staffId}`}>{copy('Disconnect', 'قطع الاتصال')}</Button>
           </article>

@@ -6,6 +6,8 @@ import {
   encryptGoogleCalendarToken,
   findGoogleCalendarBusinessMatch,
   googleCalendarPrivacy,
+  recordGoogleCalendarSyncFailureStatus,
+  recordGoogleCalendarSyncSuccessStatus,
   refreshGoogleAccessToken,
 } from "../src/lib/googleCalendarSync";
 
@@ -168,6 +170,48 @@ test("token refresh uses an abort deadline and hides provider timeout details", 
   }
 });
 
+test("expired Google authorization is classified for reconnect without exposing provider text", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEnv = {
+    sessionSecret: process.env.SESSION_SECRET,
+    clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+  };
+  process.env.SESSION_SECRET = "google-calendar-test-secret";
+  process.env.GOOGLE_CALENDAR_CLIENT_ID = "test-client";
+  process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "test-secret";
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    error: "invalid_grant",
+    error_description: "private provider response details",
+  }), { status: 400 })) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      refreshGoogleAccessToken({
+        id: 12,
+        googleCalendarAccessTokenEncrypted: null,
+        googleCalendarAccessTokenExpiresAt: null,
+        googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("test-refresh-token"),
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof GoogleCalendarSyncError);
+        assert.equal(error.requiresReauthorization, true);
+        assert.equal(error.message, "Google Calendar authorization could not be refreshed.");
+        assert.equal(error.message.includes("private provider response details"), false);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalEnv.sessionSecret === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = originalEnv.sessionSecret;
+    if (originalEnv.clientId === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_ID;
+    else process.env.GOOGLE_CALENDAR_CLIENT_ID = originalEnv.clientId;
+    if (originalEnv.clientSecret === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+    else process.env.GOOGLE_CALENDAR_CLIENT_SECRET = originalEnv.clientSecret;
+  }
+});
+
 test("Calendar page requests use an abort deadline and hide provider timeout details", async () => {
   const originalFetch = globalThis.fetch;
   const timeout = mockImmediateGoogleCalendarTimeout();
@@ -277,5 +321,58 @@ test("requests only event fields needed for booking matching and history", () =>
   }
   for (const privateField of ["summary", "description", "location", "conferenceData", "displayName"]) {
     assert.equal(googleCalendarPrivacy.eventFields.includes(privateField), false);
+  }
+});
+
+test("records safe consecutive-failure state and resets it after a successful sync", async () => {
+  process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  const { db } = await import("@workspace/db");
+  const original = Object.getOwnPropertyDescriptor(db, "update");
+  let saved: Record<string, unknown> | undefined;
+  Object.defineProperty(db, "update", {
+    configurable: true,
+    writable: true,
+    value: () => {
+      const query = {
+        set(values: Record<string, unknown>) {
+          saved = values;
+          return this;
+        },
+        where() {
+          return Promise.resolve();
+        },
+      };
+      return query;
+    },
+  });
+
+  try {
+    await recordGoogleCalendarSyncFailureStatus(
+      12,
+      new GoogleCalendarSyncError("authorization expired", 400, true),
+      { accountEmail: "mentor@example.test", refreshTokenEncrypted: "encrypted-refresh-token" },
+    );
+    assert.ok(saved?.googleCalendarSyncLastFailureAt instanceof Date);
+    assert.ok(saved?.googleCalendarSyncConsecutiveFailures);
+    assert.equal(saved?.googleCalendarSyncNeedsReauthorization, true);
+
+    await recordGoogleCalendarSyncFailureStatus(
+      12,
+      new GoogleCalendarSyncError("temporary service issue"),
+      { accountEmail: "mentor@example.test", refreshTokenEncrypted: "encrypted-refresh-token" },
+    );
+    assert.equal("googleCalendarSyncNeedsReauthorization" in (saved ?? {}), false);
+
+    await recordGoogleCalendarSyncSuccessStatus(12, {
+      accountEmail: "mentor@example.test",
+      refreshTokenEncrypted: "encrypted-refresh-token",
+    });
+    assert.ok(saved?.googleCalendarSyncLastSuccessAt instanceof Date);
+    assert.equal(saved?.googleCalendarSyncLastFailureAt, null);
+    assert.equal(saved?.googleCalendarSyncConsecutiveFailures, 0);
+    assert.equal(saved?.googleCalendarSyncNeedsReauthorization, false);
+  } finally {
+    if (original) Object.defineProperty(db, "update", original);
+    else Reflect.deleteProperty(db, "update");
   }
 });

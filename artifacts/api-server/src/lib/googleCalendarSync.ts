@@ -4,7 +4,7 @@ import {
   createHash,
   randomBytes,
 } from "node:crypto";
-import { and, eq, lt, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, lt, sql } from "drizzle-orm";
 import {
   businessesTable,
   db,
@@ -45,9 +45,17 @@ type GoogleEventsPage = {
 };
 
 type AssignedBusiness = { id: number; email: string };
+type GoogleCalendarConnectionSnapshot = {
+  accountEmail: string;
+  refreshTokenEncrypted: string;
+};
 
 export class GoogleCalendarSyncError extends Error {
-  constructor(message: string, readonly statusCode?: number) {
+  constructor(
+    message: string,
+    readonly statusCode?: number,
+    readonly requiresReauthorization = false,
+  ) {
     super(message);
     this.name = "GoogleCalendarSyncError";
   }
@@ -195,7 +203,7 @@ export async function refreshGoogleAccessToken(staff: {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
   if (!refreshToken || !encryptedRefreshToken || !clientId || !clientSecret) {
-    throw new GoogleCalendarSyncError("Google Calendar connection needs to be authorized again.");
+    throw new GoogleCalendarSyncError("Google Calendar connection needs to be authorized again.", undefined, true);
   }
 
   let response: Response;
@@ -218,10 +226,15 @@ export async function refreshGoogleAccessToken(staff: {
     access_token?: unknown;
     expires_in?: unknown;
     refresh_token?: unknown;
+    error?: unknown;
   };
   if (!response.ok || typeof data.access_token !== "string" || !data.access_token ||
       typeof data.expires_in !== "number" || !Number.isFinite(data.expires_in)) {
-    throw new GoogleCalendarSyncError("Google Calendar authorization could not be refreshed.", response.status);
+    throw new GoogleCalendarSyncError(
+      "Google Calendar authorization could not be refreshed.",
+      response.status,
+      data.error === "invalid_grant",
+    );
   }
 
   const refreshedAt = new Date();
@@ -264,7 +277,13 @@ export async function fetchCalendarPage(
     throw new GoogleCalendarSyncError("Google Calendar events could not be retrieved.");
   }
   if (response.status === 410 && syncToken) throw new GoogleCalendarSyncError("Google Calendar sync token expired.", 410);
-  if (!response.ok) throw new GoogleCalendarSyncError("Google Calendar events could not be retrieved.", response.status);
+  if (!response.ok) {
+    throw new GoogleCalendarSyncError(
+      "Google Calendar events could not be retrieved.",
+      response.status,
+      response.status === 401,
+    );
+  }
   const page = await response.json().catch(() => null);
   if (!isRecord(page)) throw new GoogleCalendarSyncError("Google Calendar returned an invalid event response.");
   return page as GoogleEventsPage;
@@ -412,16 +431,21 @@ async function fetchAndStoreEvents(
   }
 
   if (!nextSyncToken) throw new GoogleCalendarSyncError("Google Calendar sync did not complete.");
-  await db.update(staffMembersTable).set({ googleCalendarSyncToken: nextSyncToken })
+  const [updated] = await db.update(staffMembersTable).set({ googleCalendarSyncToken: nextSyncToken })
     .where(and(
       eq(staffMembersTable.id, mentor.id),
       eq(staffMembersTable.googleCalendarAccountEmail, mentorEmail),
       eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, mentor.googleCalendarRefreshTokenEncrypted),
-    ));
+    ))
+    .returning({ id: staffMembersTable.id });
+  if (!updated) throw new GoogleCalendarSyncError("Google Calendar connection changed during sync.");
   return { processed, matched };
 }
 
-async function syncGoogleCalendarMentorUnlocked(mentorStaffId: number): Promise<void> {
+async function syncGoogleCalendarMentorUnlocked(
+  mentorStaffId: number,
+  onConnectionSnapshot: (snapshot: GoogleCalendarConnectionSnapshot) => void,
+): Promise<boolean> {
   const [mentor] = await db.select({
     id: staffMembersTable.id,
     status: staffMembersTable.status,
@@ -438,14 +462,19 @@ async function syncGoogleCalendarMentorUnlocked(mentorStaffId: number): Promise<
     mentor.role !== "mentor" ||
     !mentor.googleCalendarAccountEmail ||
     !mentor.googleCalendarRefreshTokenEncrypted
-  ) return;
+  ) return false;
 
+  onConnectionSnapshot({
+    accountEmail: mentor.googleCalendarAccountEmail,
+    refreshTokenEncrypted: mentor.googleCalendarRefreshTokenEncrypted,
+  });
   const accessToken = await refreshGoogleAccessToken(mentor);
   const result = await fetchAndStoreEvents({
     ...mentor,
     googleCalendarRefreshTokenEncrypted: mentor.googleCalendarRefreshTokenEncrypted,
   }, accessToken);
   logger.info({ mentorStaffId, ...result }, "Google Calendar booking sync completed");
+  return true;
 }
 
 /**
@@ -496,11 +525,68 @@ export async function withGoogleCalendarSyncLease(
   }
 }
 
+export async function recordGoogleCalendarSyncFailureStatus(
+  mentorStaffId: number,
+  error: unknown,
+  connectionSnapshot?: GoogleCalendarConnectionSnapshot,
+): Promise<void> {
+  const requiresReauthorization =
+    connectionSnapshot !== undefined &&
+    error instanceof GoogleCalendarSyncError &&
+    error.requiresReauthorization;
+  await db.update(staffMembersTable).set({
+    googleCalendarSyncLastFailureAt: new Date(),
+    googleCalendarSyncConsecutiveFailures: sql`LEAST(${staffMembersTable.googleCalendarSyncConsecutiveFailures} + 1, 2147483647)`,
+    ...(requiresReauthorization ? { googleCalendarSyncNeedsReauthorization: true } : {}),
+  }).where(and(
+    eq(staffMembersTable.id, mentorStaffId),
+    isNotNull(staffMembersTable.googleCalendarRefreshTokenEncrypted),
+    ...(connectionSnapshot ? [
+      eq(staffMembersTable.googleCalendarAccountEmail, connectionSnapshot.accountEmail),
+      eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, connectionSnapshot.refreshTokenEncrypted),
+    ] : []),
+  ));
+}
+
+export async function recordGoogleCalendarSyncSuccessStatus(
+  mentorStaffId: number,
+  connectionSnapshot: GoogleCalendarConnectionSnapshot,
+): Promise<void> {
+  await db.update(staffMembersTable).set({
+    googleCalendarSyncLastSuccessAt: new Date(),
+    googleCalendarSyncLastFailureAt: null,
+    googleCalendarSyncConsecutiveFailures: 0,
+    googleCalendarSyncNeedsReauthorization: false,
+  }).where(and(
+    eq(staffMembersTable.id, mentorStaffId),
+    isNotNull(staffMembersTable.googleCalendarRefreshTokenEncrypted),
+    eq(staffMembersTable.googleCalendarAccountEmail, connectionSnapshot.accountEmail),
+    eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, connectionSnapshot.refreshTokenEncrypted),
+  ));
+}
+
 export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<void> {
-  await withGoogleCalendarSyncLease(
-    mentorStaffId,
-    () => syncGoogleCalendarMentorUnlocked(mentorStaffId),
-  );
+  let connectionSnapshot: GoogleCalendarConnectionSnapshot | undefined;
+  try {
+    let syncCompleted = false;
+    const acquired = await withGoogleCalendarSyncLease(
+      mentorStaffId,
+      async () => {
+        syncCompleted = await syncGoogleCalendarMentorUnlocked(mentorStaffId, (snapshot) => {
+          connectionSnapshot = snapshot;
+        });
+      },
+    );
+    if (!acquired || !syncCompleted || !connectionSnapshot) return;
+    await recordGoogleCalendarSyncSuccessStatus(mentorStaffId, connectionSnapshot);
+  } catch (error) {
+    try {
+      await recordGoogleCalendarSyncFailureStatus(mentorStaffId, error, connectionSnapshot);
+    } catch (recordError) {
+      logger.error({ err: recordError, mentorStaffId }, "Could not save Google Calendar sync failure status");
+    }
+    throw error;
+  }
 }
 
 let workerTimer: ReturnType<typeof setInterval> | undefined;
