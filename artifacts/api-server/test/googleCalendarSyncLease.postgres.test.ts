@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { pool } from "@workspace/db";
 import { withGoogleCalendarSyncLease } from "../src/lib/googleCalendarSync";
 
-test("PostgreSQL advisory sync locks coordinate sessions per mentor", {
+test("PostgreSQL advisory sync locks coordinate sessions and recover after callback failures", {
   skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a disposable PostgreSQL database.",
   timeout: 30_000,
 }, async () => {
@@ -35,6 +35,26 @@ test("PostgreSQL advisory sync locks coordinate sessions per mentor", {
 
     const retryClient = await pool.connect();
     assert.equal(await withGoogleCalendarSyncLease(mentorStaffId, async () => {}, async () => retryClient), true);
+
+    const syncFailure = new Error("Calendar callback failed.");
+    let failedSyncRan = false;
+    const failedSyncClient = await pool.connect();
+    await assert.rejects(
+      withGoogleCalendarSyncLease(mentorStaffId, async () => {
+        failedSyncRan = true;
+        throw syncFailure;
+      }, async () => failedSyncClient),
+      error => error === syncFailure,
+      "The original calendar sync error must remain visible to the caller.",
+    );
+    assert.equal(failedSyncRan, true, "The failing callback must run after acquiring the mentor lock.");
+
+    const afterFailureClient = await pool.connect();
+    assert.equal(
+      await withGoogleCalendarSyncLease(mentorStaffId, async () => {}, async () => afterFailureClient),
+      true,
+      "A fresh PostgreSQL session must acquire the mentor lock after a callback failure.",
+    );
 
     const terminatedClient = await pool.connect();
     // This test intentionally closes the socket while no query is pending.

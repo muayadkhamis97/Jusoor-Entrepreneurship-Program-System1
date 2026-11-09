@@ -50,7 +50,7 @@ server_started=1
   }
 "$postgres_bin_dir/createdb" -h 127.0.0.1 -p "$port" -U validation google_calendar_lock_test
 
-echo "Running Google Calendar per-mentor lock test against disposable local PostgreSQL."
+echo "Running Google Calendar per-mentor lock and callback-retry tests against disposable local PostgreSQL."
 env -i \
   PATH="$PATH" \
   HOME="$HOME" \
@@ -60,7 +60,7 @@ env -i \
   TEST_DATABASE_URL="postgres://validation@127.0.0.1:$port/google_calendar_lock_test" \
   SESSION_SECRET=validation-only-session-secret \
   pnpm --filter @workspace/api-server exec tsx --test \
-    --test-name-pattern="PostgreSQL advisory sync locks coordinate sessions per mentor" \
+    --test-name-pattern="PostgreSQL advisory sync locks coordinate sessions and recover after callback failures" \
     test/googleCalendarSyncLease.postgres.test.ts
 
 echo "Running deployment-wide rate-limit test against the same disposable PostgreSQL."
