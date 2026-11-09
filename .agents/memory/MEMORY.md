@@ -11,11 +11,11 @@
 - [Participant invitations](participant-invitations.md) — Tie invites to the selected business/program; unaccepted invitations expire after 30 days.
 - [Internal xAPI LRS](xapi-lrs.md) — Keep Jusoor course-package statements and activity state in the built-in platform LRS; avoid external LRS integrations.
 - [Certificate eligibility locking](certificate-eligibility-locking.md) — Serialize certificate eligibility checks with participant completion changes by locking the accepted application row.
-- [Generated API type freshness](api-generated-type-freshness.md) — After merges that change OpenAPI contracts, regenerate workspace clients before changing downstream app code to resolve stale declarations.
+- [Generated API type freshness](api-generated-type-freshness.md) — Regenerate API clients after OpenAPI changes before editing downstream code.
 - [Certificate revocation privacy](certificate-revocation-privacy.md) — Show revoked status and time outside staff views, but keep coordinator reason and identity private.
 - [Clerk guard testing](clerk-auth-guard-testing.md) — Keep real guards in tests; programmatic browser fixtures may require explicit synthetic identity linking.
 - [Browser error diagnostics](browser-error-diagnostics.md) — Collected console logs can serialize Error objects as `{}`; preserve explicit development messages before diagnosing auth.
-- [Playwright browser engines on Nix](playwright-browser-engines.md) — Firefox runs with Playwright here; the downloaded Ubuntu WebKit build needs ABI-specific system libraries unavailable through the Nix package setup.
+- [Playwright browser engines on Nix](playwright-browser-engines.md) — Firefox runs; Ubuntu WebKit needs ABI libraries unavailable in the current Nix setup.
 - [Vite source-map warnings](vite-sourcemap-warnings.md) — Remove unused React Server Component directives from affected Vite modules rather than suppressing Rollup source-map warnings.
 - [Radix dialog lifecycle](radix-dialog-focus-restoration.md) — Preserve modal safeguards through unmount; verify post-cleanup focus restoration and scroll-lock boundary handling.
 - [Global translation state](global-translation-state.md) — Keep the module-level translation helper synchronized with the provider before rendering consumers.
@@ -29,6 +29,7 @@
 - [Mentor session targets](mentor-session-targets.md) — Each program sets a per-business 1:1 target; reports count toward it, and mentors can request more from authorized staff.
 - [Coaching and mentoring terminology](coaching-mentoring-terminology.md) — Coaching and mentoring refer to one service, not separate program categories.
 - [Schema drift and publishing](schema-drift-publishing.md) — Compare actual schemas with source; inspect composite-FK dependency order and stage prerequisite keys first if necessary.
+- [Disposable PostgreSQL tests](database-integration-testing.md) — Initialize local test databases from Drizzle schema; keep manually isolated fixtures aligned with route-used columns.
 - [Editorial palette contrast](editorial-palette-contrast.md) — Preserve source colors for large emphasis, but measure small-text pairings when applying the extracted design system.
 - [pnpm audit fixes](pnpm-audit-fix.md) — Review auto-generated overrides for major-version drift and preserve workspace safeguards and comments.
 - [Drizzle correlated projections](drizzle-correlated-projections.md) — Explicitly qualify outer references; single-table rewriting can silently bind them to inner columns.
