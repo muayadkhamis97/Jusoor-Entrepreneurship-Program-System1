@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { pool } from "@workspace/db";
-import { withGoogleCalendarSyncLease } from "../src/lib/googleCalendarSync";
+import { encryptGoogleCalendarToken, syncGoogleCalendarMentor, withGoogleCalendarSyncLease } from "../src/lib/googleCalendarSync";
 
 test("PostgreSQL advisory sync locks recover after callback and lock-acquisition failures", {
   skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a disposable PostgreSQL database.",
@@ -110,6 +111,139 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
       "A subsequent PostgreSQL session must acquire the mentor lock after an acquisition failure.",
     );
     assert.equal(retrySyncRan, true, "The sync callback must run after the retry acquires the mentor lock.");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS jusoor_staff_members (
+        id serial PRIMARY KEY,
+        email text NOT NULL UNIQUE,
+        role text NOT NULL DEFAULT 'staff',
+        status text NOT NULL DEFAULT 'invited',
+        google_calendar_account_email text,
+        google_calendar_refresh_token_encrypted text,
+        google_calendar_access_token_encrypted text,
+        google_calendar_access_token_expires_at timestamptz,
+        google_calendar_sync_token text,
+        google_calendar_sync_last_success_at timestamptz,
+        google_calendar_sync_last_failure_at timestamptz,
+        google_calendar_sync_consecutive_failures integer NOT NULL DEFAULT 0,
+        google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false
+      );
+      ALTER TABLE jusoor_staff_members
+        ADD COLUMN IF NOT EXISTS google_calendar_account_email text,
+        ADD COLUMN IF NOT EXISTS google_calendar_refresh_token_encrypted text,
+        ADD COLUMN IF NOT EXISTS google_calendar_access_token_encrypted text,
+        ADD COLUMN IF NOT EXISTS google_calendar_access_token_expires_at timestamptz,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_token text,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_last_success_at timestamptz,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_last_failure_at timestamptz,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_consecutive_failures integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false;
+      CREATE TABLE IF NOT EXISTS jusoor_businesses (
+        id integer PRIMARY KEY,
+        email text NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS jusoor_support (
+        business_id integer NOT NULL,
+        mentor_staff_id integer,
+        type text NOT NULL
+      );
+    `);
+
+    const mentorEmail = `calendar-sync-health-${randomUUID()}@example.test`;
+    const refreshTokenEncrypted = encryptGoogleCalendarToken("calendar-sync-health-refresh-token");
+    const { rows: [healthMentor] } = await pool.query<{ id: number }>(
+      `INSERT INTO jusoor_staff_members (
+        email, role, status, google_calendar_account_email,
+        google_calendar_refresh_token_encrypted, google_calendar_sync_consecutive_failures
+      ) VALUES ($1, 'mentor', 'active', $2, $3, 0)
+      RETURNING id`,
+      [mentorEmail, mentorEmail, refreshTokenEncrypted],
+    );
+    assert.ok(healthMentor);
+
+    const healthSyncFailureClient = await pool.connect();
+    const syncAcquisitionError = new Error("Database outage while acquiring the mentor lock.");
+    let acquisitionFailureInjected = false;
+    const failingSyncClient = new Proxy(healthSyncFailureClient, {
+      get(target, property) {
+        if (property === "query") {
+          return (...args: unknown[]) => {
+            if (
+              !acquisitionFailureInjected &&
+              args[0] === "SELECT pg_try_advisory_lock($1, $2) AS locked"
+            ) {
+              acquisitionFailureInjected = true;
+              throw syncAcquisitionError;
+            }
+            return Reflect.apply(target.query, target, args);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as typeof healthSyncFailureClient;
+
+    await assert.rejects(
+      syncGoogleCalendarMentor(healthMentor.id, async () => failingSyncClient),
+      error => error === syncAcquisitionError,
+      "A failed lock acquisition must be returned by the sync entry point.",
+    );
+
+    assert.equal(acquisitionFailureInjected, true, "The sync must reach the injected lock-acquisition outage.");
+    const { rows: [failedStatus] } = await pool.query<{
+      google_calendar_sync_last_failure_at: Date | null;
+      google_calendar_sync_consecutive_failures: number;
+    }>(
+      `SELECT google_calendar_sync_last_failure_at, google_calendar_sync_consecutive_failures
+       FROM jusoor_staff_members WHERE id = $1`,
+      [healthMentor.id],
+    );
+    assert.ok(failedStatus?.google_calendar_sync_last_failure_at, "The acquisition outage must be persisted as a sync failure.");
+    assert.equal(failedStatus.google_calendar_sync_consecutive_failures, 1);
+
+    const originalFetch = globalThis.fetch;
+    const originalEnv = {
+      clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    };
+    process.env.GOOGLE_CALENDAR_CLIENT_ID = "calendar-sync-health-test-client";
+    process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "calendar-sync-health-test-secret";
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      if (String(input) === "https://oauth2.googleapis.com/token") {
+        return new Response(JSON.stringify({ access_token: "calendar-sync-health-access-token", expires_in: 3600 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ items: [], nextSyncToken: "calendar-sync-health-next-token" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    try {
+      await syncGoogleCalendarMentor(healthMentor.id);
+      const { rows: [recoveredStatus] } = await pool.query<{
+        google_calendar_sync_last_success_at: Date | null;
+        google_calendar_sync_last_failure_at: Date | null;
+        google_calendar_sync_consecutive_failures: number;
+      }>(
+        `SELECT google_calendar_sync_last_success_at, google_calendar_sync_last_failure_at,
+                google_calendar_sync_consecutive_failures
+         FROM jusoor_staff_members WHERE id = $1`,
+        [healthMentor.id],
+      );
+      assert.ok(recoveredStatus?.google_calendar_sync_last_success_at, "The successful retry must be recorded.");
+      assert.equal(recoveredStatus.google_calendar_sync_last_failure_at, null);
+      assert.equal(recoveredStatus.google_calendar_sync_consecutive_failures, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalEnv.clientId === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_ID;
+      else process.env.GOOGLE_CALENDAR_CLIENT_ID = originalEnv.clientId;
+      if (originalEnv.clientSecret === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+      else process.env.GOOGLE_CALENDAR_CLIENT_SECRET = originalEnv.clientSecret;
+      await pool.query("DELETE FROM jusoor_staff_members WHERE id = $1", [healthMentor.id]);
+    }
 
     const terminatedClient = await pool.connect();
     // This test intentionally closes the socket while no query is pending.

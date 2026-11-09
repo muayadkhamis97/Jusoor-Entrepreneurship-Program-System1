@@ -565,7 +565,10 @@ export async function recordGoogleCalendarSyncSuccessStatus(
   ));
 }
 
-export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<void> {
+export async function syncGoogleCalendarMentor(
+  mentorStaffId: number,
+  connect: () => Promise<GoogleCalendarSyncClient> = () => pool.connect(),
+): Promise<void> {
   let connectionSnapshot: GoogleCalendarConnectionSnapshot | undefined;
   try {
     let syncCompleted = false;
@@ -576,6 +579,7 @@ export async function syncGoogleCalendarMentor(mentorStaffId: number): Promise<v
           connectionSnapshot = snapshot;
         });
       },
+      connect,
     );
     if (!acquired || !syncCompleted || !connectionSnapshot) return;
     await recordGoogleCalendarSyncSuccessStatus(mentorStaffId, connectionSnapshot);

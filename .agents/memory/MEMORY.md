@@ -22,6 +22,7 @@
 - [Headless touch-scroll checks](headless-touch-scroll-checks.md) — Chromium CDP touch gestures did not scroll this app’s overflow menu; verify touch capability and the scroll range instead.
 - [Footer branding](footer-branding.md) — Keep UI copy generic and prevent retired brand text from resurfacing through defaults or saved settings.
 - [Google Calendar booking rules](google-calendar-account-replacement.md) — Account replacement clears stale schedule links; either booking connection removes connection follow-up.
+- [Calendar sync failure tests](calendar-sync-failure-tests.md) — Inject a checked-out client into sync tests; patching Pool.connect can break node-postgres Pool.query callback handling.
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
 - [Announcement email safety](announcement-email-safety.md) — Opt in per message, snapshot accepted recipients at publication, and hold ambiguous Gmail outcomes rather than risk duplicate sends.
