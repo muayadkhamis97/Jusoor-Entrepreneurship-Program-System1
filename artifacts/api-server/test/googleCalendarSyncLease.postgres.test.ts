@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { pool } from "@workspace/db";
 import { withGoogleCalendarSyncLease } from "../src/lib/googleCalendarSync";
 
-test("PostgreSQL advisory sync locks coordinate sessions and recover after callback failures", {
+test("PostgreSQL advisory sync locks recover after callback and lock-acquisition failures", {
   skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a disposable PostgreSQL database.",
   timeout: 30_000,
 }, async () => {
@@ -55,6 +55,61 @@ test("PostgreSQL advisory sync locks coordinate sessions and recover after callb
       true,
       "A fresh PostgreSQL session must acquire the mentor lock after a callback failure.",
     );
+
+    const acquisitionClient = await pool.connect();
+    const acquisitionError = new Error("Database connection failed during mentor lock acquisition.");
+    let acquisitionQueryFailed = false;
+    let acquisitionReleasedWith: unknown;
+    const failingAcquisitionClient = new Proxy(acquisitionClient, {
+      get(target, property) {
+        if (property === "query") {
+          return (...args: unknown[]) => {
+            if (
+              !acquisitionQueryFailed &&
+              args[0] === "SELECT pg_try_advisory_lock($1, $2) AS locked"
+            ) {
+              acquisitionQueryFailed = true;
+              throw acquisitionError;
+            }
+            return Reflect.apply(target.query, target, args);
+          };
+        }
+        if (property === "release") {
+          return (error?: Error | boolean) => {
+            acquisitionReleasedWith = error;
+            return Reflect.apply(target.release, target, [error]);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as typeof acquisitionClient;
+    let acquisitionSyncRan = false;
+    await assert.rejects(
+      withGoogleCalendarSyncLease(mentorStaffId, async () => {
+        acquisitionSyncRan = true;
+      }, async () => failingAcquisitionClient),
+      error => error === acquisitionError,
+      "The lock-acquisition error must be reported to the caller.",
+    );
+    assert.equal(acquisitionQueryFailed, true, "The injected failure must occur on the advisory lock query.");
+    assert.equal(acquisitionSyncRan, false, "The sync callback must not run when lock acquisition fails.");
+    assert.equal(
+      acquisitionReleasedWith,
+      acquisitionError,
+      "A connection that fails during lock acquisition must be discarded from the pool.",
+    );
+
+    let retrySyncRan = false;
+    const afterAcquisitionFailureClient = await pool.connect();
+    assert.equal(
+      await withGoogleCalendarSyncLease(mentorStaffId, async () => {
+        retrySyncRan = true;
+      }, async () => afterAcquisitionFailureClient),
+      true,
+      "A subsequent PostgreSQL session must acquire the mentor lock after an acquisition failure.",
+    );
+    assert.equal(retrySyncRan, true, "The sync callback must run after the retry acquires the mentor lock.");
 
     const terminatedClient = await pool.connect();
     // This test intentionally closes the socket while no query is pending.

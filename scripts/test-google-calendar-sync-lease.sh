@@ -60,7 +60,7 @@ env -i \
   TEST_DATABASE_URL="postgres://validation@127.0.0.1:$port/google_calendar_lock_test" \
   SESSION_SECRET=validation-only-session-secret \
   pnpm --filter @workspace/api-server exec tsx --test \
-    --test-name-pattern="PostgreSQL advisory sync locks coordinate sessions and recover after callback failures" \
+    --test-name-pattern="PostgreSQL advisory sync locks recover after callback and lock-acquisition failures" \
     test/googleCalendarSyncLease.postgres.test.ts
 
 echo "Running deployment-wide rate-limit test against the same disposable PostgreSQL."
