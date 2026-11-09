@@ -128,6 +128,67 @@ test("Google Calendar request timeout releases the lease so the next sync can re
   }
 });
 
+test("stalled Calendar response body releases the lease so the next sync can retry", { timeout: 1_000 }, async () => {
+  const originalFetch = globalThis.fetch;
+  const originalTimeout = AbortSignal.timeout;
+  AbortSignal.timeout = ((milliseconds: number) => {
+    assert.equal(milliseconds, 30_000, "Calendar page timeout should be bounded");
+    const controller = new AbortController();
+    setTimeout(() => {
+      controller.abort(new DOMException("private provider response details", "TimeoutError"));
+    }, 0);
+    return controller.signal;
+  }) as typeof AbortSignal.timeout;
+  let lockHeld = false;
+  let requestSignal: AbortSignal | undefined;
+  const connect = async () => mockClient(async statement => {
+    if (statement.includes("pg_try_advisory_lock")) {
+      if (lockHeld) return { rows: [{ locked: false }] };
+      lockHeld = true;
+      return { rows: [{ locked: true }] };
+    }
+    assert.ok(statement.includes("pg_advisory_unlock"));
+    lockHeld = false;
+    return { rows: [{ locked: true }] };
+  });
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    requestSignal = init?.signal as AbortSignal;
+    return {
+      ok: true,
+      status: 200,
+      json: () => new Promise((_resolve, reject) => {
+        if (!requestSignal) return;
+        if (requestSignal.aborted) {
+          reject(requestSignal.reason);
+          return;
+        }
+        requestSignal.addEventListener("abort", () => reject(requestSignal?.reason), { once: true });
+      }),
+    } as Response;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      withGoogleCalendarSyncLease(53, async () => {
+        await fetchCalendarPage("test-access-token", null);
+      }, connect),
+      error => {
+        assert.equal((error as Error).message, "Google Calendar returned an invalid event response.");
+        assert.equal((error as Error).message.includes("private provider response details"), false);
+        return true;
+      },
+    );
+    assert.ok(requestSignal instanceof AbortSignal);
+    assert.equal(requestSignal.aborted, true, "the stalled response body must reach its abort deadline");
+    assert.equal(lockHeld, false, "the body-read failure must release the advisory lock");
+    assert.equal(await withGoogleCalendarSyncLease(53, async () => {}, connect), true);
+    assert.equal(lockHeld, false, "the next sync must acquire and release the lock");
+  } finally {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = originalTimeout;
+  }
+});
+
 test("Google Calendar sync lease destroys the session if lock release fails", async () => {
   let releasedWithError: Error | undefined;
   let calls = 0;
