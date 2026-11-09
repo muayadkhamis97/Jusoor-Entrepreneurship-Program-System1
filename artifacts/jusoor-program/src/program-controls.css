@@ -34,6 +34,10 @@
   transition: var(--program-control-transition);
 }
 
+.button {
+  white-space: normal;
+}
+
 .button:hover:not(:disabled),
 .ana-button:hover:not(:disabled),
 .api-button:hover:not(:disabled),
@@ -123,6 +127,7 @@
 }
 
 .api-button-revoke {
+  --program-control-button-font: var(--text-xs);
   min-height: 2rem;
   padding-inline: 0.625rem;
   border-color: hsl(var(--destructive) / 0.3);

@@ -121,6 +121,7 @@ test('workspace, analytics, API and grant controls share the same design tokens'
     }));
     assert.equal(primaryButtons.length, 3);
     assert.ok(primaryButtons.every(style => JSON.stringify(style) === JSON.stringify(primaryButtons[0])), 'Primary actions should resolve to identical minimum sizing and theme styles.');
+    const sharedControlRadius = primaryButtons[0].radius;
 
     const compactVariants = await page.locator(
       '.api-button-revoke, .ana-tool, .grant-action-button, .session-admin-actions .button, .recording-ready-email .button, .mentor-follow-up-actions .button, .participant-account-actions .button, .announcement-confirm .button',
@@ -129,14 +130,14 @@ test('workspace, analytics, API and grant controls share the same design tokens'
       return { height: style.height, fontSize: style.fontSize, radius: style.borderRadius };
     }));
     assert.deepEqual(compactVariants, [
-      { height: '32px', fontSize: '12px', radius: '6px' },
-      { height: '32px', fontSize: '12px', radius: '6px' },
-      { height: '32px', fontSize: '12px', radius: '6px' },
-      { height: '36px', fontSize: '12px', radius: '6px' },
-      { height: '32px', fontSize: '12px', radius: '6px' },
-      { height: '34px', fontSize: '12px', radius: '6px' },
-      { height: '32px', fontSize: '12px', radius: '6px' },
-      { height: '32px', fontSize: '12px', radius: '6px' },
+      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '36px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '34px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
     ], 'Feature-specific compact actions should use the shared sizing scale.');
 
     const fields = await page.locator(

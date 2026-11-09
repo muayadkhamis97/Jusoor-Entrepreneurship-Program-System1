@@ -14,3 +14,13 @@ scroll-height assertion incorrectly rejected every compact directory action.
 rectangles against button and clipping-ancestor bounds. Keep horizontal overflow
 checks, and include deliberate broken-layout controls to prove the assertions
 still detect clipped labels and separated icons.
+
+For computed-style checks over several selector families, include each matched
+element's stable identity with its measurements; do not infer the failing control
+from array position alone.
+
+**Why:** A browser locator returned controls in an order that differed from the
+selector list, initially attributing a text-size mismatch to the wrong action.
+
+**How to apply:** Return a test ID or class with every computed-style record and
+assert results by control identity.

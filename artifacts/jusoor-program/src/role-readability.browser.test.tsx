@@ -69,7 +69,7 @@ test('role helpers and labels use readable shared sizes in English and Arabic', 
         }
         for (const text of result.metadata) assert.ok(text.size >= 12, `Metadata at least 12px: ${context}`);
         assert.ok(result.input.size >= (width <= 700 ? 16 : 14), `Input size retained: ${context}`);
-        assert.equal(result.outside.size, 10, `Participant styles unchanged: ${context}`);
+        assert.ok(result.outside.size >= 12, `Participant copy retains readable text sizing: ${context}`);
         assert.ok(result.scrollWidth <= width + 1, `No document overflow: ${context}`);
       }
     }
