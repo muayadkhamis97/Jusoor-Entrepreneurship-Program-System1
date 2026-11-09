@@ -35,6 +35,66 @@ test("PostgreSQL advisory sync locks coordinate sessions per mentor", {
 
     const retryClient = await pool.connect();
     assert.equal(await withGoogleCalendarSyncLease(mentorStaffId, async () => {}, async () => retryClient), true);
+
+    const terminatedClient = await pool.connect();
+    // This test intentionally closes the socket while no query is pending.
+    // Observe pg's expected client error event; the lease promise is asserted below.
+    terminatedClient.on("error", () => {});
+    const { rows: backendRows } = await terminatedClient.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+    const terminatedBackendPid = backendRows[0]!.pid;
+    let terminatedSyncStarted!: () => void;
+    let releaseTerminatedSync!: () => void;
+    const terminatedStarted = new Promise<void>(resolve => { terminatedSyncStarted = resolve; });
+    const terminatedGate = new Promise<void>(resolve => { releaseTerminatedSync = resolve; });
+    const terminatedSync = withGoogleCalendarSyncLease(mentorStaffId, async () => {
+      terminatedSyncStarted();
+      await terminatedGate;
+    }, async () => terminatedClient);
+    const terminatedSyncOutcome = terminatedSync.then(
+      value => ({ value }),
+      error => ({ error }),
+    );
+    await terminatedStarted;
+
+    let terminationClient: Awaited<ReturnType<typeof pool.connect>> | undefined;
+    try {
+      terminationClient = await pool.connect();
+      const { rows } = await terminationClient.query<{ terminated: boolean }>(
+        "SELECT pg_terminate_backend($1) AS terminated",
+        [terminatedBackendPid],
+      );
+      assert.equal(rows[0]?.terminated, true, "PostgreSQL must terminate the session that owns the mentor lock.");
+
+      const deadline = Date.now() + 5_000;
+      let backendStillExists = true;
+      while (backendStillExists && Date.now() < deadline) {
+        const { rows: activityRows } = await terminationClient.query<{ exists: boolean }>(
+          "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pid = $1) AS exists",
+          [terminatedBackendPid],
+        );
+        backendStillExists = activityRows[0]?.exists === true;
+        if (backendStillExists) await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      assert.equal(backendStillExists, false, "The lock-owning PostgreSQL backend must exit before the sync resumes.");
+    } finally {
+      terminationClient?.release();
+      releaseTerminatedSync();
+      await terminatedSyncOutcome;
+    }
+
+    const syncOutcome = await terminatedSyncOutcome;
+    assert.deepEqual(
+      syncOutcome,
+      { value: true },
+      "The completed sync should resolve after its terminated database session is discarded.",
+    );
+
+    const afterExitClient = await pool.connect();
+    assert.equal(
+      await withGoogleCalendarSyncLease(mentorStaffId, async () => {}, async () => afterExitClient),
+      true,
+      "A new PostgreSQL session must acquire the mentor lock after the previous owner exits.",
+    );
   } finally {
     releaseFirstSync();
     await firstSync.catch(() => {});
