@@ -75,6 +75,24 @@ test("API permissions distinguish read-only, write-only, and unrelated data grou
   assert.equal(integrationApiKeyAllowsRequest(readOnly, "GET", "/programs/12/resources/pitches"), false);
 });
 
+test("unclassified routes and unsupported methods are denied by default", () => {
+  const allGroups = [
+    "applications_businesses:read",
+    "applications_businesses:write",
+    "programs_sessions:read",
+    "programs_sessions:write",
+    "courses_attendance:read",
+    "courses_attendance:write",
+    "mentoring_grants:read",
+    "mentoring_grants:write",
+  ] as const;
+
+  assert.equal(integrationApiKeyAllowsRequest(allGroups, "GET", "/health"), false);
+  assert.equal(integrationApiKeyAllowsRequest(allGroups, "GET", "/programs/12/resources/unknown"), false);
+  assert.equal(integrationApiKeyAllowsRequest(allGroups, "DELETE", "/programs/12/resources/businesses/45"), false);
+  assert.equal(integrationApiKeyAllowsRequest(allGroups, "OPTIONS", "/programs/12/resources/businesses"), false);
+});
+
 test("API key creation requires at least one known permission", () => {
   const input = { label: "Reports", programId: 12 };
   assert.equal(CreateIntegrationApiKeyBody.safeParse({

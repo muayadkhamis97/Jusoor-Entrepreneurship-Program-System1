@@ -58,7 +58,7 @@ export function integrationApiKeyAllowsRequest(
   path: string,
 ): boolean {
   const requiredPermission = integrationApiPermissionForRequest(method, path);
-  return requiredPermission === null || permissions.includes(requiredPermission);
+  return requiredPermission !== null && permissions.includes(requiredPermission);
 }
 
 export function hashIntegrationApiKey(secret: string): string {
@@ -118,7 +118,10 @@ export const requireIntegrationApiKey: RequestHandler = async (req, res, next): 
       ));
     const permission = integrationApiPermissionForRequest(req.method, req.path);
     if (!integrationApiKeyAllowsRequest(key.permissions, req.method, req.path)) {
-      res.status(403).json({ error: `This API key does not have ${permission?.split(":")[1]} access to this data.` });
+      const error = permission
+        ? `This API key does not have ${permission.split(":")[1]} access to this data.`
+        : "This API key cannot access this operation.";
+      res.status(403).json({ error });
       return;
     }
     res.locals.integrationApiKey = key satisfies IntegrationApiKeyContext;
