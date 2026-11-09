@@ -20,7 +20,80 @@ type ConnectorClient = Pick<ReplitConnectors, "proxy">;
 type LoadEmailBranding = () => Promise<ProgramEmailBranding>;
 
 // Only use safe retries when Gmail definitely did not accept this attempt.
-export class PlatformEmailSendUncertainError extends Error {}
+export class PlatformEmailSendUncertainError extends Error {
+  readonly operation = "send";
+  readonly httpStatus?: number;
+  readonly errorCode?: string;
+
+  constructor(
+    message: string,
+    details: { httpStatus?: number; errorCode?: string } = {},
+  ) {
+    super(message);
+    this.name = "PlatformEmailSendUncertainError";
+    this.httpStatus = details.httpStatus;
+    this.errorCode = details.errorCode;
+  }
+}
+
+export function platformEmailFailureDiagnostics(error: unknown): Record<string, string | number> {
+  if (error instanceof PlatformEmailSendUncertainError) {
+    return {
+      failureKind: "delivery_outcome_unknown",
+      operation: error.operation,
+      ...(error.httpStatus ? { providerStatus: error.httpStatus } : {}),
+      ...(error.errorCode ? { errorCode: error.errorCode } : {}),
+    };
+  }
+
+  if (error instanceof Error) {
+    const httpFailure = /^Gmail (profile lookup|send|sent-message lookup) returned HTTP ([1-5]\d\d)\.$/.exec(error.message);
+    if (httpFailure) {
+      const operation = httpFailure[1] === "profile lookup"
+        ? "profile_lookup"
+        : httpFailure[1] === "sent-message lookup"
+          ? "sent_message_lookup"
+          : "send";
+      return {
+        failureKind: "gmail_http_error",
+        operation,
+        providerStatus: Number(httpFailure[2]),
+      };
+    }
+    if (error.message === "Gmail did not return the connected account address.") {
+      return { failureKind: "gmail_profile_missing_address", operation: "profile_lookup" };
+    }
+  }
+
+  const errorCode = safeErrorCode(error);
+  const errorName = error instanceof Error && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(error.name)
+    ? error.name
+    : "UnknownError";
+  return {
+    failureKind: "unclassified_email_error",
+    errorName,
+    ...(errorCode ? { errorCode } : {}),
+  };
+}
+
+function safeErrorCode(error: unknown): string | undefined {
+  const visited = new Set<object>();
+  let current = error;
+  for (let depth = 0; depth < 4 && current && typeof current === "object" && !visited.has(current); depth++) {
+    visited.add(current);
+    const candidate = current as { code?: unknown; errorCode?: unknown; cause?: unknown };
+    for (const value of [candidate.errorCode, candidate.code]) {
+      if (typeof value === "string") {
+        const normalized = value.toUpperCase();
+        if (/^(?:E[A-Z0-9]{2,31}|ERR_[A-Z0-9_]{1,32}|UND_[A-Z0-9_]{1,32}|[0-9A-Z]{5})$/.test(normalized)) {
+          return normalized;
+        }
+      }
+    }
+    current = candidate.cause;
+  }
+  return undefined;
+}
 
 export async function sendPlatformEmail(
   message: PlatformEmail,
@@ -70,12 +143,16 @@ export async function sendPlatformEmail(
         "/gmail/v1/users/me/messages/send",
         { method: "POST", body: { raw } },
       );
-    } catch {
-      throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.");
+    } catch (error) {
+      throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.", {
+        errorCode: safeErrorCode(error),
+      });
     }
     if (!response.ok) {
       if (response.status >= 500 || response.status === 408) {
-        throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.");
+        throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.", {
+          httpStatus: response.status,
+        });
       }
       throw new Error(`Gmail send returned HTTP ${response.status}.`);
     }

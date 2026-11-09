@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ReplitConnectors } from "@replit/connectors-sdk";
 import type { ProgramEmailBranding } from "../src/lib/email-branding";
-import { sendPlatformEmail } from "../src/lib/platform-email";
+import {
+  PlatformEmailSendUncertainError,
+  platformEmailFailureDiagnostics,
+  sendPlatformEmail,
+} from "../src/lib/platform-email";
 
 const testBranding: ProgramEmailBranding = {
   brandName: "Future Founders",
@@ -14,6 +18,8 @@ const testBranding: ProgramEmailBranding = {
 function fakeConnectors(options?: {
   sent?: boolean;
   profileStatus?: number;
+  sendStatus?: number;
+  sendError?: Error;
 }) {
   const requests: { path: string; method?: string; body?: unknown }[] = [];
   const connectors = {
@@ -30,7 +36,8 @@ function fakeConnectors(options?: {
           JSON.stringify(options?.sent ? { messages: [{ id: "already-sent" }] } : {}),
         );
       }
-      return new Response(JSON.stringify({ id: "sent-message" }));
+      if (options?.sendError) throw options.sendError;
+      return new Response(JSON.stringify({ id: "sent-message" }), { status: options?.sendStatus ?? 200 });
     },
   } as unknown as Pick<ReplitConnectors, "proxy">;
   return { connectors, requests };
@@ -131,5 +138,77 @@ test("Gmail sender stops if the connected mailbox profile cannot be read", async
   assert.equal(
     requests.filter(request => request.path.endsWith("/messages/send")).length,
     0,
+  );
+});
+
+test("email failure diagnostics preserve safe provider details without logging raw messages", () => {
+  assert.deepEqual(
+    platformEmailFailureDiagnostics(new Error("Gmail profile lookup returned HTTP 403.")),
+    {
+      failureKind: "gmail_http_error",
+      operation: "profile_lookup",
+      providerStatus: 403,
+    },
+  );
+
+  assert.deepEqual(
+    platformEmailFailureDiagnostics(new PlatformEmailSendUncertainError(
+      "Gmail delivery outcome is unknown.",
+      { httpStatus: 503 },
+    )),
+    {
+      failureKind: "delivery_outcome_unknown",
+      operation: "send",
+      providerStatus: 503,
+    },
+  );
+
+  const transportFailure = Object.assign(
+    new Error("access-token=private recipient=founder@example.test"),
+    { cause: Object.assign(new Error("socket failed"), { code: "ECONNRESET" }) },
+  );
+  const diagnostics = platformEmailFailureDiagnostics(transportFailure);
+  assert.deepEqual(diagnostics, {
+    failureKind: "unclassified_email_error",
+    errorName: "Error",
+    errorCode: "ECONNRESET",
+  });
+  assert.doesNotMatch(JSON.stringify(diagnostics), /access-token|founder@example\.test|private/);
+
+  assert.deepEqual(
+    platformEmailFailureDiagnostics(Object.assign(new Error("connection failed"), { code: "privatecredentialvalue" })),
+    { failureKind: "unclassified_email_error", errorName: "Error" },
+    "arbitrary connector strings must not be treated as safe diagnostic codes",
+  );
+});
+
+test("Gmail send failures retain safe HTTP and network diagnostics", async () => {
+  const httpFailure = fakeConnectors({ sendStatus: 503 });
+  await assert.rejects(
+    sendPlatformEmail(email(), httpFailure.connectors, async () => testBranding),
+    error => {
+      assert.deepEqual(platformEmailFailureDiagnostics(error), {
+        failureKind: "delivery_outcome_unknown",
+        operation: "send",
+        providerStatus: 503,
+      });
+      return true;
+    },
+  );
+
+  const networkFailure = fakeConnectors({
+    sendError: Object.assign(new Error("sensitive provider response"), { code: "ECONNRESET" }),
+  });
+  await assert.rejects(
+    sendPlatformEmail(email(), networkFailure.connectors, async () => testBranding),
+    error => {
+      assert.deepEqual(platformEmailFailureDiagnostics(error), {
+        failureKind: "delivery_outcome_unknown",
+        operation: "send",
+        errorCode: "ECONNRESET",
+      });
+      assert.doesNotMatch(JSON.stringify(platformEmailFailureDiagnostics(error)), /sensitive provider response/);
+      return true;
+    },
   );
 });

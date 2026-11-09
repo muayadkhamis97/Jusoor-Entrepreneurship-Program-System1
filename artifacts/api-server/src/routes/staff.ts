@@ -54,6 +54,8 @@ import { canManageProgramAssignments } from "../lib/programAssignmentAuthorizati
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
 import { hasPostgresErrorCode } from "../lib/postgres-error-utils";
 import { sendStaffInvitationEmail, type StaffInvitationRole } from "../lib/staff-invitation-email";
+import { platformEmailFailureDiagnostics } from "../lib/platform-email";
+import { logger } from "../lib/logger";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 
@@ -955,8 +957,12 @@ router.post("/staff", requireCoordinator, async (req, res): Promise<void> => {
     if (member.invitationEmailStatus !== "delivered") {
       member = await sendAndRecordStaffInvitation(member, parsed.data.role, [...programNames.values()]);
     }
-  } catch {
-    console.error("Staff invitation email delivery failed for staff record", member.id);
+  } catch (error) {
+    (req.log ?? logger).error({
+      staffId: member.id,
+      invitationAction: "create",
+      emailFailure: platformEmailFailureDiagnostics(error),
+    }, "Staff invitation email delivery failed");
     res.status(503).json({
       error: "Staff access was saved, but the invitation email could not be sent. Retry the same invitation after checking the connected Gmail account.",
     });
@@ -1007,8 +1013,12 @@ router.post("/staff/:id/retry-invitation-email", requireCoordinator, async (req,
         programs.map(({ name }) => name),
       );
     }
-  } catch {
-    console.error("Staff invitation email delivery failed for staff record", member.id);
+  } catch (error) {
+    (req.log ?? logger).error({
+      staffId: member.id,
+      invitationAction: "retry",
+      emailFailure: platformEmailFailureDiagnostics(error),
+    }, "Staff invitation email delivery failed");
     res.status(503).json({
       error: "Staff access remains saved, but the invitation email could not be sent. Check the connected Gmail account and retry.",
     });
@@ -1063,8 +1073,13 @@ router.post("/staff/:id/resend-invitation-email", requireCoordinator, async (req
       programNames: programs.map(({ name }) => name),
       resendRequestId: body.data.requestId,
     });
-  } catch {
-    console.error("Staff invitation resend could not be confirmed", member.id);
+  } catch (error) {
+    (req.log ?? logger).error({
+      staffId: member.id,
+      invitationAction: "resend",
+      resendRequestId: body.data.requestId,
+      emailFailure: platformEmailFailureDiagnostics(error),
+    }, "Staff invitation resend could not be confirmed");
     res.status(503).json({
       error: "The resend could not be confirmed. Check the connected Gmail account before trying again.",
     });
