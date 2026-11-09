@@ -1,15 +1,36 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  fetchCalendarPage,
+  GoogleCalendarSyncError,
   encryptGoogleCalendarToken,
   findGoogleCalendarBusinessMatch,
   googleCalendarPrivacy,
+  refreshGoogleAccessToken,
 } from "../src/lib/googleCalendarSync";
 
 const assignedBusinesses = [
   { id: 31, email: "founder@example.com" },
   { id: 42, email: "other@example.com" },
 ];
+
+function mockImmediateGoogleCalendarTimeout(): {
+  getTimeoutMs: () => number | null;
+  restore: () => void;
+} {
+  const originalTimeout = AbortSignal.timeout;
+  let timeoutMs: number | null = null;
+  AbortSignal.timeout = ((milliseconds: number) => {
+    timeoutMs = milliseconds;
+    const controller = new AbortController();
+    controller.abort(new DOMException("private provider response data", "TimeoutError"));
+    return controller.signal;
+  }) as typeof AbortSignal.timeout;
+  return {
+    getTimeoutMs: () => timeoutMs,
+    restore: () => { AbortSignal.timeout = originalTimeout; },
+  };
+}
 
 test("matches a calendar event only to a unique assigned founder hosted by the linked mentor", () => {
   const event = {
@@ -63,6 +84,81 @@ test("encrypts OAuth tokens before they are stored", () => {
   const encrypted = encryptGoogleCalendarToken("private-refresh-token");
   assert.notEqual(encrypted, "private-refresh-token");
   assert.equal(encrypted.split(".").length, 3);
+});
+
+test("token refresh uses an abort deadline and hides provider timeout details", async () => {
+  const originalFetch = globalThis.fetch;
+  const timeout = mockImmediateGoogleCalendarTimeout();
+  const originalEnv = {
+    sessionSecret: process.env.SESSION_SECRET,
+    clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+  };
+  process.env.SESSION_SECRET = "google-calendar-test-secret";
+  process.env.GOOGLE_CALENDAR_CLIENT_ID = "test-client";
+  process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "test-secret";
+  let requestSignal: AbortSignal | null = null;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    requestSignal = init?.signal as AbortSignal;
+    assert.equal(requestSignal.aborted, true, "the request signal should be aborted at its deadline");
+    throw requestSignal.reason;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      refreshGoogleAccessToken({
+        id: 12,
+        googleCalendarAccessTokenEncrypted: null,
+        googleCalendarAccessTokenExpiresAt: null,
+        googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("test-refresh-token"),
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof GoogleCalendarSyncError);
+        assert.equal(error.message, "Google Calendar authorization could not be refreshed.");
+        assert.equal(error.message.includes("private provider response data"), false);
+        return true;
+      },
+    );
+    assert.ok(requestSignal instanceof AbortSignal, "token refresh must pass an abort signal");
+    assert.equal(timeout.getTimeoutMs(), 30_000, "token refresh must have a bounded 30-second deadline");
+  } finally {
+    globalThis.fetch = originalFetch;
+    timeout.restore();
+    if (originalEnv.sessionSecret === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = originalEnv.sessionSecret;
+    if (originalEnv.clientId === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_ID;
+    else process.env.GOOGLE_CALENDAR_CLIENT_ID = originalEnv.clientId;
+    if (originalEnv.clientSecret === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+    else process.env.GOOGLE_CALENDAR_CLIENT_SECRET = originalEnv.clientSecret;
+  }
+});
+
+test("Calendar page requests use an abort deadline and hide provider timeout details", async () => {
+  const originalFetch = globalThis.fetch;
+  const timeout = mockImmediateGoogleCalendarTimeout();
+  let requestSignal: AbortSignal | null = null;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    requestSignal = init?.signal as AbortSignal;
+    assert.equal(requestSignal.aborted, true, "the request signal should be aborted at its deadline");
+    throw requestSignal.reason;
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      fetchCalendarPage("test-access-token", null),
+      (error: unknown) => {
+        assert.ok(error instanceof GoogleCalendarSyncError);
+        assert.equal(error.message, "Google Calendar events could not be retrieved.");
+        assert.equal(error.message.includes("private provider response data"), false);
+        return true;
+      },
+    );
+    assert.ok(requestSignal instanceof AbortSignal, "Calendar page requests must pass an abort signal");
+    assert.equal(timeout.getTimeoutMs(), 30_000, "Calendar page requests must have a bounded 30-second deadline");
+  } finally {
+    globalThis.fetch = originalFetch;
+    timeout.restore();
+  }
 });
 
 test("requests only event fields needed for booking matching and history", () => {

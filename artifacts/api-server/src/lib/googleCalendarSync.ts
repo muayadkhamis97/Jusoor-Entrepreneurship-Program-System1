@@ -19,6 +19,7 @@ import { logger } from "./logger";
 const googleCalendarEventsScope = "https://www.googleapis.com/auth/calendar.events.owned.readonly";
 const calendarApiBase = "https://www.googleapis.com/calendar/v3";
 const workerIntervalMs = 5 * 60_000;
+const googleCalendarRequestTimeoutMs = 30_000;
 const maxPagesPerSync = 20;
 // Two-key PostgreSQL advisory locks: a fixed namespace plus mentor staff ID.
 const googleCalendarSyncLockNamespace = 0x4a43414c;
@@ -167,7 +168,7 @@ export function findGoogleCalendarBusinessMatch(
   return businessIds.size === 1 ? [...businessIds][0]! : null;
 }
 
-async function refreshGoogleAccessToken(staff: {
+export async function refreshGoogleAccessToken(staff: {
   id: number;
   googleCalendarAccessTokenEncrypted: string | null;
   googleCalendarAccessTokenExpiresAt: Date | null;
@@ -197,16 +198,22 @@ async function refreshGoogleAccessToken(staff: {
     throw new GoogleCalendarSyncError("Google Calendar connection needs to be authorized again.");
   }
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+      signal: AbortSignal.timeout(googleCalendarRequestTimeoutMs),
+    });
+  } catch {
+    throw new GoogleCalendarSyncError("Google Calendar authorization could not be refreshed.");
+  }
   const data = await response.json().catch(() => ({})) as {
     access_token?: unknown;
     expires_in?: unknown;
@@ -234,7 +241,7 @@ async function refreshGoogleAccessToken(staff: {
   return data.access_token;
 }
 
-async function fetchCalendarPage(
+export async function fetchCalendarPage(
   accessToken: string,
   syncToken: string | null,
   pageToken?: string,
@@ -247,9 +254,15 @@ async function fetchCalendarPage(
   if (syncToken) url.searchParams.set("syncToken", syncToken);
   if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(googleCalendarRequestTimeoutMs),
+    });
+  } catch {
+    throw new GoogleCalendarSyncError("Google Calendar events could not be retrieved.");
+  }
   if (response.status === 410 && syncToken) throw new GoogleCalendarSyncError("Google Calendar sync token expired.", 410);
   if (!response.ok) throw new GoogleCalendarSyncError("Google Calendar events could not be retrieved.", response.status);
   const page = await response.json().catch(() => null);
