@@ -57,6 +57,7 @@ test("PostgreSQL serializes judging submissions and link replacement at cutover"
     "../../../lib/db/migrations/20261022_public_judging_forms.sql",
     "../../../lib/db/migrations/20261023_judging_form_link_history.sql",
     "../../../lib/db/migrations/20261028_judging_form_status_history.sql",
+    "../../../lib/db/migrations/20261109_deployment_rate_limits.sql",
   ]) {
     await pool.query(readFileSync(new URL(migrationPath, import.meta.url), "utf8"));
   }

@@ -1,31 +1,42 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import { GetPublicJudgingFormResponse, SubmitPublicJudgingResponseBody, SubmitPublicJudgingResponseResponse } from "@workspace/api-zod";
 import { db, judgingFormsTable, judgingResponsesTable, programsTable, type JudgingResponse } from "@workspace/db";
 import { JudgingFormError, judgingBusinesses, judgingTokenHash, normalizeJudgingAssessment, validJudgingToken } from "../lib/judgingForms";
+import { consumeDatabaseRateLimit } from "../lib/databaseRateLimit";
+import { logger } from "../lib/logger";
 import { judgingFormErrors } from "./judgingFormErrors";
 import { lockGoogleSheetsProgram, queueGoogleSheetsEvent } from "../lib/googleSheetsSync";
 
 const router = Router();
-const limits = new Map<string, { count: number; expires: number }>();
-// Bounded, per-process abuse protection; it is not an identity-verification gate.
-function rateLimit(key: string, maximum: number, period: number) {
-  const now = Date.now();
-  const entry = limits.get(key);
-  if (entry && entry.expires > now) {
-    if (++entry.count > maximum) throw new JudgingFormError(429, "Too many requests. Wait a few minutes and try again.");
-  } else limits.set(key, { count: 1, expires: now + period });
-  if (limits.size > 10000) {
-    for (const [storedKey, value] of limits) if (value.expires <= now) limits.delete(storedKey);
-    if (limits.size > 10000) limits.delete(limits.keys().next().value!);
+async function rateLimit(
+  req: Request,
+  res: Response,
+  key: string,
+  maximum: number,
+  periodMs: number,
+): Promise<void> {
+  let result;
+  try {
+    result = await consumeDatabaseRateLimit(key, maximum, periodMs);
+  } catch (error) {
+    (req.log ?? logger).error({ err: error }, "Public judging rate limit could not be checked");
+    throw new JudgingFormError(503, "Judging is temporarily unavailable. Try again shortly.");
+  }
+  if (!result.allowed) {
+    res.setHeader("Retry-After", result.retryAfterSeconds);
+    throw new JudgingFormError(429, "Too many requests. Wait a few minutes and try again.");
   }
 }
 router.use((req, res, next) => {
-  res.set("Cache-Control", "no-store");
-  rateLimit(`ip:${req.ip}`, 1200, 60_000);
-  if (!validJudgingToken(req.query.token)) throw new JudgingFormError(404, "This judging link is invalid or unavailable.");
-  rateLimit(`${req.ip}:${judgingTokenHash(req.query.token)}`, 1200, 10 * 60_000);
-  next();
+  void (async () => {
+    res.set("Cache-Control", "no-store");
+    await rateLimit(req, res, `public-judging:ip:${req.ip}`, 1200, 60_000);
+    if (!validJudgingToken(req.query.token)) throw new JudgingFormError(404, "This judging link is invalid or unavailable.");
+    const token = String(req.query.token);
+    await rateLimit(req, res, `public-judging:token:${req.ip}:${judgingTokenHash(token)}`, 1200, 10 * 60_000);
+    next();
+  })().catch(next);
 });
 function lookup(token: string) {
   return db.select({ form: judgingFormsTable, programName: programsTable.name }).from(judgingFormsTable)
@@ -48,7 +59,13 @@ router.post("/responses", async (req, res) => {
   const parsed = SubmitPublicJudgingResponseBody.safeParse(req.body);
   if (!parsed.success) throw new JudgingFormError(400, "Provide a valid name and email, scores, required answers and submission identifier.");
   const token = req.query.token as string;
-  rateLimit(`${req.ip}:${judgingTokenHash(`${token}:${parsed.data.judgeEmail.trim().toLowerCase()}`)}`, 60, 10 * 60_000);
+  await rateLimit(
+    req,
+    res,
+    `public-judging:submission:${req.ip}:${judgingTokenHash(`${token}:${parsed.data.judgeEmail.trim().toLowerCase()}`)}`,
+    60,
+    10 * 60_000,
+  );
   const result = await db.transaction(async tx => {
     // Hold a share lock until commit so Close cannot race an accepted submission.
     const [row] = await tx.select({ form: judgingFormsTable }).from(judgingFormsTable)

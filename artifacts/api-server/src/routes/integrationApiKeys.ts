@@ -16,6 +16,7 @@ import {
 } from "@workspace/db";
 import { requireCoordinator, requireStaff, type StaffAccess } from "../middlewares/staffAccess";
 import { displayIntegrationApiKeyPrefix, extractIntegrationApiKey } from "./integrationApiKeyFormat";
+import { consumeDatabaseRateLimit } from "../lib/databaseRateLimit";
 
 export type IntegrationApiKeyContext = {
   id: number;
@@ -68,7 +69,6 @@ export function createIntegrationApiKeySecret(): string {
   return `program_live_${randomBytes(32).toString("base64url")}`;
 }
 
-const rateWindows = new Map<number, { startedAt: number; count: number }>();
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 120;
 
@@ -99,20 +99,16 @@ export const requireIntegrationApiKey: RequestHandler = async (req, res, next): 
     }
 
     const now = Date.now();
-    const window = rateWindows.get(key.id);
-    if (!window || now - window.startedAt >= RATE_WINDOW_MS) {
-      rateWindows.set(key.id, { startedAt: now, count: 1 });
-    } else if (window.count >= RATE_LIMIT) {
-      res.setHeader("Retry-After", Math.ceil((RATE_WINDOW_MS - (now - window.startedAt)) / 1000));
+    const rateLimit = await consumeDatabaseRateLimit(
+      `integration-api-key:${key.id}`,
+      RATE_LIMIT,
+      RATE_WINDOW_MS,
+      now,
+    );
+    if (!rateLimit.allowed) {
+      res.setHeader("Retry-After", rateLimit.retryAfterSeconds);
       res.status(429).json({ error: "API request limit reached. Try again shortly." });
       return;
-    } else {
-      window.count += 1;
-    }
-    if (rateWindows.size > 10_000) {
-      for (const [id, item] of rateWindows) {
-        if (now - item.startedAt >= RATE_WINDOW_MS) rateWindows.delete(id);
-      }
     }
 
     await db.update(integrationApiKeysTable)
@@ -220,7 +216,6 @@ router.post("/integrations/api-keys/:id/revoke", async (req, res): Promise<void>
     res.status(404).json({ error: "Active API key not found." });
     return;
   }
-  rateWindows.delete(key.id);
   res.json(RevokeIntegrationApiKeyResponse.parse(key));
 });
 

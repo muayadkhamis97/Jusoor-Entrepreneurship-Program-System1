@@ -53,6 +53,12 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
       CREATE TEMP TABLE jusoor_programs (id integer PRIMARY KEY, name text NOT NULL, archived_at timestamptz);
       CREATE TEMP TABLE jusoor_businesses (id integer PRIMARY KEY, program_id integer, business_name text);
       CREATE TEMP TABLE jusoor_staff_members (id integer PRIMARY KEY);
+      CREATE TEMP TABLE jusoor_rate_limit_counters (
+        key_hash text PRIMARY KEY,
+        window_started_at timestamptz NOT NULL,
+        hit_count integer NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
       INSERT INTO jusoor_programs VALUES (11,'Assigned program',NULL),(22,'Other program',NULL),(33,'Archived',now());
       INSERT INTO jusoor_businesses VALUES (201,11,'Business one'),(202,11,'Business two'),(203,22,'Other business'),(204,33,'Archived business');
       INSERT INTO jusoor_staff_members VALUES (7),(8);
@@ -180,7 +186,7 @@ describe("public judging forms with isolated PostgreSQL tables", { skip: !databa
   });
   test("each email can assess each selected business once, with server-computed scores and safe retries", async () => {
     const first = await guest("POST", { ...assessment, scoreTotal: 999, judgeStaffId: 7 });
-    assert.equal(first.status, 200);
+    assert.equal(first.status, 200, await first.clone().text());
     const receipt = await first.json();
     assert.equal(receipt.received, true);
     assert.equal(receipt.scoreTotal, 0, "a deliberate zero score is valid, not missing");

@@ -25,7 +25,7 @@ else
   run_check "API package tests (database integration suites skipped)" pnpm run test:api
 fi
 run_check "Mentor request review-versus-withdrawal race test" pnpm run test:api:mentor-race
-run_check "Google Calendar cross-replica sync lock test" pnpm run test:api:google-calendar-lock
+run_check "API cross-replica PostgreSQL coordination tests" pnpm run test:api:postgres-coordination
 run_check "Jusoor web unit tests" pnpm run test:web
 run_check "Team directory bilingual responsive browser regression" pnpm run test:web:team-directory
 run_check "API production build" pnpm --filter @workspace/api-server run build

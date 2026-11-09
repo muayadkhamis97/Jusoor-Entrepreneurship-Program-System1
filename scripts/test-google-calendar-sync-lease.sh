@@ -62,3 +62,29 @@ env -i \
   pnpm --filter @workspace/api-server exec tsx --test \
     --test-name-pattern="PostgreSQL advisory sync locks coordinate sessions per mentor" \
     test/googleCalendarSyncLease.postgres.test.ts
+
+echo "Running deployment-wide rate-limit test against the same disposable PostgreSQL."
+env -i \
+  PATH="$PATH" \
+  HOME="$HOME" \
+  CI=1 \
+  NODE_ENV=test \
+  DATABASE_URL="postgres://validation@127.0.0.1:$port/google_calendar_lock_test" \
+  TEST_DATABASE_URL="postgres://validation@127.0.0.1:$port/google_calendar_lock_test" \
+  SESSION_SECRET=validation-only-session-secret \
+  pnpm --filter @workspace/api-server exec tsx --test \
+    --test-name-pattern="database rate limits remain global under concurrent requests and reset after the window" \
+    test/databaseRateLimit.postgres.test.ts
+
+echo "Running public judging routes against isolated PostgreSQL rate-limit tables."
+env -i \
+  PATH="$PATH" \
+  HOME="$HOME" \
+  CI=1 \
+  NODE_ENV=test \
+  DATABASE_URL="postgres://validation@127.0.0.1:$port/google_calendar_lock_test" \
+  TEST_DATABASE_URL="postgres://validation@127.0.0.1:$port/google_calendar_lock_test" \
+  SESSION_SECRET=validation-only-session-secret \
+  pnpm --filter @workspace/api-server exec tsx --test \
+    test/judgingForms.test.ts \
+    test/judgingForms.concurrency.test.ts
