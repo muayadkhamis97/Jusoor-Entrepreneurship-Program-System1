@@ -592,7 +592,16 @@ export async function syncGoogleCalendarMentor(
       },
       connect,
     );
-    if (!acquired || !syncCompleted || !connectionSnapshot) return;
+    if (!acquired) {
+      logger.info({
+        event: "google_calendar_sync_skipped",
+        mentorStaffId,
+        skipped: true,
+        reason: "lock_contended",
+      }, "Google Calendar sync skipped");
+      return;
+    }
+    if (!syncCompleted || !connectionSnapshot) return;
     await recordGoogleCalendarSyncSuccessStatus(mentorStaffId, connectionSnapshot);
   } catch (error) {
     try {

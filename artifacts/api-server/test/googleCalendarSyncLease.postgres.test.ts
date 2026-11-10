@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { pool } from "@workspace/db";
+import { logger } from "../src/lib/logger";
 import {
   encryptGoogleCalendarToken,
   processGoogleCalendarSyncMentorQueue,
@@ -12,7 +13,7 @@ import {
 test("PostgreSQL advisory sync locks recover after callback and lock-acquisition failures", {
   skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a disposable PostgreSQL database.",
   timeout: 30_000,
-}, async () => {
+}, async t => {
   const mentorStaffId = 2_147_483_000;
   const firstClient = await pool.connect();
   let firstSyncStarted!: () => void;
@@ -258,15 +259,44 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
       );
 
       competingSyncOwnsClient = true;
+      const syncSkipLogs: unknown[][] = [];
+      const infoSpy = t.mock.method(logger, "info", (...args: unknown[]) => {
+        syncSkipLogs.push(args);
+      });
       await syncGoogleCalendarMentor(healthMentor.id, async () => competingSyncClient);
+      infoSpy.mock.restore();
+      assert.ok(
+        syncSkipLogs.some(([fields, message]) =>
+          typeof fields === "object" &&
+          fields !== null &&
+          "event" in fields &&
+          fields.event === "google_calendar_sync_skipped" &&
+          "mentorStaffId" in fields &&
+          fields.mentorStaffId === healthMentor.id &&
+          "skipped" in fields &&
+          fields.skipped === true &&
+          "reason" in fields &&
+          fields.reason === "lock_contended" &&
+          message === "Google Calendar sync skipped",
+        ),
+        "Lock contention must emit a structured skip signal for the mentor.",
+      );
 
       const { rows: [busyLockStatus] } = await pool.query<{
+        google_calendar_sync_last_success_at: Date | null;
         google_calendar_sync_last_failure_at: Date | null;
         google_calendar_sync_consecutive_failures: number;
+        google_calendar_sync_needs_reauthorization: boolean;
       }>(
-        `SELECT google_calendar_sync_last_failure_at, google_calendar_sync_consecutive_failures
+        `SELECT google_calendar_sync_last_success_at, google_calendar_sync_last_failure_at,
+                google_calendar_sync_consecutive_failures, google_calendar_sync_needs_reauthorization
          FROM jusoor_staff_members WHERE id = $1`,
         [healthMentor.id],
+      );
+      assert.equal(
+        busyLockStatus?.google_calendar_sync_last_success_at?.toISOString(),
+        existingSyncHealth.lastSuccessAt.toISOString(),
+        "A skipped sync must preserve the saved success timestamp.",
       );
       assert.equal(
         busyLockStatus?.google_calendar_sync_last_failure_at?.toISOString(),
@@ -277,6 +307,11 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
         busyLockStatus?.google_calendar_sync_consecutive_failures,
         existingSyncHealth.consecutiveFailures,
         "A skipped sync must preserve the saved consecutive-failure count.",
+      );
+      assert.equal(
+        busyLockStatus?.google_calendar_sync_needs_reauthorization,
+        existingSyncHealth.needsReauthorization,
+        "A skipped sync must preserve the reauthorization state.",
       );
     } finally {
       releaseLockOwner();
