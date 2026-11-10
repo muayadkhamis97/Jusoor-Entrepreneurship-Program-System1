@@ -20,9 +20,18 @@
   background: hsl(var(--primary) / .06);
 }
 
-.language-toggle > span {
+.language-toggle-mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5em;
+  min-height: 1.5em;
+  padding-inline: .1em;
+  border: 1px solid hsl(var(--primary) / .22);
+  border-radius: var(--radius);
   font-family: var(--app-font-sans);
-  font-size: 15px;
+  font-size: .8em;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .intake-header-actions {
@@ -123,10 +132,6 @@ html[lang="ar"] :is(h1, h2, h3, .app-title) {
   font-family: var(--app-font-sans);
   line-height: 1.55;
   letter-spacing: 0;
-}
-
-html[dir="rtl"] .language-toggle > span {
-  line-height: 1;
 }
 
 @media (max-width: 720px) {

@@ -5,7 +5,7 @@ import { Button } from '@workspace/program-editorial/components/ui/button';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
-import { getDisplayBrandName, shouldShowBrandCaption, useAppLanguage } from './language';
+import { getDisplayBrandName, languageTargetMark, shouldShowBrandCaption, useAppLanguage } from './language';
 import { getBrandingThemeTokens } from './branding-contrast';
 import './public-landing.css';
 
@@ -43,7 +43,15 @@ export function PublicLanding({ brandName, logoUrl, primaryColor, accentColor }:
             onClick={toggleLanguage}
             aria-label={language === 'ar' ? 'Switch language to English' : 'تغيير اللغة إلى العربية'}
           >
-            <span aria-hidden="true">文 · </span>{language === 'ar' ? 'English' : 'العربية'}
+            <span
+              className="language-toggle-mark"
+              aria-hidden="true"
+              lang={language === 'ar' ? 'en' : 'ar'}
+              dir={language === 'ar' ? 'ltr' : 'rtl'}
+            >
+              {languageTargetMark(language)}
+            </span>
+            {language === 'ar' ? 'English' : 'العربية'}
           </Button>
         </header>
 

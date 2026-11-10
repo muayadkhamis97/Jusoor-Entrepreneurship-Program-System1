@@ -78,6 +78,14 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
       'solid',
       'The shared language control styling must load on public sign-in pages.',
     );
+    const languageMark = languageToggle.locator('.language-toggle-mark');
+    assert.equal(await languageMark.textContent(), 'ع', 'English mode should show the Arabic destination mark.');
+    await languageToggle.click();
+    await page.waitForFunction(() => document.documentElement.lang === 'ar');
+    assert.equal(await languageMark.textContent(), 'EN', 'Arabic mode should show the English destination mark.');
+    await languageToggle.click();
+    await page.waitForFunction(() => document.documentElement.lang === 'en');
+    assert.equal(await languageMark.textContent(), 'ع', 'Switching back should update the mark again.');
     assert.equal([...requested].some(pathname => /\/src\/App\.tsx$/.test(pathname)), false, 'The sign-in page must not request the authenticated app module.');
     assert.equal([...requested].some(pathname => /\/src\/analytics-surfaces\.tsx$/.test(pathname)), false, 'The sign-in page must not request the analytics module.');
     assert.equal([...requested].some(pathname => /api[-_]client[-_]react/i.test(pathname)), false, 'The sign-in page must not download the generated API client before authentication.');

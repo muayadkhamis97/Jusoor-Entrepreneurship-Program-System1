@@ -7,6 +7,10 @@ let activeLanguage: AppLanguage = 'en';
 
 export const currentLanguage = () => activeLanguage;
 
+export function languageTargetMark(language: AppLanguage): string {
+  return language === 'ar' ? 'EN' : 'ع';
+}
+
 let arabic: Record<string, string> | null = null;
 let arabicTranslationsPromise: Promise<Record<string, string>> | null = null;
 
@@ -194,7 +198,14 @@ export function LanguageToggle({ className = '' }: { className?: string }) {
     title={language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
     data-testid="button-language-toggle"
   >
-    <span aria-hidden="true">文</span>
+    <span
+      className="language-toggle-mark"
+      aria-hidden="true"
+      lang={language === 'ar' ? 'en' : 'ar'}
+      dir={language === 'ar' ? 'ltr' : 'rtl'}
+    >
+      {languageTargetMark(language)}
+    </span>
     {language === 'ar' ? 'English' : 'العربية'}
   </button>;
 }
