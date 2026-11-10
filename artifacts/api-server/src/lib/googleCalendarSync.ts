@@ -14,7 +14,7 @@ import {
   supportTable,
   type PoolClient,
 } from "@workspace/db";
-import { logger } from "./logger";
+import { logGoogleCalendarSyncSkipped, logger } from "./logger";
 
 const googleCalendarEventsScope = "https://www.googleapis.com/auth/calendar.events.owned.readonly";
 const calendarApiBase = "https://www.googleapis.com/calendar/v3";
@@ -593,12 +593,7 @@ export async function syncGoogleCalendarMentor(
       connect,
     );
     if (!acquired) {
-      logger.info({
-        event: "google_calendar_sync_skipped",
-        mentorStaffId,
-        skipped: true,
-        reason: "lock_contended",
-      }, "Google Calendar sync skipped");
+      logGoogleCalendarSyncSkipped(mentorStaffId);
       return;
     }
     if (!syncCompleted || !connectionSnapshot) return;

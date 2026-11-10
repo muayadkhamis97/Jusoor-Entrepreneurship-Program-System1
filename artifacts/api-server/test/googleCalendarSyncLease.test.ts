@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { logGoogleCalendarSyncSkipped, logger } from "../src/lib/logger";
 import {
   fetchCalendarPage,
   withGoogleCalendarSyncLease,
@@ -15,6 +16,45 @@ function mockClient(
     release: (error?: Error) => onRelease(error),
   } as unknown as PoolClient;
 }
+
+test("repeated Calendar lock skips alert only after the mentor-specific threshold", t => {
+  const infoLogs: unknown[][] = [];
+  const alertLogs: unknown[][] = [];
+  t.mock.method(logger, "info", (...args: unknown[]) => { infoLogs.push(args); });
+  t.mock.method(logger, "error", (...args: unknown[]) => { alertLogs.push(args); });
+
+  const mentorStaffId = 918273;
+  const firstSkipAt = Date.now();
+  logGoogleCalendarSyncSkipped(mentorStaffId, firstSkipAt);
+  assert.equal(alertLogs.length, 0, "one isolated skip must not trigger an alert");
+
+  logGoogleCalendarSyncSkipped(mentorStaffId, firstSkipAt + 1_000);
+  assert.equal(alertLogs.length, 0, "the alert threshold has not been reached yet");
+
+  logGoogleCalendarSyncSkipped(mentorStaffId, firstSkipAt + 2_000);
+  assert.equal(infoLogs.length, 3, "each contention skip remains searchable");
+  assert.equal(alertLogs.length, 1, "the third skip triggers one alert");
+  const [fields, message] = alertLogs[0] ?? [];
+  assert.equal(typeof fields, "object");
+  assert.ok(fields !== null);
+  assert.equal((fields as Record<string, unknown>).event, "google_calendar_sync_skipped");
+  assert.equal((fields as Record<string, unknown>).alert, "repeated_lock_contention");
+  assert.equal((fields as Record<string, unknown>).mentorStaffId, mentorStaffId);
+  assert.equal((fields as Record<string, unknown>).skipped, true);
+  assert.equal((fields as Record<string, unknown>).reason, "lock_contended");
+  assert.equal((fields as Record<string, unknown>).skipCount, 3);
+  assert.equal((fields as Record<string, unknown>).windowMs, 10 * 60_000);
+  assert.match(String(message), /ALERT: Google Calendar sync for mentor 918273 skipped 3 times within 10 minutes/);
+
+  logGoogleCalendarSyncSkipped(mentorStaffId, firstSkipAt + 3_000);
+  assert.equal(alertLogs.length, 1, "the alert cooldown suppresses repeated alerts");
+
+  const afterWindow = firstSkipAt + 10 * 60_000 + 1;
+  logGoogleCalendarSyncSkipped(mentorStaffId, afterWindow);
+  logGoogleCalendarSyncSkipped(mentorStaffId, afterWindow + 1_000);
+  logGoogleCalendarSyncSkipped(mentorStaffId, afterWindow + 2_000);
+  assert.equal(alertLogs.length, 2, "a new series of skips can alert after the earlier window expires");
+});
 
 test("Google Calendar sync lease excludes another replica for the same mentor", async () => {
   const heldLocks = new Set<string>();
