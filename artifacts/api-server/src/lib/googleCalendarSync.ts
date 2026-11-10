@@ -571,6 +571,17 @@ export async function syncGoogleCalendarMentor(
 ): Promise<void> {
   let connectionSnapshot: GoogleCalendarConnectionSnapshot | undefined;
   try {
+    const [currentConnection] = await db.select({
+      accountEmail: staffMembersTable.googleCalendarAccountEmail,
+      refreshTokenEncrypted: staffMembersTable.googleCalendarRefreshTokenEncrypted,
+    }).from(staffMembersTable).where(eq(staffMembersTable.id, mentorStaffId)).limit(1);
+    if (currentConnection?.accountEmail && currentConnection.refreshTokenEncrypted) {
+      connectionSnapshot = {
+        accountEmail: currentConnection.accountEmail,
+        refreshTokenEncrypted: currentConnection.refreshTokenEncrypted,
+      };
+    }
+
     let syncCompleted = false;
     const acquired = await withGoogleCalendarSyncLease(
       mentorStaffId,
@@ -585,7 +596,9 @@ export async function syncGoogleCalendarMentor(
     await recordGoogleCalendarSyncSuccessStatus(mentorStaffId, connectionSnapshot);
   } catch (error) {
     try {
-      await recordGoogleCalendarSyncFailureStatus(mentorStaffId, error, connectionSnapshot);
+      if (connectionSnapshot) {
+        await recordGoogleCalendarSyncFailureStatus(mentorStaffId, error, connectionSnapshot);
+      }
     } catch (recordError) {
       logger.error({ err: recordError, mentorStaffId }, "Could not save Google Calendar sync failure status");
     }

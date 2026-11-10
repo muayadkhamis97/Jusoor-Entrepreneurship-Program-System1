@@ -206,6 +206,88 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
     assert.ok(failedStatus?.google_calendar_sync_last_failure_at, "The acquisition outage must be persisted as a sync failure.");
     assert.equal(failedStatus.google_calendar_sync_consecutive_failures, 1);
 
+    const replacementAccountEmail = `calendar-sync-replacement-${randomUUID()}@example.test`;
+    const replacementRefreshToken = encryptGoogleCalendarToken("calendar-sync-replacement-refresh-token");
+    const existingSyncHealth = {
+      lastSuccessAt: new Date("2025-01-02T03:04:05.000Z"),
+      lastFailureAt: new Date("2025-02-03T04:05:06.000Z"),
+      consecutiveFailures: 7,
+      needsReauthorization: true,
+    };
+    await pool.query(
+      `UPDATE jusoor_staff_members
+       SET google_calendar_sync_last_success_at = $2,
+           google_calendar_sync_last_failure_at = $3,
+           google_calendar_sync_consecutive_failures = $4,
+           google_calendar_sync_needs_reauthorization = $5
+       WHERE id = $1`,
+      [
+        healthMentor.id,
+        existingSyncHealth.lastSuccessAt,
+        existingSyncHealth.lastFailureAt,
+        existingSyncHealth.consecutiveFailures,
+        existingSyncHealth.needsReauthorization,
+      ],
+    );
+
+    const replacementSyncClient = await pool.connect();
+    const replacementAcquisitionError = new Error("Database outage during replacement account reconnect.");
+    let replacementWasInjected = false;
+    const failingReplacementSyncClient = new Proxy(replacementSyncClient, {
+      get(target, property) {
+        if (property === "query") {
+          return (...args: unknown[]) => {
+            if (
+              !replacementWasInjected &&
+              args[0] === "SELECT pg_try_advisory_lock($1, $2) AS locked"
+            ) {
+              replacementWasInjected = true;
+              return (async () => {
+                await pool.query(
+                  `UPDATE jusoor_staff_members
+                   SET google_calendar_account_email = $2,
+                       google_calendar_refresh_token_encrypted = $3
+                   WHERE id = $1`,
+                  [healthMentor.id, replacementAccountEmail, replacementRefreshToken],
+                );
+                throw replacementAcquisitionError;
+              })();
+            }
+            return Reflect.apply(target.query, target, args);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as typeof replacementSyncClient;
+
+    await assert.rejects(
+      syncGoogleCalendarMentor(healthMentor.id, async () => failingReplacementSyncClient),
+      error => error === replacementAcquisitionError,
+      "The failed attempt must remain visible to the caller after the account is replaced.",
+    );
+    assert.equal(replacementWasInjected, true, "The account replacement must happen during lock acquisition.");
+    const { rows: [replacementStatus] } = await pool.query<{
+      google_calendar_account_email: string | null;
+      google_calendar_refresh_token_encrypted: string | null;
+      google_calendar_sync_last_success_at: Date | null;
+      google_calendar_sync_last_failure_at: Date | null;
+      google_calendar_sync_consecutive_failures: number;
+      google_calendar_sync_needs_reauthorization: boolean;
+    }>(
+      `SELECT google_calendar_account_email, google_calendar_refresh_token_encrypted,
+              google_calendar_sync_last_success_at, google_calendar_sync_last_failure_at,
+              google_calendar_sync_consecutive_failures, google_calendar_sync_needs_reauthorization
+       FROM jusoor_staff_members WHERE id = $1`,
+      [healthMentor.id],
+    );
+    assert.equal(replacementStatus?.google_calendar_account_email, replacementAccountEmail);
+    assert.equal(replacementStatus?.google_calendar_refresh_token_encrypted, replacementRefreshToken);
+    assert.equal(replacementStatus?.google_calendar_sync_last_success_at?.toISOString(), existingSyncHealth.lastSuccessAt.toISOString());
+    assert.equal(replacementStatus?.google_calendar_sync_last_failure_at?.toISOString(), existingSyncHealth.lastFailureAt.toISOString());
+    assert.equal(replacementStatus?.google_calendar_sync_consecutive_failures, existingSyncHealth.consecutiveFailures);
+    assert.equal(replacementStatus?.google_calendar_sync_needs_reauthorization, existingSyncHealth.needsReauthorization);
+
     const originalFetch = globalThis.fetch;
     const originalEnv = {
       clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID,
