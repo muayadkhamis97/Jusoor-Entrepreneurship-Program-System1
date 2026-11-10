@@ -114,6 +114,36 @@ test("rejects expired and mismatched Google OAuth state before making provider r
   assert.equal(isGoogleCalendarOAuthStateValid(validState(), "wrong-state"), false);
 });
 
+test("rejects unapproved callback origins and mismatched redirect URIs", async () => {
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return responseJson({});
+  }) as typeof fetch;
+
+  try {
+    const unapprovedOrigin = await callbackRequest(
+      validState({
+        origin: "https://attacker.example",
+        redirectUri: "https://attacker.example/api/mentor/google-calendar/callback",
+      }),
+      "state=expected-google-state&code=sensitive-google-authorization-code",
+    );
+    assert.equal(unapprovedOrigin.status, 400);
+    assert.equal(unapprovedOrigin.headers.get("location"), null);
+
+    const mismatchedRedirectUri = await callbackRequest(
+      validState({ redirectUri: "https://attacker.example/api/mentor/google-calendar/callback" }),
+      "state=expected-google-state&code=sensitive-google-authorization-code",
+    );
+    assert.equal(mismatchedRedirectUri.status, 400);
+    assert.equal(mismatchedRedirectUri.headers.get("location"), null);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
+});
+
 test("verifies the mentor's Google account and stores only encrypted Google tokens", async () => {
   const persistedValues: Record<string, unknown>[] = [];
   const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
@@ -164,7 +194,7 @@ test("verifies the mentor's Google account and stores only encrypted Google toke
     );
     const redirect = response.headers.get("location") ?? "";
     assert.equal(response.status, 302);
-    assert.equal(redirect, "http://localhost/mentor?googleCalendar=connected");
+    assert.equal(redirect, "/mentor?googleCalendar=connected");
     assert.equal(persistedValues.length, 1);
     assert.equal(persistedValues[0]?.bookingProvider, "google_calendar");
     assert.equal(persistedValues[0]?.googleCalendarAccountEmail, "mentor@example.com");

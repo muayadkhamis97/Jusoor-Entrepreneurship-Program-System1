@@ -37,10 +37,7 @@ function cookieValue(header: string | undefined, name: string): string | undefin
   }
 }
 
-function allowedOrigin(req: Request): string | null {
-  const rawOrigin = req.get("origin");
-  const forwardedProto = (req.get("x-forwarded-proto") ?? req.protocol).split(",")[0].trim();
-  const candidate = rawOrigin ?? `${forwardedProto}://${req.get("host") ?? ""}`;
+function approvedOrigin(candidate: string): string | null {
   let parsed: URL;
   try {
     parsed = new URL(candidate);
@@ -66,7 +63,15 @@ function allowedOrigin(req: Request): string | null {
     ["localhost", "127.0.0.1", "::1"].includes(hostname);
   if (!registeredHosts.includes(hostname) && !loopbackInDevelopment) return null;
   if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") return null;
+  if (process.env.NODE_ENV === "production" && parsed.port) return null;
   return parsed.origin;
+}
+
+function allowedOrigin(req: Request): string | null {
+  const rawOrigin = req.get("origin");
+  const forwardedProto = (req.get("x-forwarded-proto") ?? req.protocol).split(",")[0].trim();
+  const candidate = rawOrigin ?? `${forwardedProto}://${req.get("host") ?? ""}`;
+  return approvedOrigin(candidate);
 }
 
 function clearStateCookie(res: Response, secure: boolean): void {
@@ -143,11 +148,21 @@ router.get("/callback", async (req, res): Promise<void> => {
     return;
   }
 
-  clearStateCookie(res, payload.origin.startsWith("https:"));
+  const origin = approvedOrigin(payload.origin);
+  if (
+    !origin ||
+    origin !== payload.origin ||
+    payload.redirectUri !== `${origin}${callbackPath}`
+  ) {
+    clearStateCookie(res, req.secure);
+    res.status(400).send("Google authorization expired or could not be verified. Return to the program and try again.");
+    return;
+  }
+
+  clearStateCookie(res, origin.startsWith("https:"));
   const finish = (result: "connected" | "cancelled" | "error") => {
-    const destination = new URL("/mentor", payload.origin);
-    destination.searchParams.set("googleCalendar", result);
-    res.redirect(302, destination.toString());
+    const query = new URLSearchParams({ googleCalendar: result });
+    res.redirect(302, `/mentor?${query.toString()}`);
   };
 
   if (typeof req.query.error === "string") {
