@@ -1783,6 +1783,8 @@ function ConfiguredClerkApp({ language, sessionProvided }: { language: 'en' | 'a
     },
     elements: {
       rootBox: 'w-full flex justify-center',
+      // The auth page header owns the fallback mark; only show Clerk's mark when it uses the same configured logo.
+      ...(branding?.logoUrl ? {} : { logoBox: { display: 'none' } }),
       cardBox: 'bg-background rounded-2xl w-[440px] max-w-full overflow-hidden border border-border',
       card: '!shadow-none !border-0 !bg-transparent !rounded-none',
       footer: '!shadow-none !border-0 !bg-transparent !rounded-none',

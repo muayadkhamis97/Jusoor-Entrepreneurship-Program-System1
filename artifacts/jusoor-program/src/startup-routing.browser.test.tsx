@@ -69,7 +69,8 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
     assert.equal([...requested].some(pathname => /api[-_]client[-_]react/i.test(pathname)), false, 'The public landing must not download the generated API client just to read branding.');
 
     await page.goto(`${origin}/sign-in`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: /Welcome back/i }).waitFor();
+    await page.locator('.auth-form-content').waitFor();
+    assert.equal(await page.locator('.auth-form-content > h1').count(), 0, 'The sign-in wrapper must not add a second heading outside Clerk.');
     assert.equal([...requested].some(pathname => /\/src\/App\.tsx$/.test(pathname)), false, 'The sign-in page must not request the authenticated app module.');
     assert.equal([...requested].some(pathname => /\/src\/analytics-surfaces\.tsx$/.test(pathname)), false, 'The sign-in page must not request the analytics module.');
     assert.equal([...requested].some(pathname => /api[-_]client[-_]react/i.test(pathname)), false, 'The sign-in page must not download the generated API client before authentication.');
@@ -303,7 +304,8 @@ test('signed-in visitors reach their role workspace only after session confirmat
       return route.continue();
     });
     await signInPage.goto(`${origin}${basePath}/sign-in`, { waitUntil: 'domcontentloaded' });
-    await signInPage.getByRole('heading', { name: /Welcome back/i }).waitFor();
+    await signInPage.locator('.auth-form-content').waitFor();
+    assert.equal(await signInPage.locator('.auth-form-content > h1').count(), 0, 'The sign-in wrapper must not add a second heading outside Clerk.');
     assert.equal(await signInPage.getByTestId('mock-clerk-sign-in').getAttribute('data-path'), `${basePath}/sign-in`);
     assert.equal(await signInPage.getByTestId('mock-clerk-sign-in').getAttribute('data-sign-up-url'), `${basePath}/sign-up`);
     await signInPage.close();
@@ -319,7 +321,8 @@ test('signed-in visitors reach their role workspace only after session confirmat
       return route.continue();
     });
     await participantSignInPage.goto(`${origin}${basePath}/participant`, { waitUntil: 'domcontentloaded' });
-    await participantSignInPage.getByRole('heading', { name: /Welcome back/i }).waitFor();
+    await participantSignInPage.locator('.auth-form-content').waitFor();
+    assert.equal(await participantSignInPage.locator('.auth-form-content > h1').count(), 0, 'Participant sign-in must not duplicate its title outside Clerk.');
     assert.equal(await participantSignInPage.getByTestId('mock-clerk-sign-in').getAttribute('data-path'), `${basePath}/sign-in`);
     assert.equal(await participantSignInPage.getByTestId('mock-clerk-sign-in').getAttribute('data-force-redirect-url'), `${basePath}/participant`);
     await participantSignInPage.close();

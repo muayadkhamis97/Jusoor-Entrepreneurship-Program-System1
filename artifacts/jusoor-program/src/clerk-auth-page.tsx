@@ -33,19 +33,15 @@ export function ClerkAuthPage({
       </Link>
       <LanguageToggle className="auth-language-toggle" />
       <div className="auth-form-content">
-        <div className="eyebrow">
-          {t(isSignIn ? 'PROGRAM HUB' : 'CREATE YOUR ACCOUNT')}
-        </div>
-        <h1 className="app-title">
-          {t(isSignIn ? 'Welcome back.' : 'Your journey, in view.')}
-        </h1>
-        <p>
-          {t(
-            isSignIn
-              ? 'Sign in to continue to your program workspace or founder progress.'
-              : 'Use the same verified email you entered on your application. Staff accounts still require admin approval.',
-          )}
-        </p>
+        {!isSignIn && (
+          <>
+            <div className="eyebrow">{t('CREATE YOUR ACCOUNT')}</div>
+            <h1 className="app-title">{t('Your journey, in view.')}</h1>
+            <p>
+              {t('Use the same verified email you entered on your application. Staff accounts still require admin approval.')}
+            </p>
+          </>
+        )}
         <div className="clerk-card">
           {isSignIn ? (
             <SignIn
