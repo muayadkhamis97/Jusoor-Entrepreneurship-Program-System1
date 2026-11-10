@@ -230,6 +230,60 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
       ],
     );
 
+    const lockOwnerClient = await pool.connect();
+    const competingSyncClient = await pool.connect();
+    let lockOwnerStarted!: () => void;
+    let releaseLockOwner!: () => void;
+    const lockOwnerReady = new Promise<void>(resolve => { lockOwnerStarted = resolve; });
+    const lockOwnerGate = new Promise<void>(resolve => { releaseLockOwner = resolve; });
+    let competingSyncOwnsClient = false;
+    const lockOwnerSync = withGoogleCalendarSyncLease(
+      healthMentor.id,
+      async () => {
+        lockOwnerStarted();
+        await lockOwnerGate;
+      },
+      async () => lockOwnerClient,
+    );
+    try {
+      await lockOwnerReady;
+      const [{ rows: [ownerBackend] }, { rows: [competingBackend] }] = await Promise.all([
+        lockOwnerClient.query<{ pid: number }>("SELECT pg_backend_pid() AS pid"),
+        competingSyncClient.query<{ pid: number }>("SELECT pg_backend_pid() AS pid"),
+      ]);
+      assert.notEqual(
+        ownerBackend?.pid,
+        competingBackend?.pid,
+        "The lock owner and competing sync must use distinct PostgreSQL sessions.",
+      );
+
+      competingSyncOwnsClient = true;
+      await syncGoogleCalendarMentor(healthMentor.id, async () => competingSyncClient);
+
+      const { rows: [busyLockStatus] } = await pool.query<{
+        google_calendar_sync_last_failure_at: Date | null;
+        google_calendar_sync_consecutive_failures: number;
+      }>(
+        `SELECT google_calendar_sync_last_failure_at, google_calendar_sync_consecutive_failures
+         FROM jusoor_staff_members WHERE id = $1`,
+        [healthMentor.id],
+      );
+      assert.equal(
+        busyLockStatus?.google_calendar_sync_last_failure_at?.toISOString(),
+        existingSyncHealth.lastFailureAt.toISOString(),
+        "A skipped sync must preserve the saved failure timestamp.",
+      );
+      assert.equal(
+        busyLockStatus?.google_calendar_sync_consecutive_failures,
+        existingSyncHealth.consecutiveFailures,
+        "A skipped sync must preserve the saved consecutive-failure count.",
+      );
+    } finally {
+      releaseLockOwner();
+      if (!competingSyncOwnsClient) competingSyncClient.release();
+      await lockOwnerSync;
+    }
+
     const replacementSyncClient = await pool.connect();
     const replacementAcquisitionError = new Error("Database outage during replacement account reconnect.");
     let replacementWasInjected = false;
