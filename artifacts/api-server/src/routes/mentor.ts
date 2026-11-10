@@ -1239,6 +1239,8 @@ router.delete("/google-calendar/connection", async (_req, res): Promise<void> =>
         googleCalendarSyncLastFailureAt: null,
         googleCalendarSyncConsecutiveFailures: 0,
         googleCalendarSyncNeedsReauthorization: false,
+        googleCalendarSyncLastSkippedAt: null,
+        googleCalendarSyncSkipCount: 0,
       })
       .where(and(
         eq(staffMembersTable.id, staff.id),

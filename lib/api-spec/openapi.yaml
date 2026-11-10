@@ -6633,6 +6633,8 @@ components:
         googleCalendarSyncLastFailureAt: { type: ["string", "null"], format: date-time }
         googleCalendarSyncConsecutiveFailures: { type: integer, minimum: 0 }
         googleCalendarSyncNeedsReauthorization: { type: boolean }
+        googleCalendarSyncLastSkippedAt: { type: ["string", "null"], format: date-time }
+        googleCalendarSyncSkipCount: { type: integer, minimum: 0 }
         programs:
           type: array
           items:
@@ -6645,7 +6647,7 @@ components:
         calendlyFollowUpNote: { type: ["string", "null"], maxLength: 1000 }
         calendlyFollowUpUpdatedByEmail: { type: ["string", "null"], format: email }
         calendlyFollowUpUpdatedAt: { type: ["string", "null"], format: date-time }
-      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected, googleCalendarSyncLastSuccessAt, googleCalendarSyncLastFailureAt, googleCalendarSyncConsecutiveFailures, googleCalendarSyncNeedsReauthorization, calendlyFollowUpDate, calendlyFollowUpNote, calendlyFollowUpUpdatedByEmail, calendlyFollowUpUpdatedAt]
+      required: [staffId, email, status, bookingProvider, calendlyConnected, googleCalendarConnected, googleCalendarSyncLastSuccessAt, googleCalendarSyncLastFailureAt, googleCalendarSyncConsecutiveFailures, googleCalendarSyncNeedsReauthorization, googleCalendarSyncLastSkippedAt, googleCalendarSyncSkipCount, calendlyFollowUpDate, calendlyFollowUpNote, calendlyFollowUpUpdatedByEmail, calendlyFollowUpUpdatedAt]
     MentorBookingFollowUpUpdate:
       type: object
       properties:

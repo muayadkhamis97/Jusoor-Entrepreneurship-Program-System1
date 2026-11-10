@@ -144,7 +144,7 @@ export function IntegrationSettings() {
               <strong>{mentor.email}</strong>
               <span><CheckCircle2 size={14} aria-hidden="true" />{copy('Connected', 'متصل')}</span>
               <div
-                className={`integration-settings-calendar-sync${mentor.googleCalendarSyncNeedsReauthorization || mentor.googleCalendarSyncConsecutiveFailures >= 3 ? ' is-warning' : ''}`}
+                className={`integration-settings-calendar-sync${mentor.googleCalendarSyncNeedsReauthorization || mentor.googleCalendarSyncConsecutiveFailures >= 3 || mentor.googleCalendarSyncSkipCount >= 3 ? ' is-warning' : ''}`}
                 role="status"
                 data-testid={`google-calendar-sync-status-${mentor.staffId}`}
               >
@@ -155,9 +155,11 @@ export function IntegrationSettings() {
                       ? copy('Repeated sync failures', 'إخفاقات متكررة في المزامنة')
                       : mentor.googleCalendarSyncConsecutiveFailures > 0
                         ? copy('Sync retrying', 'إعادة محاولة المزامنة')
-                        : mentor.googleCalendarSyncLastSuccessAt
-                          ? copy('Calendar sync is current', 'مزامنة التقويم حديثة')
-                          : copy('First sync is pending', 'المزامنة الأولى معلقة')}
+                        : mentor.googleCalendarSyncSkipCount >= 3
+                          ? copy('Repeated sync skips', 'تخطي المزامنة بشكل متكرر')
+                          : mentor.googleCalendarSyncLastSuccessAt
+                            ? copy('Calendar sync is current', 'مزامنة التقويم حديثة')
+                            : copy('First sync is pending', 'المزامنة الأولى معلقة')}
                 </strong>
                 <span>
                   {mentor.googleCalendarSyncNeedsReauthorization
@@ -170,13 +172,23 @@ export function IntegrationSettings() {
                         `The last ${mentor.googleCalendarSyncConsecutiveFailures} sync attempt${mentor.googleCalendarSyncConsecutiveFailures === 1 ? '' : 's'} failed. Retries will continue.`,
                         `فشلت آخر ${mentor.googleCalendarSyncConsecutiveFailures} محاولة مزامنة. ستستمر إعادة المحاولة.`,
                       )
-                      : mentor.googleCalendarSyncLastSuccessAt
+                      : mentor.googleCalendarSyncSkipCount >= 3
                         ? copy(
-                          `Last successful sync: ${new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}`,
-                          `آخر مزامنة ناجحة: ${new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}`,
+                          `Sync for ${mentor.email} was skipped ${mentor.googleCalendarSyncSkipCount} times because another sync held the lock. Google Calendar did not fail; booking data may be out of date.`,
+                          `تم تخطي مزامنة ${mentor.email} ${mentor.googleCalendarSyncSkipCount} مرات لأن مزامنة أخرى كانت تستخدم القفل. لم يحدث إخفاق في تقويم Google، وقد تكون بيانات الحجوزات قديمة.`,
                         )
-                        : copy('No successful sync has completed yet.', 'لم تكتمل أي مزامنة ناجحة بعد.')}
+                        : mentor.googleCalendarSyncLastSuccessAt
+                          ? copy(
+                            `Last successful sync: ${new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}`,
+                            `آخر مزامنة ناجحة: ${new Date(mentor.googleCalendarSyncLastSuccessAt).toLocaleString(locale)}`,
+                          )
+                          : copy('No successful sync has completed yet.', 'لم تكتمل أي مزامنة ناجحة بعد.')}
                 </span>
+                {mentor.googleCalendarSyncSkipCount >= 3 && mentor.googleCalendarSyncLastSkippedAt && (
+                  <small>
+                    {copy('Latest skipped attempt', 'أحدث محاولة تم تخطيها')}: {new Date(mentor.googleCalendarSyncLastSkippedAt).toLocaleString(locale)}
+                  </small>
+                )}
                 {mentor.googleCalendarSyncLastFailureAt && mentor.googleCalendarSyncConsecutiveFailures > 0 && (
                   <small>
                     {copy('Latest failed attempt', 'أحدث محاولة فاشلة')}: {new Date(mentor.googleCalendarSyncLastFailureAt).toLocaleString(locale)}

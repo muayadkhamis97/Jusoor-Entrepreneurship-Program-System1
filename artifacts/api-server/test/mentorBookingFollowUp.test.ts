@@ -25,6 +25,8 @@ type MentorRecord = {
   googleCalendarSyncLastFailureAt: Date | null;
   googleCalendarSyncConsecutiveFailures: number;
   googleCalendarSyncNeedsReauthorization: boolean;
+  googleCalendarSyncLastSkippedAt: Date | null;
+  googleCalendarSyncSkipCount: number;
 };
 
 let mentor: MentorRecord;
@@ -49,6 +51,8 @@ function resetMentor(overrides: Partial<MentorRecord> = {}): void {
     googleCalendarSyncLastFailureAt: null,
     googleCalendarSyncConsecutiveFailures: 0,
     googleCalendarSyncNeedsReauthorization: false,
+    googleCalendarSyncLastSkippedAt: null,
+    googleCalendarSyncSkipCount: 0,
     ...overrides,
   };
   updateCalls = 0;
@@ -212,6 +216,8 @@ test("persists follow-up details and returns them from a fresh mentor status req
     googleCalendarSyncLastFailureAt: null,
     googleCalendarSyncConsecutiveFailures: 0,
     googleCalendarSyncNeedsReauthorization: false,
+    googleCalendarSyncLastSkippedAt: null,
+    googleCalendarSyncSkipCount: 0,
   });
   assert.ok(Number.isFinite(Date.parse(String(updateResult.calendlyFollowUpUpdatedAt))));
 
@@ -234,6 +240,8 @@ test("persists follow-up details and returns them from a fresh mentor status req
     googleCalendarSyncLastFailureAt: null,
     googleCalendarSyncConsecutiveFailures: 0,
     googleCalendarSyncNeedsReauthorization: false,
+    googleCalendarSyncLastSkippedAt: null,
+    googleCalendarSyncSkipCount: 0,
     programs: [{ programId: 9, programName: "Spring cohort" }],
   }]);
 
@@ -337,6 +345,39 @@ test("coordinator status exposes safe repeated-failure and reconnect guidance wi
   assert.equal("googleCalendarAccountEmail" in result, false);
   assert.equal("googleCalendarRefreshTokenEncrypted" in result, false);
   assert.equal("providerError" in result, false);
+});
+
+test("coordinator status exposes recent repeated skips without treating them as provider failures", async () => {
+  resetMentor({
+    bookingProvider: "google_calendar",
+    googleCalendarAccountEmail: "private-google@example.test",
+    googleCalendarSyncLastSuccessAt: new Date(Date.now() - 60 * 60_000),
+    googleCalendarSyncLastSkippedAt: new Date(Date.now() - 60_000),
+    googleCalendarSyncSkipCount: 3,
+  });
+
+  const response = await request("/api/staff/mentor-booking-status");
+  assert.equal(response.status, 200);
+  const [result] = await response.json();
+  assert.equal(result.googleCalendarSyncLastSkippedAt, mentor.googleCalendarSyncLastSkippedAt?.toISOString());
+  assert.equal(result.googleCalendarSyncSkipCount, 3);
+  assert.equal(result.googleCalendarSyncConsecutiveFailures, 0);
+  assert.equal(result.googleCalendarSyncNeedsReauthorization, false);
+  assert.equal("googleCalendarAccountEmail" in result, false);
+});
+
+test("coordinator status keeps a repeated-skip warning until a sync outcome is recorded", async () => {
+  resetMentor({
+    bookingProvider: "google_calendar",
+    googleCalendarAccountEmail: "private-google@example.test",
+    googleCalendarSyncLastSkippedAt: new Date(Date.now() - 11 * 60_000),
+    googleCalendarSyncSkipCount: 5,
+  });
+
+  const response = await request("/api/staff/mentor-booking-status");
+  assert.equal(response.status, 200);
+  const [result] = await response.json();
+  assert.equal(result.googleCalendarSyncSkipCount, 5);
 });
 
 test("denies follow-up updates from non-coordinator accounts before accessing records", async () => {

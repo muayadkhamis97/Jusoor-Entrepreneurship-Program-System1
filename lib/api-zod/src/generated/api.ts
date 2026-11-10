@@ -5316,6 +5316,8 @@ export const ResendParticipantInvitationResponse = zod.object({
  */
 export const getMentorBookingStatusResponseGoogleCalendarSyncConsecutiveFailuresMin = 0;
 
+export const getMentorBookingStatusResponseGoogleCalendarSyncSkipCountMin = 0;
+
 export const getMentorBookingStatusResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const getMentorBookingStatusResponseCalendlyFollowUpNoteMax = 1000;
 
@@ -5332,6 +5334,8 @@ export const GetMentorBookingStatusResponseItem = zod.object({
   "googleCalendarSyncLastFailureAt": zod.coerce.date().nullable(),
   "googleCalendarSyncConsecutiveFailures": zod.int().min(getMentorBookingStatusResponseGoogleCalendarSyncConsecutiveFailuresMin),
   "googleCalendarSyncNeedsReauthorization": zod.boolean(),
+  "googleCalendarSyncLastSkippedAt": zod.coerce.date().nullable(),
+  "googleCalendarSyncSkipCount": zod.int().min(getMentorBookingStatusResponseGoogleCalendarSyncSkipCountMin),
   "programs": zod.array(zod.object({
   "programId": zod.int(),
   "programName": zod.string()
@@ -5373,6 +5377,8 @@ export const UpdateMentorBookingFollowUpBody = zod.object({
 
 export const updateMentorBookingFollowUpResponseGoogleCalendarSyncConsecutiveFailuresMin = 0;
 
+export const updateMentorBookingFollowUpResponseGoogleCalendarSyncSkipCountMin = 0;
+
 export const updateMentorBookingFollowUpResponseCalendlyFollowUpDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const updateMentorBookingFollowUpResponseCalendlyFollowUpNoteMax = 1000;
 
@@ -5389,6 +5395,8 @@ export const UpdateMentorBookingFollowUpResponse = zod.object({
   "googleCalendarSyncLastFailureAt": zod.coerce.date().nullable(),
   "googleCalendarSyncConsecutiveFailures": zod.int().min(updateMentorBookingFollowUpResponseGoogleCalendarSyncConsecutiveFailuresMin),
   "googleCalendarSyncNeedsReauthorization": zod.boolean(),
+  "googleCalendarSyncLastSkippedAt": zod.coerce.date().nullable(),
+  "googleCalendarSyncSkipCount": zod.int().min(updateMentorBookingFollowUpResponseGoogleCalendarSyncSkipCountMin),
   "programs": zod.array(zod.object({
   "programId": zod.int(),
   "programName": zod.string()

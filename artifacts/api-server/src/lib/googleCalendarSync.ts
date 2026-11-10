@@ -23,6 +23,7 @@ const googleCalendarRequestTimeoutMs = 30_000;
 const maxPagesPerSync = 20;
 // Two-key PostgreSQL advisory locks: a fixed namespace plus mentor staff ID.
 const googleCalendarSyncLockNamespace = 0x4a43414c;
+const googleCalendarSyncSkipWindowMs = 10 * 60_000;
 const genericMeetingName = "Mentoring session";
 export type GoogleCalendarSyncClient = PoolClient;
 const googleCalendarEventFields =
@@ -537,6 +538,7 @@ export async function recordGoogleCalendarSyncFailureStatus(
   await db.update(staffMembersTable).set({
     googleCalendarSyncLastFailureAt: new Date(),
     googleCalendarSyncConsecutiveFailures: sql`LEAST(${staffMembersTable.googleCalendarSyncConsecutiveFailures} + 1, 2147483647)`,
+    googleCalendarSyncSkipCount: 0,
     ...(requiresReauthorization ? { googleCalendarSyncNeedsReauthorization: true } : {}),
   }).where(and(
     eq(staffMembersTable.id, mentorStaffId),
@@ -557,11 +559,29 @@ export async function recordGoogleCalendarSyncSuccessStatus(
     googleCalendarSyncLastFailureAt: null,
     googleCalendarSyncConsecutiveFailures: 0,
     googleCalendarSyncNeedsReauthorization: false,
+    googleCalendarSyncSkipCount: 0,
   }).where(and(
     eq(staffMembersTable.id, mentorStaffId),
     isNotNull(staffMembersTable.googleCalendarRefreshTokenEncrypted),
     eq(staffMembersTable.googleCalendarAccountEmail, connectionSnapshot.accountEmail),
     eq(staffMembersTable.googleCalendarRefreshTokenEncrypted, connectionSnapshot.refreshTokenEncrypted),
+  ));
+}
+
+export async function recordGoogleCalendarSyncSkipped(
+  mentorStaffId: number,
+  now = Date.now(),
+): Promise<void> {
+  await db.update(staffMembersTable).set({
+    googleCalendarSyncLastSkippedAt: new Date(now),
+    googleCalendarSyncSkipCount: sql`CASE
+      WHEN ${staffMembersTable.googleCalendarSyncLastSkippedAt} >= ${new Date(now - googleCalendarSyncSkipWindowMs)}
+      THEN LEAST(${staffMembersTable.googleCalendarSyncSkipCount} + 1, 2147483647)
+      ELSE 1
+    END`,
+  }).where(and(
+    eq(staffMembersTable.id, mentorStaffId),
+    isNotNull(staffMembersTable.googleCalendarRefreshTokenEncrypted),
   ));
 }
 
@@ -594,6 +614,11 @@ export async function syncGoogleCalendarMentor(
     );
     if (!acquired) {
       logGoogleCalendarSyncSkipped(mentorStaffId);
+      try {
+        await recordGoogleCalendarSyncSkipped(mentorStaffId);
+      } catch (error) {
+        logger.error({ err: error, mentorStaffId }, "Could not save Google Calendar sync skip status");
+      }
       return;
     }
     if (!syncCompleted || !connectionSnapshot) return;

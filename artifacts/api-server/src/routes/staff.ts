@@ -727,6 +727,8 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     googleCalendarSyncLastFailureAt: staffMembersTable.googleCalendarSyncLastFailureAt,
     googleCalendarSyncConsecutiveFailures: staffMembersTable.googleCalendarSyncConsecutiveFailures,
     googleCalendarSyncNeedsReauthorization: staffMembersTable.googleCalendarSyncNeedsReauthorization,
+    googleCalendarSyncLastSkippedAt: staffMembersTable.googleCalendarSyncLastSkippedAt,
+    googleCalendarSyncSkipCount: staffMembersTable.googleCalendarSyncSkipCount,
   }).from(staffMembersTable)
     .leftJoin(mentorFollowUpEditor, eq(mentorFollowUpEditor.id, staffMembersTable.calendlyFollowUpUpdatedByStaffId))
     .where(inArray(staffMembersTable.id, mentorIds))
@@ -797,6 +799,8 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
       googleCalendarSyncLastFailureAt: null,
       googleCalendarSyncConsecutiveFailures: 0,
       googleCalendarSyncNeedsReauthorization: false,
+      googleCalendarSyncLastSkippedAt: null,
+      googleCalendarSyncSkipCount: 0,
       })
       .where(eq(staffMembersTable.id, target.id))
       .returning({ id: staffMembersTable.id });
@@ -877,6 +881,8 @@ router.patch("/staff/:id/mentor-booking-follow-up", requireCoordinator, async (r
       googleCalendarSyncLastFailureAt: staffMembersTable.googleCalendarSyncLastFailureAt,
       googleCalendarSyncConsecutiveFailures: staffMembersTable.googleCalendarSyncConsecutiveFailures,
       googleCalendarSyncNeedsReauthorization: staffMembersTable.googleCalendarSyncNeedsReauthorization,
+      googleCalendarSyncLastSkippedAt: staffMembersTable.googleCalendarSyncLastSkippedAt,
+      googleCalendarSyncSkipCount: staffMembersTable.googleCalendarSyncSkipCount,
     });
   if (!updated) {
     res.status(400).json({ error: "Follow-up details can only be changed before Calendly is connected." });

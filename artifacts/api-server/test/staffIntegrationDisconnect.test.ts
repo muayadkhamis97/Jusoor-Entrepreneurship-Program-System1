@@ -166,6 +166,8 @@ test("coordinator can disconnect a mentor calendar without changing the mentor's
     googleCalendarSyncLastFailureAt: null,
     googleCalendarSyncConsecutiveFailures: 0,
     googleCalendarSyncNeedsReauthorization: false,
+    googleCalendarSyncLastSkippedAt: null,
+    googleCalendarSyncSkipCount: 0,
   });
   assert.ok(updateCondition);
   assert.equal(updateCalls, 1);

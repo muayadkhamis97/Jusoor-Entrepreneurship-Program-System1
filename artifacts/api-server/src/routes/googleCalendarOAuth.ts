@@ -242,6 +242,8 @@ router.get("/callback", async (req, res): Promise<void> => {
         googleCalendarSyncLastFailureAt: null,
         googleCalendarSyncConsecutiveFailures: 0,
         googleCalendarSyncNeedsReauthorization: false,
+        googleCalendarSyncLastSkippedAt: null,
+        googleCalendarSyncSkipCount: 0,
         googleCalendarBookingUrl: sql`case
           when lower(coalesce(${staffMembersTable.googleCalendarAccountEmail}, '')) <> ${profile.email.trim().toLowerCase()}
           then null

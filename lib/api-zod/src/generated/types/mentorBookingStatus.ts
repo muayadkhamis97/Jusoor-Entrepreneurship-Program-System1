@@ -23,6 +23,10 @@ export interface MentorBookingStatus {
   /** @minimum 0 */
   googleCalendarSyncConsecutiveFailures: number;
   googleCalendarSyncNeedsReauthorization: boolean;
+  /** @nullable */
+  googleCalendarSyncLastSkippedAt: Date | null;
+  /** @minimum 0 */
+  googleCalendarSyncSkipCount: number;
   programs?: MentorBookingStatusProgramsItem[];
   /**
      * @nullable

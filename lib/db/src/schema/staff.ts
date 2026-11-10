@@ -28,6 +28,8 @@ export const staffMembersTable = pgTable("jusoor_staff_members", {
   googleCalendarSyncLastFailureAt: timestamp("google_calendar_sync_last_failure_at", { withTimezone: true }),
   googleCalendarSyncConsecutiveFailures: integer("google_calendar_sync_consecutive_failures").notNull().default(0),
   googleCalendarSyncNeedsReauthorization: boolean("google_calendar_sync_needs_reauthorization").notNull().default(false),
+  googleCalendarSyncLastSkippedAt: timestamp("google_calendar_sync_last_skipped_at", { withTimezone: true }),
+  googleCalendarSyncSkipCount: integer("google_calendar_sync_skip_count").notNull().default(0),
   calendlyWebhookTokenHash: text("calendly_webhook_token_hash").unique(),
   calendlyWebhookTokenEncrypted: text("calendly_webhook_token_encrypted"),
   calendlyWebhookSecretEncrypted: text("calendly_webhook_secret_encrypted"),

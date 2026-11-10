@@ -132,7 +132,9 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
         google_calendar_sync_last_success_at timestamptz,
         google_calendar_sync_last_failure_at timestamptz,
         google_calendar_sync_consecutive_failures integer NOT NULL DEFAULT 0,
-        google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false
+        google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false,
+        google_calendar_sync_last_skipped_at timestamptz,
+        google_calendar_sync_skip_count integer NOT NULL DEFAULT 0
       );
       ALTER TABLE jusoor_staff_members
         ADD COLUMN IF NOT EXISTS google_calendar_account_email text,
@@ -143,7 +145,9 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
         ADD COLUMN IF NOT EXISTS google_calendar_sync_last_success_at timestamptz,
         ADD COLUMN IF NOT EXISTS google_calendar_sync_last_failure_at timestamptz,
         ADD COLUMN IF NOT EXISTS google_calendar_sync_consecutive_failures integer NOT NULL DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false;
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_last_skipped_at timestamptz,
+        ADD COLUMN IF NOT EXISTS google_calendar_sync_skip_count integer NOT NULL DEFAULT 0;
       CREATE TABLE IF NOT EXISTS jusoor_businesses (
         id integer PRIMARY KEY,
         email text NOT NULL

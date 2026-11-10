@@ -76,6 +76,8 @@ test("PostgreSQL rolls back all three disconnects when audit history cannot be s
       google_calendar_sync_last_failure_at timestamptz,
       google_calendar_sync_consecutive_failures integer NOT NULL DEFAULT 0,
       google_calendar_sync_needs_reauthorization boolean NOT NULL DEFAULT false,
+      google_calendar_sync_last_skipped_at timestamptz,
+      google_calendar_sync_skip_count integer NOT NULL DEFAULT 0,
       calendly_webhook_token_hash text UNIQUE,
       calendly_webhook_token_encrypted text,
       calendly_webhook_secret_encrypted text,

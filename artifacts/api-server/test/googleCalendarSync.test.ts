@@ -7,6 +7,7 @@ import {
   findGoogleCalendarBusinessMatch,
   googleCalendarPrivacy,
   recordGoogleCalendarSyncFailureStatus,
+  recordGoogleCalendarSyncSkipped,
   recordGoogleCalendarSyncSuccessStatus,
   refreshGoogleAccessToken,
 } from "../src/lib/googleCalendarSync";
@@ -371,6 +372,11 @@ test("records safe consecutive-failure state and resets it after a successful sy
     assert.equal(saved?.googleCalendarSyncLastFailureAt, null);
     assert.equal(saved?.googleCalendarSyncConsecutiveFailures, 0);
     assert.equal(saved?.googleCalendarSyncNeedsReauthorization, false);
+    assert.equal(saved?.googleCalendarSyncSkipCount, 0);
+
+    await recordGoogleCalendarSyncSkipped(12, Date.now());
+    assert.ok(saved?.googleCalendarSyncLastSkippedAt instanceof Date);
+    assert.equal(typeof saved?.googleCalendarSyncSkipCount, "object");
   } finally {
     if (original) Object.defineProperty(db, "update", original);
     else Reflect.deleteProperty(db, "update");

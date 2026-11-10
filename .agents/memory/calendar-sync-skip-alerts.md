@@ -1,10 +1,10 @@
 ---
 name: Calendar sync skip alerts
-description: Current aggregation boundary for repeated Google Calendar lock-contention alerts.
+description: How repeated Google Calendar lock-contention events are tracked for operators and coordinators.
 ---
 
-Repeated Calendar lock-contention skips currently aggregate inside each API process and emit an error-level structured alert after the per-mentor threshold. A rolling window in one process does not combine events from separate autoscale replicas.
+Operational log alerts still aggregate inside each API process, so their rolling window does not combine events from separate autoscale replicas. Coordinator-facing repeated-skip status is persisted on the mentor record and is visible across replicas. It remains until a real sync succeeds or fails; a skip after a ten-minute idle period starts a new count series.
 
-**Why:** The advisory lock is shared across replicas, but adding durable cross-process aggregation would require shared state beyond the logger. Keep this boundary explicit when interpreting alert coverage.
+**Why:** The coordinator endpoint may be served by a different replica from the worker that encounters lock contention. Persisting the visible status avoids relying on process-local memory and keeps a stale-data warning visible until an actual sync outcome is recorded.
 
-**How to apply:** If operators need guaranteed fleet-wide detection, move skip aggregation to shared storage or the centralized logging/alerting pipeline rather than adding more process-local state.
+**How to apply:** Treat the staff-record status as user-facing guidance, not as a fleet-wide operational alert. If operators need guaranteed cross-replica detection, move log aggregation to shared storage or the centralized logging/alerting pipeline.
