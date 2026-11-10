@@ -5,6 +5,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 
 import './index.css';
 import './system-redesign.css';
+import './language.css';
 import { installUnsavedNavigationGuard } from './unsaved-navigation';
 import { installIconTooltipFallback } from './icon-tooltip-fallback';
 

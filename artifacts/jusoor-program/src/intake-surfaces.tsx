@@ -14,6 +14,9 @@ import {
 import type { ApplicationProgram, EntrepreneurApplication, EntrepreneurApplicationInput, ParticipantBusinessTeam, ParticipantEnrollment, ParticipantAssignment, ParticipantQuestion, TrainingAnswerInput, TrainingQuestionInput } from '@workspace/api-client-react';
 import { useClerk, useUser } from '@clerk/react';
 import { Link } from 'wouter';
+import { Button as EditorialButton } from '@workspace/program-editorial/components/ui/button';
+import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
+import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { ParticipantAnnouncements } from './communications-surfaces';
 import { SessionCalendar } from './session-calendar';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
@@ -136,7 +139,32 @@ export function ApplyPage() {
     <section className="intake-hero"><div><div className="eyebrow">{t('YOUR NEXT CHAPTER / START HERE')}</div><h1>{t('Make room for')}<br /><em>{t("what's next.")}</em></h1><p>{t('Bring ambitious founders together with the expertise, structure and connections to move a business forward.')}</p></div><aside className="intake-note"><div className="eyebrow">{t('A NOTE FROM THE PROGRAM')}</div><div><strong>{t('Good ventures grow with the right people around them.')}</strong><p>{t('Tell us where you are, where you want to go, and what would help you get there.')}</p></div></aside></section>
     {receipt ? <section className="intake-success" aria-live="polite" data-testid="success-application"><span className="intake-success-mark"><Check size={24} /></span><div className="eyebrow">{t('APPLICATION RECEIVED')}</div><h1>{t('Thank you for putting your work forward.')}</h1><p>{t('Your application is safely with our program team. Sign in with this email to follow its review status.')}</p><span className="receipt-code">{t('REFERENCE')} / JSR-{String(receipt.id).padStart(5, '0')}</span><p>{t('Create or sign in to an account with')} <b>{t('the same email used in your application')}</b> {t('to check your progress.')}</p><Link href="/sign-up" className="button button-primary" data-testid="link-create-applicant-account">{t('Create your account')} <ArrowRight size={15} /></Link></section>
     : programsQuery.isLoading ? <ProgramLoading /> : programsQuery.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Programs are taking a moment.')}</h3><p>{t("We couldn't load open cohorts. Your work is saved nowhere yet; retry to continue.")}</p><button className="button button-outline" onClick={() => void programsQuery.refetch()} data-testid="button-retry-programs">{t('Retry loading programs')}</button></div>
-    : programs.length === 0 ? <div className="empty-panel"><span className="empty-icon"><FileText size={22} /></span><h3>{t('There are no open applications right now.')}</h3><p>{t('Check back soon for the next cohort. We look forward to hearing about your work.')}</p></div>
+     : programs.length === 0 ? <section className="closed-application-state" aria-labelledby="closed-applications-title" data-testid="closed-application-state">
+       <PaperSurface variant="panel" className="closed-application-summary">
+         <span className="empty-icon"><FileText size={22} aria-hidden="true" /></span>
+         <div className="closed-application-summary-copy">
+           <Typography variant="label" tone="accent">{t('NO OPEN APPLICATIONS')}</Typography>
+           <Typography variant="heading" as="h2" id="closed-applications-title">{t('There are no open applications right now.')}</Typography>
+           <Typography variant="body">{t('Future cohort applications will be listed here when applications open.')}</Typography>
+         </div>
+       </PaperSurface>
+       <PaperSurface variant="panel" className="closed-application-guide">
+         <Typography variant="label" tone="accent">{t('WHAT YOU CAN DO NOW')}</Typography>
+         <Typography variant="heading" as="h3">{t('Get ready for the next cohort')}</Typography>
+         <Typography variant="body">{t('Use this time to think through:')}</Typography>
+         <ul className="closed-application-prompts">
+           <li data-testid="closed-application-prep-item-venture"><Check size={15} aria-hidden="true" /><Typography variant="body" as="span">{t('Who does your venture serve, and what problem does it solve?')}</Typography></li>
+           <li data-testid="closed-application-prep-item-progress"><Check size={15} aria-hidden="true" /><Typography variant="body" as="span">{t('What have you built, tested, or learned so far?')}</Typography></li>
+           <li data-testid="closed-application-prep-item-support"><Check size={15} aria-hidden="true" /><Typography variant="body" as="span">{t('What support would help your venture take its next step?')}</Typography></li>
+         </ul>
+       </PaperSurface>
+       <div className="closed-application-actions">
+         <EditorialButton asChild variant="primary">
+           <Link href="/" data-testid="link-closed-explore-program">{t('Explore the program')} <ArrowRight size={15} className="icon-directional" aria-hidden="true" /></Link>
+         </EditorialButton>
+         <Link href="/participant" className="closed-application-returning" data-testid="link-closed-track-progress">{t('Already applied? Sign in to track progress')} <ArrowRight size={14} className="icon-directional" aria-hidden="true" /></Link>
+       </div>
+     </section>
     : <div className="intake-grid">
       <Form {...form}><form className="intake-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
         <section className="intake-form-section"><div className="intake-section-head"><span className="intake-step">01</span><div><h2>{t('Choose your cohort')}</h2><p>{t('Start with the program that fits the work ahead.')}</p></div></div>

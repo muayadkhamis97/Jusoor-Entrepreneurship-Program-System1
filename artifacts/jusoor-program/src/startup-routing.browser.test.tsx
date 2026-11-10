@@ -71,6 +71,13 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
     await page.goto(`${origin}/sign-in`, { waitUntil: 'domcontentloaded' });
     await page.locator('.auth-form-content').waitFor();
     assert.equal(await page.locator('.auth-form-content > h1').count(), 0, 'The sign-in wrapper must not add a second heading outside Clerk.');
+    const languageToggle = page.getByTestId('button-language-toggle');
+    await languageToggle.waitFor();
+    assert.equal(
+      await languageToggle.evaluate(element => getComputedStyle(element).borderTopStyle),
+      'solid',
+      'The shared language control styling must load on public sign-in pages.',
+    );
     assert.equal([...requested].some(pathname => /\/src\/App\.tsx$/.test(pathname)), false, 'The sign-in page must not request the authenticated app module.');
     assert.equal([...requested].some(pathname => /\/src\/analytics-surfaces\.tsx$/.test(pathname)), false, 'The sign-in page must not request the analytics module.');
     assert.equal([...requested].some(pathname => /api[-_]client[-_]react/i.test(pathname)), false, 'The sign-in page must not download the generated API client before authentication.');
@@ -95,6 +102,7 @@ test('public application, judging, and certificate routes stay outside the works
   process.env.BASE_PATH = `${basePath}/`;
   let vite: Awaited<ReturnType<typeof createViteServer>> | undefined;
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+  let returnClosedApplicationList = false;
 
   try {
     vite = await createViteServer({
@@ -119,6 +127,9 @@ test('public application, judging, and certificate routes stay outside the works
         return;
       }
       if (url.pathname.startsWith('/api/')) {
+        if (url.pathname === '/api/public/application-programs' && returnClosedApplicationList) {
+          return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+        }
         await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporarily unavailable in route test.' }) });
         return;
       }
@@ -133,6 +144,15 @@ test('public application, judging, and certificate routes stay outside the works
     await page.getByRole('heading', { name: 'Programs are taking a moment.' }).waitFor();
     assert.ok([...requested].some(request => request === '/api/public/application-programs'), 'The application page must request the open program list.');
     assertWorkspaceNotRequested('The public application page');
+    returnClosedApplicationList = true;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByTestId('closed-application-state').waitFor();
+    assert.equal(await page.getByTestId('closed-application-prep-item-venture').count(), 1);
+    assert.equal(await page.getByTestId('closed-application-prep-item-progress').count(), 1);
+    assert.equal(await page.getByTestId('closed-application-prep-item-support').count(), 1);
+    await page.getByRole('link', { name: 'Explore the program' }).waitFor();
+    await page.getByRole('link', { name: /Already applied\? Sign in to track progress/ }).waitFor();
+    assertWorkspaceNotRequested('The closed application page');
 
     await page.goto(`${origin}${basePath}/judging#${'a'.repeat(43)}`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'The form could not load.' }).waitFor();

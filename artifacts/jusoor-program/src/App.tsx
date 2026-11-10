@@ -4,7 +4,6 @@ import './team-access.css';
 import './role-workspace.css';
 import './role-access.css';
 import './session-recording.css';
-import './language.css';
 import './program-controls.css';
 import { PublicLanding } from './public-landing';
 import { getBrandingThemeTokens, getPanelSurfaceColors } from './branding-contrast';

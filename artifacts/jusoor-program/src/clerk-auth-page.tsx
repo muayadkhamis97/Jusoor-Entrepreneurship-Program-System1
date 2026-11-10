@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { SignIn, SignUp } from '@clerk/react';
 import { Shield } from 'lucide-react';
 import { Link } from 'wouter';
@@ -17,6 +18,33 @@ export function ClerkAuthPage({
   const brandingQuery = usePublicBranding();
   const branding = brandingQuery.data;
   const isSignIn = mode === 'sign-in';
+  const clerkCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isSignIn) return;
+
+    const container = clerkCardRef.current;
+    if (!container) return;
+
+    const addPasswordAutocomplete = () => {
+      container.querySelectorAll<HTMLInputElement>('input[type="password"]').forEach(input => {
+        if (input.getAttribute('autocomplete') !== 'current-password') {
+          input.setAttribute('autocomplete', 'current-password');
+        }
+      });
+    };
+
+    addPasswordAutocomplete();
+    const observer = new MutationObserver(addPasswordAutocomplete);
+    observer.observe(container, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['autocomplete', 'type'],
+    });
+
+    return () => observer.disconnect();
+  }, [isSignIn]);
 
   return (
     <main className="auth-page auth-form-page">
@@ -42,7 +70,7 @@ export function ClerkAuthPage({
             </p>
           </>
         )}
-        <div className="clerk-card">
+        <div className="clerk-card" ref={clerkCardRef}>
           {isSignIn ? (
             <SignIn
               routing="path"

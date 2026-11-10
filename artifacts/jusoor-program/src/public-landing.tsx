@@ -50,7 +50,7 @@ export function PublicLanding({ brandName, logoUrl, primaryColor, accentColor }:
         <div className="editorial-content">
           <section className="editorial-hero" aria-labelledby="landing-title">
             <div className="editorial-hero-copy">
-              <Typography variant="label" tone="accent">{t('PROGRAM OPERATIONS')}</Typography>
+              <Typography variant="body" tone="accent">{t('PROGRAM OPERATIONS')}</Typography>
               <Typography variant="hero" id="landing-title">
                 {t('Every founder.')}<br />
                 <em>{t('Every next step.')}</em>
@@ -61,16 +61,16 @@ export function PublicLanding({ brandName, logoUrl, primaryColor, accentColor }:
             </div>
 
             <PaperSurface variant="panel" className="editorial-entry">
-              <Typography variant="label">{t('Choose your next step')}</Typography>
+              <Typography variant="body" as="h2">{t('Choose your next step')}</Typography>
               <div className="editorial-entry-actions">
                 <div className="editorial-route editorial-route-apply">
-                  <Typography variant="label">{t('FOR NEW FOUNDERS')}</Typography>
+                  <Typography variant="body" tone="accent">{t('FOR NEW FOUNDERS')}</Typography>
                   <Button arrow className="editorial-apply" onClick={() => navigate('/apply')}>
                     {t('Apply to a program')}
                   </Button>
                 </div>
                 <div className="editorial-route editorial-route-return">
-                  <Typography variant="label">{t('RETURNING FOUNDERS & STAFF')}</Typography>
+                  <Typography variant="body" tone="accent">{t('RETURNING FOUNDERS & STAFF')}</Typography>
                   <Link href="/participant" className="editorial-text-link">
                     {t('Already applied? Sign in to track progress')} <span aria-hidden="true">→</span>
                   </Link>
@@ -82,16 +82,53 @@ export function PublicLanding({ brandName, logoUrl, primaryColor, accentColor }:
             </PaperSurface>
           </section>
 
-          <ol className="editorial-stages">
-            <li><span className="editorial-stage-number" aria-hidden="true">01</span><Typography variant="label">{t('OUTREACH')}</Typography></li>
-            <li><span className="editorial-stage-number" aria-hidden="true">02</span><Typography variant="label">{t('INCUBATION')}</Typography></li>
-            <li><span className="editorial-stage-number" aria-hidden="true">03</span><Typography variant="label">{t('GRANTS')}</Typography></li>
-          </ol>
+          <section className="editorial-journey" aria-labelledby="program-journey-title">
+            <Typography variant="heading" tone="accent" as="h2" id="program-journey-title" className="editorial-journey-title">
+              {t('FROM APPLICATION TO GRANTS')}
+            </Typography>
+            <ol className="editorial-stages">
+              <li className="editorial-stage">
+                <span className="editorial-stage-number" aria-hidden="true">01</span>
+                <div className="editorial-stage-copy">
+                  <Typography variant="body" tone="accent" as="span"><strong>{t('APPLICATIONS')}</strong></Typography>
+                  <Typography variant="body">{t('Apply to join a cohort.')}</Typography>
+                </div>
+              </li>
+              <li className="editorial-stage">
+                <span className="editorial-stage-number" aria-hidden="true">02</span>
+                <div className="editorial-stage-copy">
+                  <Typography variant="body" tone="accent" as="span"><strong>{t('BOOTCAMP / HACKATHON')}</strong></Typography>
+                  <Typography variant="body">{t('In-person bootcamp or hackathon selects businesses for incubation.')}</Typography>
+                </div>
+              </li>
+              <li className="editorial-stage">
+                <span className="editorial-stage-number" aria-hidden="true">03</span>
+                <div className="editorial-stage-copy">
+                  <Typography variant="body" tone="accent" as="span"><strong>{t('ONLINE INCUBATION')}</strong></Typography>
+                  <Typography variant="body">{t('Live training, one-to-one mentoring, experts, and agency connections.')}</Typography>
+                </div>
+              </li>
+              <li className="editorial-stage">
+                <span className="editorial-stage-number" aria-hidden="true">04</span>
+                <div className="editorial-stage-copy">
+                  <Typography variant="body" tone="accent" as="span"><strong>{t('PITCH DAY')}</strong></Typography>
+                  <Typography variant="body">{t('Pitch day qualifies businesses for demo day.')}</Typography>
+                </div>
+              </li>
+              <li className="editorial-stage">
+                <span className="editorial-stage-number" aria-hidden="true">05</span>
+                <div className="editorial-stage-copy">
+                  <Typography variant="body" tone="accent" as="span"><strong>{t('DEMO DAY & GRANTS')}</strong></Typography>
+                  <Typography variant="body">{t('Judges select grant recipients at demo day.')}</Typography>
+                </div>
+              </li>
+            </ol>
+          </section>
 
           <footer className="editorial-foot">
             <div className="editorial-privacy">
               <ShieldCheck size={16} aria-hidden="true" />
-              <span>{t('Founder progress is private to the applicant. Staff workspace access requires admin approval.')}</span>
+              <Typography variant="body" as="span">{t('Founder progress is private to the applicant. Staff workspace access requires admin approval.')}</Typography>
             </div>
           </footer>
         </div>

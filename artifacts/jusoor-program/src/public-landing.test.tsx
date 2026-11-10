@@ -40,9 +40,38 @@ test('landing prioritizes the entry actions and keeps its stage list responsive'
   assert.match(source, /className="editorial-route editorial-route-return"/);
   assert.match(source, /className="editorial-stages"/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1\.1fr\) minmax\(320px, 0\.9fr\)/);
+  assert.match(styles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 1000px\)[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /\.editorial-hero\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.editorial-stages\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+});
+
+test('landing explains each stage from applications through grant decisions', () => {
+  assert.equal([...source.matchAll(/className="editorial-stage"/g)].length, 5);
+  for (const stage of ['APPLICATIONS', 'BOOTCAMP / HACKATHON', 'ONLINE INCUBATION', 'PITCH DAY', 'DEMO DAY & GRANTS']) {
+    assert.ok(source.includes(`t('${stage}')`), `Missing cohort stage: ${stage}`);
+  }
+  for (const detail of [
+    'Apply to join a cohort.',
+    'In-person bootcamp or hackathon selects businesses for incubation.',
+    'Live training, one-to-one mentoring, experts, and agency connections.',
+    'Pitch day qualifies businesses for demo day.',
+    'Judges select grant recipients at demo day.',
+  ]) {
+    assert.ok(source.includes(`t('${detail}')`), `Missing cohort journey detail: ${detail}`);
+  }
+});
+
+test('important operational copy uses readable heading and body sizes', () => {
+  assert.match(source, /variant="body" tone="accent">\{t\('PROGRAM OPERATIONS'\)\}/);
+  assert.match(source, /variant="body" tone="accent">\{t\('FOR NEW FOUNDERS'\)\}/);
+  assert.match(source, /variant="body" tone="accent">\{t\('RETURNING FOUNDERS & STAFF'\)\}/);
+  assert.match(source, /variant="body" as="h2">\{t\('Choose your next step'\)\}/);
+  assert.match(source, /variant="heading" tone="accent" as="h2" id="program-journey-title"/);
+  assert.equal([...source.matchAll(/variant="body" tone="accent" as="span"><strong>/g)].length, 5);
+  assert.match(source, /variant="body" as="span">\{t\('Founder progress is private to the applicant/);
+  assert.doesNotMatch(styles, /\.editorial-privacy\s*\{[^}]*font-size:/);
 });
 
 test('landing uses configured branding with a neutral fallback and package primitives', () => {
