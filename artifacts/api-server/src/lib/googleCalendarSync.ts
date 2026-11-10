@@ -593,6 +593,26 @@ export async function syncGoogleCalendarMentor(
   }
 }
 
+export async function processGoogleCalendarSyncMentorQueue(
+  connectedMentors: Array<{ id: number }>,
+  syncMentor: (mentorStaffId: number) => Promise<void> = syncGoogleCalendarMentor,
+  reportFailure: (mentorStaffId: number, error: unknown) => void = (mentorStaffId, error) => {
+    logger.warn({
+      mentorStaffId,
+      statusCode: error instanceof GoogleCalendarSyncError ? error.statusCode : undefined,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    }, "Google Calendar booking sync failed; it will retry");
+  },
+): Promise<void> {
+  for (const mentor of connectedMentors) {
+    try {
+      await syncMentor(mentor.id);
+    } catch (error) {
+      reportFailure(mentor.id, error);
+    }
+  }
+}
+
 let workerTimer: ReturnType<typeof setInterval> | undefined;
 let workerRunning = false;
 
@@ -607,17 +627,7 @@ async function processGoogleCalendarSyncQueue(): Promise<void> {
         eq(staffMembersTable.status, "active"),
         isNotNull(staffMembersTable.googleCalendarRefreshTokenEncrypted),
       ));
-    for (const mentor of connectedMentors) {
-      try {
-        await syncGoogleCalendarMentor(mentor.id);
-      } catch (error) {
-        logger.warn({
-          mentorStaffId: mentor.id,
-          statusCode: error instanceof GoogleCalendarSyncError ? error.statusCode : undefined,
-          errorName: error instanceof Error ? error.name : "UnknownError",
-        }, "Google Calendar booking sync failed; it will retry");
-      }
-    }
+    await processGoogleCalendarSyncMentorQueue(connectedMentors);
   } catch (error) {
     logger.error({ err: error }, "Google Calendar sync worker failed");
   } finally {

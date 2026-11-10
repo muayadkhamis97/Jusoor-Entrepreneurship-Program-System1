@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { pool } from "@workspace/db";
-import { encryptGoogleCalendarToken, syncGoogleCalendarMentor, withGoogleCalendarSyncLease } from "../src/lib/googleCalendarSync";
+import {
+  encryptGoogleCalendarToken,
+  processGoogleCalendarSyncMentorQueue,
+  syncGoogleCalendarMentor,
+  withGoogleCalendarSyncLease,
+} from "../src/lib/googleCalendarSync";
 
 test("PostgreSQL advisory sync locks recover after callback and lock-acquisition failures", {
   skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a disposable PostgreSQL database.",
@@ -236,6 +241,95 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
       assert.ok(recoveredStatus?.google_calendar_sync_last_success_at, "The successful retry must be recorded.");
       assert.equal(recoveredStatus.google_calendar_sync_last_failure_at, null);
       assert.equal(recoveredStatus.google_calendar_sync_consecutive_failures, 0);
+
+      const failingWorkerEmail = `calendar-sync-worker-failure-${randomUUID()}@example.test`;
+      const nextWorkerEmail = `calendar-sync-worker-next-${randomUUID()}@example.test`;
+      const { rows: [failingWorkerMentor] } = await pool.query<{ id: number }>(
+        `INSERT INTO jusoor_staff_members (
+           email, role, status, google_calendar_account_email, google_calendar_refresh_token_encrypted
+         )
+         VALUES ($1, 'mentor', 'active', $1, $2)
+         RETURNING id`,
+        [failingWorkerEmail, refreshTokenEncrypted],
+      );
+      assert.ok(failingWorkerMentor);
+      const { rows: [nextWorkerMentor] } = await pool.query<{ id: number }>(
+        `INSERT INTO jusoor_staff_members (
+           email, role, status, google_calendar_account_email, google_calendar_refresh_token_encrypted
+         )
+         VALUES ($1, 'mentor', 'active', $1, $2)
+         RETURNING id`,
+        [nextWorkerEmail, refreshTokenEncrypted],
+      );
+      assert.ok(nextWorkerMentor);
+
+      const workerLockError = new Error("Database outage while acquiring the first mentor lock.");
+      const workerLockClient = await pool.connect();
+      const failingWorkerClient = new Proxy(workerLockClient, {
+        get(target, property) {
+          if (property === "query") {
+            return (...args: unknown[]) => {
+              if (args[0] === "SELECT pg_try_advisory_lock($1, $2) AS locked") {
+                throw workerLockError;
+              }
+              return Reflect.apply(target.query, target, args);
+            };
+          }
+          const value = Reflect.get(target, property, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }) as typeof workerLockClient;
+      const workerAttempts: number[] = [];
+      const workerReports: Array<{ mentorStaffId: number; error: unknown }> = [];
+      try {
+        await processGoogleCalendarSyncMentorQueue(
+          [{ id: failingWorkerMentor.id }, { id: nextWorkerMentor.id }],
+          async mentorStaffId => {
+            workerAttempts.push(mentorStaffId);
+            await syncGoogleCalendarMentor(
+              mentorStaffId,
+              async () => mentorStaffId === failingWorkerMentor.id
+                ? failingWorkerClient
+                : pool.connect(),
+            );
+          },
+          (mentorStaffId, error) => workerReports.push({ mentorStaffId, error }),
+        );
+
+        assert.deepEqual(
+          workerAttempts,
+          [failingWorkerMentor.id, nextWorkerMentor.id],
+          "The worker must attempt the next connected mentor after a lock-acquisition failure.",
+        );
+        assert.deepEqual(
+          workerReports,
+          [{ mentorStaffId: failingWorkerMentor.id, error: workerLockError }],
+          "The worker must report the mentor whose lock acquisition failed.",
+        );
+        const { rows: [workerFailureStatus] } = await pool.query<{
+          google_calendar_sync_last_failure_at: Date | null;
+          google_calendar_sync_consecutive_failures: number;
+        }>(
+          `SELECT google_calendar_sync_last_failure_at, google_calendar_sync_consecutive_failures
+           FROM jusoor_staff_members WHERE id = $1`,
+          [failingWorkerMentor.id],
+        );
+        assert.ok(workerFailureStatus?.google_calendar_sync_last_failure_at);
+        assert.equal(workerFailureStatus.google_calendar_sync_consecutive_failures, 1);
+        const { rows: [workerSuccessStatus] } = await pool.query<{
+          google_calendar_sync_last_success_at: Date | null;
+        }>(
+          `SELECT google_calendar_sync_last_success_at
+           FROM jusoor_staff_members WHERE id = $1`,
+          [nextWorkerMentor.id],
+        );
+        assert.ok(workerSuccessStatus?.google_calendar_sync_last_success_at);
+      } finally {
+        await pool.query(
+          "DELETE FROM jusoor_staff_members WHERE id = ANY($1::int[])",
+          [[failingWorkerMentor.id, nextWorkerMentor.id]],
+        );
+      }
     } finally {
       globalThis.fetch = originalFetch;
       if (originalEnv.clientId === undefined) delete process.env.GOOGLE_CALENDAR_CLIENT_ID;
