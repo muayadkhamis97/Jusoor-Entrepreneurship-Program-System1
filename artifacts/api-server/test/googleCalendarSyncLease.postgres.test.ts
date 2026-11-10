@@ -363,6 +363,105 @@ test("PostgreSQL advisory sync locks recover after callback and lock-acquisition
     }) as typeof fetch;
 
     try {
+      const staleFailureEmail = `calendar-sync-stale-failure-${randomUUID()}@example.test`;
+      const staleFailureReplacementEmail = `calendar-sync-stale-failure-replacement-${randomUUID()}@example.test`;
+      const staleFailureRefreshToken = encryptGoogleCalendarToken("calendar-sync-stale-failure-refresh-token");
+      const staleFailureReplacementRefreshToken = encryptGoogleCalendarToken("calendar-sync-stale-failure-replacement-refresh-token");
+      const { rows: [staleFailureMentor] } = await pool.query<{ id: number }>(
+        `INSERT INTO jusoor_staff_members (
+           email, role, status, google_calendar_account_email, google_calendar_refresh_token_encrypted
+         )
+         VALUES ($1, 'mentor', 'active', $1, $2)
+         RETURNING id`,
+        [staleFailureEmail, staleFailureRefreshToken],
+      );
+      assert.ok(staleFailureMentor);
+
+      let calendarRequestStarted!: () => void;
+      let releaseCalendarFailure!: () => void;
+      const calendarRequestStartedPromise = new Promise<void>(resolve => { calendarRequestStarted = resolve; });
+      const calendarFailureGate = new Promise<void>(resolve => { releaseCalendarFailure = resolve; });
+      const healthyCalendarFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        if (String(input) === "https://oauth2.googleapis.com/token") {
+          return new Response(JSON.stringify({ access_token: "calendar-sync-stale-failure-access-token", expires_in: 3600 }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        calendarRequestStarted();
+        await calendarFailureGate;
+        return new Response(JSON.stringify({ error: { message: "Invalid credentials" } }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }) as typeof fetch;
+
+      const staleFailureSync = syncGoogleCalendarMentor(staleFailureMentor.id);
+      try {
+        try {
+          await calendarRequestStartedPromise;
+          await pool.query(
+            `UPDATE jusoor_staff_members
+             SET google_calendar_account_email = NULL,
+                 google_calendar_refresh_token_encrypted = NULL,
+                 google_calendar_access_token_encrypted = NULL,
+                 google_calendar_access_token_expires_at = NULL,
+                 google_calendar_sync_token = NULL,
+                 google_calendar_sync_last_success_at = NULL,
+                 google_calendar_sync_last_failure_at = NULL,
+                 google_calendar_sync_consecutive_failures = 0,
+                 google_calendar_sync_needs_reauthorization = false
+             WHERE id = $1`,
+            [staleFailureMentor.id],
+          );
+          await pool.query(
+            `UPDATE jusoor_staff_members
+             SET google_calendar_account_email = $2,
+                 google_calendar_refresh_token_encrypted = $3
+             WHERE id = $1`,
+            [staleFailureMentor.id, staleFailureReplacementEmail, staleFailureReplacementRefreshToken],
+          );
+        } finally {
+          releaseCalendarFailure();
+        }
+        await assert.rejects(
+          staleFailureSync,
+          error => error instanceof Error && error.message === "Google Calendar events could not be retrieved.",
+          "The stale provider error must remain visible to the caller.",
+        );
+        const { rows: [staleFailureStatus] } = await pool.query<{
+          google_calendar_account_email: string | null;
+          google_calendar_refresh_token_encrypted: string | null;
+          google_calendar_access_token_encrypted: string | null;
+          google_calendar_sync_token: string | null;
+          google_calendar_sync_last_success_at: Date | null;
+          google_calendar_sync_last_failure_at: Date | null;
+          google_calendar_sync_consecutive_failures: number;
+          google_calendar_sync_needs_reauthorization: boolean;
+        }>(
+          `SELECT google_calendar_account_email, google_calendar_refresh_token_encrypted,
+                  google_calendar_access_token_encrypted, google_calendar_sync_token,
+                  google_calendar_sync_last_success_at, google_calendar_sync_last_failure_at,
+                  google_calendar_sync_consecutive_failures, google_calendar_sync_needs_reauthorization
+           FROM jusoor_staff_members WHERE id = $1`,
+          [staleFailureMentor.id],
+        );
+        assert.equal(staleFailureStatus?.google_calendar_account_email, staleFailureReplacementEmail);
+        assert.equal(staleFailureStatus?.google_calendar_refresh_token_encrypted, staleFailureReplacementRefreshToken);
+        assert.equal(staleFailureStatus?.google_calendar_access_token_encrypted, null);
+        assert.equal(staleFailureStatus?.google_calendar_sync_token, null);
+        assert.equal(staleFailureStatus?.google_calendar_sync_last_success_at, null);
+        assert.equal(staleFailureStatus?.google_calendar_sync_last_failure_at, null);
+        assert.equal(staleFailureStatus?.google_calendar_sync_consecutive_failures, 0);
+        assert.equal(staleFailureStatus?.google_calendar_sync_needs_reauthorization, false);
+      } finally {
+        releaseCalendarFailure();
+        await staleFailureSync.catch(() => {});
+        globalThis.fetch = healthyCalendarFetch;
+        await pool.query("DELETE FROM jusoor_staff_members WHERE id = $1", [staleFailureMentor.id]);
+      }
+
       await syncGoogleCalendarMentor(healthMentor.id);
       const { rows: [recoveredStatus] } = await pool.query<{
         google_calendar_sync_last_success_at: Date | null;
