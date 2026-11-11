@@ -941,7 +941,7 @@ test("Google Sheets selection API enforces program access, replacement consent, 
         id: 1,
         programId: 19,
         programName: "Spring Program",
-        actorStaffId: 7,
+        actorStaffId: null,
         actorEmail: "staff@example.test",
         previousSpreadsheetId: null,
         previousSpreadsheetTitle: null,
@@ -957,6 +957,7 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       assert.equal(response.status, 200);
       const history = await response.json() as Record<string, unknown>[];
       assert.equal(history.length, 1);
+      assert.equal(history[0]?.actorStaffId, null);
       assert.equal(history[0]?.actorEmail, "staff@example.test");
     });
   } finally {
