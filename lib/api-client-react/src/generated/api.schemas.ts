@@ -62,6 +62,39 @@ export interface ProgramGoogleSheetsExportCategories {
   chats: boolean;
 }
 
+export interface ProgramGoogleSheetsSheetMappings {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  applications: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  judgingResponses: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  businessTeam: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  operations: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  mentoringGrants: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  chats: string;
+}
+
 export interface ProgramGoogleSheetsStatus {
   programId: number;
   programName: string;
@@ -83,6 +116,61 @@ export interface ProgramGoogleSheetsStatus {
   /** @minimum 0 */
   failedCount: number;
   exportCategories: ProgramGoogleSheetsExportCategories;
+  sheetMappings: ProgramGoogleSheetsSheetMappings;
+}
+
+export interface GoogleSheetsWorkbook {
+  /**
+     * @minLength 10
+     * @maxLength 200
+     */
+  spreadsheetId: string;
+  title: string;
+  /** @nullable */
+  url: string | null;
+  /** @nullable */
+  modifiedAt?: string | null;
+}
+
+export interface GoogleSheetsWorkbookList {
+  items: GoogleSheetsWorkbook[];
+  /** @nullable */
+  nextPageToken: string | null;
+}
+
+export interface GoogleSheetsTab {
+  /** @minimum 0 */
+  sheetId: number;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+}
+
+export type ProgramGoogleSheetsConnectionInputMode = typeof ProgramGoogleSheetsConnectionInputMode[keyof typeof ProgramGoogleSheetsConnectionInputMode];
+
+
+export const ProgramGoogleSheetsConnectionInputMode = {
+  create: 'create',
+  existing: 'existing',
+} as const;
+
+export interface ProgramGoogleSheetsConnectionInput {
+  mode: ProgramGoogleSheetsConnectionInputMode;
+  /**
+     * @minLength 10
+     * @maxLength 200
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  spreadsheetId?: string;
+  sheetMappings: ProgramGoogleSheetsSheetMappings;
+  confirmedOverwrite?: boolean;
+}
+
+export interface ProgramGoogleSheetsSheetMappingsInput {
+  sheetMappings: ProgramGoogleSheetsSheetMappings;
+  confirmedOverwrite: true;
 }
 
 export interface ProgramGoogleSheetsExportCategoriesInput {
@@ -4538,5 +4626,16 @@ export type SubmitPublicJudgingResponseParams = {
  * @pattern ^[A-Za-z0-9_-]+$
  */
 token: string;
+};
+
+export type ListProgramGoogleSheetsWorkbooksParams = {
+/**
+ * @maxLength 100
+ */
+q?: string;
+/**
+ * @maxLength 4096
+ */
+pageToken?: string;
 };
 

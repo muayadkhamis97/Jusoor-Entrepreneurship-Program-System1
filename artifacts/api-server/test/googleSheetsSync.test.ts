@@ -6,11 +6,15 @@ import {
   applicationSheetRow,
   createProgramSpreadsheet,
   ensureProgramSpreadsheetTabs,
+  isValidGoogleSheetsSheetMappings,
   judgingResponseSheetRow,
+  listGoogleSheetsWorkbooks,
   queueProgramGoogleSheetsSnapshot,
+  rowRange,
   writeProgramSnapshotSnapshot,
 } from "../src/lib/googleSheetsSync";
 import { PROGRAM_SNAPSHOT_SHEETS } from "../src/lib/googleSheetsSnapshots";
+import { DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS } from "@workspace/db";
 
 const spreadsheetId = "sheet_12345678901234567890";
 
@@ -178,6 +182,83 @@ test("Google Sheets workbook has all selected program tabs and writes headers as
   ]);
 });
 
+test("workbook tab mappings must be unique and use valid Google Sheets names", () => {
+  assert.equal(isValidGoogleSheetsSheetMappings(DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS), true);
+  assert.equal(isValidGoogleSheetsSheetMappings({
+    ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+    chats: "Applications",
+  }), false);
+  assert.equal(isValidGoogleSheetsSheetMappings({
+    ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+    chats: "Private/chats",
+  }), false);
+});
+
+test("Google Sheets workbook creates user-selected worksheet names and headers", async () => {
+  const mappings = {
+    applications: "Admissions 2027",
+    judgingResponses: "Judge scores",
+    businessTeam: "Business list",
+    operations: "Program schedule",
+    mentoringGrants: "Mentor grants",
+    chats: "Private messages",
+  };
+  const calls: { path: string; options: { method: string; body?: unknown } }[] = [];
+  const connector = {
+    proxy: async (_service: string, path: string, options: { method: string; body?: unknown }) => {
+      calls.push({ path, options });
+      return calls.length === 1
+        ? Response.json({ spreadsheetId: "sheet_12345678901234567890" })
+        : Response.json({});
+    },
+  };
+  await createProgramSpreadsheet("Spring 2027", connector as never, mappings);
+  const createBody = calls[0]?.options.body as { sheets: { properties: { title: string } }[] };
+  const headerBody = calls[1]?.options.body as { data: { range: string; values: string[][] }[] };
+  assert.deepEqual(createBody.sheets.map(sheet => sheet.properties.title), Object.values(mappings));
+  assert.equal(headerBody.data[0]?.range, "'Admissions 2027'!A1:O1");
+  assert.equal(headerBody.data[1]?.range, "'Judge scores'!A1:J1");
+  assert.equal(headerBody.data[5]?.range, "'Private messages'!A1:I1");
+});
+
+test("Drive workbook choices expose only spreadsheet metadata and preserve pagination", async () => {
+  let pathSeen = "";
+  let serviceSeen = "";
+  const connector = {
+    proxy: async (service: string, path: string) => {
+      serviceSeen = service;
+      pathSeen = path;
+      return Response.json({
+        files: [
+          { id: "sheet_12345678901234567890", name: "Program data", webViewLink: "https://docs.google.com/spreadsheets/d/sheet_12345678901234567890/edit", modifiedTime: "2026-11-11T10:00:00Z" },
+          { id: "ignored", mimeType: "text/plain" },
+        ],
+        nextPageToken: "page-next",
+      });
+    },
+  };
+  const result = await listGoogleSheetsWorkbooks({ search: "founder's data", pageToken: "cursor-next" }, connector as never);
+  assert.equal(serviceSeen, "google-drive");
+  assert.equal(new URLSearchParams(pathSeen.split("?")[1]).get("q"), "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false and name contains 'founder\\'s data'");
+  assert.equal(new URLSearchParams(pathSeen.split("?")[1]).get("pageToken"), "cursor-next");
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0]?.title, "Program data");
+  assert.equal(result.nextPageToken, "page-next");
+});
+
+test("row-level exports write application and judging data to selected tabs", () => {
+  const mappings = {
+    applications: "Admissions 2027",
+    judgingResponses: "Scores",
+    businessTeam: "Businesses",
+    operations: "Operations",
+    mentoringGrants: "Mentor grants",
+    chats: "Chats",
+  };
+  assert.equal(rowRange("application", 8, mappings), "'Admissions 2027'!A8:O8");
+  assert.equal(rowRange("judging_response", 12, mappings), "'Scores'!A12:J12");
+});
+
 test("an interrupted staging write leaves the previous snapshot visible and retry publishes it", async () => {
   const fake = createFakeSheetsConnector({ failValuesAt: 1 });
   const original = fake.sheets.get(PROGRAM_SNAPSHOT_SHEETS[0].title)!.values.map((row) => [...row]);
@@ -197,6 +278,33 @@ test("an interrupted staging write leaves the previous snapshot visible and retr
   assert.equal(published[2]![0], "");
   assert.equal(published[2]![snapshot[0]!.headers.length], "also keep");
   assert.equal([...fake.sheets.keys()].filter((title) => title.startsWith("__jusoor_snapshot_stage_")).length, 0);
+});
+
+test("snapshot writes follow the configured worksheet mapping", async () => {
+  const mappings = {
+    applications: "Admissions",
+    judgingResponses: "Scoring",
+    businessTeam: "Business records",
+    operations: "Sessions",
+    mentoringGrants: "Mentor notes",
+    chats: "Chat export",
+  };
+  const fake = createFakeSheetsConnector();
+  PROGRAM_SNAPSHOT_SHEETS.forEach((sheet, index) => {
+    const title = index === 0 ? mappings.businessTeam
+      : index === 1 ? mappings.operations
+        : index === 2 ? mappings.mentoringGrants : mappings.chats;
+    fake.sheets.set(title, {
+      sheetId: 100 + index,
+      title,
+      rowCount: 1000,
+      values: [[...sheet.headers], ["old value"]],
+    });
+  });
+  const snapshot = makeSnapshot(1, "mapped data");
+  await writeProgramSnapshotSnapshot(spreadsheetId, snapshot, fake.connector as never, mappings);
+  assert.deepEqual(fake.sheets.get(mappings.businessTeam)?.values[1]?.slice(0, snapshot[0]!.headers.length), snapshot[0]!.rows[0]);
+  assert.deepEqual(fake.sheets.get(mappings.chats)?.values[1]?.slice(0, snapshot[3]!.headers.length), snapshot[3]!.rows[0]);
 });
 
 test("an interrupted atomic publish leaves every prior tab intact until retry", async () => {

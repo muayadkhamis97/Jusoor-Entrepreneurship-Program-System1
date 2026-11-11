@@ -14,3 +14,9 @@ The user selected business/team records (including applications and judging), pr
 **Why:** the user chose all four additional categories after being told chat exports are visible under the workbook's Google sharing permissions.
 
 **How to apply:** preserve program boundaries for every exported relation. Admins and staff assigned to a program can independently change its four saved export categories. Turning a category off removes that workbook data on the next successful sync; category controls never change Google sharing permissions.
+
+Drive file discovery and Sheets editing may use separate project integrations. List candidate spreadsheets through Drive, then validate the selected ID and its tabs through the Sheets connection before saving or clearing any destination.
+
+**Why:** the two Google connectors can be authorized to different accounts; a file visible through Drive is not necessarily editable through the Sheets connection.
+
+**How to apply:** fail closed if the Sheets integration cannot read the selected workbook, and do not alter destination cells until the workbook and selected tabs have been verified.

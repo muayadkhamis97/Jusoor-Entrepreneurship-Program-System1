@@ -1,18 +1,34 @@
 import { Router } from "express";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import {
+  CreateProgramGoogleSheetsConnectionBody,
+  ListProgramGoogleSheetsWorkbookTabsParams,
+  ListProgramGoogleSheetsWorkbookTabsResponse,
+  ListProgramGoogleSheetsWorkbooksParams,
+  ListProgramGoogleSheetsWorkbooksQueryParams,
+  ListProgramGoogleSheetsWorkbooksResponse,
+  UpdateProgramGoogleSheetsSheetMappingsBody,
+} from "@workspace/api-zod";
+import {
   db,
+  DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
   integrationDisconnectAuditEventsTable,
   programsTable,
   programGoogleSheetsConnectionsTable,
   programGoogleSheetsSyncEventsTable,
+  type ProgramGoogleSheetsSheetMappings,
 } from "@workspace/db";
 import { activeProgramIdsFor, canAccessActiveProgram } from "../lib/programScope";
 import {
+  clearProgramSpreadsheetData,
   createProgramSpreadsheet,
   ensureProgramSpreadsheetTabs,
+  getProgramSpreadsheetInfo,
   GoogleSheetsError,
+  isValidGoogleSheetsSheetMappings,
   lockGoogleSheetsProgram,
+  listGoogleSheetsWorkbooks,
+  listProgramSpreadsheetTabs,
   queueProgramGoogleSheetsBackfill,
   queueProgramGoogleSheetsSnapshot,
   retryFailedGoogleSheetsEvents,
@@ -49,12 +65,37 @@ function parseExportCategories(value: unknown): ExportCategories | null {
 
 function routeError(res: import("express").Response, error: unknown): void {
   const status = error instanceof GoogleSheetsError && error.status
-    ? (error.status === 404 ? 404 : 502)
+    ? ([400, 404, 409].includes(error.status) ? error.status : 502)
     : 503;
   const message = error instanceof GoogleSheetsError
     ? error.message
     : "Google Sheets settings could not be saved. The platform records are unchanged.";
   res.status(status).json({ error: message });
+}
+
+function normalizeSheetMappings(mappings: ProgramGoogleSheetsSheetMappings): ProgramGoogleSheetsSheetMappings {
+  return Object.fromEntries(
+    Object.entries(mappings).map(([key, title]) => [key, title.trim()]),
+  ) as ProgramGoogleSheetsSheetMappings;
+}
+
+function requireProgramScope(programIdValue: unknown): number | null {
+  const programId = Number(programIdValue);
+  return Number.isSafeInteger(programId) && programId > 0 ? programId : null;
+}
+
+function validateMappingsExist(
+  mappings: ProgramGoogleSheetsSheetMappings,
+  tabs: { title: string }[],
+): void {
+  const titles = new Set(tabs.map((tab) => tab.title));
+  const missing = Object.values(mappings).filter((title) => !titles.has(title));
+  if (missing.length) {
+    throw new GoogleSheetsError(
+      `Choose worksheet tabs that already exist in this spreadsheet. Missing: ${missing.join(", ")}.`,
+      400,
+    );
+  }
 }
 
 async function visibleProgramSheetStatuses(staff: StaffAccess) {
@@ -66,6 +107,7 @@ async function visibleProgramSheetStatuses(staff: StaffAccess) {
     spreadsheetId: programGoogleSheetsConnectionsTable.spreadsheetId,
     spreadsheetUrl: programGoogleSheetsConnectionsTable.spreadsheetUrl,
     spreadsheetTitle: programGoogleSheetsConnectionsTable.spreadsheetTitle,
+    sheetMappings: programGoogleSheetsConnectionsTable.sheetMappings,
     exportBusinessTeam: programGoogleSheetsConnectionsTable.exportBusinessTeam,
     exportOperations: programGoogleSheetsConnectionsTable.exportOperations,
     exportMentoringGrants: programGoogleSheetsConnectionsTable.exportMentoringGrants,
@@ -113,6 +155,7 @@ async function visibleProgramSheetStatuses(staff: StaffAccess) {
         mentoringGrants: row.exportMentoringGrants,
         chats: row.exportChats,
       } : defaultExportCategories,
+      sheetMappings: row.sheetMappings ?? DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
     };
   });
 }
@@ -126,11 +169,70 @@ router.get("/", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/:programId/workbooks", async (req, res): Promise<void> => {
+  const params = ListProgramGoogleSheetsWorkbooksParams.safeParse(req.params);
+  const query = ListProgramGoogleSheetsWorkbooksQueryParams.safeParse(req.query);
+  const staff = res.locals.staff as StaffAccess;
+  if (!params.success || !query.success || !(await canAccessActiveProgram(staff, params.data.programId))) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  try {
+    const workbooks = await listGoogleSheetsWorkbooks({
+      search: query.data.q,
+      pageToken: query.data.pageToken,
+    });
+    res.json(ListProgramGoogleSheetsWorkbooksResponse.parse(workbooks));
+  } catch (error) {
+    req.log.error({ err: error, programId: params.data.programId }, "Google Drive spreadsheets could not be listed");
+    routeError(res, error);
+  }
+});
+
+router.get("/:programId/workbooks/:spreadsheetId/tabs", async (req, res): Promise<void> => {
+  const params = ListProgramGoogleSheetsWorkbookTabsParams.safeParse(req.params);
+  const staff = res.locals.staff as StaffAccess;
+  if (!params.success || !(await canAccessActiveProgram(staff, params.data.programId))) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  try {
+    const tabs = await listProgramSpreadsheetTabs(params.data.spreadsheetId);
+    res.json(ListProgramGoogleSheetsWorkbookTabsResponse.parse(tabs));
+  } catch (error) {
+    req.log.error({ err: error, programId: params.data.programId }, "Google Sheets worksheet tabs could not be listed");
+    routeError(res, error);
+  }
+});
+
 router.post("/:programId", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
-  const programId = Number(req.params.programId);
-  if (!Number.isSafeInteger(programId) || programId <= 0 || !(await canAccessActiveProgram(staff, programId))) {
+  const programId = requireProgramScope(req.params.programId);
+  if (!programId || !(await canAccessActiveProgram(staff, programId))) {
     res.status(404).json({ error: "Program not found." });
+    return;
+  }
+
+  const hasBody = Boolean(req.body && typeof req.body === "object" && Object.keys(req.body).length > 0);
+  const parsedBody = hasBody ? CreateProgramGoogleSheetsConnectionBody.safeParse(req.body) : null;
+  if (parsedBody && !parsedBody.success) {
+    res.status(400).json({ error: "Choose a workbook type and all six destination worksheet tabs." });
+    return;
+  }
+  const selection = parsedBody?.success ? parsedBody.data : undefined;
+  const requestedMappings = selection?.sheetMappings
+    ? normalizeSheetMappings(selection.sheetMappings)
+    : DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS;
+  if (!isValidGoogleSheetsSheetMappings(requestedMappings)) {
+    res.status(400).json({ error: "Choose six different worksheet names, each between 1 and 100 characters." });
+    return;
+  }
+  if (selection?.mode === "existing" && (!selection.spreadsheetId || selection.confirmedOverwrite !== true)) {
+    res.status(400).json({ error: "Confirm that the selected worksheet data can be replaced before linking this spreadsheet." });
+    return;
+  }
+  if (selection?.mode === "create" && selection.spreadsheetId) {
+    res.status(400).json({ error: "A new workbook cannot include an existing spreadsheet ID." });
     return;
   }
 
@@ -141,8 +243,8 @@ router.post("/:programId", async (req, res): Promise<void> => {
       await lockGoogleSheetsProgram(tx, programId);
       const [existing] = await tx.select().from(programGoogleSheetsConnectionsTable)
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId)).limit(1);
-      if (existing) {
-        await ensureProgramSpreadsheetTabs(existing.spreadsheetId);
+      if (existing && !selection) {
+        await ensureProgramSpreadsheetTabs(existing.spreadsheetId, undefined, existing.sheetMappings);
         await queueProgramGoogleSheetsSnapshot(tx, programId, true);
         return { connection: existing, created: false };
       }
@@ -151,16 +253,60 @@ router.post("/:programId", async (req, res): Promise<void> => {
         .limit(1);
       if (!program) throw new GoogleSheetsError("Program not found.", 404);
 
-      const spreadsheet = await createProgramSpreadsheet(program.name);
-      const [connection] = await tx.insert(programGoogleSheetsConnectionsTable).values({
-        programId,
-        spreadsheetId: spreadsheet.spreadsheetId,
-        spreadsheetUrl: spreadsheet.spreadsheetUrl,
-        spreadsheetTitle: spreadsheet.title,
-        connectedByStaffId: staff.id,
-      }).returning();
+      let spreadsheet: { spreadsheetId: string; spreadsheetUrl: string; title: string };
+      if (selection?.mode === "existing") {
+        await ensureProgramSpreadsheetTabs(selection.spreadsheetId!, undefined, requestedMappings);
+        const info = await getProgramSpreadsheetInfo(selection.spreadsheetId!, undefined);
+        validateMappingsExist(requestedMappings, info.tabs);
+        spreadsheet = {
+          spreadsheetId: selection.spreadsheetId!,
+          spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${encodeURIComponent(selection.spreadsheetId!)}/edit`,
+          title: info.title,
+        };
+        const [alreadyLinked] = await tx.select({
+          programId: programGoogleSheetsConnectionsTable.programId,
+        }).from(programGoogleSheetsConnectionsTable)
+          .where(eq(programGoogleSheetsConnectionsTable.spreadsheetId, spreadsheet.spreadsheetId))
+          .limit(1);
+        if (alreadyLinked && alreadyLinked.programId !== programId) {
+          throw new GoogleSheetsError("This spreadsheet is already linked to another program.", 409);
+        }
+        const destinationChanged = existing?.spreadsheetId !== spreadsheet.spreadsheetId
+          || JSON.stringify(existing.sheetMappings) !== JSON.stringify(requestedMappings);
+        if (destinationChanged) {
+          await clearProgramSpreadsheetData(spreadsheet.spreadsheetId, requestedMappings);
+        }
+      } else {
+        spreadsheet = await createProgramSpreadsheet(program.name, undefined, requestedMappings);
+      }
+
+      let connection = existing;
+      if (connection) {
+        const [updated] = await tx.update(programGoogleSheetsConnectionsTable).set({
+          spreadsheetId: spreadsheet.spreadsheetId,
+          spreadsheetUrl: spreadsheet.spreadsheetUrl,
+          spreadsheetTitle: spreadsheet.title,
+          sheetMappings: requestedMappings,
+          nextApplicationRow: 2,
+          nextJudgingResponseRow: 2,
+          lastError: null,
+          updatedAt: new Date(),
+        }).where(eq(programGoogleSheetsConnectionsTable.programId, programId)).returning();
+        connection = updated;
+      } else {
+        const [created] = await tx.insert(programGoogleSheetsConnectionsTable).values({
+          programId,
+          spreadsheetId: spreadsheet.spreadsheetId,
+          spreadsheetUrl: spreadsheet.spreadsheetUrl,
+          spreadsheetTitle: spreadsheet.title,
+          sheetMappings: requestedMappings,
+          connectedByStaffId: staff.id,
+        }).returning();
+        connection = created;
+      }
       await queueProgramGoogleSheetsBackfill(tx, programId);
-      return { connection: connection!, created: true };
+      await queueProgramGoogleSheetsSnapshot(tx, programId, true);
+      return { connection: connection!, created: !existing };
     });
     const statuses = await visibleProgramSheetStatuses(staff);
     const status = statuses.find((item) => item.programId === programId);
@@ -169,6 +315,7 @@ router.post("/:programId", async (req, res): Promise<void> => {
       spreadsheetId: result.connection.spreadsheetId,
       spreadsheetUrl: result.connection.spreadsheetUrl,
       spreadsheetTitle: result.connection.spreadsheetTitle,
+      sheetMappings: result.connection.sheetMappings,
       connectedAt: result.connection.connectedAt,
       lastSyncedAt: result.connection.lastSyncedAt,
       lastError: result.connection.lastError,
@@ -183,8 +330,8 @@ router.post("/:programId", async (req, res): Promise<void> => {
       },
     });
   } catch (error) {
-    if (error instanceof GoogleSheetsError && error.status === 404) {
-      res.status(404).json({ error: error.message });
+    if (error instanceof GoogleSheetsError && error.status && [400, 404, 409].includes(error.status)) {
+      res.status(error.status).json({ error: error.message });
       return;
     }
     req.log.error({ err: error, programId }, "Google Sheets connection could not be created");
@@ -240,6 +387,65 @@ router.patch("/:programId/categories", async (req, res): Promise<void> => {
       return;
     }
     req.log.error({ err: error, programId }, "Google Sheets export categories could not be saved");
+    routeError(res, error);
+  }
+});
+
+router.patch("/:programId/sheet-mappings", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  const programId = requireProgramScope(req.params.programId);
+  if (!programId || !(await canAccessActiveProgram(staff, programId))) {
+    res.status(404).json({ error: "Program not found." });
+    return;
+  }
+  const parsed = UpdateProgramGoogleSheetsSheetMappingsBody.safeParse(req.body);
+  if (!parsed.success || parsed.data.confirmedOverwrite !== true
+    || !isValidGoogleSheetsSheetMappings(parsed.data.sheetMappings)) {
+    res.status(400).json({ error: "Confirm replacement of the selected worksheet data and choose six different tab names." });
+    return;
+  }
+  const sheetMappings = normalizeSheetMappings(parsed.data.sheetMappings);
+  if (!isValidGoogleSheetsSheetMappings(sheetMappings)) {
+    res.status(400).json({ error: "Choose six different worksheet names, each between 1 and 100 characters." });
+    return;
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await lockGoogleSheetsProgram(tx, programId);
+      const [connection] = await tx.select({
+        spreadsheetId: programGoogleSheetsConnectionsTable.spreadsheetId,
+        sheetMappings: programGoogleSheetsConnectionsTable.sheetMappings,
+      }).from(programGoogleSheetsConnectionsTable)
+        .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
+        .limit(1);
+      if (!connection) throw new GoogleSheetsError("Program workbook not found.", 404);
+      await ensureProgramSpreadsheetTabs(connection.spreadsheetId, undefined, sheetMappings);
+      const info = await getProgramSpreadsheetInfo(connection.spreadsheetId);
+      validateMappingsExist(sheetMappings, info.tabs);
+      const changed = JSON.stringify(connection.sheetMappings) !== JSON.stringify(sheetMappings);
+      if (changed) {
+        await clearProgramSpreadsheetData(connection.spreadsheetId, sheetMappings);
+      }
+      await tx.update(programGoogleSheetsConnectionsTable).set({
+        sheetMappings,
+        spreadsheetTitle: info.title,
+        nextApplicationRow: 2,
+        nextJudgingResponseRow: 2,
+        lastError: null,
+        updatedAt: new Date(),
+      }).where(eq(programGoogleSheetsConnectionsTable.programId, programId));
+      await queueProgramGoogleSheetsBackfill(tx, programId);
+      await queueProgramGoogleSheetsSnapshot(tx, programId, true);
+    });
+    const statuses = await visibleProgramSheetStatuses(staff);
+    res.json(statuses.find((item) => item.programId === programId) ?? { programId, status: "connected", sheetMappings });
+  } catch (error) {
+    if (error instanceof GoogleSheetsError && error.status && [400, 404, 409].includes(error.status)) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    req.log.error({ err: error, programId }, "Google Sheets worksheet mappings could not be saved");
     routeError(res, error);
   }
 });

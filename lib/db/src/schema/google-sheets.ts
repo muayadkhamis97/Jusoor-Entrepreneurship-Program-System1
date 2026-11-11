@@ -1,14 +1,33 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, integer, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { programsTable } from "./programs";
 import { staffMembersTable } from "./staff";
+
+export type ProgramGoogleSheetsSheetMappings = {
+  applications: string;
+  judgingResponses: string;
+  businessTeam: string;
+  operations: string;
+  mentoringGrants: string;
+  chats: string;
+};
+
+export const DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS: ProgramGoogleSheetsSheetMappings = {
+  applications: "Applications",
+  judgingResponses: "Judging responses",
+  businessTeam: "Businesses and teams",
+  operations: "Programs sessions attendance",
+  mentoringGrants: "Mentor support grants",
+  chats: "Staff and participant chats",
+};
 
 export const programGoogleSheetsConnectionsTable = pgTable("jusoor_program_google_sheets_connections", {
   programId: integer("program_id").primaryKey().references(() => programsTable.id, { onDelete: "cascade" }),
   spreadsheetId: text("spreadsheet_id").notNull(),
   spreadsheetUrl: text("spreadsheet_url").notNull(),
   spreadsheetTitle: text("spreadsheet_title").notNull(),
+  sheetMappings: jsonb("sheet_mappings").$type<ProgramGoogleSheetsSheetMappings>().notNull().default(DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS),
   exportBusinessTeam: boolean("export_business_team").notNull().default(true),
   exportOperations: boolean("export_operations").notNull().default(true),
   exportMentoringGrants: boolean("export_mentoring_grants").notNull().default(true),

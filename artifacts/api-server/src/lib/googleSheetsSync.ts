@@ -9,6 +9,8 @@ import {
   programGoogleSheetsConnectionsTable,
   programGoogleSheetsSyncEventsTable,
   programsTable,
+  DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+  type ProgramGoogleSheetsSheetMappings,
   type JudgingCriterionConfig,
   type JudgingQuestionConfig,
 } from "@workspace/db";
@@ -26,6 +28,9 @@ export const JUDGING_HEADERS = [
   "Response ID", "Form", "Business", "Judge name", "Judge email",
   "Scores", "Written responses", "Total score", "Maximum score", "Submitted at",
 ] as const;
+
+const SNAPSHOT_MAPPING_KEYS = ["businessTeam", "operations", "mentoringGrants", "chats"] as const;
+const SPREADSHEET_MIME_TYPE = "application/vnd.google-apps.spreadsheet";
 
 type ConnectorClient = Pick<ReplitConnectors, "proxy">;
 type SheetsExecutor = Pick<typeof db, "select" | "insert" | "update">;
@@ -48,6 +53,38 @@ export class GoogleSheetsError extends Error {
     super(message);
     this.name = "GoogleSheetsError";
   }
+}
+
+export function isValidGoogleSheetsSheetMappings(value: unknown): value is ProgramGoogleSheetsSheetMappings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS);
+  if (Object.keys(record).length !== keys.length) return false;
+  const titles: string[] = [];
+  for (const key of keys) {
+    const title = record[key];
+    if (typeof title !== "string" || !title.trim() || title.length > 100
+      || /[\[\]:*?\/\\\u0000-\u001f]/u.test(title)) return false;
+    titles.push(title.trim());
+  }
+  return new Set(titles.map((title) => title.toLocaleLowerCase())).size === keys.length;
+}
+
+function snapshotDestinationKey(index: number): typeof SNAPSHOT_MAPPING_KEYS[number] {
+  const key = SNAPSHOT_MAPPING_KEYS[index];
+  if (!key) throw new GoogleSheetsError("The program snapshot does not match the configured worksheet tabs.");
+  return key;
+}
+
+function workbookSheetDefinitions(mappings: ProgramGoogleSheetsSheetMappings) {
+  return [
+    { title: mappings.applications, headers: APPLICATION_HEADERS },
+    { title: mappings.judgingResponses, headers: JUDGING_HEADERS },
+    ...PROGRAM_SNAPSHOT_SHEETS.map((sheet, index) => ({
+      title: mappings[snapshotDestinationKey(index)],
+      headers: sheet.headers,
+    })),
+  ];
 }
 
 export async function lockGoogleSheetsProgram(
@@ -230,20 +267,119 @@ async function requestJson(
   }
 }
 
+async function requestDriveJson(
+  connectors: ConnectorClient,
+  path: string,
+): Promise<Record<string, unknown>> {
+  let response: GoogleSheetsResponse;
+  try {
+    response = await connectors.proxy("google-drive", path, { method: "GET" });
+  } catch {
+    throw new GoogleSheetsError("Google Drive could not be reached. Check the connected Google account and retry.");
+  }
+  if (!response.ok) {
+    const status = response.status;
+    if (status === 401 || status === 403) {
+      throw new GoogleSheetsError("The connected Google account cannot list spreadsheets. Check its Drive access and retry.", status);
+    }
+    throw new GoogleSheetsError(
+      status === 429 || status >= 500
+        ? `Google Drive is temporarily unavailable (HTTP ${status}).`
+        : `Google Drive rejected the request (HTTP ${status}).`,
+      status,
+    );
+  }
+  try {
+    const value: unknown = await response.json();
+    if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("invalid response");
+    return value as Record<string, unknown>;
+  } catch {
+    throw new GoogleSheetsError("Google Drive returned an unreadable response.");
+  }
+}
+
+export async function listGoogleSheetsWorkbooks(
+  input: { search?: string; pageToken?: string },
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<{
+  items: { spreadsheetId: string; title: string; url: string; modifiedAt: string | null }[];
+  nextPageToken: string | null;
+}> {
+  const escapedSearch = input.search?.trim()
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+  const query = [
+    `mimeType = '${SPREADSHEET_MIME_TYPE}'`,
+    "trashed = false",
+    ...(escapedSearch ? [`name contains '${escapedSearch}'`] : []),
+  ].join(" and ");
+  const params = new URLSearchParams({
+    q: query,
+    fields: "nextPageToken,files(id,name,webViewLink,modifiedTime)",
+    pageSize: "100",
+    orderBy: "modifiedTime desc",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+  });
+  if (input.pageToken) params.set("pageToken", input.pageToken);
+  const response = await requestDriveJson(connectors, `/drive/v3/files?${params.toString()}`);
+  const files = Array.isArray(response.files) ? response.files : [];
+  const items = files.flatMap((file) => {
+    if (typeof file !== "object" || file === null) return [];
+    const item = file as Record<string, unknown>;
+    if (typeof item.id !== "string" || typeof item.name !== "string") return [];
+    return [{
+      spreadsheetId: item.id,
+      title: item.name,
+      url: typeof item.webViewLink === "string"
+        ? item.webViewLink
+        : `https://docs.google.com/spreadsheets/d/${encodeURIComponent(item.id)}/edit`,
+      modifiedAt: typeof item.modifiedTime === "string" ? item.modifiedTime : null,
+    }];
+  });
+  return {
+    items,
+    nextPageToken: typeof response.nextPageToken === "string" ? response.nextPageToken : null,
+  };
+}
+
+export async function listProgramSpreadsheetTabs(
+  spreadsheetId: string,
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<{ title: string; sheetId: number }[]> {
+  return (await getProgramSpreadsheetInfo(spreadsheetId, connectors)).tabs;
+}
+
+export async function getProgramSpreadsheetInfo(
+  spreadsheetId: string,
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<{ title: string; tabs: { title: string; sheetId: number }[] }> {
+  const metadata = await requestJson(
+    connectors,
+    googleSheetsPath(spreadsheetId, "?fields=properties(title),sheets(properties(sheetId,title))"),
+    "GET",
+  );
+  if (typeof metadata.properties !== "object" || metadata.properties === null
+    || !("title" in metadata.properties) || typeof metadata.properties.title !== "string") {
+    throw new GoogleSheetsError("Google Sheets did not return the selected spreadsheet title.");
+  }
+  return {
+    title: metadata.properties.title,
+    tabs: sheetMetadata(metadata).map(({ title, sheetId }) => ({ title, sheetId })),
+  };
+}
+
 export async function createProgramSpreadsheet(
   programName: string,
   connectors: ConnectorClient = new ReplitConnectors(),
+  mappings: ProgramGoogleSheetsSheetMappings = DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
 ): Promise<{ spreadsheetId: string; spreadsheetUrl: string; title: string }> {
   const title = `${programName.slice(0, 180)} — Program records`;
   const created = await requestJson(connectors, "/v4/spreadsheets", "POST", {
     properties: { title },
-    sheets: [
-      { properties: { title: APPLICATIONS_SHEET, gridProperties: { frozenRowCount: 1, hideGridlines: true } } },
-      { properties: { title: JUDGING_RESPONSES_SHEET, gridProperties: { frozenRowCount: 1, hideGridlines: true } } },
-      ...PROGRAM_SNAPSHOT_SHEETS.map(({ title }) => ({
-        properties: { title, gridProperties: { frozenRowCount: 1, hideGridlines: true } },
-      })),
-    ],
+    sheets: workbookSheetDefinitions(mappings).map(({ title: sheetTitle }) => ({
+      properties: { title: sheetTitle, gridProperties: { frozenRowCount: 1, hideGridlines: true } },
+    })),
   });
   if (typeof created.spreadsheetId !== "string") {
     throw new GoogleSheetsError("Google Sheets did not return a spreadsheet ID. Check Google Drive before retrying.");
@@ -256,14 +392,10 @@ export async function createProgramSpreadsheet(
 
   await requestJson(connectors, googleSheetsPath(spreadsheetId, "/values:batchUpdate"), "POST", {
     valueInputOption: "RAW",
-    data: [
-      { range: `${APPLICATIONS_SHEET}!A1:O1`, values: [APPLICATION_HEADERS] },
-      { range: `'${JUDGING_RESPONSES_SHEET}'!A1:J1`, values: [JUDGING_HEADERS] },
-      ...PROGRAM_SNAPSHOT_SHEETS.map(({ title, headers }) => ({
-        range: `'${title}'!A1:${String.fromCharCode(64 + headers.length)}1`,
-        values: [headers],
-      })),
-    ],
+    data: workbookSheetDefinitions(mappings).map(({ title: sheetTitle, headers }) => ({
+      range: `${quotedSheetTitle(sheetTitle)}!A1:${columnLabel(headers.length)}1`,
+      values: [headers],
+    })),
   });
 
   return { spreadsheetId, spreadsheetUrl, title };
@@ -272,6 +404,7 @@ export async function createProgramSpreadsheet(
 export async function ensureProgramSpreadsheetTabs(
   spreadsheetId: string,
   connectors: ConnectorClient = new ReplitConnectors(),
+  mappings: ProgramGoogleSheetsSheetMappings = DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
 ): Promise<void> {
   const metadata = await requestJson(
     connectors,
@@ -289,7 +422,7 @@ export async function ensureProgramSpreadsheetTabs(
       })
       : [],
   );
-  const missing = PROGRAM_SNAPSHOT_SHEETS.filter(({ title }) => !existingTitles.has(title));
+  const missing = workbookSheetDefinitions(mappings).filter(({ title }) => !existingTitles.has(title));
   if (!missing.length) return;
   await requestJson(connectors, googleSheetsPath(spreadsheetId, ":batchUpdate"), "POST", {
     requests: missing.map(({ title }) => ({
@@ -299,10 +432,42 @@ export async function ensureProgramSpreadsheetTabs(
   await requestJson(connectors, googleSheetsPath(spreadsheetId, "/values:batchUpdate"), "POST", {
     valueInputOption: "RAW",
     data: missing.map(({ title, headers }) => ({
-      range: `'${title}'!A1:${String.fromCharCode(64 + headers.length)}1`,
+      range: `${quotedSheetTitle(title)}!A1:${columnLabel(headers.length)}1`,
       values: [headers],
     })),
   });
+}
+
+export async function clearProgramSpreadsheetData(
+  spreadsheetId: string,
+  mappings: ProgramGoogleSheetsSheetMappings,
+  connectors: ConnectorClient = new ReplitConnectors(),
+): Promise<void> {
+  const ranges = [
+    `${quotedSheetTitle(mappings.applications)}!A:O`,
+    `${quotedSheetTitle(mappings.judgingResponses)}!A:J`,
+    ...PROGRAM_SNAPSHOT_SHEETS.map((sheet, index) => (
+      `${quotedSheetTitle(mappings[snapshotDestinationKey(index)])}!A:${columnLabel(sheet.headers.length)}`
+    )),
+  ];
+  await requestJson(
+    connectors,
+    googleSheetsPath(spreadsheetId, "/values:batchClear"),
+    "POST",
+    { ranges },
+  );
+  await requestJson(
+    connectors,
+    googleSheetsPath(spreadsheetId, "/values:batchUpdate"),
+    "POST",
+    {
+      valueInputOption: "RAW",
+      data: workbookSheetDefinitions(mappings).map(({ title, headers }) => ({
+        range: `${quotedSheetTitle(title)}!A1:${columnLabel(headers.length)}1`,
+        values: [headers],
+      })),
+    },
+  );
 }
 
 export async function queueGoogleSheetsEvent(
@@ -514,9 +679,14 @@ async function loadJudgingResponseRow(sourceId: number, programId: number) {
   return row ? judgingResponseSheetRow(row) : null;
 }
 
-function rowRange(sourceType: SourceType, row: number): string {
-  if (sourceType === "program_snapshot") throw new Error("Snapshot events do not use row-level ranges.");
-  return sourceType === "application" ? `${APPLICATIONS_SHEET}!A${row}:O${row}` : `'${JUDGING_RESPONSES_SHEET}'!A${row}:J${row}`;
+export function rowRange(
+  sourceType: Exclude<SourceType, "program_snapshot">,
+  row: number,
+  mappings: ProgramGoogleSheetsSheetMappings,
+): string {
+  const title = sourceType === "application" ? mappings.applications : mappings.judgingResponses;
+  const lastColumn = sourceType === "application" ? "O" : "J";
+  return `${quotedSheetTitle(title)}!A${row}:${lastColumn}${row}`;
 }
 
 type ClaimedEvent = {
@@ -591,10 +761,13 @@ async function writeBatch(
     operations: programGoogleSheetsConnectionsTable.exportOperations,
     mentoringGrants: programGoogleSheetsConnectionsTable.exportMentoringGrants,
     chats: programGoogleSheetsConnectionsTable.exportChats,
+    sheetMappings: programGoogleSheetsConnectionsTable.sheetMappings,
   }).from(programGoogleSheetsConnectionsTable)
     .where(eq(programGoogleSheetsConnectionsTable.programId, events[0]!.programId))
     .limit(1);
   const businessTeamEnabled = exportSettings?.businessTeam ?? true;
+  const mappings = exportSettings?.sheetMappings ?? DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS;
+  await ensureProgramSpreadsheetTabs(events[0]!.spreadsheetId, connectors, mappings);
   for (const event of events) {
     if (event.sourceType === "program_snapshot") continue;
     if (!businessTeamEnabled) continue;
@@ -604,10 +777,9 @@ async function writeBatch(
     if (!values) {
       throw new GoogleSheetsError("A queued source record is no longer available. The platform record is unchanged.");
     }
-    entries.push({ range: rowRange(event.sourceType, event.sheetRow), values: [values] });
+    entries.push({ range: rowRange(event.sourceType, event.sheetRow, mappings), values: [values] });
   }
   if (snapshots.length) {
-    await ensureProgramSpreadsheetTabs(events[0]!.spreadsheetId, connectors);
     const categories = exportSettings ?? {
       businessTeam: true,
       operations: true,
@@ -615,13 +787,16 @@ async function writeBatch(
       chats: true,
     };
     const sheets = await loadProgramSnapshotSheets(snapshots[0]!.programId, categories);
-    await writeProgramSnapshotSnapshot(events[0]!.spreadsheetId, sheets, connectors);
+    await writeProgramSnapshotSnapshot(events[0]!.spreadsheetId, sheets, connectors, mappings);
     if (!businessTeamEnabled) {
       await requestJson(
         connectors,
         googleSheetsPath(events[0]!.spreadsheetId, "/values:batchClear"),
         "POST",
-        { ranges: [`${APPLICATIONS_SHEET}!A2:O`, `'${JUDGING_RESPONSES_SHEET}'!A2:J`] },
+        { ranges: [
+          `${quotedSheetTitle(mappings.applications)}!A2:O`,
+          `${quotedSheetTitle(mappings.judgingResponses)}!A2:J`,
+        ] },
       );
     }
   }
@@ -643,6 +818,7 @@ export async function writeProgramSnapshotSnapshot(
   spreadsheetId: string,
   sheets: SnapshotSheetValues[],
   connectors: ConnectorClient = new ReplitConnectors(),
+  mappings: ProgramGoogleSheetsSheetMappings = DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
 ): Promise<void> {
   if (sheets.length !== PROGRAM_SNAPSHOT_SHEETS.length
     || sheets.some((sheet, index) => sheet.title !== PROGRAM_SNAPSHOT_SHEETS[index]?.title)) {
@@ -656,9 +832,10 @@ export async function writeProgramSnapshotSnapshot(
   );
   const existing = sheetMetadata(metadataResponse);
   const byTitle = new Map(existing.map((sheet) => [sheet.title, sheet]));
-  const targetSheets = sheets.map((sheet) => {
-    const target = byTitle.get(sheet.title);
-    if (!target) throw new GoogleSheetsError(`The Google Sheets tab “${sheet.title}” is unavailable.`);
+  const targetSheets = sheets.map((sheet, index) => {
+    const title = mappings[snapshotDestinationKey(index)];
+    const target = byTitle.get(title);
+    if (!target) throw new GoogleSheetsError(`The Google Sheets tab “${title}” is unavailable.`);
     return target;
   });
 

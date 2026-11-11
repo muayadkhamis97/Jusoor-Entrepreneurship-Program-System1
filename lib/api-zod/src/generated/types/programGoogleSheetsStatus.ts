@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProgramGoogleSheetsExportCategories } from './programGoogleSheetsExportCategories';
+import type { ProgramGoogleSheetsSheetMappings } from './programGoogleSheetsSheetMappings';
 import type { ProgramGoogleSheetsStatusStatus } from './programGoogleSheetsStatusStatus';
 
 export interface ProgramGoogleSheetsStatus {
@@ -29,4 +30,5 @@ export interface ProgramGoogleSheetsStatus {
   /** @minimum 0 */
   failedCount: number;
   exportCategories: ProgramGoogleSheetsExportCategories;
+  sheetMappings: ProgramGoogleSheetsSheetMappings;
 }

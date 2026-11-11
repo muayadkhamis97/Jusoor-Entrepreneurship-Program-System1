@@ -6961,6 +6961,18 @@ export const getProgramGoogleSheetsStatusesResponsePendingCountMin = 0;
 
 export const getProgramGoogleSheetsStatusesResponseFailedCountMin = 0;
 
+export const getProgramGoogleSheetsStatusesResponseSheetMappingsApplicationsMax = 100;
+
+export const getProgramGoogleSheetsStatusesResponseSheetMappingsJudgingResponsesMax = 100;
+
+export const getProgramGoogleSheetsStatusesResponseSheetMappingsBusinessTeamMax = 100;
+
+export const getProgramGoogleSheetsStatusesResponseSheetMappingsOperationsMax = 100;
+
+export const getProgramGoogleSheetsStatusesResponseSheetMappingsMentoringGrantsMax = 100;
+
+export const getProgramGoogleSheetsStatusesResponseSheetMappingsChatsMax = 100;
+
 
 
 export const GetProgramGoogleSheetsStatusesResponseItem = zod.object({
@@ -6980,22 +6992,75 @@ export const GetProgramGoogleSheetsStatusesResponseItem = zod.object({
   "operations": zod.boolean(),
   "mentoringGrants": zod.boolean(),
   "chats": zod.boolean()
+}),
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(getProgramGoogleSheetsStatusesResponseSheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(getProgramGoogleSheetsStatusesResponseSheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(getProgramGoogleSheetsStatusesResponseSheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(getProgramGoogleSheetsStatusesResponseSheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(getProgramGoogleSheetsStatusesResponseSheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(getProgramGoogleSheetsStatusesResponseSheetMappingsChatsMax)
 })
 })
 export const GetProgramGoogleSheetsStatusesResponse = zod.array(GetProgramGoogleSheetsStatusesResponseItem)
 
 
 /**
- * Existing workbooks refresh only categories enabled in their program settings. Private and business-team chat content can be included when chat export is enabled.
- * @summary Create or refresh a program workbook using its selected categories
+ * Choose a new workbook or an accessible existing spreadsheet and map each data category to its own worksheet tab.
+ * @summary Create or link a program workbook and queue its initial sync
  */
 export const CreateProgramGoogleSheetsConnectionParams = zod.object({
   "programId": zod.coerce.number().int()
 })
 
+export const createProgramGoogleSheetsConnectionBodySpreadsheetIdMin = 10;
+export const createProgramGoogleSheetsConnectionBodySpreadsheetIdMax = 200;
+
+
+export const createProgramGoogleSheetsConnectionBodySpreadsheetIdRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+export const createProgramGoogleSheetsConnectionBodySheetMappingsApplicationsMax = 100;
+
+export const createProgramGoogleSheetsConnectionBodySheetMappingsJudgingResponsesMax = 100;
+
+export const createProgramGoogleSheetsConnectionBodySheetMappingsBusinessTeamMax = 100;
+
+export const createProgramGoogleSheetsConnectionBodySheetMappingsOperationsMax = 100;
+
+export const createProgramGoogleSheetsConnectionBodySheetMappingsMentoringGrantsMax = 100;
+
+export const createProgramGoogleSheetsConnectionBodySheetMappingsChatsMax = 100;
+
+
+
+export const CreateProgramGoogleSheetsConnectionBody = zod.object({
+  "mode": zod.enum(['create', 'existing']),
+  "spreadsheetId": zod.string().min(createProgramGoogleSheetsConnectionBodySpreadsheetIdMin).max(createProgramGoogleSheetsConnectionBodySpreadsheetIdMax).regex(createProgramGoogleSheetsConnectionBodySpreadsheetIdRegExp).optional(),
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(createProgramGoogleSheetsConnectionBodySheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(createProgramGoogleSheetsConnectionBodySheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(createProgramGoogleSheetsConnectionBodySheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(createProgramGoogleSheetsConnectionBodySheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(createProgramGoogleSheetsConnectionBodySheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(createProgramGoogleSheetsConnectionBodySheetMappingsChatsMax)
+}),
+  "confirmedOverwrite": zod.boolean().optional()
+})
+
 export const createProgramGoogleSheetsConnectionResponsePendingCountMin = 0;
 
 export const createProgramGoogleSheetsConnectionResponseFailedCountMin = 0;
+
+export const createProgramGoogleSheetsConnectionResponseSheetMappingsApplicationsMax = 100;
+
+export const createProgramGoogleSheetsConnectionResponseSheetMappingsJudgingResponsesMax = 100;
+
+export const createProgramGoogleSheetsConnectionResponseSheetMappingsBusinessTeamMax = 100;
+
+export const createProgramGoogleSheetsConnectionResponseSheetMappingsOperationsMax = 100;
+
+export const createProgramGoogleSheetsConnectionResponseSheetMappingsMentoringGrantsMax = 100;
+
+export const createProgramGoogleSheetsConnectionResponseSheetMappingsChatsMax = 100;
 
 
 
@@ -7016,6 +7081,14 @@ export const CreateProgramGoogleSheetsConnectionResponse = zod.object({
   "operations": zod.boolean(),
   "mentoringGrants": zod.boolean(),
   "chats": zod.boolean()
+}),
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(createProgramGoogleSheetsConnectionResponseSheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(createProgramGoogleSheetsConnectionResponseSheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(createProgramGoogleSheetsConnectionResponseSheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(createProgramGoogleSheetsConnectionResponseSheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(createProgramGoogleSheetsConnectionResponseSheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(createProgramGoogleSheetsConnectionResponseSheetMappingsChatsMax)
 })
 })
 
@@ -7028,6 +7101,148 @@ export const DisconnectProgramGoogleSheetsParams = zod.object({
 })
 
 export const DisconnectProgramGoogleSheetsResponse = zod.void()
+
+
+/**
+ * @summary List spreadsheets available to the connected Google account
+ */
+export const ListProgramGoogleSheetsWorkbooksParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const listProgramGoogleSheetsWorkbooksQueryQMax = 100;
+
+export const listProgramGoogleSheetsWorkbooksQueryPageTokenMax = 4096;
+
+
+
+export const ListProgramGoogleSheetsWorkbooksQueryParams = zod.object({
+  "q": zod.coerce.string().max(listProgramGoogleSheetsWorkbooksQueryQMax).optional(),
+  "pageToken": zod.coerce.string().max(listProgramGoogleSheetsWorkbooksQueryPageTokenMax).optional()
+})
+
+export const listProgramGoogleSheetsWorkbooksResponseItemsItemSpreadsheetIdMin = 10;
+export const listProgramGoogleSheetsWorkbooksResponseItemsItemSpreadsheetIdMax = 200;
+
+
+
+export const ListProgramGoogleSheetsWorkbooksResponse = zod.object({
+  "items": zod.array(zod.object({
+  "spreadsheetId": zod.string().min(listProgramGoogleSheetsWorkbooksResponseItemsItemSpreadsheetIdMin).max(listProgramGoogleSheetsWorkbooksResponseItemsItemSpreadsheetIdMax),
+  "title": zod.string(),
+  "url": zod.url().nullable(),
+  "modifiedAt": zod.coerce.date().nullish()
+})),
+  "nextPageToken": zod.string().nullable()
+})
+
+
+/**
+ * @summary List worksheet tabs in an accessible spreadsheet
+ */
+export const listProgramGoogleSheetsWorkbookTabsPathSpreadsheetIdMin = 10;
+export const listProgramGoogleSheetsWorkbookTabsPathSpreadsheetIdMax = 200;
+
+
+export const listProgramGoogleSheetsWorkbookTabsPathSpreadsheetIdRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+
+
+export const ListProgramGoogleSheetsWorkbookTabsParams = zod.object({
+  "programId": zod.coerce.number().int(),
+  "spreadsheetId": zod.coerce.string().min(listProgramGoogleSheetsWorkbookTabsPathSpreadsheetIdMin).max(listProgramGoogleSheetsWorkbookTabsPathSpreadsheetIdMax).regex(listProgramGoogleSheetsWorkbookTabsPathSpreadsheetIdRegExp)
+})
+
+export const listProgramGoogleSheetsWorkbookTabsResponseSheetIdMin = 0;
+
+export const listProgramGoogleSheetsWorkbookTabsResponseTitleMax = 100;
+
+
+
+export const ListProgramGoogleSheetsWorkbookTabsResponseItem = zod.object({
+  "sheetId": zod.int().min(listProgramGoogleSheetsWorkbookTabsResponseSheetIdMin),
+  "title": zod.string().min(1).max(listProgramGoogleSheetsWorkbookTabsResponseTitleMax)
+})
+export const ListProgramGoogleSheetsWorkbookTabsResponse = zod.array(ListProgramGoogleSheetsWorkbookTabsResponseItem)
+
+
+/**
+ * @summary Save worksheet tabs for a connected program workbook
+ */
+export const UpdateProgramGoogleSheetsSheetMappingsParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const updateProgramGoogleSheetsSheetMappingsBodySheetMappingsApplicationsMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsBodySheetMappingsJudgingResponsesMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsBodySheetMappingsBusinessTeamMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsBodySheetMappingsOperationsMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsBodySheetMappingsMentoringGrantsMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsBodySheetMappingsChatsMax = 100;
+
+
+
+export const UpdateProgramGoogleSheetsSheetMappingsBody = zod.object({
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsBodySheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsBodySheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsBodySheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsBodySheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsBodySheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsBodySheetMappingsChatsMax)
+}),
+  "confirmedOverwrite": zod.literal(true)
+})
+
+export const updateProgramGoogleSheetsSheetMappingsResponsePendingCountMin = 0;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseFailedCountMin = 0;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsApplicationsMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsJudgingResponsesMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsBusinessTeamMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsOperationsMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsMentoringGrantsMax = 100;
+
+export const updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsChatsMax = 100;
+
+
+
+export const UpdateProgramGoogleSheetsSheetMappingsResponse = zod.object({
+  "programId": zod.int(),
+  "programName": zod.string(),
+  "status": zod.enum(['not_connected', 'syncing', 'connected', 'needs_attention']),
+  "spreadsheetId": zod.string().nullable(),
+  "spreadsheetUrl": zod.url().nullable(),
+  "spreadsheetTitle": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "pendingCount": zod.int().min(updateProgramGoogleSheetsSheetMappingsResponsePendingCountMin),
+  "failedCount": zod.int().min(updateProgramGoogleSheetsSheetMappingsResponseFailedCountMin),
+  "exportCategories": zod.object({
+  "businessTeam": zod.boolean(),
+  "operations": zod.boolean(),
+  "mentoringGrants": zod.boolean(),
+  "chats": zod.boolean()
+}),
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(updateProgramGoogleSheetsSheetMappingsResponseSheetMappingsChatsMax)
+})
+})
 
 
 /**
@@ -7050,6 +7265,18 @@ export const updateProgramGoogleSheetsCategoriesResponsePendingCountMin = 0;
 
 export const updateProgramGoogleSheetsCategoriesResponseFailedCountMin = 0;
 
+export const updateProgramGoogleSheetsCategoriesResponseSheetMappingsApplicationsMax = 100;
+
+export const updateProgramGoogleSheetsCategoriesResponseSheetMappingsJudgingResponsesMax = 100;
+
+export const updateProgramGoogleSheetsCategoriesResponseSheetMappingsBusinessTeamMax = 100;
+
+export const updateProgramGoogleSheetsCategoriesResponseSheetMappingsOperationsMax = 100;
+
+export const updateProgramGoogleSheetsCategoriesResponseSheetMappingsMentoringGrantsMax = 100;
+
+export const updateProgramGoogleSheetsCategoriesResponseSheetMappingsChatsMax = 100;
+
 
 
 export const UpdateProgramGoogleSheetsCategoriesResponse = zod.object({
@@ -7069,6 +7296,14 @@ export const UpdateProgramGoogleSheetsCategoriesResponse = zod.object({
   "operations": zod.boolean(),
   "mentoringGrants": zod.boolean(),
   "chats": zod.boolean()
+}),
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(updateProgramGoogleSheetsCategoriesResponseSheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(updateProgramGoogleSheetsCategoriesResponseSheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(updateProgramGoogleSheetsCategoriesResponseSheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(updateProgramGoogleSheetsCategoriesResponseSheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(updateProgramGoogleSheetsCategoriesResponseSheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(updateProgramGoogleSheetsCategoriesResponseSheetMappingsChatsMax)
 })
 })
 
@@ -7083,6 +7318,18 @@ export const RetryProgramGoogleSheetsSyncParams = zod.object({
 export const retryProgramGoogleSheetsSyncResponsePendingCountMin = 0;
 
 export const retryProgramGoogleSheetsSyncResponseFailedCountMin = 0;
+
+export const retryProgramGoogleSheetsSyncResponseSheetMappingsApplicationsMax = 100;
+
+export const retryProgramGoogleSheetsSyncResponseSheetMappingsJudgingResponsesMax = 100;
+
+export const retryProgramGoogleSheetsSyncResponseSheetMappingsBusinessTeamMax = 100;
+
+export const retryProgramGoogleSheetsSyncResponseSheetMappingsOperationsMax = 100;
+
+export const retryProgramGoogleSheetsSyncResponseSheetMappingsMentoringGrantsMax = 100;
+
+export const retryProgramGoogleSheetsSyncResponseSheetMappingsChatsMax = 100;
 
 
 
@@ -7103,6 +7350,14 @@ export const RetryProgramGoogleSheetsSyncResponse = zod.object({
   "operations": zod.boolean(),
   "mentoringGrants": zod.boolean(),
   "chats": zod.boolean()
+}),
+  "sheetMappings": zod.object({
+  "applications": zod.string().min(1).max(retryProgramGoogleSheetsSyncResponseSheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(retryProgramGoogleSheetsSyncResponseSheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(retryProgramGoogleSheetsSyncResponseSheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(retryProgramGoogleSheetsSyncResponseSheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(retryProgramGoogleSheetsSyncResponseSheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(retryProgramGoogleSheetsSyncResponseSheetMappingsChatsMax)
 })
 })
 

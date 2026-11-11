@@ -3,10 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetProgramGoogleSheetsStatusesQueryKey,
   type ProgramGoogleSheetsExportCategories,
+  type ProgramGoogleSheetsSheetMappings,
   useCreateProgramGoogleSheetsConnection,
   useGetProgramGoogleSheetsStatuses,
   useRetryProgramGoogleSheetsSync,
   useUpdateProgramGoogleSheetsCategories,
+  useUpdateProgramGoogleSheetsSheetMappings,
 } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
@@ -14,11 +16,20 @@ import { Rule } from '@workspace/program-editorial/components/ui/rule';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
 import { AlertTriangle, Check, ExternalLink, FileSpreadsheet, LockKeyhole, RotateCw } from 'lucide-react';
+import { GoogleSheetsSetupDialog } from './google-sheets-setup-dialog';
 import { t, useAppLanguage } from './language';
 import './google-sheets.css';
 
 type SheetStatus = 'not_connected' | 'syncing' | 'connected' | 'needs_attention';
 type ActionFeedback = { kind: 'error' | 'success'; message: string };
+type SetupProgram = {
+  programId: number;
+  programName: string;
+  spreadsheetId: string | null;
+  spreadsheetTitle: string | null;
+  sheetMappings: ProgramGoogleSheetsSheetMappings;
+  chatsEnabled: boolean;
+};
 
 const statusCopy: Record<SheetStatus, [string, string]> = {
   not_connected: ['Not connected', 'غير متصل'],
@@ -31,6 +42,19 @@ const formatDate = (value: string | null, locale: string) => value
   ? new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
   : null;
 
+const mappingLabels: {
+  key: keyof ProgramGoogleSheetsSheetMappings;
+  english: string;
+  arabic: string;
+}[] = [
+  { key: 'applications', english: 'Applications', arabic: 'الطلبات' },
+  { key: 'judgingResponses', english: 'Judging responses', arabic: 'تقييمات الحكام' },
+  { key: 'businessTeam', english: 'Businesses and teams', arabic: 'الأعمال والفِرق' },
+  { key: 'operations', english: 'Program operations', arabic: 'عمليات البرنامج' },
+  { key: 'mentoringGrants', english: 'Mentoring and grants', arabic: 'الإرشاد والمنح' },
+  { key: 'chats', english: 'Chats', arabic: 'المحادثات' },
+];
+
 export function GoogleSheetsPage() {
   const { language } = useAppLanguage();
   const ar = language === 'ar';
@@ -42,19 +66,83 @@ export function GoogleSheetsPage() {
     query: { queryKey, refetchInterval: 15_000, refetchOnWindowFocus: true },
   });
   const createConnection = useCreateProgramGoogleSheetsConnection();
+  const updateSheetMappings = useUpdateProgramGoogleSheetsSheetMappings();
   const retrySync = useRetryProgramGoogleSheetsSync();
   const updateCategories = useUpdateProgramGoogleSheetsCategories();
   const [feedback, setFeedback] = useState<Record<number, ActionFeedback>>({});
   const [categoryDrafts, setCategoryDrafts] = useState<Record<number, ProgramGoogleSheetsExportCategories>>({});
+  const [setupProgram, setSetupProgram] = useState<SetupProgram | null>(null);
   const statuses = statusesQuery.data ?? [];
 
+  const openSetup = (program: NonNullable<typeof statusesQuery.data>[number]) => {
+    setSetupProgram({
+      programId: program.programId,
+      programName: program.programName,
+      spreadsheetId: program.spreadsheetId,
+      spreadsheetTitle: program.spreadsheetTitle,
+      sheetMappings: program.sheetMappings,
+      chatsEnabled: program.exportCategories.chats,
+    });
+  };
+
+  const saveDestination = async (input: {
+    mode: 'create' | 'existing';
+    spreadsheetId?: string;
+    sheetMappings: ProgramGoogleSheetsSheetMappings;
+    confirmedOverwrite: boolean;
+  }) => {
+    if (!setupProgram) return;
+    if (input.mode === 'existing' && setupProgram.spreadsheetId === input.spreadsheetId) {
+      await updateSheetMappings.mutateAsync({
+        programId: setupProgram.programId,
+        data: { sheetMappings: input.sheetMappings, confirmedOverwrite: true },
+      });
+      return;
+    }
+    await createConnection.mutateAsync({
+      programId: setupProgram.programId,
+      data: {
+        mode: input.mode,
+        ...(input.spreadsheetId ? { spreadsheetId: input.spreadsheetId } : {}),
+        sheetMappings: input.sheetMappings,
+        confirmedOverwrite: input.confirmedOverwrite,
+      },
+    });
+  };
+
+  const finishSetup = () => {
+    if (!setupProgram) return;
+    setFeedback(current => ({
+      ...current,
+      [setupProgram.programId]: {
+        kind: 'success',
+        message: copy('Destination saved. Program records are being synchronized.', 'تم حفظ الوجهة. تجري مزامنة سجلات البرنامج.'),
+      },
+    }));
+    void queryClient.invalidateQueries({ queryKey });
+    setSetupProgram(null);
+  };
+
   const connect = (programId: number) => {
+    const program = statuses.find(item => item.programId === programId);
+    if (!program?.spreadsheetId) {
+      if (program) openSetup(program);
+      return;
+    }
     setFeedback(current => {
       const next = { ...current };
       delete next[programId];
       return next;
     });
-    createConnection.mutate({ programId }, {
+    createConnection.mutate({
+      programId,
+      data: {
+        mode: 'existing',
+        spreadsheetId: program.spreadsheetId,
+        sheetMappings: program.sheetMappings,
+        confirmedOverwrite: true,
+      },
+    }, {
       onSuccess: () => {
         setFeedback(current => ({
           ...current,
@@ -217,13 +305,18 @@ export function GoogleSheetsPage() {
                     </div>
                     <div className="gs-card-action">
                       {status === 'not_connected' && (
-                        <Button onClick={() => connect(program.programId)} disabled={createConnection.isPending || retrySync.isPending} data-testid={`button-connect-google-sheets-${program.programId}`}>
-                          {isCreating ? copy('Creating workbook…', 'جارٍ إنشاء جدول البيانات…') : copy('Connect Google Sheets', 'ربط جداول بيانات Google')}
+                        <Button onClick={() => openSetup(program)} disabled={createConnection.isPending || retrySync.isPending} data-testid={`button-connect-google-sheets-${program.programId}`}>
+                          {copy('Choose spreadsheet and tabs', 'اختيار جدول البيانات والتبويبات')}
                         </Button>
                       )}
                       {status !== 'not_connected' && (
                         <Button variant="text" onClick={() => connect(program.programId)} disabled={createConnection.isPending || retrySync.isPending} data-testid={`button-sync-all-google-sheets-${program.programId}`}>
                           <RotateCw size={14} aria-hidden="true" />{isCreating ? copy('Queueing refresh…', 'جارٍ جدولة التحديث…') : copy('Refresh enabled data', 'تحديث البيانات المفعّلة')}
+                        </Button>
+                      )}
+                      {status !== 'not_connected' && (
+                        <Button variant="text" onClick={() => openSetup(program)} disabled={createConnection.isPending || updateSheetMappings.isPending} data-testid={`button-configure-google-sheets-${program.programId}`}>
+                          {copy('Choose spreadsheet and tabs', 'اختيار جدول البيانات والتبويبات')}
                         </Button>
                       )}
                       {status === 'needs_attention' && (
@@ -255,6 +348,20 @@ export function GoogleSheetsPage() {
                       <div className="gs-last-sync"><span className="gs-detail-label">{copy('LAST SYNC', 'آخر مزامنة')}</span><strong data-testid={`text-google-sheets-last-synced-${program.programId}`}>{syncedAt ?? copy('Not synced yet', 'لم تتم المزامنة بعد')}</strong></div>
                     </div>
                   </div>
+
+                  {status !== 'not_connected' && (
+                    <details className="gs-mapping-details">
+                      <summary>{copy('Worksheet tabs', 'تبويبات البيانات')}</summary>
+                      <dl>
+                        {mappingLabels.map(({ key, english, arabic }) => (
+                          <div key={key}>
+                            <dt>{copy(english, arabic)}</dt>
+                            <dd>{program.sheetMappings[key]}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </details>
+                  )}
 
                   <fieldset className="gs-categories" data-testid={`fieldset-google-sheets-categories-${program.programId}`}>
                     <legend>{copy('Data included in this workbook', 'البيانات المُدرجة في جدول البيانات')}</legend>
@@ -307,6 +414,17 @@ export function GoogleSheetsPage() {
           </div>
         )}
       </section>
+      {setupProgram && (
+        <GoogleSheetsSetupDialog
+          key={setupProgram.programId}
+          program={setupProgram}
+          open
+          saving={createConnection.isPending || updateSheetMappings.isPending}
+          onOpenChange={open => { if (!open) setSetupProgram(null); }}
+          onSave={saveDestination}
+          onSaved={finishSetup}
+        />
+      )}
     </PaperSurface>
   );
 }

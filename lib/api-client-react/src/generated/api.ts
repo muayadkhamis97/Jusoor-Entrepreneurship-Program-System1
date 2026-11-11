@@ -99,6 +99,8 @@ import type {
   GetXapiActivityStateParams,
   GetXapiStatementsParams,
   GoogleCalendarAuthorizationInput,
+  GoogleSheetsTab,
+  GoogleSheetsWorkbookList,
   GrantAwardRecord,
   GrantReceiptInput,
   GrantReceiptRecord,
@@ -135,6 +137,7 @@ import type {
   ListJudgingFormResponsesParams,
   ListPitchesParams,
   ListProgramAnalyticsReportLayoutsParams,
+  ListProgramGoogleSheetsWorkbooksParams,
   ListProgramImpactKpisParams,
   ListProgramsParams,
   ListSessionsParams,
@@ -186,7 +189,9 @@ import type {
   ProgramAnalytics,
   ProgramBranding,
   ProgramBrandingInput,
+  ProgramGoogleSheetsConnectionInput,
   ProgramGoogleSheetsExportCategoriesInput,
+  ProgramGoogleSheetsSheetMappingsInput,
   ProgramGoogleSheetsStatus,
   ProgramInput,
   ProgramLifecycleEvent,
@@ -432,7 +437,7 @@ export const getSendParticipantAnnouncementReplyUrl = (id: number,
 
 export const sendParticipantAnnouncementReply = async (id: number,
     applicationId: number,
-    announcementReplyInput: AnnouncementReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementReply> => {
+    announcementReplyInput?: AnnouncementReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementReply> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -491,9 +496,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SendParticipantAnnouncementReplyMutationResult = NonNullable<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>>
-    export type SendParticipantAnnouncementReplyMutationBody = BodyType<AnnouncementReplyInput>
+    export type SendParticipantAnnouncementReplyMutationBody = BodyType<AnnouncementReplyInput> | undefined
     export type SendParticipantAnnouncementReplyMutationError = ErrorType<unknown>
-    export type SendParticipantAnnouncementReplyMutationVariables = {id: number;applicationId: number;data: BodyType<AnnouncementReplyInput>}
+    export type SendParticipantAnnouncementReplyMutationVariables = {id: number;applicationId: number;data?: BodyType<AnnouncementReplyInput>}
 
     export const useSendParticipantAnnouncementReply = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendParticipantAnnouncementReply>>, TError,SendParticipantAnnouncementReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -18036,17 +18041,32 @@ export const getCreateProgramGoogleSheetsConnectionUrl = (programId: number,) =>
 }
 
 /**
- * Existing workbooks refresh only categories enabled in their program settings. Private and business-team chat content can be included when chat export is enabled.
- * @summary Create or refresh a program workbook using its selected categories
+ * Choose a new workbook or an accessible existing spreadsheet and map each data category to its own worksheet tab.
+ * @summary Create or link a program workbook and queue its initial sync
  */
-export const createProgramGoogleSheetsConnection = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
+export const createProgramGoogleSheetsConnection = async (programId: number,
+    programGoogleSheetsConnectionInput: ProgramGoogleSheetsConnectionInput, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
 
-  return customFetch<ProgramGoogleSheetsStatus>(getCreateProgramGoogleSheetsConnectionUrl(programId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProgramGoogleSheetsStatus>(getCreateProgramGoogleSheetsConnectionUrl(programId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(programGoogleSheetsConnectionInput)
   }
 );}
 
@@ -18071,9 +18091,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, CreateProgramGoogleSheetsConnectionMutationVariables> = (props) => {
-          const {programId} = props ?? {};
+          const {programId,data} = props ?? {};
 
-          return  createProgramGoogleSheetsConnection(programId,requestOptions)
+          return  createProgramGoogleSheetsConnection(programId,data,requestOptions)
         }
 
 
@@ -18084,12 +18104,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateProgramGoogleSheetsConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>>
-
+    export type CreateProgramGoogleSheetsConnectionMutationBody = BodyType<ProgramGoogleSheetsConnectionInput>
     export type CreateProgramGoogleSheetsConnectionMutationError = ErrorType<void>
-    export type CreateProgramGoogleSheetsConnectionMutationVariables = {programId: number}
+    export type CreateProgramGoogleSheetsConnectionMutationVariables = {programId: number;data: BodyType<ProgramGoogleSheetsConnectionInput>}
 
     /**
- * @summary Create or refresh a program workbook using its selected categories
+ * @summary Create or link a program workbook and queue its initial sync
  */
 export const useCreateProgramGoogleSheetsConnection = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProgramGoogleSheetsConnection>>, TError,CreateProgramGoogleSheetsConnectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -18174,6 +18194,266 @@ export const useDisconnectProgramGoogleSheets = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDisconnectProgramGoogleSheetsMutationOptions(options));
+    }
+
+export const getListProgramGoogleSheetsWorkbooksUrl = (programId: number,
+    params?: ListProgramGoogleSheetsWorkbooksParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/google-sheets/${programId}/workbooks?${stringifiedParams}` : `/api/staff/google-sheets/${programId}/workbooks`
+}
+
+/**
+ * @summary List spreadsheets available to the connected Google account
+ */
+export const listProgramGoogleSheetsWorkbooks = async (programId: number,
+    params?: ListProgramGoogleSheetsWorkbooksParams, options?: Parameters<typeof customFetch>[1]): Promise<GoogleSheetsWorkbookList> => {
+
+  return customFetch<GoogleSheetsWorkbookList>(getListProgramGoogleSheetsWorkbooksUrl(programId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProgramGoogleSheetsWorkbooksQueryKey = (programId: number,
+    params?: ListProgramGoogleSheetsWorkbooksParams,) => {
+    return [
+    `/api/staff/google-sheets/${programId}/workbooks`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProgramGoogleSheetsWorkbooksQueryOptions = <TData = Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>, TError = ErrorType<void>>(programId: number,
+    params?: ListProgramGoogleSheetsWorkbooksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProgramGoogleSheetsWorkbooksQueryKey(programId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>> = ({ signal }) => listProgramGoogleSheetsWorkbooks(programId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: programId !== null && programId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProgramGoogleSheetsWorkbooksQueryResult = NonNullable<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>>
+export type ListProgramGoogleSheetsWorkbooksQueryError = ErrorType<void>
+
+
+/**
+ * @summary List spreadsheets available to the connected Google account
+ */
+
+export function useListProgramGoogleSheetsWorkbooks<TData = Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>, TError = ErrorType<void>>(
+ programId: number,
+    params?: ListProgramGoogleSheetsWorkbooksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbooks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProgramGoogleSheetsWorkbooksQueryOptions(programId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProgramGoogleSheetsWorkbookTabsUrl = (programId: number,
+    spreadsheetId: string,) => {
+
+
+
+
+  return `/api/staff/google-sheets/${programId}/workbooks/${spreadsheetId}/tabs`
+}
+
+/**
+ * @summary List worksheet tabs in an accessible spreadsheet
+ */
+export const listProgramGoogleSheetsWorkbookTabs = async (programId: number,
+    spreadsheetId: string, options?: Parameters<typeof customFetch>[1]): Promise<GoogleSheetsTab[]> => {
+
+  return customFetch<GoogleSheetsTab[]>(getListProgramGoogleSheetsWorkbookTabsUrl(programId,spreadsheetId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProgramGoogleSheetsWorkbookTabsQueryKey = (programId: number,
+    spreadsheetId: string,) => {
+    return [
+    `/api/staff/google-sheets/${programId}/workbooks/${spreadsheetId}/tabs`
+    ] as const;
+    }
+
+
+export const getListProgramGoogleSheetsWorkbookTabsQueryOptions = <TData = Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>, TError = ErrorType<void>>(programId: number,
+    spreadsheetId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProgramGoogleSheetsWorkbookTabsQueryKey(programId,spreadsheetId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>> = ({ signal }) => listProgramGoogleSheetsWorkbookTabs(programId,spreadsheetId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: programId !== null && programId !== undefined && spreadsheetId !== null && spreadsheetId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProgramGoogleSheetsWorkbookTabsQueryResult = NonNullable<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>>
+export type ListProgramGoogleSheetsWorkbookTabsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List worksheet tabs in an accessible spreadsheet
+ */
+
+export function useListProgramGoogleSheetsWorkbookTabs<TData = Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>, TError = ErrorType<void>>(
+ programId: number,
+    spreadsheetId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgramGoogleSheetsWorkbookTabs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProgramGoogleSheetsWorkbookTabsQueryOptions(programId,spreadsheetId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateProgramGoogleSheetsSheetMappingsUrl = (programId: number,) => {
+
+
+
+
+  return `/api/staff/google-sheets/${programId}/sheet-mappings`
+}
+
+/**
+ * @summary Save worksheet tabs for a connected program workbook
+ */
+export const updateProgramGoogleSheetsSheetMappings = async (programId: number,
+    programGoogleSheetsSheetMappingsInput: ProgramGoogleSheetsSheetMappingsInput, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProgramGoogleSheetsStatus>(getUpdateProgramGoogleSheetsSheetMappingsUrl(programId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(programGoogleSheetsSheetMappingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProgramGoogleSheetsSheetMappingsMutationKey = () => ['updateProgramGoogleSheetsSheetMappings'] as const;
+
+export const getUpdateProgramGoogleSheetsSheetMappingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramGoogleSheetsSheetMappings>>, TError,UpdateProgramGoogleSheetsSheetMappingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProgramGoogleSheetsSheetMappings>>, TError,UpdateProgramGoogleSheetsSheetMappingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateProgramGoogleSheetsSheetMappingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProgramGoogleSheetsSheetMappings>>, UpdateProgramGoogleSheetsSheetMappingsMutationVariables> = (props) => {
+          const {programId,data} = props ?? {};
+
+          return  updateProgramGoogleSheetsSheetMappings(programId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProgramGoogleSheetsSheetMappingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateProgramGoogleSheetsSheetMappings>>>
+    export type UpdateProgramGoogleSheetsSheetMappingsMutationBody = BodyType<ProgramGoogleSheetsSheetMappingsInput>
+    export type UpdateProgramGoogleSheetsSheetMappingsMutationError = ErrorType<void>
+    export type UpdateProgramGoogleSheetsSheetMappingsMutationVariables = {programId: number;data: BodyType<ProgramGoogleSheetsSheetMappingsInput>}
+
+    /**
+ * @summary Save worksheet tabs for a connected program workbook
+ */
+export const useUpdateProgramGoogleSheetsSheetMappings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProgramGoogleSheetsSheetMappings>>, TError,UpdateProgramGoogleSheetsSheetMappingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProgramGoogleSheetsSheetMappings>>,
+        TError,
+        UpdateProgramGoogleSheetsSheetMappingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateProgramGoogleSheetsSheetMappingsMutationOptions(options));
     }
 
 export const getUpdateProgramGoogleSheetsCategoriesUrl = (programId: number,) => {

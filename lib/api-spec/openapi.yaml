@@ -64,7 +64,7 @@ paths:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
         - { name: applicationId, in: path, required: true, schema: { type: integer, minimum: 1 } }
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema: { $ref: "#/components/schemas/AnnouncementReplyInput" }
@@ -4323,25 +4323,32 @@ paths:
     post:
       operationId: createProgramGoogleSheetsConnection
       tags: [staff]
-      summary: Create or refresh a program workbook using its selected categories
-      description: Existing workbooks refresh only categories enabled in their program settings. Private and business-team chat content can be included when chat export is enabled.
+      summary: Create or link a program workbook and queue its initial sync
+      description: Choose a new workbook or an accessible existing spreadsheet and map each data category to its own worksheet tab.
       parameters:
         - $ref: "#/components/parameters/ProgramId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProgramGoogleSheetsConnectionInput" }
       responses:
         "200":
-          description: Existing workbook returned with expanded synchronization queued
+          description: Workbook destination updated and sync queued
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
         "201":
-          description: Workbook created; existing program records are queued for synchronization
+          description: New workbook created; existing program records are queued
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "400":
+          description: Invalid workbook choice or worksheet mapping
         "404":
           description: Program not found or outside the staff member's scope
         "502":
-          description: Google Sheets could not create the workbook
+          description: The connected Google account could not access or create the workbook
     delete:
       operationId: disconnectProgramGoogleSheets
       tags: [staff]
@@ -4355,6 +4362,67 @@ paths:
           description: Coordinator role required
         "404":
           description: Program workbook not found
+  /staff/google-sheets/{programId}/workbooks:
+    get:
+      operationId: listProgramGoogleSheetsWorkbooks
+      tags: [staff]
+      summary: List spreadsheets available to the connected Google account
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: pageToken, in: query, required: false, schema: { type: string, maxLength: 4096 } }
+      responses:
+        "200":
+          description: Matching spreadsheet files
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoogleSheetsWorkbookList" }
+        "404":
+          description: Program not found or outside the staff member's scope
+        "502":
+          description: Google Drive could not list spreadsheets
+  /staff/google-sheets/{programId}/workbooks/{spreadsheetId}/tabs:
+    get:
+      operationId: listProgramGoogleSheetsWorkbookTabs
+      tags: [staff]
+      summary: List worksheet tabs in an accessible spreadsheet
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+        - { name: spreadsheetId, in: path, required: true, schema: { type: string, minLength: 10, maxLength: 200, pattern: "^[A-Za-z0-9_-]+$" } }
+      responses:
+        "200":
+          description: Worksheet tabs in the selected spreadsheet
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/GoogleSheetsTab" }
+        "404":
+          description: Program or spreadsheet is unavailable
+        "502":
+          description: Google Sheets could not read worksheet tabs
+  /staff/google-sheets/{programId}/sheet-mappings:
+    patch:
+      operationId: updateProgramGoogleSheetsSheetMappings
+      tags: [staff]
+      summary: Save worksheet tabs for a connected program workbook
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappingsInput" }
+      responses:
+        "200":
+          description: Worksheet mappings saved and the selected data queued for refresh
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProgramGoogleSheetsStatus" }
+        "400":
+          description: Invalid worksheet mapping
+        "404":
+          description: Program workbook or selected worksheet is unavailable
   /staff/google-sheets/{programId}/categories:
     patch:
       operationId: updateProgramGoogleSheetsCategories
@@ -4460,6 +4528,7 @@ components:
         - pendingCount
         - failedCount
         - exportCategories
+        - sheetMappings
       properties:
         programId: { type: integer }
         programName: { type: string }
@@ -4473,6 +4542,59 @@ components:
         pendingCount: { type: integer, minimum: 0 }
         failedCount: { type: integer, minimum: 0 }
         exportCategories: { $ref: "#/components/schemas/ProgramGoogleSheetsExportCategories" }
+        sheetMappings: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings" }
+    GoogleSheetsWorkbookList:
+      type: object
+      additionalProperties: false
+      required: [items, nextPageToken]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/GoogleSheetsWorkbook" }
+        nextPageToken: { type: ["string", "null"] }
+    GoogleSheetsWorkbook:
+      type: object
+      additionalProperties: false
+      required: [spreadsheetId, title, url]
+      properties:
+        spreadsheetId: { type: string, minLength: 10, maxLength: 200 }
+        title: { type: string }
+        url: { type: ["string", "null"], format: uri }
+        modifiedAt: { type: ["string", "null"], format: date-time }
+    GoogleSheetsTab:
+      type: object
+      additionalProperties: false
+      required: [sheetId, title]
+      properties:
+        sheetId: { type: integer, minimum: 0 }
+        title: { type: string, minLength: 1, maxLength: 100 }
+    ProgramGoogleSheetsConnectionInput:
+      type: object
+      additionalProperties: false
+      required: [mode, sheetMappings]
+      properties:
+        mode: { type: string, enum: [create, existing] }
+        spreadsheetId: { type: string, minLength: 10, maxLength: 200, pattern: "^[A-Za-z0-9_-]+$" }
+        sheetMappings: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings" }
+        confirmedOverwrite: { type: boolean }
+    ProgramGoogleSheetsSheetMappings:
+      type: object
+      additionalProperties: false
+      required: [applications, judgingResponses, businessTeam, operations, mentoringGrants, chats]
+      properties:
+        applications: { type: string, minLength: 1, maxLength: 100 }
+        judgingResponses: { type: string, minLength: 1, maxLength: 100 }
+        businessTeam: { type: string, minLength: 1, maxLength: 100 }
+        operations: { type: string, minLength: 1, maxLength: 100 }
+        mentoringGrants: { type: string, minLength: 1, maxLength: 100 }
+        chats: { type: string, minLength: 1, maxLength: 100 }
+    ProgramGoogleSheetsSheetMappingsInput:
+      type: object
+      additionalProperties: false
+      required: [sheetMappings, confirmedOverwrite]
+      properties:
+        sheetMappings: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings" }
+        confirmedOverwrite: { type: boolean, enum: [true] }
     ProgramGoogleSheetsExportCategories:
       type: object
       additionalProperties: false
