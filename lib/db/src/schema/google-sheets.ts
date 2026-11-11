@@ -43,7 +43,7 @@ export const programGoogleSheetsSyncEventsTable = pgTable("jusoor_program_google
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, table => [
   uniqueIndex("jusoor_program_google_sheets_event_source_uq").on(table.programId, table.sourceType, table.sourceId),
-  check("jusoor_program_google_sheets_event_source_check", sql`${table.sourceType} IN ('application', 'judging_response', 'program_snapshot')`),
+  check("jusoor_program_google_sheets_event_source_check_v2", sql`${table.sourceType} IN ('application', 'judging_response', 'program_snapshot')`),
   check("jusoor_program_google_sheets_event_status_check", sql`${table.status} IN ('pending', 'processing', 'synced', 'failed', 'skipped')`),
   check("jusoor_program_google_sheets_event_row_check", sql`${table.sheetRow} >= 2 AND ${table.revision} >= 1 AND ${table.attempts} >= 0`),
 ]);
