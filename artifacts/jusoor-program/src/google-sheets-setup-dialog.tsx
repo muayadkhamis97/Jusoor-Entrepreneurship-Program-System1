@@ -227,6 +227,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
               name={`gs-workbook-mode-${program.programId}`}
               value="create"
               checked={mode === 'create'}
+              data-testid={`radio-google-sheets-create-workbook-${program.programId}`}
               onChange={() => {
                 setMode('create');
                 setConfirmedOverwrite(false);
@@ -242,6 +243,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
               name={`gs-workbook-mode-${program.programId}`}
               value="existing"
               checked={mode === 'existing'}
+              data-testid={`radio-google-sheets-existing-workbook-${program.programId}`}
               onChange={() => {
                 setMode('existing');
                 setConfirmedOverwrite(false);
@@ -261,6 +263,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
               className="gs-setup-input"
               type="search"
               value={search}
+              data-testid={`input-google-sheets-workbook-search-${program.programId}`}
               onChange={event => {
                 setSearch(event.currentTarget.value);
                 setPageToken(undefined);
@@ -280,6 +283,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
                   <select
                     className="gs-setup-input"
                     value={spreadsheetId}
+                    data-testid={`select-google-sheets-workbook-${program.programId}`}
                     onChange={event => {
                       setSpreadsheetId(event.currentTarget.value);
                       setConfirmedOverwrite(false);
@@ -311,6 +315,12 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
 
         <fieldset className="gs-setup-mappings">
           <legend>{copy('Worksheet tabs for each data category', 'تبويبات بيانات كل فئة')}</legend>
+          <p className="gs-setup-help">
+            {copy(
+              'Assign one worksheet to each category. Choose an existing tab or create a new one.',
+              'خصص ورقة عمل لكل فئة. اختر تبويباً موجوداً أو أنشئ تبويباً جديداً.',
+            )}
+          </p>
           {mode === 'existing' && !spreadsheetId && (
             <p className="gs-setup-hint">{copy('Choose a spreadsheet first to load its tabs.', 'اختر جدول بيانات أولاً لعرض تبويباته.')}</p>
           )}
@@ -339,6 +349,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
                     id={`gs-tab-${program.programId}-${key}`}
                     className="gs-setup-input"
                     value={existingTitle ? mappings[key] : '__new__'}
+                    data-testid={`select-google-sheets-tab-${program.programId}-${key}`}
                     onChange={event => {
                       if (event.currentTarget.value === '__new__') {
                         changeMapping(key, newTabTitle(key, tabTitles, mappings));
@@ -360,6 +371,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
                     type="text"
                     maxLength={100}
                     value={mappings[key]}
+                    data-testid={`input-google-sheets-tab-name-${program.programId}-${key}`}
                     onChange={event => changeMapping(key, event.currentTarget.value)}
                     aria-label={copy(`${english} tab name`, `اسم تبويب ${arabic}`)}
                   />
@@ -380,6 +392,7 @@ export function GoogleSheetsSetupDialog({ program, open, saving, onOpenChange, o
                 <input
                   type="checkbox"
                   checked={confirmedOverwrite}
+                  data-testid={`checkbox-confirm-google-sheets-overwrite-${program.programId}`}
                   onChange={event => setConfirmedOverwrite(event.currentTarget.checked)}
                 />
                 <span>{copy('I understand and want to replace values in these tabs.', 'أفهم ذلك وأوافق على استبدال القيم في هذه التبويبات.')}</span>
