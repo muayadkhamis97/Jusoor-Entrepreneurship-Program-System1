@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createServer, type Server } from "node:http";
 import express from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
@@ -441,6 +442,9 @@ test("Google Sheets selection API enforces program access, replacement consent, 
   type Connection = Record<string, any> & { programId: number; spreadsheetId: string };
   let staffProgramIds = [19];
   let existingConnection: Connection | undefined;
+  const concurrentConnections = new Map<number, Connection>();
+  const requestProgram = new AsyncLocalStorage<number>();
+  let concurrentMode = false;
   let spreadsheetOwnerProgramId: number | undefined;
   let missingTabAfterCreation: string | undefined;
   let staffRole = "staff";
@@ -448,6 +452,11 @@ test("Google Sheets selection API enforces program access, replacement consent, 
   let connectorCalls: { service: string; path: string; method: string; body?: unknown }[] = [];
   let queuedProgramIds: number[] = [];
   let destinationHistoryRecords: Record<string, unknown>[] = [];
+  let workbookLockAttempts = 0;
+  let clearCount = 0;
+  let clearGate: Promise<void> | undefined;
+  let releaseClearGate: (() => void) | undefined;
+  let clearEntered: (() => void) | undefined;
   let server: Server;
 
   const programRecord = { id: 19, name: "Spring Program", archivedAt: null };
@@ -469,33 +478,42 @@ test("Google Sheets selection API enforces program access, replacement consent, 
   });
 
   function rowsFor(table: unknown, selection: Record<string, unknown> | undefined, joined: boolean): any[] {
+    const currentProgramId = requestProgram.getStore() ?? 19;
+    const currentConnection = concurrentMode
+      ? concurrentConnections.get(currentProgramId)
+      : existingConnection;
     if (table === programsTable) {
       if (joined) {
         return [{
-          programId: 19,
+          programId: currentProgramId,
           programName: programRecord.name,
-          spreadsheetId: existingConnection?.spreadsheetId ?? null,
-          spreadsheetUrl: existingConnection?.spreadsheetUrl ?? null,
-          spreadsheetTitle: existingConnection?.spreadsheetTitle ?? null,
-          sheetMappings: existingConnection?.sheetMappings ?? null,
-          exportBusinessTeam: existingConnection?.exportBusinessTeam ?? null,
-          exportOperations: existingConnection?.exportOperations ?? null,
-          exportMentoringGrants: existingConnection?.exportMentoringGrants ?? null,
-          exportChats: existingConnection?.exportChats ?? null,
-          connectedAt: existingConnection?.connectedAt ?? null,
-          lastSyncedAt: existingConnection?.lastSyncedAt ?? null,
-          lastError: existingConnection?.lastError ?? null,
+          spreadsheetId: currentConnection?.spreadsheetId ?? null,
+          spreadsheetUrl: currentConnection?.spreadsheetUrl ?? null,
+          spreadsheetTitle: currentConnection?.spreadsheetTitle ?? null,
+          sheetMappings: currentConnection?.sheetMappings ?? null,
+          exportBusinessTeam: currentConnection?.exportBusinessTeam ?? null,
+          exportOperations: currentConnection?.exportOperations ?? null,
+          exportMentoringGrants: currentConnection?.exportMentoringGrants ?? null,
+          exportChats: currentConnection?.exportChats ?? null,
+          connectedAt: currentConnection?.connectedAt ?? null,
+          lastSyncedAt: currentConnection?.lastSyncedAt ?? null,
+          lastError: currentConnection?.lastError ?? null,
         }];
       }
-      return [programRecord];
+      return [{ ...programRecord, id: currentProgramId }];
     }
     if (table === programGoogleSheetsConnectionsTable) {
       const selectedColumns = Object.keys(selection ?? {});
       if (selectedColumns.length === 1 && selectedColumns[0] === "programId") {
+        if (concurrentMode) {
+          const owner = [...concurrentConnections.values()]
+            .find((connection) => connection.spreadsheetId === spreadsheetId);
+          if (owner) return [{ programId: owner.programId }];
+        }
         return spreadsheetOwnerProgramId === undefined ? [] : [{ programId: spreadsheetOwnerProgramId }];
       }
-      return existingConnection
-        ? [{ ...existingConnection, sheetMappings: { ...existingConnection.sheetMappings } }]
+      return currentConnection
+        ? [{ ...currentConnection, sheetMappings: { ...currentConnection.sheetMappings } }]
         : [];
     }
     if (table === programGoogleSheetsDestinationHistoryTable) return destinationHistoryRecords;
@@ -524,19 +542,50 @@ test("Google Sheets selection API enforces program access, replacement consent, 
     return query;
   }
 
-  function createTransaction() {
+  const testLocks = new Map<string, Promise<void>>();
+  async function acquireTestLock(key: string): Promise<() => void> {
+    const previous = testLocks.get(key) ?? Promise.resolve();
+    let unlockCurrent!: () => void;
+    const current = new Promise<void>((resolve) => { unlockCurrent = resolve; });
+    const tail = previous.then(() => current);
+    testLocks.set(key, tail);
+    await previous;
+    return () => {
+      unlockCurrent();
+      if (testLocks.get(key) === tail) testLocks.delete(key);
+    };
+  }
+
+  function createTransaction(releases: (() => void)[]) {
     const tx: any = {
-      execute: async () => undefined,
+      execute: async (query: { toQuery?: (config: any) => { sql: string; params: unknown[] } }) => {
+        const compiled = query.toQuery?.({
+          escapeName: (name: string) => name,
+          escapeParam: (index: number) => `$${index + 1}`,
+          escapeString: (value: string) => `'${value}'`,
+        });
+        if (compiled?.sql.includes("pg_advisory_xact_lock")) {
+          const lockKey = String(compiled.params[0] ?? "");
+          if (lockKey.startsWith("program-google-sheets-workbook:")) workbookLockAttempts += 1;
+          releases.push(await acquireTestLock(lockKey));
+        }
+      },
       select: (selection?: Record<string, unknown>) => makeQuery(undefined, selection),
       update: (table: unknown) => ({
         set(values: Record<string, unknown>) {
-          if (table === programGoogleSheetsConnectionsTable && existingConnection) {
-            Object.assign(existingConnection, values);
+          if (table === programGoogleSheetsConnectionsTable) {
+            const programId = requestProgram.getStore() ?? 19;
+            const connection = concurrentMode ? concurrentConnections.get(programId) : existingConnection;
+            if (connection) Object.assign(connection, values);
           }
           return {
             where() {
               const result: any = Promise.resolve();
-              result.returning = async () => existingConnection ? [existingConnection] : [];
+              result.returning = async () => {
+                const programId = requestProgram.getStore() ?? 19;
+                const connection = concurrentMode ? concurrentConnections.get(programId) : existingConnection;
+                return connection ? [connection] : [];
+              };
               return result;
             },
           };
@@ -545,10 +594,13 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       insert: (table: unknown) => ({
         values(values: Record<string, unknown> | Record<string, unknown>[]) {
           if (table === programGoogleSheetsConnectionsTable) {
-            existingConnection = {
-              ...makeConnection(19, String((values as Record<string, unknown>).spreadsheetId)),
+            const programId = Number((values as Record<string, unknown>).programId);
+            const connection = {
+              ...makeConnection(programId, String((values as Record<string, unknown>).spreadsheetId)),
               ...(values as Record<string, unknown>),
             } as Connection;
+            if (concurrentMode) concurrentConnections.set(programId, connection);
+            else existingConnection = connection;
           }
           if (table === programGoogleSheetsSyncEventsTable) {
             const entries = Array.isArray(values) ? values : [values];
@@ -565,7 +617,12 @@ test("Google Sheets selection API enforces program access, replacement consent, 
           return {
             onConflictDoNothing: async () => undefined,
             onConflictDoUpdate: async () => undefined,
-            returning: async () => table === programGoogleSheetsConnectionsTable ? [existingConnection] : [],
+            returning: async () => {
+              if (table !== programGoogleSheetsConnectionsTable) return [];
+              const programId = requestProgram.getStore() ?? 19;
+              const connection = concurrentMode ? concurrentConnections.get(programId) : existingConnection;
+              return connection ? [connection] : [];
+            },
           };
         },
       }),
@@ -591,12 +648,22 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       writable: true,
       value: async (callback: (tx: any) => Promise<unknown>) => {
         transactionCalls += 1;
-        return callback(createTransaction());
+        const releases: (() => void)[] = [];
+        try {
+          return await callback(createTransaction(releases));
+        } finally {
+          for (const release of releases.reverse()) release();
+        }
       },
     });
     ReplitConnectors.prototype.proxy = async function (service, path, options) {
       const method = options?.method ?? "GET";
       connectorCalls.push({ service, path, method, body: options?.body });
+      if (concurrentMode && path.endsWith("/values:batchClear")) {
+        clearCount += 1;
+        clearEntered?.();
+        await clearGate;
+      }
       if (service === "google-drive") {
         return Response.json({ files: [{ id: spreadsheetId, name: "Spring workbook" }] });
       }
@@ -616,14 +683,17 @@ test("Google Sheets selection API enforces program access, replacement consent, 
     const app = express();
     app.use(express.json());
     app.use((req, res, next) => {
-      res.locals.staff = {
-        id: 7,
-        email: "staff@example.test",
-        role: staffRole,
-        programIds: staffProgramIds,
-      };
-      req.log = { error: () => undefined } as any;
-      next();
+      const programId = Number(req.originalUrl.match(/\/google-sheets\/(\d+)/)?.[1]);
+      requestProgram.run(programId, () => {
+        res.locals.staff = {
+          id: 7,
+          email: "staff@example.test",
+          role: staffRole,
+          programIds: staffProgramIds,
+        };
+        req.log = { error: () => undefined } as any;
+        next();
+      });
     });
     app.use("/api/staff/google-sheets", googleSheetsRouter);
     server = createServer(app);
@@ -638,6 +708,8 @@ test("Google Sheets selection API enforces program access, replacement consent, 
     const reset = () => {
       staffProgramIds = [19];
       existingConnection = undefined;
+      concurrentConnections.clear();
+      concurrentMode = false;
       spreadsheetOwnerProgramId = undefined;
       missingTabAfterCreation = undefined;
       staffRole = "staff";
@@ -645,6 +717,11 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       connectorCalls = [];
       queuedProgramIds = [];
       destinationHistoryRecords = [];
+      workbookLockAttempts = 0;
+      clearCount = 0;
+      clearGate = undefined;
+      releaseClearGate = undefined;
+      clearEntered = undefined;
     };
 
     await t.test("staff outside a program cannot list or link its workbooks", async () => {
@@ -679,6 +756,35 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       assert.equal(connectorCalls.some(({ path }) => path.endsWith("/values:batchClear")), false);
       assert.deepEqual(queuedProgramIds, []);
       assert.equal(existingConnection, undefined);
+    });
+
+    await t.test("concurrent programs cannot claim and clear the same workbook", async () => {
+      reset();
+      concurrentMode = true;
+      staffProgramIds = [19, 22];
+      let notifyClearEntered!: () => void;
+      const firstClearStarted = new Promise<void>((resolve) => { notifyClearEntered = resolve; });
+      clearEntered = notifyClearEntered;
+      clearGate = new Promise<void>((resolve) => { releaseClearGate = resolve; });
+
+      const firstRequest = request("/19", "POST", mappingBody());
+      await firstClearStarted;
+      const competingRequest = request("/22", "POST", mappingBody());
+
+      for (let attempt = 0; workbookLockAttempts < 2 && attempt < 200; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      const actualWorkbookLockAttempts = workbookLockAttempts;
+      releaseClearGate?.();
+
+      const [firstResponse, competingResponse] = await Promise.all([firstRequest, competingRequest]);
+      assert.equal(actualWorkbookLockAttempts, 2, "both requests should attempt to lock the selected workbook");
+      assert.equal(firstResponse.status, 201, await firstResponse.clone().text());
+      assert.equal(competingResponse.status, 409, await competingResponse.clone().text());
+      assert.equal(concurrentConnections.size, 1, "only one program may retain a connection to the workbook");
+      assert.equal(clearCount, 1, "the rejected request must not clear worksheet values");
+      assert.ok(queuedProgramIds.length > 0, "the winning program should receive its sync work");
+      assert.deepEqual(new Set(queuedProgramIds), new Set([19]), "the rejected program must not receive sync work");
     });
 
     await t.test("a selected tab missing after provider setup is rejected without linking", async () => {

@@ -30,6 +30,7 @@ import {
   GoogleSheetsError,
   isValidGoogleSheetsSheetMappings,
   lockGoogleSheetsProgram,
+  lockGoogleSheetsWorkbook,
   listGoogleSheetsWorkbooks,
   listProgramSpreadsheetTabs,
   queueProgramGoogleSheetsBackfill,
@@ -269,6 +270,11 @@ router.post("/:programId", async (req, res): Promise<void> => {
       // Serialize setup across concurrent requests/instances so one program cannot
       // accidentally receive multiple workbooks from a double click or retry.
       await lockGoogleSheetsProgram(tx, programId);
+      if (selection?.mode === "existing") {
+        // Different programs have different program locks, so also serialize claims
+        // by workbook before checking ownership or changing its worksheet values.
+        await lockGoogleSheetsWorkbook(tx, selection.spreadsheetId!);
+      }
       const [existing] = await tx.select().from(programGoogleSheetsConnectionsTable)
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId)).limit(1);
       if (existing && !selection) {

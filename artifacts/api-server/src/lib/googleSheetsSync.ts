@@ -94,6 +94,13 @@ export async function lockGoogleSheetsProgram(
   await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`program-google-sheets:${programId}`})::bigint)`);
 }
 
+export async function lockGoogleSheetsWorkbook(
+  executor: Pick<typeof db, "execute">,
+  spreadsheetId: string,
+): Promise<void> {
+  await executor.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`program-google-sheets-workbook:${spreadsheetId}`})::bigint)`);
+}
+
 export function applicationSheetRow(application: {
   id: number; programName: string; businessName: string; founderName: string;
   email: string; phone: string | null; industry: string | null; website: string | null;
