@@ -17,8 +17,9 @@ import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-s
 import { Rule } from '@workspace/program-editorial/components/ui/rule';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
-import { AlertTriangle, Check, ExternalLink, FileSpreadsheet, History, LockKeyhole, RotateCw } from 'lucide-react';
+import { AlertTriangle, Check, Download, ExternalLink, FileSpreadsheet, History, LockKeyhole, RotateCw } from 'lucide-react';
 import { GoogleSheetsSetupDialog } from './google-sheets-setup-dialog';
+import { downloadProgramGoogleSheetsDestinationHistoryCsv } from './program-lifecycle-export';
 import { t, useAppLanguage } from './language';
 import './google-sheets.css';
 
@@ -470,7 +471,20 @@ function DestinationHistory({
             <History size={16} aria-hidden="true" /> {copy('Destination changes', 'تغييرات الوجهة')}
           </Typography>
         </div>
-        <span className="gs-history-program">{programName}</span>
+        <div className="gs-history-actions">
+          <span className="gs-history-program">{programName}</span>
+          <Button
+            variant="text"
+            size="sm"
+            onClick={() => {
+              if (query.data) downloadProgramGoogleSheetsDestinationHistoryCsv(programId, query.data);
+            }}
+            disabled={!query.data || query.isLoading || query.isError}
+            data-testid={`button-export-google-sheets-destination-history-${programId}`}
+          >
+            <Download size={14} aria-hidden="true" />{copy('Export history (CSV)', 'تصدير السجل (CSV)')}
+          </Button>
+        </div>
       </div>
       {query.isLoading && <p className="gs-history-state" role="status">{copy('Loading destination history…', 'جارٍ تحميل سجل الوجهات…')}</p>}
       {query.isError && (

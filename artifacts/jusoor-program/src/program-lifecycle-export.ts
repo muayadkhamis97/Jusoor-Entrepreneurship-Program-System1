@@ -1,5 +1,6 @@
 import type {
   IntegrationDisconnectAuditHistory,
+  ProgramGoogleSheetsDestinationHistory,
   ProgramLifecycleEvent,
   StaffAssignmentAuditHistory,
 } from '@workspace/api-client-react';
@@ -35,6 +36,61 @@ export function downloadProgramLifecycleCsv(
   const link = document.createElement('a');
   link.href = url;
   link.download = `program-${programId}-lifecycle-history-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.style.display = 'none';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+const destinationMappingKeys = [
+  ['applications', 'Applications'],
+  ['judgingResponses', 'Judging responses'],
+  ['businessTeam', 'Businesses and teams'],
+  ['operations', 'Program operations'],
+  ['mentoringGrants', 'Mentoring and grants'],
+  ['chats', 'Chats'],
+] as const satisfies ReadonlyArray<readonly [keyof ProgramGoogleSheetsDestinationHistory['newSheetMappings'], string]>;
+
+export function buildProgramGoogleSheetsDestinationHistoryCsv(
+  events: ProgramGoogleSheetsDestinationHistory[],
+): string {
+  const headers = [
+    'Program',
+    'Actor',
+    'Timestamp (UTC)',
+    'Previous workbook',
+    'Previous workbook ID',
+    'New workbook',
+    'New workbook ID',
+    ...destinationMappingKeys.map(([, label]) => `Previous ${label} worksheet`),
+    ...destinationMappingKeys.map(([, label]) => `New ${label} worksheet`),
+  ];
+  const rows = events.map(event => [
+    event.programName,
+    event.actorEmail,
+    new Date(event.createdAt).toISOString(),
+    event.previousSpreadsheetTitle || event.previousSpreadsheetId || '',
+    event.previousSpreadsheetId || '',
+    event.newSpreadsheetTitle || event.newSpreadsheetId,
+    event.newSpreadsheetId,
+    ...destinationMappingKeys.map(([key]) => event.previousSheetMappings?.[key] ?? ''),
+    ...destinationMappingKeys.map(([key]) => event.newSheetMappings[key]),
+  ]);
+
+  return `\uFEFF${[headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')}\r\n`;
+}
+
+export function downloadProgramGoogleSheetsDestinationHistoryCsv(
+  programId: number,
+  events: ProgramGoogleSheetsDestinationHistory[],
+): void {
+  const csv = buildProgramGoogleSheetsDestinationHistoryCsv(events);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `program-${programId}-google-sheets-destination-history-${new Date().toISOString().slice(0, 10)}.csv`;
   link.style.display = 'none';
   document.body.append(link);
   link.click();

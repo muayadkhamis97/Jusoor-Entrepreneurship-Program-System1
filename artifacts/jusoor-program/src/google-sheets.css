@@ -107,6 +107,7 @@
 .gs-history-heading [data-variant="label"] { margin-bottom: var(--spacing); }
 .gs-history-title { display: flex; align-items: center; gap: calc(var(--spacing) * 2); max-width: none; color: var(--gs-ink) !important; font-weight: 600; line-height: 1.4 !important; }
 .gs-history-program { color: var(--gs-muted); font-size: var(--text-xs); }
+.gs-history-actions { display: flex; align-items: center; justify-content: flex-end; gap: calc(var(--spacing) * 2); }
 .gs-history-state { margin: 0; color: var(--gs-muted); font-size: var(--text-xs); line-height: 1.5; }
 .gs-history-error { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 2); color: var(--gs-danger); }
 .gs-history-events { display: grid; gap: calc(var(--spacing) * 3); margin: 0; padding: 0; list-style: none; }
