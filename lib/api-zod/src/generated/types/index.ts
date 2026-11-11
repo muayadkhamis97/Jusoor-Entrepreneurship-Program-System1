@@ -304,6 +304,7 @@ export * from './programBusinessOption';
 export * from './programFormat';
 export * from './programGoogleSheetsConnectionInput';
 export * from './programGoogleSheetsConnectionInputMode';
+export * from './programGoogleSheetsDestinationHistory';
 export * from './programGoogleSheetsExportCategories';
 export * from './programGoogleSheetsExportCategoriesInput';
 export * from './programGoogleSheetsSheetMappings';

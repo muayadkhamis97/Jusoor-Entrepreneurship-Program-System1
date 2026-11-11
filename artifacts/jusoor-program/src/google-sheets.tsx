@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetProgramGoogleSheetsDestinationHistoryQueryKey,
   getGetProgramGoogleSheetsStatusesQueryKey,
   type ProgramGoogleSheetsExportCategories,
   type ProgramGoogleSheetsSheetMappings,
   useCreateProgramGoogleSheetsConnection,
+  useGetProgramGoogleSheetsDestinationHistory,
   useGetProgramGoogleSheetsStatuses,
   useRetryProgramGoogleSheetsSync,
   useUpdateProgramGoogleSheetsCategories,
@@ -15,7 +17,7 @@ import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-s
 import { Rule } from '@workspace/program-editorial/components/ui/rule';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
 import { getThemeStyle } from '@workspace/program-editorial/lib/theme';
-import { AlertTriangle, Check, ExternalLink, FileSpreadsheet, LockKeyhole, RotateCw } from 'lucide-react';
+import { AlertTriangle, Check, ExternalLink, FileSpreadsheet, History, LockKeyhole, RotateCw } from 'lucide-react';
 import { GoogleSheetsSetupDialog } from './google-sheets-setup-dialog';
 import { t, useAppLanguage } from './language';
 import './google-sheets.css';
@@ -55,7 +57,7 @@ const mappingLabels: {
   { key: 'chats', english: 'Chats', arabic: 'المحادثات' },
 ];
 
-export function GoogleSheetsPage() {
+export function GoogleSheetsPage({ isAdmin }: { isAdmin: boolean }) {
   const { language } = useAppLanguage();
   const ar = language === 'ar';
   const copy = (english: string, arabic: string) => ar ? arabic : t(english);
@@ -363,6 +365,13 @@ export function GoogleSheetsPage() {
                     </details>
                   )}
 
+                  {isAdmin && <DestinationHistory
+                    programId={program.programId}
+                    programName={program.programName}
+                    locale={locale}
+                    ar={ar}
+                  />}
+
                   <fieldset className="gs-categories" data-testid={`fieldset-google-sheets-categories-${program.programId}`}>
                     <legend>{copy('Data included in this workbook', 'البيانات المُدرجة في جدول البيانات')}</legend>
                     <div className="gs-category-options">
@@ -426,5 +435,92 @@ export function GoogleSheetsPage() {
         />
       )}
     </PaperSurface>
+  );
+}
+
+function DestinationHistory({
+  programId,
+  programName,
+  locale,
+  ar,
+}: {
+  programId: number;
+  programName: string;
+  locale: string;
+  ar: boolean;
+}) {
+  const copy = (english: string, arabic: string) => ar ? arabic : t(english);
+  const query = useGetProgramGoogleSheetsDestinationHistory(programId, {
+    query: {
+      queryKey: getGetProgramGoogleSheetsDestinationHistoryQueryKey(programId),
+      refetchInterval: 15_000,
+      refetchOnWindowFocus: true,
+    },
+  });
+  const events = query.data ?? [];
+  const workbookLink = (spreadsheetId: string) =>
+    `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/edit`;
+
+  return (
+    <section className="gs-destination-history" aria-labelledby={`gs-destination-history-title-${programId}`} data-testid={`section-google-sheets-destination-history-${programId}`}>
+      <div className="gs-history-heading">
+        <div>
+          <Typography as="p" variant="label" tone="accent">{copy('ADMIN HISTORY', 'سجل الإدارة')}</Typography>
+          <Typography as="h3" variant="body" className="gs-history-title" id={`gs-destination-history-title-${programId}`}>
+            <History size={16} aria-hidden="true" /> {copy('Destination changes', 'تغييرات الوجهة')}
+          </Typography>
+        </div>
+        <span className="gs-history-program">{programName}</span>
+      </div>
+      {query.isLoading && <p className="gs-history-state" role="status">{copy('Loading destination history…', 'جارٍ تحميل سجل الوجهات…')}</p>}
+      {query.isError && (
+        <div className="gs-history-state gs-history-error" role="alert">
+          <span>{copy('Destination history could not be loaded.', 'تعذّر تحميل سجل الوجهات.')}</span>
+          <Button variant="text" onClick={() => void query.refetch()}>{copy('Retry', 'إعادة المحاولة')}</Button>
+        </div>
+      )}
+      {!query.isLoading && !query.isError && events.length === 0 && (
+        <p className="gs-history-state">{copy('No destination changes have been recorded yet.', 'لم يتم تسجيل أي تغييرات للوجهة بعد.')}</p>
+      )}
+      {!query.isLoading && !query.isError && events.length > 0 && (
+        <ol className="gs-history-events">
+          {events.map(event => (
+            <li key={event.id} data-testid={`item-google-sheets-destination-change-${event.id}`}>
+              <div className="gs-history-byline">
+                <strong>{event.actorEmail}</strong>
+                <time dateTime={event.createdAt}>{formatDate(event.createdAt, locale)}</time>
+              </div>
+              <div className="gs-history-destinations">
+                <div>
+                  <span className="gs-detail-label">{copy('PREVIOUS DESTINATION', 'الوجهة السابقة')}</span>
+                  {event.previousSpreadsheetId
+                    ? <a href={workbookLink(event.previousSpreadsheetId)} target="_blank" rel="noreferrer">{event.previousSpreadsheetTitle || event.previousSpreadsheetId}<ExternalLink size={13} aria-hidden="true" /></a>
+                    : <span className="gs-detail-muted">{copy('No previous destination', 'لا توجد وجهة سابقة')}</span>}
+                </div>
+                <div>
+                  <span className="gs-detail-label">{copy('NEW DESTINATION', 'الوجهة الجديدة')}</span>
+                  <a href={workbookLink(event.newSpreadsheetId)} target="_blank" rel="noreferrer">{event.newSpreadsheetTitle || event.newSpreadsheetId}<ExternalLink size={13} aria-hidden="true" /></a>
+                </div>
+              </div>
+              <details className="gs-history-mappings">
+                <summary>{copy('Compare worksheet mappings', 'مقارنة تعيينات أوراق العمل')}</summary>
+                <div className="gs-history-mapping-columns">
+                  <div>
+                    <strong>{copy('Previous tabs', 'التبويبات السابقة')}</strong>
+                    {event.previousSheetMappings
+                      ? <dl>{mappingLabels.map(({ key, english, arabic }) => <div key={key}><dt>{copy(english, arabic)}</dt><dd>{event.previousSheetMappings![key]}</dd></div>)}</dl>
+                      : <p>{copy('No previous mappings', 'لا توجد تعيينات سابقة')}</p>}
+                  </div>
+                  <div>
+                    <strong>{copy('New tabs', 'التبويبات الجديدة')}</strong>
+                    <dl>{mappingLabels.map(({ key, english, arabic }) => <div key={key}><dt>{copy(english, arabic)}</dt><dd>{event.newSheetMappings[key]}</dd></div>)}</dl>
+                  </div>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }

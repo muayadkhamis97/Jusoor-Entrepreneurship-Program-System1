@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   CreateProgramGoogleSheetsConnectionBody,
+  GetProgramGoogleSheetsDestinationHistoryParams,
+  GetProgramGoogleSheetsDestinationHistoryResponse,
   ListProgramGoogleSheetsWorkbookTabsParams,
   ListProgramGoogleSheetsWorkbookTabsResponse,
   ListProgramGoogleSheetsWorkbooksParams,
@@ -15,6 +17,7 @@ import {
   integrationDisconnectAuditEventsTable,
   programsTable,
   programGoogleSheetsConnectionsTable,
+  programGoogleSheetsDestinationHistoryTable,
   programGoogleSheetsSyncEventsTable,
   type ProgramGoogleSheetsSheetMappings,
 } from "@workspace/db";
@@ -169,6 +172,31 @@ router.get("/", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/:programId/destination-history", requireCoordinator, async (req, res): Promise<void> => {
+  const params = GetProgramGoogleSheetsDestinationHistoryParams.safeParse(req.params);
+  if (!params.success || !requireProgramScope(params.data.programId)) {
+    res.status(400).json({ error: "Invalid program id." });
+    return;
+  }
+  try {
+    const [program] = await db.select({ id: programsTable.id })
+      .from(programsTable)
+      .where(eq(programsTable.id, params.data.programId))
+      .limit(1);
+    if (!program) {
+      res.status(404).json({ error: "Program not found." });
+      return;
+    }
+    const history = await db.select().from(programGoogleSheetsDestinationHistoryTable)
+      .where(eq(programGoogleSheetsDestinationHistoryTable.programId, params.data.programId))
+      .orderBy(desc(programGoogleSheetsDestinationHistoryTable.createdAt), desc(programGoogleSheetsDestinationHistoryTable.id));
+    res.json(GetProgramGoogleSheetsDestinationHistoryResponse.parse(history));
+  } catch (error) {
+    req.log.error({ err: error, programId: params.data.programId }, "Google Sheets destination history could not be loaded");
+    res.status(503).json({ error: "Google Sheets destination history could not be loaded." });
+  }
+});
+
 router.get("/:programId/workbooks", async (req, res): Promise<void> => {
   const params = ListProgramGoogleSheetsWorkbooksParams.safeParse(req.params);
   const query = ListProgramGoogleSheetsWorkbooksQueryParams.safeParse(req.query);
@@ -304,6 +332,22 @@ router.post("/:programId", async (req, res): Promise<void> => {
         }).returning();
         connection = created;
       }
+      const destinationChanged = existing?.spreadsheetId !== spreadsheet.spreadsheetId
+        || JSON.stringify(existing?.sheetMappings ?? null) !== JSON.stringify(requestedMappings);
+      if (destinationChanged) {
+        await tx.insert(programGoogleSheetsDestinationHistoryTable).values({
+          programId,
+          programName: program.name,
+          actorStaffId: staff.id,
+          actorEmail: staff.email,
+          previousSpreadsheetId: existing?.spreadsheetId ?? null,
+          previousSpreadsheetTitle: existing?.spreadsheetTitle ?? null,
+          previousSheetMappings: existing?.sheetMappings ?? null,
+          newSpreadsheetId: spreadsheet.spreadsheetId,
+          newSpreadsheetTitle: spreadsheet.title,
+          newSheetMappings: requestedMappings,
+        });
+      }
       await queueProgramGoogleSheetsBackfill(tx, programId);
       await queueProgramGoogleSheetsSnapshot(tx, programId, true);
       return { connection: connection!, created: !existing };
@@ -415,6 +459,7 @@ router.patch("/:programId/sheet-mappings", async (req, res): Promise<void> => {
       await lockGoogleSheetsProgram(tx, programId);
       const [connection] = await tx.select({
         spreadsheetId: programGoogleSheetsConnectionsTable.spreadsheetId,
+        spreadsheetTitle: programGoogleSheetsConnectionsTable.spreadsheetTitle,
         sheetMappings: programGoogleSheetsConnectionsTable.sheetMappings,
       }).from(programGoogleSheetsConnectionsTable)
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
@@ -435,6 +480,25 @@ router.patch("/:programId/sheet-mappings", async (req, res): Promise<void> => {
         lastError: null,
         updatedAt: new Date(),
       }).where(eq(programGoogleSheetsConnectionsTable.programId, programId));
+      if (changed) {
+        const [program] = await tx.select({ name: programsTable.name })
+          .from(programsTable)
+          .where(eq(programsTable.id, programId))
+          .limit(1);
+        if (!program) throw new GoogleSheetsError("Program not found.", 404);
+        await tx.insert(programGoogleSheetsDestinationHistoryTable).values({
+          programId,
+          programName: program.name,
+          actorStaffId: staff.id,
+          actorEmail: staff.email,
+          previousSpreadsheetId: connection.spreadsheetId,
+          previousSpreadsheetTitle: connection.spreadsheetTitle,
+          previousSheetMappings: connection.sheetMappings,
+          newSpreadsheetId: connection.spreadsheetId,
+          newSpreadsheetTitle: info.title,
+          newSheetMappings: sheetMappings,
+        });
+      }
       await queueProgramGoogleSheetsBackfill(tx, programId);
       await queueProgramGoogleSheetsSnapshot(tx, programId, true);
     });

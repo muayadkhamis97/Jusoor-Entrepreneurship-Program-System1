@@ -119,6 +119,24 @@ export interface ProgramGoogleSheetsStatus {
   sheetMappings: ProgramGoogleSheetsSheetMappings;
 }
 
+export interface ProgramGoogleSheetsDestinationHistory {
+  id: number;
+  programId: number;
+  programName: string;
+  /** @nullable */
+  actorStaffId: number | null;
+  actorEmail: string;
+  /** @nullable */
+  previousSpreadsheetId: string | null;
+  /** @nullable */
+  previousSpreadsheetTitle: string | null;
+  previousSheetMappings: ProgramGoogleSheetsSheetMappings | null;
+  newSpreadsheetId: string;
+  newSpreadsheetTitle: string;
+  newSheetMappings: ProgramGoogleSheetsSheetMappings;
+  createdAt: string;
+}
+
 export interface GoogleSheetsWorkbook {
   /**
      * @minLength 10

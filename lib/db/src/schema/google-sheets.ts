@@ -43,6 +43,24 @@ export const programGoogleSheetsConnectionsTable = pgTable("jusoor_program_googl
   uniqueIndex("jusoor_program_google_sheets_spreadsheet_uq").on(table.spreadsheetId),
   check("jusoor_program_google_sheets_rows_check", sql`${table.nextApplicationRow} >= 2 AND ${table.nextJudgingResponseRow} >= 2`),
 ]);
+export const programGoogleSheetsDestinationHistoryTable = pgTable("jusoor_program_google_sheets_destination_history", {
+  id: serial("id").primaryKey(),
+  programId: integer("program_id").notNull(),
+  programName: text("program_name").notNull(),
+  actorStaffId: integer("actor_staff_id").references(() => staffMembersTable.id, { onDelete: "set null" }),
+  actorEmail: text("actor_email").notNull(),
+  previousSpreadsheetId: text("previous_spreadsheet_id"),
+  previousSpreadsheetTitle: text("previous_spreadsheet_title"),
+  previousSheetMappings: jsonb("previous_sheet_mappings").$type<ProgramGoogleSheetsSheetMappings>(),
+  newSpreadsheetId: text("new_spreadsheet_id").notNull(),
+  newSpreadsheetTitle: text("new_spreadsheet_title").notNull(),
+  newSheetMappings: jsonb("new_sheet_mappings").$type<ProgramGoogleSheetsSheetMappings>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const insertProgramGoogleSheetsDestinationHistorySchema = createInsertSchema(programGoogleSheetsDestinationHistoryTable)
+  .omit({ id: true, createdAt: true });
+export type ProgramGoogleSheetsDestinationHistory = typeof programGoogleSheetsDestinationHistoryTable.$inferSelect;
+
 export const insertProgramGoogleSheetsConnectionSchema = createInsertSchema(programGoogleSheetsConnectionsTable);
 export type ProgramGoogleSheetsConnection = typeof programGoogleSheetsConnectionsTable.$inferSelect;
 

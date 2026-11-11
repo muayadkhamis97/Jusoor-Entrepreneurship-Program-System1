@@ -4362,6 +4362,25 @@ paths:
           description: Coordinator role required
         "404":
           description: Program workbook not found
+  /staff/google-sheets/{programId}/destination-history:
+    get:
+      operationId: getProgramGoogleSheetsDestinationHistory
+      tags: [staff]
+      summary: Review changes to a program's Google Sheets destination
+      parameters:
+        - $ref: "#/components/parameters/ProgramId"
+      responses:
+        "200":
+          description: Workbook and worksheet mapping destination changes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProgramGoogleSheetsDestinationHistory" }
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Program not found
   /staff/google-sheets/{programId}/workbooks:
     get:
       operationId: listProgramGoogleSheetsWorkbooks
@@ -4543,6 +4562,38 @@ components:
         failedCount: { type: integer, minimum: 0 }
         exportCategories: { $ref: "#/components/schemas/ProgramGoogleSheetsExportCategories" }
         sheetMappings: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings" }
+    ProgramGoogleSheetsDestinationHistory:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - programId
+        - programName
+        - actorStaffId
+        - actorEmail
+        - previousSpreadsheetId
+        - previousSpreadsheetTitle
+        - previousSheetMappings
+        - newSpreadsheetId
+        - newSpreadsheetTitle
+        - newSheetMappings
+        - createdAt
+      properties:
+        id: { type: integer }
+        programId: { type: integer }
+        programName: { type: string }
+        actorStaffId: { type: ["integer", "null"] }
+        actorEmail: { type: string }
+        previousSpreadsheetId: { type: ["string", "null"] }
+        previousSpreadsheetTitle: { type: ["string", "null"] }
+        previousSheetMappings:
+          anyOf:
+            - $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings"
+            - type: "null"
+        newSpreadsheetId: { type: string }
+        newSpreadsheetTitle: { type: string }
+        newSheetMappings: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings" }
+        createdAt: { type: string, format: date-time }
     GoogleSheetsWorkbookList:
       type: object
       additionalProperties: false

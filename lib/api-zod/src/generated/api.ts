@@ -7104,6 +7104,70 @@ export const DisconnectProgramGoogleSheetsResponse = zod.void()
 
 
 /**
+ * @summary Review changes to a program's Google Sheets destination
+ */
+export const GetProgramGoogleSheetsDestinationHistoryParams = zod.object({
+  "programId": zod.coerce.number().int()
+})
+
+export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneApplicationsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneJudgingResponsesMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneBusinessTeamMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneOperationsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneMentoringGrantsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneChatsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsApplicationsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsJudgingResponsesMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsBusinessTeamMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsOperationsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsMentoringGrantsMax = 100;
+
+export const getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsChatsMax = 100;
+
+
+
+export const GetProgramGoogleSheetsDestinationHistoryResponseItem = zod.object({
+  "id": zod.int(),
+  "programId": zod.int(),
+  "programName": zod.string(),
+  "actorStaffId": zod.int().nullable(),
+  "actorEmail": zod.string(),
+  "previousSpreadsheetId": zod.string().nullable(),
+  "previousSpreadsheetTitle": zod.string().nullable(),
+  "previousSheetMappings": zod.union([zod.object({
+  "applications": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneBusinessTeamMax),
+  "operations": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneMentoringGrantsMax),
+  "chats": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneChatsMax)
+}),zod.null()]),
+  "newSpreadsheetId": zod.string(),
+  "newSpreadsheetTitle": zod.string(),
+  "newSheetMappings": zod.object({
+  "applications": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsApplicationsMax),
+  "judgingResponses": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsJudgingResponsesMax),
+  "businessTeam": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsBusinessTeamMax),
+  "operations": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsOperationsMax),
+  "mentoringGrants": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsMentoringGrantsMax),
+  "chats": zod.string().min(1).max(getProgramGoogleSheetsDestinationHistoryResponseNewSheetMappingsChatsMax)
+}),
+  "createdAt": zod.coerce.date()
+})
+export const GetProgramGoogleSheetsDestinationHistoryResponse = zod.array(GetProgramGoogleSheetsDestinationHistoryResponseItem)
+
+
+/**
  * @summary List spreadsheets available to the connected Google account
  */
 export const ListProgramGoogleSheetsWorkbooksParams = zod.object({

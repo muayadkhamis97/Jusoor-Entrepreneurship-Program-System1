@@ -1613,7 +1613,7 @@ function Router({ staff, displayName }: { staff: StaffMember; displayName: strin
     <Route path="/mentor-meeting-reports">{() => isAdmin || isProgramStaff ? <StaffMentorMeetingReportsPage /> : <NotFoundPage />}</Route>
     <Route path="/pitches">{() => <PitchesPage coordinator={isAdmin} />}</Route>
     <Route path="/judging-forms">{() => isAdmin || isProgramStaff ? <JudgingFormsPage /> : <NotFoundPage />}</Route>
-    <Route path="/google-sheets">{() => isAdmin || isProgramStaff ? <GoogleSheetsPage /> : <NotFoundPage />}</Route>
+    <Route path="/google-sheets">{() => isAdmin || isProgramStaff ? <GoogleSheetsPage isAdmin={isAdmin} /> : <NotFoundPage />}</Route>
     <Route path="/grants" component={isAdmin ? GrantManagementPage : NotFoundPage} />
     <Route path="/applications" component={isAdmin ? ApplicationsReviewPage : NotFoundPage} />
     <Route path="/mentor-booking" component={isAdmin ? MentorBookingStatusPage : NotFoundPage} />

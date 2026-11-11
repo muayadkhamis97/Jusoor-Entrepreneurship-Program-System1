@@ -21,6 +21,7 @@ import {
   db,
   DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
   programGoogleSheetsConnectionsTable,
+  programGoogleSheetsDestinationHistoryTable,
   programGoogleSheetsSyncEventsTable,
   programsTable,
 } from "@workspace/db";
@@ -442,9 +443,11 @@ test("Google Sheets selection API enforces program access, replacement consent, 
   let existingConnection: Connection | undefined;
   let spreadsheetOwnerProgramId: number | undefined;
   let missingTabAfterCreation: string | undefined;
+  let staffRole = "staff";
   let transactionCalls = 0;
   let connectorCalls: { service: string; path: string; method: string; body?: unknown }[] = [];
   let queuedProgramIds: number[] = [];
+  let destinationHistoryRecords: Record<string, unknown>[] = [];
   let server: Server;
 
   const programRecord = { id: 19, name: "Spring Program", archivedAt: null };
@@ -491,8 +494,11 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       if (selectedColumns.length === 1 && selectedColumns[0] === "programId") {
         return spreadsheetOwnerProgramId === undefined ? [] : [{ programId: spreadsheetOwnerProgramId }];
       }
-      return existingConnection ? [existingConnection] : [];
+      return existingConnection
+        ? [{ ...existingConnection, sheetMappings: { ...existingConnection.sheetMappings } }]
+        : [];
     }
+    if (table === programGoogleSheetsDestinationHistoryTable) return destinationHistoryRecords;
     return [];
   }
 
@@ -527,7 +533,13 @@ test("Google Sheets selection API enforces program access, replacement consent, 
           if (table === programGoogleSheetsConnectionsTable && existingConnection) {
             Object.assign(existingConnection, values);
           }
-          return { where: async () => undefined };
+          return {
+            where() {
+              const result: any = Promise.resolve();
+              result.returning = async () => existingConnection ? [existingConnection] : [];
+              return result;
+            },
+          };
         },
       }),
       insert: (table: unknown) => ({
@@ -541,6 +553,14 @@ test("Google Sheets selection API enforces program access, replacement consent, 
           if (table === programGoogleSheetsSyncEventsTable) {
             const entries = Array.isArray(values) ? values : [values];
             queuedProgramIds.push(...entries.map((entry) => Number(entry.programId)));
+          }
+          if (table === programGoogleSheetsDestinationHistoryTable) {
+            const entries = Array.isArray(values) ? values : [values];
+            destinationHistoryRecords.push(...entries.map((entry, index) => ({
+              ...entry,
+              id: destinationHistoryRecords.length + index + 1,
+              createdAt: new Date("2026-11-11T10:30:00Z"),
+            })));
           }
           return {
             onConflictDoNothing: async () => undefined,
@@ -599,7 +619,7 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       res.locals.staff = {
         id: 7,
         email: "staff@example.test",
-        role: "staff",
+        role: staffRole,
         programIds: staffProgramIds,
       };
       req.log = { error: () => undefined } as any;
@@ -620,9 +640,11 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       existingConnection = undefined;
       spreadsheetOwnerProgramId = undefined;
       missingTabAfterCreation = undefined;
+      staffRole = "staff";
       transactionCalls = 0;
       connectorCalls = [];
       queuedProgramIds = [];
+      destinationHistoryRecords = [];
     };
 
     await t.test("staff outside a program cannot list or link its workbooks", async () => {
@@ -678,6 +700,92 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       assert.deepEqual(new Set(queuedProgramIds), new Set([19]));
       const clearRequest = connectorCalls.find(({ path }) => path.endsWith("/values:batchClear"));
       assert.ok(clearRequest, "confirmed workbook selection should replace the selected managed ranges");
+      assert.equal(destinationHistoryRecords.length, 1);
+      assert.deepEqual({
+        actorStaffId: destinationHistoryRecords[0]?.actorStaffId,
+        actorEmail: destinationHistoryRecords[0]?.actorEmail,
+        programId: destinationHistoryRecords[0]?.programId,
+        previousSpreadsheetId: destinationHistoryRecords[0]?.previousSpreadsheetId,
+        previousSheetMappings: destinationHistoryRecords[0]?.previousSheetMappings,
+        newSpreadsheetId: destinationHistoryRecords[0]?.newSpreadsheetId,
+        newSheetMappings: destinationHistoryRecords[0]?.newSheetMappings,
+      }, {
+        actorStaffId: 7,
+        actorEmail: "staff@example.test",
+        programId: 19,
+        previousSpreadsheetId: null,
+        previousSheetMappings: null,
+        newSpreadsheetId: spreadsheetId,
+        newSheetMappings: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+      });
+      assert.equal(Object.keys(destinationHistoryRecords[0] ?? {}).some((key) => /contents|rows/i.test(key)), false);
+      const refresh = await request("/19", "POST", mappingBody());
+      assert.equal(refresh.status, 200);
+      assert.equal(destinationHistoryRecords.length, 1, "refreshing an unchanged destination must not create a change event");
+    });
+
+    await t.test("changing the workbook and mappings records both destinations", async () => {
+      reset();
+      existingConnection = makeConnection(19, "old_sheet_12345678901234567890");
+      existingConnection.spreadsheetTitle = "Previous workbook";
+      const newMappings = {
+        ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+        applications: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS.judgingResponses,
+        judgingResponses: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS.applications,
+      };
+      const response = await request("/19", "POST", mappingBody(newMappings));
+      assert.equal(response.status, 200);
+      assert.equal(destinationHistoryRecords.length, 1);
+      assert.equal(destinationHistoryRecords[0]?.previousSpreadsheetId, "old_sheet_12345678901234567890");
+      assert.equal(destinationHistoryRecords[0]?.previousSpreadsheetTitle, "Previous workbook");
+      assert.equal(destinationHistoryRecords[0]?.newSpreadsheetId, spreadsheetId);
+      assert.deepEqual(destinationHistoryRecords[0]?.previousSheetMappings, DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS);
+      assert.deepEqual(destinationHistoryRecords[0]?.newSheetMappings, newMappings);
+    });
+
+    await t.test("changing worksheet mappings on the existing workbook is recorded", async () => {
+      reset();
+      existingConnection = makeConnection(19, spreadsheetId);
+      const newMappings = {
+        ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+        applications: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS.judgingResponses,
+        judgingResponses: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS.applications,
+      };
+      const response = await request("/19/sheet-mappings", "PATCH", {
+        sheetMappings: newMappings,
+        confirmedOverwrite: true,
+      });
+      assert.equal(response.status, 200);
+      assert.equal(destinationHistoryRecords.length, 1);
+      assert.equal(destinationHistoryRecords[0]?.previousSpreadsheetId, spreadsheetId);
+      assert.equal(destinationHistoryRecords[0]?.newSpreadsheetId, spreadsheetId);
+      assert.deepEqual(destinationHistoryRecords[0]?.previousSheetMappings, DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS);
+      assert.deepEqual(destinationHistoryRecords[0]?.newSheetMappings, newMappings);
+    });
+
+    await t.test("destination history is only visible to coordinators", async () => {
+      reset();
+      destinationHistoryRecords = [{
+        id: 1,
+        programId: 19,
+        programName: "Spring Program",
+        actorStaffId: 7,
+        actorEmail: "staff@example.test",
+        previousSpreadsheetId: null,
+        previousSpreadsheetTitle: null,
+        previousSheetMappings: null,
+        newSpreadsheetId: spreadsheetId,
+        newSpreadsheetTitle: "Spring workbook",
+        newSheetMappings: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+        createdAt: new Date("2026-11-11T10:30:00Z"),
+      }];
+      assert.equal((await request("/19/destination-history")).status, 403);
+      staffRole = "coordinator";
+      const response = await request("/19/destination-history");
+      assert.equal(response.status, 200);
+      const history = await response.json() as Record<string, unknown>[];
+      assert.equal(history.length, 1);
+      assert.equal(history[0]?.actorEmail, "staff@example.test");
     });
   } finally {
     if (server!) {
