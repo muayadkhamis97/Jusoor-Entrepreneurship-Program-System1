@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createServer, type Server } from "node:http";
+import express from "express";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import {
   APPLICATION_HEADERS,
   JUDGING_HEADERS,
@@ -14,7 +17,13 @@ import {
   writeProgramSnapshotSnapshot,
 } from "../src/lib/googleSheetsSync";
 import { PROGRAM_SNAPSHOT_SHEETS } from "../src/lib/googleSheetsSnapshots";
-import { DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS } from "@workspace/db";
+import {
+  db,
+  DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+  programGoogleSheetsConnectionsTable,
+  programGoogleSheetsSyncEventsTable,
+  programsTable,
+} from "@workspace/db";
 
 const spreadsheetId = "sheet_12345678901234567890";
 
@@ -418,4 +427,268 @@ test("Google Sheets authorization failures are clear and never echo provider res
       && error.message.includes("permission")
       && !error.message.includes("sensitive provider detail"),
   );
+});
+
+test("Google Sheets selection API enforces program access, replacement consent, and queue scope", async (t) => {
+  process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
+  process.env.NODE_ENV = "test";
+  const { default: googleSheetsRouter } = await import("../src/routes/googleSheets");
+  const originalSelect = Object.getOwnPropertyDescriptor(db, "select");
+  const originalTransaction = Object.getOwnPropertyDescriptor(db, "transaction");
+  const originalConnectorProxy = ReplitConnectors.prototype.proxy;
+
+  type Connection = Record<string, any> & { programId: number; spreadsheetId: string };
+  let staffProgramIds = [19];
+  let existingConnection: Connection | undefined;
+  let spreadsheetOwnerProgramId: number | undefined;
+  let missingTabAfterCreation: string | undefined;
+  let transactionCalls = 0;
+  let connectorCalls: { service: string; path: string; method: string; body?: unknown }[] = [];
+  let queuedProgramIds: number[] = [];
+  let server: Server;
+
+  const programRecord = { id: 19, name: "Spring Program", archivedAt: null };
+  const makeConnection = (programId: number, spreadsheet: string): Connection => ({
+    programId,
+    spreadsheetId: spreadsheet,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheet}/edit`,
+    spreadsheetTitle: "Spring Program records",
+    sheetMappings: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+    exportBusinessTeam: true,
+    exportOperations: true,
+    exportMentoringGrants: true,
+    exportChats: true,
+    connectedAt: new Date("2026-11-11T10:00:00Z"),
+    lastSyncedAt: null,
+    lastError: null,
+    nextApplicationRow: 2,
+    nextJudgingResponseRow: 2,
+  });
+
+  function rowsFor(table: unknown, selection: Record<string, unknown> | undefined, joined: boolean): any[] {
+    if (table === programsTable) {
+      if (joined) {
+        return [{
+          programId: 19,
+          programName: programRecord.name,
+          spreadsheetId: existingConnection?.spreadsheetId ?? null,
+          spreadsheetUrl: existingConnection?.spreadsheetUrl ?? null,
+          spreadsheetTitle: existingConnection?.spreadsheetTitle ?? null,
+          sheetMappings: existingConnection?.sheetMappings ?? null,
+          exportBusinessTeam: existingConnection?.exportBusinessTeam ?? null,
+          exportOperations: existingConnection?.exportOperations ?? null,
+          exportMentoringGrants: existingConnection?.exportMentoringGrants ?? null,
+          exportChats: existingConnection?.exportChats ?? null,
+          connectedAt: existingConnection?.connectedAt ?? null,
+          lastSyncedAt: existingConnection?.lastSyncedAt ?? null,
+          lastError: existingConnection?.lastError ?? null,
+        }];
+      }
+      return [programRecord];
+    }
+    if (table === programGoogleSheetsConnectionsTable) {
+      const selectedColumns = Object.keys(selection ?? {});
+      if (selectedColumns.length === 1 && selectedColumns[0] === "programId") {
+        return spreadsheetOwnerProgramId === undefined ? [] : [{ programId: spreadsheetOwnerProgramId }];
+      }
+      return existingConnection ? [existingConnection] : [];
+    }
+    return [];
+  }
+
+  function makeQuery(
+    table?: unknown,
+    selection?: Record<string, unknown>,
+    joined = false,
+  ): any {
+    const query: any = {
+      maxRows: undefined as number | undefined,
+      from(nextTable: unknown) { return makeQuery(nextTable, selection, joined); },
+      leftJoin() { return makeQuery(table, selection, true); },
+      innerJoin() { return query; },
+      where() { return query; },
+      orderBy() { return query; },
+      groupBy() { return query; },
+      for() { return query; },
+      limit(count: number) { query.maxRows = count; return query; },
+      then(resolve: (rows: any[]) => unknown, reject?: (error: unknown) => unknown) {
+        return Promise.resolve(rowsFor(table, selection, joined).slice(0, query.maxRows)).then(resolve, reject);
+      },
+    };
+    return query;
+  }
+
+  function createTransaction() {
+    const tx: any = {
+      execute: async () => undefined,
+      select: (selection?: Record<string, unknown>) => makeQuery(undefined, selection),
+      update: (table: unknown) => ({
+        set(values: Record<string, unknown>) {
+          if (table === programGoogleSheetsConnectionsTable && existingConnection) {
+            Object.assign(existingConnection, values);
+          }
+          return { where: async () => undefined };
+        },
+      }),
+      insert: (table: unknown) => ({
+        values(values: Record<string, unknown> | Record<string, unknown>[]) {
+          if (table === programGoogleSheetsConnectionsTable) {
+            existingConnection = {
+              ...makeConnection(19, String((values as Record<string, unknown>).spreadsheetId)),
+              ...(values as Record<string, unknown>),
+            } as Connection;
+          }
+          if (table === programGoogleSheetsSyncEventsTable) {
+            const entries = Array.isArray(values) ? values : [values];
+            queuedProgramIds.push(...entries.map((entry) => Number(entry.programId)));
+          }
+          return {
+            onConflictDoNothing: async () => undefined,
+            onConflictDoUpdate: async () => undefined,
+            returning: async () => table === programGoogleSheetsConnectionsTable ? [existingConnection] : [],
+          };
+        },
+      }),
+    };
+    return tx;
+  }
+
+  const mappingBody = (overrides: Record<string, string> = {}) => ({
+    mode: "existing",
+    spreadsheetId,
+    confirmedOverwrite: true,
+    sheetMappings: { ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS, ...overrides },
+  });
+
+  try {
+    Object.defineProperty(db, "select", {
+      configurable: true,
+      writable: true,
+      value: (selection?: Record<string, unknown>) => makeQuery(undefined, selection),
+    });
+    Object.defineProperty(db, "transaction", {
+      configurable: true,
+      writable: true,
+      value: async (callback: (tx: any) => Promise<unknown>) => {
+        transactionCalls += 1;
+        return callback(createTransaction());
+      },
+    });
+    ReplitConnectors.prototype.proxy = async function (service, path, options) {
+      const method = options?.method ?? "GET";
+      connectorCalls.push({ service, path, method, body: options?.body });
+      if (service === "google-drive") {
+        return Response.json({ files: [{ id: spreadsheetId, name: "Spring workbook" }] });
+      }
+      if (method === "GET") {
+        const titles = Object.values(DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS)
+          .filter((title) => title !== missingTabAfterCreation);
+        return Response.json(path.includes("properties(title)")
+          ? {
+            properties: { title: "Spring workbook" },
+            sheets: titles.map((title, index) => ({ properties: { title, sheetId: index + 1 } })),
+          }
+          : { sheets: titles.map((title, index) => ({ properties: { title, sheetId: index + 1 } })) });
+      }
+      return Response.json({});
+    };
+
+    const app = express();
+    app.use(express.json());
+    app.use((req, res, next) => {
+      res.locals.staff = {
+        id: 7,
+        email: "staff@example.test",
+        role: "staff",
+        programIds: staffProgramIds,
+      };
+      req.log = { error: () => undefined } as any;
+      next();
+    });
+    app.use("/api/staff/google-sheets", googleSheetsRouter);
+    server = createServer(app);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const origin = `http://127.0.0.1:${address.port}/api/staff/google-sheets`;
+    const request = (path: string, method = "GET", body?: unknown) => fetch(`${origin}${path}`, {
+      method,
+      ...(body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}),
+    });
+    const reset = () => {
+      staffProgramIds = [19];
+      existingConnection = undefined;
+      spreadsheetOwnerProgramId = undefined;
+      missingTabAfterCreation = undefined;
+      transactionCalls = 0;
+      connectorCalls = [];
+      queuedProgramIds = [];
+    };
+
+    await t.test("staff outside a program cannot list or link its workbooks", async () => {
+      reset();
+      staffProgramIds = [22];
+      const list = await request("/19/workbooks");
+      const tabs = await request(`/19/workbooks/${spreadsheetId}/tabs`);
+      const link = await request("/19", "POST", mappingBody());
+      assert.equal(list.status, 404);
+      assert.equal(tabs.status, 404);
+      assert.equal(link.status, 404);
+      assert.equal(transactionCalls, 0);
+      assert.deepEqual(connectorCalls, []);
+      assert.deepEqual(queuedProgramIds, []);
+    });
+
+    await t.test("linking an existing workbook without consent cannot clear cells", async () => {
+      reset();
+      const body = { ...mappingBody(), confirmedOverwrite: false };
+      const response = await request("/19", "POST", body);
+      assert.equal(response.status, 400);
+      assert.deepEqual(connectorCalls, []);
+      assert.equal(transactionCalls, 0);
+      assert.deepEqual(queuedProgramIds, []);
+    });
+
+    await t.test("a workbook linked to another program is rejected before clearing or queueing", async () => {
+      reset();
+      spreadsheetOwnerProgramId = 22;
+      const response = await request("/19", "POST", mappingBody());
+      assert.equal(response.status, 409);
+      assert.equal(connectorCalls.some(({ path }) => path.endsWith("/values:batchClear")), false);
+      assert.deepEqual(queuedProgramIds, []);
+      assert.equal(existingConnection, undefined);
+    });
+
+    await t.test("a selected tab missing after provider setup is rejected without linking", async () => {
+      reset();
+      missingTabAfterCreation = "Unverified chat tab";
+      const response = await request("/19", "POST", mappingBody({ chats: missingTabAfterCreation }));
+      assert.equal(response.status, 400);
+      assert.equal(connectorCalls.some(({ path }) => path.endsWith("/values:batchClear")), false);
+      assert.equal(existingConnection, undefined);
+      assert.deepEqual(queuedProgramIds, []);
+    });
+
+    await t.test("a validated selection queues sync work only for the authorized program", async () => {
+      reset();
+      const response = await request("/19", "POST", mappingBody());
+      assert.equal(response.status, 201);
+      assert.equal(existingConnection?.programId, 19);
+      assert.ok(queuedProgramIds.length > 0);
+      assert.deepEqual(new Set(queuedProgramIds), new Set([19]));
+      const clearRequest = connectorCalls.find(({ path }) => path.endsWith("/values:batchClear"));
+      assert.ok(clearRequest, "confirmed workbook selection should replace the selected managed ranges");
+    });
+  } finally {
+    if (server!) {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+      });
+    }
+    if (originalSelect) Object.defineProperty(db, "select", originalSelect);
+    else Reflect.deleteProperty(db, "select");
+    if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
+    else Reflect.deleteProperty(db, "transaction");
+    ReplitConnectors.prototype.proxy = originalConnectorProxy;
+  }
 });
