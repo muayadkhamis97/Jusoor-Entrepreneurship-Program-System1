@@ -867,6 +867,69 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       assert.equal(destinationHistoryRecords[0]?.newSpreadsheetId, spreadsheetId);
       assert.deepEqual(destinationHistoryRecords[0]?.previousSheetMappings, DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS);
       assert.deepEqual(destinationHistoryRecords[0]?.newSheetMappings, newMappings);
+      assert.ok(connectorCalls.some(({ path }) => path.endsWith("/values:batchClear")));
+      assert.ok(queuedProgramIds.length > 0, "a confirmed mapping change should queue sync work");
+    });
+
+    await t.test("changing worksheet mappings without consent leaves the workbook untouched", async (t) => {
+      for (const consent of ["missing", false] as const) {
+        await t.test(`confirmedOverwrite ${consent === "missing" ? "is missing" : "is false"}`, async () => {
+          reset();
+          existingConnection = makeConnection(19, spreadsheetId);
+          const originalMappings = { ...existingConnection.sheetMappings };
+          const newMappings = {
+            ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+            applications: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS.judgingResponses,
+            judgingResponses: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS.applications,
+          };
+          const body = {
+            sheetMappings: newMappings,
+            ...(consent === "missing" ? {} : { confirmedOverwrite: false }),
+          };
+          const response = await request("/19/sheet-mappings", "PATCH", body);
+          assert.equal(response.status, 400);
+          assert.deepEqual(existingConnection.sheetMappings, originalMappings);
+          assert.equal(connectorCalls.length, 0);
+          assert.deepEqual(queuedProgramIds, []);
+        });
+      }
+    });
+
+    await t.test("a selected worksheet tab that does not exist leaves the saved mapping unchanged", async () => {
+      reset();
+      existingConnection = makeConnection(19, spreadsheetId);
+      const originalMappings = { ...existingConnection.sheetMappings };
+      const newMappings = {
+        ...DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+        chats: "Missing chat worksheet",
+      };
+
+      const response = await request("/19/sheet-mappings", "PATCH", {
+        sheetMappings: newMappings,
+        confirmedOverwrite: true,
+      });
+
+      assert.equal(response.status, 400, await response.clone().text());
+      assert.deepEqual(existingConnection.sheetMappings, originalMappings);
+      assert.equal(connectorCalls.some(({ path }) => path.endsWith("/values:batchClear")), false);
+      assert.equal(connectorCalls.some(({ path }) => path.endsWith(":batchUpdate")), false,
+        "rejecting a missing tab must not create a worksheet");
+      assert.deepEqual(queuedProgramIds, []);
+      assert.deepEqual(destinationHistoryRecords, []);
+    });
+
+    await t.test("an unchanged worksheet mapping does not clear or queue sync work", async () => {
+      reset();
+      existingConnection = makeConnection(19, spreadsheetId);
+
+      const response = await request("/19/sheet-mappings", "PATCH", {
+        sheetMappings: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+        confirmedOverwrite: true,
+      });
+
+      assert.equal(response.status, 200, await response.clone().text());
+      assert.equal(connectorCalls.some(({ path }) => path.endsWith("/values:batchClear")), false);
+      assert.deepEqual(queuedProgramIds, []);
     });
 
     await t.test("destination history is only visible to coordinators", async () => {

@@ -471,7 +471,6 @@ router.patch("/:programId/sheet-mappings", async (req, res): Promise<void> => {
         .where(eq(programGoogleSheetsConnectionsTable.programId, programId))
         .limit(1);
       if (!connection) throw new GoogleSheetsError("Program workbook not found.", 404);
-      await ensureProgramSpreadsheetTabs(connection.spreadsheetId, undefined, sheetMappings);
       const info = await getProgramSpreadsheetInfo(connection.spreadsheetId);
       validateMappingsExist(sheetMappings, info.tabs);
       const changed = JSON.stringify(connection.sheetMappings) !== JSON.stringify(sheetMappings);
@@ -505,8 +504,10 @@ router.patch("/:programId/sheet-mappings", async (req, res): Promise<void> => {
           newSheetMappings: sheetMappings,
         });
       }
-      await queueProgramGoogleSheetsBackfill(tx, programId);
-      await queueProgramGoogleSheetsSnapshot(tx, programId, true);
+      if (changed) {
+        await queueProgramGoogleSheetsBackfill(tx, programId);
+        await queueProgramGoogleSheetsSnapshot(tx, programId, true);
+      }
     });
     const statuses = await visibleProgramSheetStatuses(staff);
     res.json(statuses.find((item) => item.programId === programId) ?? { programId, status: "connected", sheetMappings });
