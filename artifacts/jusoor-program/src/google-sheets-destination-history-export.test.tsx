@@ -143,9 +143,12 @@ test('destination history download creates a CSV file and releases its temporary
   }
 });
 
-test('history export appears in the Admin history and waits for a successful load', () => {
+test('history uses bounded pages and export still gathers the full history', () => {
   assert.match(pageSource, /isAdmin && <DestinationHistory/);
   assert.match(pageSource, /data-testid=\{`button-export-google-sheets-destination-history-\$\{programId\}`\}/);
-  assert.match(pageSource, /disabled=\{!query\.data \|\| query\.isLoading \|\| query\.isError\}/);
-  assert.match(pageSource, /downloadProgramGoogleSheetsDestinationHistoryCsv\(programId, query\.data\)/);
+  assert.match(pageSource, /useInfiniteQuery/);
+  assert.match(pageSource, /getNextPageParam: \(lastPage\) => lastPage\.nextCursor/);
+  assert.match(pageSource, /data-testid=\{`button-load-older-google-sheets-history-\$\{programId\}`\}/);
+  assert.match(pageSource, /while \(cursor\)/);
+  assert.match(pageSource, /downloadProgramGoogleSheetsDestinationHistoryCsv\(programId, allEvents\)/);
 });

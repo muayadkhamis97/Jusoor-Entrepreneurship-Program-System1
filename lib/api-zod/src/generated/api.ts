@@ -7110,6 +7110,11 @@ export const GetProgramGoogleSheetsDestinationHistoryParams = zod.object({
   "programId": zod.coerce.number().int()
 })
 
+export const GetProgramGoogleSheetsDestinationHistoryQueryParams = zod.object({
+  "cursor": zod.string().max(512).optional(),
+  "limit": zod.coerce.number().int().min(1).max(100).default(25)
+})
+
 export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneApplicationsMax = 100;
 
 export const getProgramGoogleSheetsDestinationHistoryResponsePreviousSheetMappingsOneJudgingResponsesMax = 100;
@@ -7164,7 +7169,10 @@ export const GetProgramGoogleSheetsDestinationHistoryResponseItem = zod.object({
 }),
   "createdAt": zod.coerce.date()
 })
-export const GetProgramGoogleSheetsDestinationHistoryResponse = zod.array(GetProgramGoogleSheetsDestinationHistoryResponseItem)
+export const GetProgramGoogleSheetsDestinationHistoryResponse = zod.object({
+  "items": zod.array(GetProgramGoogleSheetsDestinationHistoryResponseItem),
+  "nextCursor": zod.string().nullable()
+})
 
 
 /**

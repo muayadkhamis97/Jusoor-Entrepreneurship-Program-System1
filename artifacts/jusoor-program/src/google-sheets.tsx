@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  getProgramGoogleSheetsDestinationHistory,
   getGetProgramGoogleSheetsDestinationHistoryQueryKey,
   getGetProgramGoogleSheetsStatusesQueryKey,
   type ProgramGoogleSheetsExportCategories,
   type ProgramGoogleSheetsSheetMappings,
   useCreateProgramGoogleSheetsConnection,
-  useGetProgramGoogleSheetsDestinationHistory,
   useGetProgramGoogleSheetsStatuses,
   useRetryProgramGoogleSheetsSync,
   useUpdateProgramGoogleSheetsCategories,
@@ -451,16 +451,41 @@ function DestinationHistory({
   ar: boolean;
 }) {
   const copy = (english: string, arabic: string) => ar ? arabic : t(english);
-  const query = useGetProgramGoogleSheetsDestinationHistory(programId, {
-    query: {
-      queryKey: getGetProgramGoogleSheetsDestinationHistoryQueryKey(programId),
-      refetchInterval: 15_000,
-      refetchOnWindowFocus: true,
-    },
+  const query = useInfiniteQuery({
+    queryKey: getGetProgramGoogleSheetsDestinationHistoryQueryKey(programId),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => getProgramGoogleSheetsDestinationHistory(
+      programId,
+      { limit: 25, ...(pageParam ? { cursor: pageParam } : {}) },
+      { signal },
+    ),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
-  const events = query.data ?? [];
+  const events = query.data?.pages.flatMap(page => page.items) ?? [];
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
   const workbookLink = (spreadsheetId: string) =>
     `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/edit`;
+  const exportAllHistory = async () => {
+    setExporting(true);
+    setExportError(false);
+    try {
+      const allEvents = [...events];
+      let cursor = query.data?.pages.at(-1)?.nextCursor ?? null;
+      while (cursor) {
+        const page = await getProgramGoogleSheetsDestinationHistory(programId, { cursor, limit: 25 });
+        allEvents.push(...page.items);
+        cursor = page.nextCursor;
+      }
+      downloadProgramGoogleSheetsDestinationHistoryCsv(programId, allEvents);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <section className="gs-destination-history" aria-labelledby={`gs-destination-history-title-${programId}`} data-testid={`section-google-sheets-destination-history-${programId}`}>
@@ -476,13 +501,11 @@ function DestinationHistory({
           <Button
             variant="text"
             size="sm"
-            onClick={() => {
-              if (query.data) downloadProgramGoogleSheetsDestinationHistoryCsv(programId, query.data);
-            }}
-            disabled={!query.data || query.isLoading || query.isError}
+            onClick={() => void exportAllHistory()}
+            disabled={!query.data || query.isLoading || query.isError || exporting}
             data-testid={`button-export-google-sheets-destination-history-${programId}`}
           >
-            <Download size={14} aria-hidden="true" />{copy('Export history (CSV)', 'تصدير السجل (CSV)')}
+            <Download size={14} aria-hidden="true" />{exporting ? copy('Preparing export…', 'جارٍ إعداد التصدير…') : copy('Export history (CSV)', 'تصدير السجل (CSV)')}
           </Button>
         </div>
       </div>
@@ -493,6 +516,7 @@ function DestinationHistory({
           <Button variant="text" onClick={() => void query.refetch()}>{copy('Retry', 'إعادة المحاولة')}</Button>
         </div>
       )}
+      {exportError && <p className="gs-history-state gs-history-error" role="alert">{copy('History export could not be completed.', 'تعذّر إكمال تصدير السجل.')}</p>}
       {!query.isLoading && !query.isError && events.length === 0 && (
         <p className="gs-history-state">{copy('No destination changes have been recorded yet.', 'لم يتم تسجيل أي تغييرات للوجهة بعد.')}</p>
       )}
@@ -534,6 +558,19 @@ function DestinationHistory({
             </li>
           ))}
         </ol>
+      )}
+      {!query.isLoading && !query.isError && query.hasNextPage && (
+        <div className="gs-history-state">
+          <Button
+            variant="text"
+            onClick={() => void query.fetchNextPage()}
+            disabled={query.isFetchingNextPage}
+            data-testid={`button-load-older-google-sheets-history-${programId}`}
+          >
+            {query.isFetchingNextPage ? copy('Loading older changes…', 'جارٍ تحميل التغييرات الأقدم…') : copy('Load older changes', 'تحميل التغييرات الأقدم')}
+          </Button>
+          {query.isFetchNextPageError && <span role="alert">{copy('Older changes could not be loaded.', 'تعذّر تحميل التغييرات الأقدم.')}</span>}
+        </div>
       )}
     </section>
   );

@@ -78,9 +78,18 @@ test("coordinators can read destination history after its staff account is remov
     await pool.query(
       `INSERT INTO jusoor_program_google_sheets_destination_history (
         program_id, program_name, actor_staff_id, actor_email,
-        new_spreadsheet_id, new_spreadsheet_title, new_sheet_mappings
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
-      [program.rows[0]!.id, "Spring Program", staff.rows[0]!.id, actorEmail, "sheet_retained_1234567890", "Spring workbook", JSON.stringify(mappings)],
+        new_spreadsheet_id, new_spreadsheet_title, new_sheet_mappings, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
+      [program.rows[0]!.id, "Spring Program", staff.rows[0]!.id, actorEmail, "sheet_retained_1234567890", "Spring workbook", JSON.stringify(mappings), "2026-11-11T10:30:00.123456Z"],
+    );
+    await pool.query(
+      `INSERT INTO jusoor_program_google_sheets_destination_history (
+        program_id, program_name, actor_staff_id, actor_email,
+        new_spreadsheet_id, new_spreadsheet_title, new_sheet_mappings, created_at
+      ) VALUES
+        ($1, $2, $3, $4, $5, $6, $7::jsonb, $8),
+        ($1, $2, $3, $4, $9, $6, $7::jsonb, $8)`,
+      [program.rows[0]!.id, "Spring Program", staff.rows[0]!.id, actorEmail, "sheet_retained_1234567891", "Spring workbook", JSON.stringify(mappings), "2026-11-11T10:30:00.123456Z", "sheet_retained_1234567892"],
     );
     await pool.query("DELETE FROM jusoor_staff_members WHERE id = $1", [staff.rows[0]!.id]);
 
@@ -102,13 +111,32 @@ test("coordinators can read destination history after its staff account is remov
     const denied = await fetch(endpoint);
     assert.equal(denied.status, 403, "non-coordinators must not read destination history");
 
-    const response = await fetch(endpoint, { headers: { "x-test-role": "coordinator" } });
+    const response = await fetch(`${endpoint}?limit=2`, { headers: { "x-test-role": "coordinator" } });
     assert.equal(response.status, 200, await response.clone().text());
-    const history = await response.json() as Record<string, unknown>[];
-    assert.equal(history.length, 1);
-    assert.equal(history[0]?.actorStaffId, null);
-    assert.equal(history[0]?.actorEmail, actorEmail);
-    assert.equal(history[0]?.newSpreadsheetId, "sheet_retained_1234567890");
+    const firstPage = await response.json() as {
+      items: Record<string, unknown>[];
+      nextCursor: string | null;
+    };
+    assert.deepEqual(firstPage.items.map((item) => item.id), [3, 2],
+      "same-timestamp events must use descending IDs as a deterministic tie-breaker");
+    assert.equal(firstPage.items[0]?.actorStaffId, null);
+    assert.equal(firstPage.items[0]?.actorEmail, actorEmail);
+    assert.equal(firstPage.items[0]?.newSpreadsheetId, "sheet_retained_1234567892");
+    assert.ok(firstPage.nextCursor);
+
+    const secondPageResponse = await fetch(
+      `${endpoint}?limit=2&cursor=${encodeURIComponent(firstPage.nextCursor)}`,
+      { headers: { "x-test-role": "coordinator" } },
+    );
+    assert.equal(secondPageResponse.status, 200, await secondPageResponse.clone().text());
+    const secondPage = await secondPageResponse.json() as {
+      items: Record<string, unknown>[];
+      nextCursor: string | null;
+    };
+    assert.deepEqual(secondPage.items.map((item) => item.id), [1],
+      "the microsecond-precision cursor must not skip the final tied event");
+    assert.equal(secondPage.items[0]?.newSpreadsheetId, "sheet_retained_1234567890");
+    assert.equal(secondPage.nextCursor, null);
   } finally {
     if (server) {
       await new Promise<void>((resolve, reject) => {

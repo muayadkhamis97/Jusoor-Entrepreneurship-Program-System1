@@ -20,3 +20,9 @@ Drive file discovery and Sheets editing may use separate project integrations. L
 **Why:** the two Google connectors can be authorized to different accounts; a file visible through Drive is not necessarily editable through the Sheets connection.
 
 **How to apply:** fail closed if the Sheets integration cannot read the selected workbook, and do not alter destination cells until the workbook and selected tabs have been verified.
+
+For destination-history pagination, preserve the database timestamp precision in cursors and include the record ID as a tie-breaker. PostgreSQL timestamps can retain microseconds that JavaScript `Date` values truncate, which can skip audit rows across page boundaries.
+
+**Why:** a cursor rounded to milliseconds can jump past older events created within the same millisecond, even when the query sorts by timestamp and ID.
+
+**How to apply:** derive cursor timestamps from their database representation, compare `(created_at, id)` consistently, and keep the coordinator-only history fields unchanged.

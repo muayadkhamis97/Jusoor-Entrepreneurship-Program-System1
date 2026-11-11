@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import {
   CreateProgramGoogleSheetsConnectionBody,
   GetProgramGoogleSheetsDestinationHistoryParams,
+  GetProgramGoogleSheetsDestinationHistoryQueryParams,
   GetProgramGoogleSheetsDestinationHistoryResponse,
   ListProgramGoogleSheetsWorkbookTabsParams,
   ListProgramGoogleSheetsWorkbookTabsResponse,
@@ -53,6 +54,40 @@ const defaultExportCategories: ExportCategories = {
   mentoringGrants: true,
   chats: true,
 };
+
+const DESTINATION_HISTORY_PAGE_SIZE = 25;
+
+type DestinationHistoryCursor = {
+  createdAt: string;
+  id: number;
+};
+
+function encodeDestinationHistoryCursor(cursor: DestinationHistoryCursor): string {
+  return Buffer.from(JSON.stringify(cursor)).toString("base64url");
+}
+
+function decodeDestinationHistoryCursor(value: string | undefined): DestinationHistoryCursor | null | false {
+  if (value === undefined) return null;
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf8");
+    const parsed: unknown = JSON.parse(decoded);
+    if (
+      !parsed
+      || typeof parsed !== "object"
+      || typeof (parsed as Record<string, unknown>).createdAt !== "string"
+      || !Number.isSafeInteger((parsed as Record<string, unknown>).id)
+      || Number((parsed as Record<string, unknown>).id) <= 0
+      || !Number.isFinite(Date.parse((parsed as Record<string, unknown>).createdAt as string))
+      || Buffer.from(decoded).toString("base64url") !== value
+    ) return false;
+    return {
+      createdAt: (parsed as Record<string, unknown>).createdAt as string,
+      id: Number((parsed as Record<string, unknown>).id),
+    };
+  } catch {
+    return false;
+  }
+}
 
 function parseExportCategories(value: unknown): ExportCategories | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -175,8 +210,18 @@ router.get("/", async (_req, res): Promise<void> => {
 
 router.get("/:programId/destination-history", requireCoordinator, async (req, res): Promise<void> => {
   const params = GetProgramGoogleSheetsDestinationHistoryParams.safeParse(req.params);
+  const query = GetProgramGoogleSheetsDestinationHistoryQueryParams.safeParse(req.query);
   if (!params.success || !requireProgramScope(params.data.programId)) {
     res.status(400).json({ error: "Invalid program id." });
+    return;
+  }
+  if (!query.success) {
+    res.status(400).json({ error: "Invalid destination history page." });
+    return;
+  }
+  const cursor = decodeDestinationHistoryCursor(query.data.cursor);
+  if (cursor === false) {
+    res.status(400).json({ error: "Invalid destination history cursor." });
     return;
   }
   try {
@@ -188,10 +233,46 @@ router.get("/:programId/destination-history", requireCoordinator, async (req, re
       res.status(404).json({ error: "Program not found." });
       return;
     }
-    const history = await db.select().from(programGoogleSheetsDestinationHistoryTable)
-      .where(eq(programGoogleSheetsDestinationHistoryTable.programId, params.data.programId))
-      .orderBy(desc(programGoogleSheetsDestinationHistoryTable.createdAt), desc(programGoogleSheetsDestinationHistoryTable.id));
-    res.json(GetProgramGoogleSheetsDestinationHistoryResponse.parse(history));
+    const pageSize = query.data.limit ?? DESTINATION_HISTORY_PAGE_SIZE;
+    const history = await db.select({
+      id: programGoogleSheetsDestinationHistoryTable.id,
+      programId: programGoogleSheetsDestinationHistoryTable.programId,
+      programName: programGoogleSheetsDestinationHistoryTable.programName,
+      actorStaffId: programGoogleSheetsDestinationHistoryTable.actorStaffId,
+      actorEmail: programGoogleSheetsDestinationHistoryTable.actorEmail,
+      previousSpreadsheetId: programGoogleSheetsDestinationHistoryTable.previousSpreadsheetId,
+      previousSpreadsheetTitle: programGoogleSheetsDestinationHistoryTable.previousSpreadsheetTitle,
+      previousSheetMappings: programGoogleSheetsDestinationHistoryTable.previousSheetMappings,
+      newSpreadsheetId: programGoogleSheetsDestinationHistoryTable.newSpreadsheetId,
+      newSpreadsheetTitle: programGoogleSheetsDestinationHistoryTable.newSpreadsheetTitle,
+      newSheetMappings: programGoogleSheetsDestinationHistoryTable.newSheetMappings,
+      createdAt: programGoogleSheetsDestinationHistoryTable.createdAt,
+      cursorCreatedAt: sql<string>`${programGoogleSheetsDestinationHistoryTable.createdAt}::text`,
+    }).from(programGoogleSheetsDestinationHistoryTable)
+      .where(and(
+        eq(programGoogleSheetsDestinationHistoryTable.programId, params.data.programId),
+        ...(cursor ? [or(
+          sql`${programGoogleSheetsDestinationHistoryTable.createdAt} < ${cursor.createdAt}::timestamptz`,
+          and(
+            sql`${programGoogleSheetsDestinationHistoryTable.createdAt} = ${cursor.createdAt}::timestamptz`,
+            lt(programGoogleSheetsDestinationHistoryTable.id, cursor.id),
+          ),
+        )!] : []),
+      ))
+      .orderBy(desc(programGoogleSheetsDestinationHistoryTable.createdAt), desc(programGoogleSheetsDestinationHistoryTable.id))
+      // Keep the timestamp's database precision in the cursor; JavaScript Dates
+      // truncate PostgreSQL microseconds and could otherwise skip older records.
+      .limit(pageSize + 1);
+    const hasMore = history.length > pageSize;
+    const pageRows = history.slice(0, pageSize);
+    const items = pageRows.map(({ cursorCreatedAt: _cursorCreatedAt, ...entry }) => entry);
+    const last = pageRows.at(-1);
+    res.json(GetProgramGoogleSheetsDestinationHistoryResponse.parse({
+      items,
+      nextCursor: hasMore && last
+        ? encodeDestinationHistoryCursor({ createdAt: last.cursorCreatedAt, id: last.id })
+        : null,
+    }));
   } catch (error) {
     req.log.error({ err: error, programId: params.data.programId }, "Google Sheets destination history could not be loaded");
     res.status(503).json({ error: "Google Sheets destination history could not be loaded." });

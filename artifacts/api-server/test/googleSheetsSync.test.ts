@@ -455,6 +455,7 @@ test("Google Sheets selection API enforces program access, replacement consent, 
   let connectorCalls: { service: string; path: string; method: string; body?: unknown }[] = [];
   let queuedProgramIds: number[] = [];
   let destinationHistoryRecords: Record<string, unknown>[] = [];
+  let destinationHistoryQueryLimit = 0;
   let workbookLockAttempts = 0;
   let clearCount = 0;
   let clearGate: Promise<void> | undefined;
@@ -519,7 +520,14 @@ test("Google Sheets selection API enforces program access, replacement consent, 
         ? [{ ...currentConnection, sheetMappings: { ...currentConnection.sheetMappings } }]
         : [];
     }
-    if (table === programGoogleSheetsDestinationHistoryTable) return destinationHistoryRecords;
+    if (table === programGoogleSheetsDestinationHistoryTable) {
+      return destinationHistoryRecords.map((record) => ({
+        ...record,
+        cursorCreatedAt: (record.createdAt as Date).toISOString(),
+      })).sort((left, right) =>
+        (right.createdAt as Date).getTime() - (left.createdAt as Date).getTime()
+        || Number(right.id) - Number(left.id));
+    }
     return [];
   }
 
@@ -537,7 +545,11 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       orderBy() { return query; },
       groupBy() { return query; },
       for() { return query; },
-      limit(count: number) { query.maxRows = count; return query; },
+      limit(count: number) {
+        query.maxRows = count;
+        if (table === programGoogleSheetsDestinationHistoryTable) destinationHistoryQueryLimit = count;
+        return query;
+      },
       then(resolve: (rows: any[]) => unknown, reject?: (error: unknown) => unknown) {
         return Promise.resolve(rowsFor(table, selection, joined).slice(0, query.maxRows)).then(resolve, reject);
       },
@@ -720,6 +732,7 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       connectorCalls = [];
       queuedProgramIds = [];
       destinationHistoryRecords = [];
+      destinationHistoryQueryLimit = 0;
       workbookLockAttempts = 0;
       clearCount = 0;
       clearGate = undefined;
@@ -955,10 +968,44 @@ test("Google Sheets selection API enforces program access, replacement consent, 
       staffRole = "coordinator";
       const response = await request("/19/destination-history");
       assert.equal(response.status, 200);
-      const history = await response.json() as Record<string, unknown>[];
-      assert.equal(history.length, 1);
-      assert.equal(history[0]?.actorStaffId, null);
-      assert.equal(history[0]?.actorEmail, "staff@example.test");
+      const history = await response.json() as { items: Record<string, unknown>[]; nextCursor: string | null };
+      assert.equal(history.items.length, 1);
+      assert.equal(history.items[0]?.actorStaffId, null);
+      assert.equal(history.items[0]?.actorEmail, "staff@example.test");
+      assert.equal(history.nextCursor, null);
+    });
+
+    await t.test("destination history pages are bounded and tie cursors include timestamp and id", async () => {
+      reset();
+      staffRole = "coordinator";
+      destinationHistoryRecords = [1, 2, 3].map((id) => ({
+        id,
+        programId: 19,
+        programName: "Spring Program",
+        actorStaffId: 7,
+        actorEmail: "staff@example.test",
+        previousSpreadsheetId: null,
+        previousSpreadsheetTitle: null,
+        previousSheetMappings: null,
+        newSpreadsheetId: spreadsheetId,
+        newSpreadsheetTitle: "Spring workbook",
+        newSheetMappings: DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+        createdAt: new Date("2026-11-11T10:30:00Z"),
+      }));
+
+      const response = await request("/19/destination-history?limit=2");
+      assert.equal(response.status, 200);
+      assert.equal(destinationHistoryQueryLimit, 3, "query should fetch one extra row to detect another page");
+      const page = await response.json() as { items: { id: number; actorEmail: string }[]; nextCursor: string | null };
+      assert.deepEqual(page.items.map(({ id }) => id), [3, 2]);
+      assert.equal(page.items[0]?.actorEmail, "staff@example.test");
+      assert.ok(page.nextCursor);
+      assert.deepEqual(
+        JSON.parse(Buffer.from(page.nextCursor, "base64url").toString("utf8")),
+        { createdAt: "2026-11-11T10:30:00.000Z", id: 2 },
+      );
+      assert.equal((await request("/19/destination-history?limit=101")).status, 400);
+      assert.equal((await request("/19/destination-history?cursor=not-a-cursor")).status, 400);
     });
   } finally {
     if (server!) {

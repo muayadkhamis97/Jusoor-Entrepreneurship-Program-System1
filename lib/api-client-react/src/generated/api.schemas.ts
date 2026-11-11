@@ -137,6 +137,16 @@ export interface ProgramGoogleSheetsDestinationHistory {
   createdAt: string;
 }
 
+export interface ProgramGoogleSheetsDestinationHistoryPage {
+  items: ProgramGoogleSheetsDestinationHistory[];
+  nextCursor: string | null;
+}
+
+export interface GetProgramGoogleSheetsDestinationHistoryQueryParams {
+  cursor?: string;
+  limit?: number;
+}
+
 export interface GoogleSheetsWorkbook {
   /**
      * @minLength 10

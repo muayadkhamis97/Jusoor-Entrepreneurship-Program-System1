@@ -191,6 +191,8 @@ import type {
   ProgramBrandingInput,
   ProgramGoogleSheetsConnectionInput,
   ProgramGoogleSheetsDestinationHistory,
+  ProgramGoogleSheetsDestinationHistoryPage,
+  GetProgramGoogleSheetsDestinationHistoryQueryParams,
   ProgramGoogleSheetsExportCategoriesInput,
   ProgramGoogleSheetsSheetMappingsInput,
   ProgramGoogleSheetsStatus,
@@ -18197,20 +18199,30 @@ export const useDisconnectProgramGoogleSheets = <TError = ErrorType<void>,
       return useMutation(getDisconnectProgramGoogleSheetsMutationOptions(options));
     }
 
-export const getGetProgramGoogleSheetsDestinationHistoryUrl = (programId: number,) => {
+export const getGetProgramGoogleSheetsDestinationHistoryUrl = (programId: number,
+    params?: GetProgramGoogleSheetsDestinationHistoryQueryParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
-
-
-  return `/api/staff/google-sheets/${programId}/destination-history`
+  const stringifiedParams = normalizedParams.toString();
+  return stringifiedParams.length > 0
+    ? `/api/staff/google-sheets/${programId}/destination-history?${stringifiedParams}`
+    : `/api/staff/google-sheets/${programId}/destination-history`
 }
 
 /**
  * @summary Review changes to a program's Google Sheets destination
  */
-export const getProgramGoogleSheetsDestinationHistory = async (programId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsDestinationHistory[]> => {
+export const getProgramGoogleSheetsDestinationHistory = async (programId: number,
+    params?: GetProgramGoogleSheetsDestinationHistoryQueryParams,
+    options?: Parameters<typeof customFetch>[1]): Promise<ProgramGoogleSheetsDestinationHistoryPage> => {
 
-  return customFetch<ProgramGoogleSheetsDestinationHistory[]>(getGetProgramGoogleSheetsDestinationHistoryUrl(programId),
+  return customFetch<ProgramGoogleSheetsDestinationHistoryPage>(getGetProgramGoogleSheetsDestinationHistoryUrl(programId,params),
   {
     ...options,
     method: 'GET'
@@ -18223,23 +18235,26 @@ export const getProgramGoogleSheetsDestinationHistory = async (programId: number
 
 
 
-export const getGetProgramGoogleSheetsDestinationHistoryQueryKey = (programId: number,) => {
+export const getGetProgramGoogleSheetsDestinationHistoryQueryKey = (programId: number,
+    params?: GetProgramGoogleSheetsDestinationHistoryQueryParams,) => {
     return [
-    `/api/staff/google-sheets/${programId}/destination-history`
+    `/api/staff/google-sheets/${programId}/destination-history`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetProgramGoogleSheetsDestinationHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError = ErrorType<void>>(programId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetProgramGoogleSheetsDestinationHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError = ErrorType<void>>(programId: number,
+    params?: GetProgramGoogleSheetsDestinationHistoryQueryParams,
+    options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetProgramGoogleSheetsDestinationHistoryQueryKey(programId);
+  const queryKey =  queryOptions?.queryKey ?? getGetProgramGoogleSheetsDestinationHistoryQueryKey(programId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>> = ({ signal }) => getProgramGoogleSheetsDestinationHistory(programId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>> = ({ signal }) => getProgramGoogleSheetsDestinationHistory(programId, params, { signal, ...requestOptions });
 
 
 
@@ -18257,11 +18272,13 @@ export type GetProgramGoogleSheetsDestinationHistoryQueryError = ErrorType<void>
  */
 
 export function useGetProgramGoogleSheetsDestinationHistory<TData = Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError = ErrorType<void>>(
- programId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ programId: number,
+    params?: GetProgramGoogleSheetsDestinationHistoryQueryParams,
+    options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgramGoogleSheetsDestinationHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetProgramGoogleSheetsDestinationHistoryQueryOptions(programId,options)
+  const queryOptions = getGetProgramGoogleSheetsDestinationHistoryQueryOptions(programId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
