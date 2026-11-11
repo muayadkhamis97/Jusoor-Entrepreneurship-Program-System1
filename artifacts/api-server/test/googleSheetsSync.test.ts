@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createServer, type Server } from "node:http";
@@ -21,6 +23,7 @@ import { PROGRAM_SNAPSHOT_SHEETS } from "../src/lib/googleSheetsSnapshots";
 import {
   db,
   DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+  pool,
   programGoogleSheetsConnectionsTable,
   programGoogleSheetsDestinationHistoryTable,
   programGoogleSheetsSyncEventsTable,
@@ -967,5 +970,79 @@ test("Google Sheets selection API enforces program access, replacement consent, 
     if (originalTransaction) Object.defineProperty(db, "transaction", originalTransaction);
     else Reflect.deleteProperty(db, "transaction");
     ReplitConnectors.prototype.proxy = originalConnectorProxy;
+  }
+});
+
+test("PostgreSQL keeps destination history after its staff account is removed", {
+  skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a disposable PostgreSQL database.",
+}, async () => {
+  const schemaName = `sheets_history_${randomUUID().replaceAll("-", "")}`;
+  const client = await pool.connect();
+  let schemaCreated = false;
+
+  try {
+    await client.query(`CREATE SCHEMA "${schemaName}"`);
+    schemaCreated = true;
+    await client.query(`SET search_path TO "${schemaName}"`);
+    await client.query(`
+      CREATE TABLE jusoor_staff_members (
+        id serial PRIMARY KEY,
+        email text NOT NULL UNIQUE
+      )
+    `);
+
+    const migration = await readFile(
+      new URL("../../../lib/db/migrations/20261111_google_sheets_destination_history.sql", import.meta.url),
+      "utf8",
+    );
+    await client.query(migration);
+
+    const actorEmail = "removed-staff@example.test";
+    const staff = await client.query<{ id: number }>(
+      "INSERT INTO jusoor_staff_members (email) VALUES ($1) RETURNING id",
+      [actorEmail],
+    );
+    const staffId = staff.rows[0]!.id;
+    const destination = await client.query<{ id: number }>(
+      `INSERT INTO jusoor_program_google_sheets_destination_history (
+        program_id,
+        program_name,
+        actor_staff_id,
+        actor_email,
+        new_spreadsheet_id,
+        new_spreadsheet_title,
+        new_sheet_mappings
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id`,
+      [
+        27,
+        "Spring Program",
+        staffId,
+        actorEmail,
+        spreadsheetId,
+        "Spring workbook",
+        DEFAULT_PROGRAM_GOOGLE_SHEETS_SHEET_MAPPINGS,
+      ],
+    );
+
+    await client.query("DELETE FROM jusoor_staff_members WHERE id = $1", [staffId]);
+
+    const history = await client.query<{
+      actor_staff_id: number | null;
+      actor_email: string;
+      new_spreadsheet_id: string;
+    }>(
+      `SELECT actor_staff_id, actor_email, new_spreadsheet_id
+      FROM jusoor_program_google_sheets_destination_history
+      WHERE id = $1`,
+      [destination.rows[0]!.id],
+    );
+    assert.equal(history.rowCount, 1, "the destination event must remain queryable after staff removal");
+    assert.equal(history.rows[0]?.actor_staff_id, null);
+    assert.equal(history.rows[0]?.actor_email, actorEmail);
+    assert.equal(history.rows[0]?.new_spreadsheet_id, spreadsheetId);
+  } finally {
+    if (schemaCreated) await client.query(`DROP SCHEMA "${schemaName}" CASCADE`);
+    client.release();
   }
 });
