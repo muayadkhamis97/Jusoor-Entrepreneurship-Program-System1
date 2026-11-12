@@ -172,8 +172,22 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       const addresses: string[] = [];
       await processAnnouncementEmails(async m => { addresses.push(...m.recipients); });
       assert.deepEqual(addresses, []);
-      await connection.query("UPDATE pg_temp.jusoor_program_announcements SET scheduled_for = now() WHERE id = $1", [scheduled.id]);
+      const scheduledClock = await connection.query(`
+        UPDATE pg_temp.jusoor_program_announcements SET scheduled_for = now() - interval '1 minute' WHERE id = $1
+        RETURNING scheduled_for::text AS scheduled_for, now()::text AS transaction_now,
+          statement_timestamp()::text AS statement_now, clock_timestamp()::text AS wall_now,
+          current_setting('TimeZone') AS database_timezone
+      `, [scheduled.id]);
+      const nodeNowBeforeWorker = new Date();
       await processAnnouncementEmails(async m => { addresses.push(...m.recipients); });
+      if (addresses.length !== 1) {
+        console.error("Scheduled announcement clock diagnostic", {
+          ...scheduledClock.rows[0],
+          nodeTimezone: process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+          nodeNowBeforeWorker: nodeNowBeforeWorker.toISOString(),
+          nodeNowAfterWorker: new Date().toISOString(),
+        });
+      }
       assert.deepEqual(addresses, ["one@example.test"]);
       const deleted = await create({ programId: 2 });
       // TEMP LIKE does not copy foreign keys; the real delete cascades requests and deliveries.

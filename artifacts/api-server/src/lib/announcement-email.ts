@@ -117,7 +117,7 @@ function recipientScope(announcement: typeof announcements.$inferSelect, email?:
 export async function processAnnouncementEmails(send = sendPlatformEmail): Promise<void> {
   const due = await db.select({ announcement: announcements }).from(requests)
     .innerJoin(announcements, eq(requests.announcementId, announcements.id))
-    .where(and(isNull(requests.preparedAt), lte(announcements.scheduledFor, new Date())))
+    .where(and(isNull(requests.preparedAt), lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`)))
     .orderBy(asc(requests.checkedAt)).limit(20);
   for (const { announcement } of due) {
     // Transactional snapshot: zero recipients is also a completed snapshot, not an invitation
@@ -140,7 +140,7 @@ export async function processAnnouncementEmails(send = sendPlatformEmail): Promi
   }
   const pending = await db.select({ delivery: deliveries, announcement: announcements }).from(deliveries)
     .innerJoin(announcements, eq(deliveries.announcementId, announcements.id))
-    .where(and(eq(deliveries.status, "pending"), lte(announcements.scheduledFor, new Date())))
+    .where(and(eq(deliveries.status, "pending"), lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`)))
     .orderBy(sql`${deliveries.attemptedAt} asc nulls first`).limit(50);
   for (const { delivery, announcement } of pending) {
     if (!await authorMaySend(announcement)) {
