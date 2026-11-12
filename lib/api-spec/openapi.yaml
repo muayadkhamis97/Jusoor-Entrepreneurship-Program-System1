@@ -4369,14 +4369,14 @@ paths:
       summary: Review changes to a program's Google Sheets destination
       parameters:
         - $ref: "#/components/parameters/ProgramId"
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
       responses:
         "200":
           description: Workbook and worksheet mapping destination changes
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: "#/components/schemas/ProgramGoogleSheetsDestinationHistory" }
+              schema: { $ref: "#/components/schemas/ProgramGoogleSheetsDestinationHistoryPage" }
         "403":
           description: Coordinator role required
         "404":
@@ -4594,6 +4594,15 @@ components:
         newSpreadsheetTitle: { type: string }
         newSheetMappings: { $ref: "#/components/schemas/ProgramGoogleSheetsSheetMappings" }
         createdAt: { type: string, format: date-time }
+    ProgramGoogleSheetsDestinationHistoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ProgramGoogleSheetsDestinationHistory" }
+        nextCursor: { type: ["string", "null"] }
     GoogleSheetsWorkbookList:
       type: object
       additionalProperties: false

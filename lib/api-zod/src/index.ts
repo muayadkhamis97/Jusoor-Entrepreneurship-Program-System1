@@ -7,3 +7,5 @@ export { ListJudgingFormResponsesParams } from "./generated/api";
 export type { ListJudgingFormResponsesParams as JudgingResponseCursor } from "./generated/types/listJudgingFormResponsesParams";
 export { ListProgramGoogleSheetsWorkbooksParams } from "./generated/api";
 export type { ListProgramGoogleSheetsWorkbooksParams as GoogleSheetsWorkbookListParams } from "./generated/types/listProgramGoogleSheetsWorkbooksParams";
+export { GetProgramGoogleSheetsDestinationHistoryParams } from "./generated/api";
+export type { GetProgramGoogleSheetsDestinationHistoryParams as GetProgramGoogleSheetsDestinationHistoryQuery } from "./generated/types/getProgramGoogleSheetsDestinationHistoryParams";

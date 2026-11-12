@@ -139,12 +139,8 @@ export interface ProgramGoogleSheetsDestinationHistory {
 
 export interface ProgramGoogleSheetsDestinationHistoryPage {
   items: ProgramGoogleSheetsDestinationHistory[];
+  /** @nullable */
   nextCursor: string | null;
-}
-
-export interface GetProgramGoogleSheetsDestinationHistoryQueryParams {
-  cursor?: string;
-  limit?: number;
 }
 
 export interface GoogleSheetsWorkbook {
@@ -4654,6 +4650,15 @@ export type SubmitPublicJudgingResponseParams = {
  * @pattern ^[A-Za-z0-9_-]+$
  */
 token: string;
+};
+
+export type GetProgramGoogleSheetsDestinationHistoryParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
 };
 
 export type ListProgramGoogleSheetsWorkbooksParams = {
