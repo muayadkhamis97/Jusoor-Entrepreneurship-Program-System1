@@ -174,6 +174,29 @@ export const useListGrantAwards = () => result([{
   totalReceived: 1800,
   remainingAmount: 3200,
   status: 'partially_received',
-  receipts: [],
+  receipts: [
+    {
+      id: 91,
+      pitchId: 81,
+      kind: 'received',
+      amount: 2000,
+      receivedOn: '2026-09-17',
+      reference: 'VOUCHER-2026-FOUNDERS-GRANT-INSTALLMENT-REGIONAL-FOOD-COOPERATIVE-RECEIPT-000000000000000000000000000000000000000000000000000000000000000000000000',
+      notes: null,
+      recordedBy: 'Program coordinator',
+      recordedAt: '2026-09-17T10:30:00.000Z',
+    },
+    {
+      id: 92,
+      pitchId: 81,
+      kind: 'reversal',
+      amount: 200,
+      receivedOn: '2026-10-02',
+      reference: 'CORRECTION-2026-FOUNDERS-GRANT-ADJUSTMENT-000000000000000000000000000000000000000000000000000000000000000000000000',
+      notes: 'Duplicate amount corrected.',
+      recordedBy: 'Program coordinator',
+      recordedAt: '2026-10-02T14:15:00.000Z',
+    },
+  ],
 }]);
 export const useCreateGrantReceipt = mutation;

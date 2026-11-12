@@ -235,6 +235,70 @@ test('team, analytics, learning and grants retain English/Arabic layout across d
               : Math.abs(positions.count.right - positions.toolbar.right) < 3,
             `${label}: award count stays aligned to the toolbar's inline-end (count ${positions.count.left}-${positions.count.right}, toolbar ${positions.toolbar.left}-${positions.toolbar.right})`);
 
+            const receiptHistory = page.locator('.grant-receipt-history');
+            await receiptHistory.locator('summary').click();
+            const receiptEntries = receiptHistory.locator('.grant-receipt-list > li');
+            assert.equal(await receiptEntries.count(), 2, `${label}: received and reversal entries appear in history`);
+            assert.ok(
+              await receiptEntries.nth(0).locator('.grant-receipt-copy > b').textContent() ===
+                (language === 'ar' ? 'الأموال المستلمة' : 'Funds received'),
+              `${label}: received entry type remains readable in the selected language`,
+            );
+            assert.ok(
+              await receiptEntries.nth(1).locator('.grant-receipt-copy > b').textContent() ===
+                (language === 'ar' ? 'قيد عكسي للتصحيح' : 'Correction reversal'),
+              `${label}: reversal entry type remains readable in the selected language`,
+            );
+            const historyLayout = await receiptHistory.evaluate(element => {
+              const list = element.querySelector<HTMLElement>('.grant-receipt-list')!;
+              const entries = Array.from(list.querySelectorAll<HTMLElement>(':scope > li'));
+              const measuredEntries = entries.map(entry => {
+                const bounds = entry.getBoundingClientRect();
+                const amount = entry.querySelector<HTMLElement>('.grant-receipt-amount')!.getBoundingClientRect();
+                const dateAndReference = entry.querySelector<HTMLElement>('.grant-receipt-copy > small')!;
+                return {
+                  bounds: { left: bounds.left, right: bounds.right },
+                  amount: { left: amount.left, right: amount.right, width: amount.width },
+                  dateAndReference: {
+                    text: dateAndReference.textContent,
+                    height: dateAndReference.getBoundingClientRect().height,
+                    lineHeight: Number.parseFloat(getComputedStyle(dateAndReference).lineHeight),
+                    scrollWidth: dateAndReference.scrollWidth,
+                    clientWidth: dateAndReference.clientWidth,
+                  },
+                };
+              });
+              return {
+                entries: measuredEntries,
+                viewportWidth: window.innerWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                bodyWidth: document.body.scrollWidth,
+              };
+            });
+            assert.ok(
+              historyLayout.documentWidth <= historyLayout.viewportWidth &&
+                historyLayout.bodyWidth <= historyLayout.viewportWidth,
+              `${label} / receipt history: opening the ledger does not cause page-level horizontal overflow`,
+            );
+            for (const [index, entry] of historyLayout.entries.entries()) {
+              assert.ok(
+                entry.amount.width > 0 && entry.amount.left >= entry.bounds.left - 1 &&
+                  entry.amount.right <= entry.bounds.right + 1,
+                `${label} / receipt entry ${index + 1}: amount remains visible within the row`,
+              );
+              assert.match(entry.dateAndReference.text ?? '', /2026/, `${label} / receipt entry ${index + 1}: date remains visible`);
+              assert.ok(
+                entry.dateAndReference.scrollWidth <= entry.dateAndReference.clientWidth,
+                `${label} / receipt entry ${index + 1}: date and voucher reference wrap instead of overflowing`,
+              );
+              if (width === 390) {
+                assert.ok(
+                  entry.dateAndReference.height > entry.dateAndReference.lineHeight,
+                  `${label} / receipt entry ${index + 1}: long voucher reference wraps onto additional lines`,
+                );
+              }
+            }
+
             const receiptActions = page.locator('.grant-award-actions button');
             assert.equal(await receiptActions.count(), 2, `${label}: installment and correction actions are available`);
             for (const [dialogIndex, dialogName] of [[0, 'installment'], [1, 'correction']] as const) {
