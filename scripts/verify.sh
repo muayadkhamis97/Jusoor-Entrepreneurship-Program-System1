@@ -24,6 +24,7 @@ else
   run_check "API package tests (with disposable PostgreSQL integration database)" pnpm run test:api:postgres
 fi
 run_check "Jusoor web unit tests" pnpm run test:web
+run_check "Jusoor CSS logical-property check" pnpm --filter @workspace/jusoor-program run check:logical-css
 run_check "Team directory bilingual responsive browser regression" pnpm run test:web:team-directory
 run_check "API production build" pnpm --filter @workspace/api-server run build
 run_check "Jusoor web production build" env PORT=19333 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/jusoor-program run build

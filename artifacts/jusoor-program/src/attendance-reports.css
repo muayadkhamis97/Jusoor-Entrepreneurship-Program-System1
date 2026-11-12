@@ -35,7 +35,7 @@ table.attendance-sheet{width:100%;min-width:1900px;border-collapse:collapse;colo
   body.print-trainer-attendance-reports{page:attendanceReports}
   body.print-trainer-attendance-reports *{visibility:hidden!important}
   body.print-trainer-attendance-reports .trainer-attendance-print-sheet,body.print-trainer-attendance-reports .trainer-attendance-print-sheet *{visibility:visible!important}
-  body.print-trainer-attendance-reports .trainer-attendance-print-sheet{display:block!important;position:absolute;inset:0 auto auto 0;width:100%;color:hsl(var(--foreground));background:hsl(var(--background));font-family:var(--app-font-sans);font-size:8pt;line-height:1.35}
+  body.print-trainer-attendance-reports .trainer-attendance-print-sheet{display:block!important;position:absolute;inset-block-start:0;inset-inline-start:0;width:100%;color:hsl(var(--foreground));background:hsl(var(--background));font-family:var(--app-font-sans);font-size:8pt;line-height:1.35}
   body.print-trainer-attendance-reports .trainer-attendance-print-sheet>header{margin-bottom:6mm;padding-bottom:3mm;border-bottom:1px solid hsl(var(--border))}
   body.print-trainer-attendance-reports .trainer-attendance-print-sheet>header h1{margin:0 0 2mm;font-size:18pt}
   body.print-trainer-attendance-reports .trainer-attendance-print-sheet>header p{margin:1mm 0}
