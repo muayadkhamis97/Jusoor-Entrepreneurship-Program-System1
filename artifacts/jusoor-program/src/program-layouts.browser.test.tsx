@@ -301,10 +301,30 @@ test('team, analytics, learning and grants retain English/Arabic layout across d
 
             const receiptActions = page.locator('.grant-award-actions button');
             assert.equal(await receiptActions.count(), 2, `${label}: installment and correction actions are available`);
+            if (width === 390) {
+              await page.setViewportSize({ width, height: 360 });
+              const visibleViewportHeight = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
+              assert.equal(visibleViewportHeight, 360, `${label}: simulate a phone keyboard reducing the visible viewport`);
+            }
             for (const [dialogIndex, dialogName] of [[0, 'installment'], [1, 'correction']] as const) {
               await receiptActions.nth(dialogIndex).click();
               const dialog = page.getByRole('dialog');
               await dialog.waitFor();
+              if (width === 390) {
+                const saveLabel = language === 'ar'
+                  ? dialogName === 'installment' ? 'حفظ الإيصال' : 'حفظ التصحيح'
+                  : dialogName === 'installment' ? 'Save receipt' : 'Save correction';
+                assert.equal(
+                  await dialog.getByRole('button', { name: language === 'ar' ? 'إلغاء' : 'Cancel' }).count(),
+                  1,
+                  `${label} / ${dialogName}: cancel action is readable`,
+                );
+                assert.equal(
+                  await dialog.getByRole('button', { name: saveLabel }).count(),
+                  1,
+                  `${label} / ${dialogName}: save action is readable`,
+                );
+              }
               const dialogLayout = await dialog.evaluate(element => {
                 const rect = element.getBoundingClientRect();
                 const fields = Array.from(element.querySelectorAll<HTMLElement>('.field')).map(field => {
@@ -335,14 +355,21 @@ test('team, analytics, learning and grants retain English/Arabic layout across d
                     buttons: actionButtons,
                   },
                   viewport: { width: window.innerWidth, height: window.innerHeight },
+                  visibleViewport: {
+                    top: window.visualViewport?.offsetTop ?? 0,
+                    height: window.visualViewport?.height ?? window.innerHeight,
+                  },
+                  scrollHeight: element.scrollHeight,
+                  clientHeight: element.clientHeight,
                   documentWidth: document.documentElement.scrollWidth,
                   bodyWidth: document.body.scrollWidth,
                 };
               });
               assert.ok(
                 dialogLayout.rect.left >= 0 && dialogLayout.rect.right <= dialogLayout.viewport.width &&
-                  dialogLayout.rect.top >= 0 && dialogLayout.rect.bottom <= dialogLayout.viewport.height,
-                `${label} / ${dialogName}: dialog stays within the viewport (${JSON.stringify(dialogLayout.rect)})`,
+                  dialogLayout.rect.top >= dialogLayout.visibleViewport.top &&
+                  dialogLayout.rect.bottom <= dialogLayout.visibleViewport.top + dialogLayout.visibleViewport.height,
+                `${label} / ${dialogName}: dialog stays inside the visible viewport (${JSON.stringify(dialogLayout.rect)})`,
               );
               assert.ok(
                 dialogLayout.documentWidth <= dialogLayout.viewport.width &&
@@ -379,7 +406,64 @@ test('team, analytics, learning and grants retain English/Arabic layout across d
                 Math.abs(dialogLayout.actions.buttons[0].top - dialogLayout.actions.buttons[1].top) < 3,
                 `${label} / ${dialogName}: action buttons share a row`,
               );
-              await dialog.locator('.modal-head .icon-button').click();
+              if (width === 390) {
+                assert.ok(
+                  dialogLayout.scrollHeight > dialogLayout.clientHeight,
+                  `${label} / ${dialogName}: reduced-height dialog can scroll to offscreen content`,
+                );
+                for (const [selector, value] of [
+                  ['input[type="number"]', '125.50'],
+                  ['input[type="date"]', '2026-11-05'],
+                  ['input[maxlength="120"]', 'MOBILE-RECEIPT-2026'],
+                  ['textarea', dialogName === 'correction' ? 'تصحيح المبلغ المسجل' : 'تفاصيل استلام الدفعة'],
+                ] as const) {
+                  const field = dialog.locator(selector);
+                  await field.scrollIntoViewIfNeeded();
+                  await field.fill(value);
+                  const fieldBounds = await field.evaluate(element => {
+                    const fieldRect = element.getBoundingClientRect();
+                    const dialog = element.closest<HTMLElement>('[role="dialog"]')!;
+                    const dialogRect = dialog.getBoundingClientRect();
+                    const actionsRect = dialog.querySelector<HTMLElement>('.modal-actions')!.getBoundingClientRect();
+                    return {
+                      top: fieldRect.top,
+                      bottom: fieldRect.bottom,
+                      dialogTop: dialogRect.top + dialog.clientTop,
+                      dialogBottom: dialogRect.bottom - Number.parseFloat(getComputedStyle(dialog).borderBottomWidth),
+                      actionsTop: actionsRect.top,
+                      viewportTop: window.visualViewport?.offsetTop ?? 0,
+                      viewportBottom: (window.visualViewport?.offsetTop ?? 0) +
+                        (window.visualViewport?.height ?? window.innerHeight),
+                    };
+                  });
+                  assert.ok(
+                    fieldBounds.top >= Math.max(fieldBounds.dialogTop, fieldBounds.viewportTop) - 1 &&
+                      fieldBounds.bottom <= Math.min(fieldBounds.dialogBottom, fieldBounds.viewportBottom) + 1 &&
+                      (selector !== 'textarea' || fieldBounds.bottom <= fieldBounds.actionsTop + 1),
+                    `${label} / ${dialogName}: ${selector} can be reached while the keyboard is open (${JSON.stringify(fieldBounds)})`,
+                  );
+                }
+                await dialog.locator('.modal-actions button').first().scrollIntoViewIfNeeded();
+                const actionBounds = await dialog.locator('.modal-actions button').evaluateAll(buttons =>
+                  buttons.map(button => {
+                    const rect = button.getBoundingClientRect();
+                    return { top: rect.top, bottom: rect.bottom };
+                  }),
+                );
+                assert.equal(actionBounds.length, 2, `${label} / ${dialogName}: both actions remain available`);
+                assert.ok(
+                  actionBounds.every(bounds => bounds.top >= 0 && bounds.bottom <= 360),
+                  `${label} / ${dialogName}: save and cancel stay reachable in the reduced viewport (${JSON.stringify(actionBounds)})`,
+                );
+              }
+              if (width === 390) {
+                await dialog.locator('.modal-actions button').first().click();
+                const discardDialog = page.getByTestId('dialog-discard-changes');
+                await discardDialog.waitFor();
+                await discardDialog.locator('.button-danger').click();
+              } else {
+                await dialog.locator('.modal-head .icon-button').click();
+              }
               await dialog.waitFor({ state: 'hidden' });
             }
           }
