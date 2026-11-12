@@ -119,6 +119,77 @@ test('team, analytics, learning and grants retain English/Arabic layout across d
                 : positions.heading.left <= positions.tools.left + 2,
               `${label}: stacked analytics tools align to inline-start`);
             }
+
+            await page.locator('.ana-session .ana-button').click();
+            const attendanceDialog = page.getByTestId('dialog-attendance-register');
+            await attendanceDialog.waitFor();
+            assert.equal(await attendanceDialog.locator('.ana-register-person').count(), 2, `${label}: sample roster renders`);
+            assert.equal(await attendanceDialog.locator('.ana-status-set').count(), 2, `${label}: each participant has status controls`);
+            assert.equal(await attendanceDialog.locator('.ana-status-option').count(), 8, `${label}: all four attendance statuses render per participant`);
+            assert.equal(await attendanceDialog.locator('.ana-register-note input').count(), 2, `${label}: notes are available for each participant`);
+            assert.equal(await attendanceDialog.locator('.ana-unmatched-row').count(), 1, `${label}: unmatched Zoom attendee is available for review`);
+            assert.equal(await attendanceDialog.locator('.ana-unmatched-row select').count(), 1, `${label}: participant matching selector renders`);
+            assert.equal(await attendanceDialog.locator('.ana-unmatched-row button').count(), 2, `${label}: matching and ignore actions render`);
+            assert.equal(
+              await attendanceDialog.locator('.ana-status-set').first().getByRole('button', { name: /Present|حاضر/ }).getAttribute('aria-pressed'),
+              'true',
+              `${label}: the saved attendance status is announced`,
+            );
+            assert.ok(
+              await attendanceDialog.getByRole('button', { name: language === 'ar' ? 'مطابقة' : 'Match' }).count(),
+              `${label}: match action uses the active language`,
+            );
+            assert.ok(
+              await attendanceDialog.getByRole('button', { name: language === 'ar' ? 'تجاهل' : 'Ignore' }).count(),
+              `${label}: ignore action uses the active language`,
+            );
+
+            const dialogBounds = await attendanceDialog.evaluate(element => {
+              const rect = element.getBoundingClientRect();
+              return {
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
+                viewport: { width: window.innerWidth, height: window.innerHeight },
+                documentWidth: document.documentElement.scrollWidth,
+                bodyWidth: document.body.scrollWidth,
+              };
+            });
+            assert.ok(
+              dialogBounds.left >= 0 && dialogBounds.right <= dialogBounds.viewport.width &&
+                dialogBounds.top >= 0 && dialogBounds.bottom <= dialogBounds.viewport.height,
+              `${label} / attendance register: modal stays inside the viewport (${JSON.stringify(dialogBounds)})`,
+            );
+            assert.ok(
+              dialogBounds.documentWidth <= dialogBounds.viewport.width &&
+                dialogBounds.bodyWidth <= dialogBounds.viewport.width,
+              `${label} / attendance register: no page-level horizontal overflow`,
+            );
+
+            for (const selector of [
+              '.ana-status-set',
+              '.ana-register-note input',
+              '.ana-unmatched-row select',
+              '.ana-unmatched-row button',
+            ]) {
+              for (const control of await attendanceDialog.locator(selector).all()) {
+                await control.scrollIntoViewIfNeeded();
+                const controlBounds = await control.evaluate(element => {
+                  const rect = element.getBoundingClientRect();
+                  const dialog = element.closest('.ana-attendance-modal')!.getBoundingClientRect();
+                  return { left: rect.left, right: rect.right, dialogLeft: dialog.left, dialogRight: dialog.right };
+                });
+                assert.ok(
+                  controlBounds.left >= controlBounds.dialogLeft - 1 &&
+                    controlBounds.right <= controlBounds.dialogRight + 1,
+                  `${label} / attendance register: ${selector} stays within the modal (${JSON.stringify(controlBounds)})`,
+                );
+              }
+            }
+
+            await attendanceDialog.locator('.ana-modal-head .ana-icon-btn').click();
+            await attendanceDialog.waitFor({ state: 'hidden' });
           }
 
           if (pageName === 'learning') {

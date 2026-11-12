@@ -1287,6 +1287,8 @@ export const arabicTranslations: Record<string, string> = {
   'Unmatched Zoom attendee': 'حاضر عبر Zoom غير مطابق',
   'Unmatched Zoom attendees': 'الحضور عبر Zoom غير المطابقين',
   'Match attendee to a participant': 'مطابقة الحاضر مع مشارك',
+  Match: 'مطابقة',
+  Ignore: 'تجاهل',
   'Choose participant': 'اختر مشاركاً',
   'Match each attendee to a participant or ignore staff and guests.': 'طابق كل حاضر مع مشارك أو تجاهل الموظفين والضيوف.',
   'Optional note': 'ملاحظة اختيارية',

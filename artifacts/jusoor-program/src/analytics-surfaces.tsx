@@ -666,8 +666,8 @@ export function ProgramAnalyticsPage() {
                 <select aria-label={`${t("Match attendee to a participant")} — ${person.displayName}`} value={participantMatches[person.id] ?? ""} onChange={(event) => setParticipantMatches((current) => ({ ...current, [person.id]: event.target.value }))}>
                   <option value="">{t("Choose participant")}</option>{registerQuery.data?.roster.map((rosterPerson) => <option key={rosterPerson.participantId} value={rosterPerson.participantId}>{rosterPerson.participantName} — {rosterPerson.businessName}</option>)}
                </select>
-               <button className="ana-button primary" onClick={() => resolveAttendee(person.id, false)} disabled={!participantMatches[person.id] || resolveAttendanceParticipant.isPending}>Match</button>
-               <button className="ana-button subtle" onClick={() => resolveAttendee(person.id, true)} disabled={resolveAttendanceParticipant.isPending}>Ignore</button>
+               <button className="ana-button primary" onClick={() => resolveAttendee(person.id, false)} disabled={!participantMatches[person.id] || resolveAttendanceParticipant.isPending}>{t("Match")}</button>
+               <button className="ana-button subtle" onClick={() => resolveAttendee(person.id, true)} disabled={resolveAttendanceParticipant.isPending}>{t("Ignore")}</button>
              </div>)}</div>
              {resolveAttendanceParticipant.isError && <p className="ana-sync-error" role="alert">This attendee could not be updated. Refresh and try again.</p>}
            </section> : null}

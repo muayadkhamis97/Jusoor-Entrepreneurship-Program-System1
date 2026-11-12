@@ -60,12 +60,78 @@ export const useGetProgramAnalytics = () => result({
   stageCounts: [],
   attendanceTrend: [],
   engagement: [],
-  sessions: [],
+  sessions: [{
+    id: 52,
+    title: 'Founder onboarding and planning session',
+    scheduledDate: '2026-10-10',
+    status: 'completed',
+    attendanceMarks: 1,
+    present: 1,
+  }],
 });
 export const useGetProgramSessionInteractionAnalytics = () => result({ from: '2026-07-01', to: '2026-10-14', activities: [], trend: [] });
 export const useListProgramImpactKpis = () => result([]);
 export const useListProgramAnalyticsReportLayouts = () => result([]);
-export const useGetSessionAttendanceRegister = () => result(undefined);
+export const useGetSessionAttendanceRegister = () => result({
+  session: {
+    id: 52,
+    programId: 4,
+    title: 'Founder onboarding and planning session',
+    scheduledDate: '2026-10-10',
+    zoomMeetingId: 'fixture-zoom-meeting',
+  },
+  roster: [
+    {
+      participantId: 71,
+      participantName: 'ليلى حسن',
+      participantEmail: 'layla@example.test',
+      businessId: 81,
+      businessName: 'مشروع مجتمعي طويل الاسم — Regional Sustainable Food and Community Enterprise',
+      status: 'present',
+      notes: null,
+      markedAt: null,
+      source: 'zoom',
+      attendedSeconds: 3120,
+      firstJoinedAt: null,
+      lastLeftAt: null,
+    },
+    {
+      participantId: 72,
+      participantName: 'Omar Haddad',
+      participantEmail: 'omar@example.test',
+      businessId: 82,
+      businessName: 'Community Food Cooperative',
+      status: null,
+      notes: null,
+      markedAt: null,
+      source: null,
+      attendedSeconds: null,
+      firstJoinedAt: null,
+      lastLeftAt: null,
+    },
+  ],
+  zoomSync: {
+    status: 'completed',
+    attempts: 1,
+    participantCount: 3,
+    matchedCount: 1,
+    unmatchedCount: 1,
+    lastAttemptAt: null,
+    syncedAt: null,
+    lastError: null,
+  },
+  unmatchedParticipants: [{
+    id: 91,
+    displayName: 'Guest participant with a long display name',
+    email: 'guest.participant@example.test',
+    joinTime: null,
+    leaveTime: null,
+    durationSeconds: 1800,
+    matchedParticipantId: null,
+    matchedParticipantName: null,
+    ignoredAt: null,
+  }],
+});
 export const useSaveSessionAttendance = mutation;
 export const useQueueZoomAttendanceSync = mutation;
 export const useResolveZoomAttendanceParticipant = mutation;
