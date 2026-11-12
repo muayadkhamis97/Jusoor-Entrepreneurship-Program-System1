@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Link, Router as WouterRouter, useLocation } from 'wouter';
 import { getStaffNavigationItems, MobileStaffNavigation } from '../mobile-staff-navigation';
 import { groupStaffNavigationItems } from '../staff-navigation-items';
+import '@workspace/program-editorial/styles.css';
 import '../workspace.css';
 
 const navItems = getStaffNavigationItems('coordinator');

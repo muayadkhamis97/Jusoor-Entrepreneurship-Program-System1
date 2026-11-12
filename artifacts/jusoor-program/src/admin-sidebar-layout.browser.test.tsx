@@ -69,6 +69,9 @@ test('Admin sidebar remains opaque, viewport-pinned and navigable across its rou
     const primaryItems = getMobilePrimaryNavigationItems(navItems);
     const primaryPaths = new Set(primaryItems.map(item => item.href));
     const overflowItems = navItems.filter(item => !primaryPaths.has(item.href));
+    const brandBounds = await page.getByTestId('sidebar-brand').boundingBox();
+    const firstGroupBounds = await page.locator('.side-nav-group-label').first().boundingBox();
+    assert.ok(brandBounds && firstGroupBounds && firstGroupBounds.y - (brandBounds.y + brandBounds.height) >= 20, 'Keep visible breathing room between the brand caption and Operations.');
     assert.equal(await page.locator('.side-nav a').count(), navItems.length);
     assert.equal(await page.locator('.side-nav-group').count(), 4);
     assert.deepEqual(await page.locator('.side-nav-group-label').allTextContents(), navGroups.map(section => section.group));
