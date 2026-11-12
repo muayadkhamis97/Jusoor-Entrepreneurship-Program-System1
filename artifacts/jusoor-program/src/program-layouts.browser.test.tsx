@@ -163,6 +163,90 @@ test('team, analytics, learning and grants retain English/Arabic layout across d
               ? Math.abs(positions.count.left - positions.toolbar.left) < 3
               : Math.abs(positions.count.right - positions.toolbar.right) < 3,
             `${label}: award count stays aligned to the toolbar's inline-end (count ${positions.count.left}-${positions.count.right}, toolbar ${positions.toolbar.left}-${positions.toolbar.right})`);
+
+            const receiptActions = page.locator('.grant-award-actions button');
+            assert.equal(await receiptActions.count(), 2, `${label}: installment and correction actions are available`);
+            for (const [dialogIndex, dialogName] of [[0, 'installment'], [1, 'correction']] as const) {
+              await receiptActions.nth(dialogIndex).click();
+              const dialog = page.getByRole('dialog');
+              await dialog.waitFor();
+              const dialogLayout = await dialog.evaluate(element => {
+                const rect = element.getBoundingClientRect();
+                const fields = Array.from(element.querySelectorAll<HTMLElement>('.field')).map(field => {
+                  const fieldRect = field.getBoundingClientRect();
+                  const inputRect = field.querySelector('input, textarea')!.getBoundingClientRect();
+                  return {
+                    left: fieldRect.left,
+                    right: fieldRect.right,
+                    top: fieldRect.top,
+                    width: fieldRect.width,
+                    inputLeft: inputRect.left,
+                    inputRight: inputRect.right,
+                  };
+                });
+                const actions = element.querySelector<HTMLElement>('.modal-actions')!;
+                const actionButtons = Array.from(actions.querySelectorAll('button')).map(button => {
+                  const buttonRect = button.getBoundingClientRect();
+                  return { left: buttonRect.left, right: buttonRect.right, top: buttonRect.top };
+                });
+                return {
+                  rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+                  fields,
+                  actions: {
+                    left: actions.getBoundingClientRect().left,
+                    right: actions.getBoundingClientRect().right,
+                    scrollWidth: actions.scrollWidth,
+                    clientWidth: actions.clientWidth,
+                    buttons: actionButtons,
+                  },
+                  viewport: { width: window.innerWidth, height: window.innerHeight },
+                  documentWidth: document.documentElement.scrollWidth,
+                  bodyWidth: document.body.scrollWidth,
+                };
+              });
+              assert.ok(
+                dialogLayout.rect.left >= 0 && dialogLayout.rect.right <= dialogLayout.viewport.width &&
+                  dialogLayout.rect.top >= 0 && dialogLayout.rect.bottom <= dialogLayout.viewport.height,
+                `${label} / ${dialogName}: dialog stays within the viewport (${JSON.stringify(dialogLayout.rect)})`,
+              );
+              assert.ok(
+                dialogLayout.documentWidth <= dialogLayout.viewport.width &&
+                  dialogLayout.bodyWidth <= dialogLayout.viewport.width,
+                `${label} / ${dialogName}: no page-level horizontal overflow`,
+              );
+              assert.ok(dialogLayout.fields.length >= 4, `${label} / ${dialogName}: all receipt fields render`);
+              for (const field of dialogLayout.fields) {
+                assert.ok(
+                  field.inputLeft >= field.left - 1 && field.inputRight <= field.right + 1 &&
+                    field.left >= dialogLayout.rect.left && field.right <= dialogLayout.rect.right,
+                  `${label} / ${dialogName}: each input stays aligned within its field`,
+                );
+              }
+              if (width > 760) {
+                assert.ok(
+                  Math.abs(dialogLayout.fields[0].top - dialogLayout.fields[1].top) < 3,
+                  `${label} / ${dialogName}: amount and date fields share a desktop row`,
+                );
+              } else {
+                assert.ok(
+                  dialogLayout.fields[1].top > dialogLayout.fields[0].top,
+                  `${label} / ${dialogName}: amount and date fields stack on phones`,
+                );
+              }
+              assert.equal(dialogLayout.actions.buttons.length, 2, `${label} / ${dialogName}: both actions render`);
+              assert.ok(
+                dialogLayout.actions.scrollWidth <= dialogLayout.actions.clientWidth &&
+                  dialogLayout.actions.buttons.every(button =>
+                    button.left >= dialogLayout.rect.left && button.right <= dialogLayout.rect.right),
+                `${label} / ${dialogName}: action buttons stay aligned within the dialog`,
+              );
+              assert.ok(
+                Math.abs(dialogLayout.actions.buttons[0].top - dialogLayout.actions.buttons[1].top) < 3,
+                `${label} / ${dialogName}: action buttons share a row`,
+              );
+              await dialog.locator('.modal-head .icon-button').click();
+              await dialog.waitFor({ state: 'hidden' });
+            }
           }
 
           assert.deepEqual(errors, [], `${label}: no browser runtime errors`);
