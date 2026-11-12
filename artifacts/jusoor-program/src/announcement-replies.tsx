@@ -113,7 +113,7 @@ function ConversationList(props: Shared) {
   };
 
   return <section className="mt-4 border-t border-border pt-4" aria-label={t('Private replies')} data-testid={`announcement-replies-${announcementId}`}>
-    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
       <MessageSquareReply size={14} aria-hidden="true" />
       <b className="text-foreground">{t('Private replies')}</b>
       <span className="inline-flex items-center gap-1"><Lock size={12} aria-hidden="true" />{t(viewer === 'staff' ? 'Only this participant and the program team can see each conversation.' : 'Only you and your program team can see your replies.')}</span>
@@ -138,7 +138,7 @@ function ConversationList(props: Shared) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <b className="block text-sm">{title}</b>
-              {subtitle && <small className="block text-xs text-muted-foreground">{subtitle}</small>}
+              {subtitle && <small className="block text-caption text-muted-foreground">{subtitle}</small>}
             </div>
             <div className="flex items-center gap-2">
               <span className={`badge ${conversation.unreadCount ? 'badge-warm' : 'badge-neutral'}`} data-testid={`status-conversation-${conversation.applicationId}`}>{status}</span>
@@ -152,7 +152,7 @@ function ConversationList(props: Shared) {
               {[...conversation.messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id - b.id).map(message => {
                 const own = message.sender === viewer;
                 return <li key={message.id} className={`rounded-md p-3 text-sm ${own ? 'bg-secondary' : 'bg-muted'}`} data-testid={`reply-message-${message.id}`}>
-                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mb-1 flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
                     <b className="text-foreground">{message.sender === 'staff' ? t('Program team') : viewer === 'staff' ? conversation.participantName : t('You')}</b>
                     <time dateTime={message.createdAt}>{fmt(message.createdAt)}</time>
                     {own && <span className="inline-flex items-center gap-1">{message.readAt ? <><CheckCheck size={12} />{t('Seen')}</> : <><Check size={12} />{t('Sent')}</>}</span>}
@@ -161,7 +161,7 @@ function ConversationList(props: Shared) {
                 </li>;
               })}
             </ol> : <p className="m-0 text-sm text-muted-foreground">{t('No messages yet. Write the first private reply.')}</p>}
-            {readError === conversation.applicationId && <p className="m-0 text-xs text-destructive" role="alert">{t('We couldn’t update read status. It will retry on the next refresh.')}</p>}
+            {readError === conversation.applicationId && <p className="m-0 text-body text-destructive" role="alert">{t('We couldn’t update read status. It will retry on the next refresh.')}</p>}
             <form className="grid gap-2" onSubmit={event => submit(event, conversation.applicationId)}>
               <label className="field"><span>{t('Private reply')}</span>
                 <textarea className="form-control" rows={3} maxLength={5000} value={draft} disabled={sending}

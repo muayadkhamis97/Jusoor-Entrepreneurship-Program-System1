@@ -72,7 +72,7 @@
 
 .integration-settings-details > strong {
   overflow-wrap: anywhere;
-  font-size: 0.875rem;
+  font-size: var(--type-body-min);
 }
 
 .integration-settings-details > span {
@@ -80,7 +80,7 @@
   align-items: center;
   gap: var(--spacing);
   color: hsl(var(--muted-foreground));
-  font-size: 0.8125rem;
+  font-size: var(--type-caption-min);
 }
 
 .integration-settings-details > span svg {
@@ -95,7 +95,7 @@
   padding-inline-start: calc(var(--spacing) * 3);
   border-inline-start: 2px solid hsl(var(--border));
   color: hsl(var(--muted-foreground));
-  font-size: 0.8125rem;
+  font-size: var(--type-body-min);
 }
 
 .integration-settings-calendar-sync > strong {
@@ -111,7 +111,7 @@
 }
 
 .integration-settings-calendar-sync small {
-  font-size: 0.75rem;
+  font-size: var(--type-body-min);
 }
 
 .integration-settings-actions {
@@ -125,7 +125,7 @@
   align-items: center;
   gap: var(--spacing);
   color: hsl(var(--primary));
-  font-size: 0.8125rem;
+  font-size: var(--type-body-min);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: var(--spacing);

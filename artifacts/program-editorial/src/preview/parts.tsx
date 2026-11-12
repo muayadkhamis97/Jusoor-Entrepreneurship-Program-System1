@@ -10,7 +10,7 @@ export function Row({
   return (
     <div className="space-y-2">
       {label ? (
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
       ) : null}
@@ -29,7 +29,7 @@ export function Stack({
   return (
     <div className="space-y-2">
       {label ? (
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-caption font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
       ) : null}

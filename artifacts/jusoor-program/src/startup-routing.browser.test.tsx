@@ -63,6 +63,8 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
 
     await page.goto(origin, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: /Every founder/i }).waitFor();
+    await page.waitForFunction(() => document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content === 'index, follow');
+    assert.equal(await page.locator('link[rel="preload"][as="style"][href*="fonts.googleapis.com"]').count(), 1, 'Google fonts should be preloaded without blocking initial text rendering.');
     await page.waitForTimeout(500);
     assert.equal([...requested].some(pathname => /\/src\/App\.tsx$/.test(pathname)), false, 'The public landing must not request the authenticated app module.');
     assert.equal([...requested].some(pathname => /\/src\/analytics-surfaces\.tsx$/.test(pathname)), false, 'The public landing must not request the analytics module.');
@@ -70,6 +72,7 @@ test('public landing and sign-in avoid downloading the authenticated workspace',
 
     await page.goto(`${origin}/sign-in`, { waitUntil: 'domcontentloaded' });
     await page.locator('.auth-form-content').waitFor();
+    await page.waitForFunction(() => document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content === 'noindex, nofollow');
     assert.equal(await page.locator('.auth-form-content > h1').count(), 0, 'The sign-in wrapper must not add a second heading outside Clerk.');
     const languageToggle = page.getByTestId('button-language-toggle');
     await languageToggle.waitFor();
@@ -150,11 +153,13 @@ test('public application, judging, and certificate routes stay outside the works
 
     await page.goto(`${origin}${basePath}/apply`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Programs are taking a moment.' }).waitFor();
+    await page.waitForFunction(() => document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content === 'noindex, nofollow');
     assert.ok([...requested].some(request => request === '/api/public/application-programs'), 'The application page must request the open program list.');
     assertWorkspaceNotRequested('The public application page');
     returnClosedApplicationList = true;
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByTestId('closed-application-state').waitFor();
+    await page.waitForFunction(() => document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content === 'noindex, nofollow');
     assert.equal(await page.getByTestId('closed-application-prep-item-venture').count(), 1);
     assert.equal(await page.getByTestId('closed-application-prep-item-progress').count(), 1);
     assert.equal(await page.getByTestId('closed-application-prep-item-support').count(), 1);
@@ -164,11 +169,13 @@ test('public application, judging, and certificate routes stay outside the works
 
     await page.goto(`${origin}${basePath}/judging#${'a'.repeat(43)}`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'The form could not load.' }).waitFor();
+    await page.waitForFunction(() => document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content === 'noindex, nofollow');
     assert.ok([...requested].some(request => request === `/api/public/judging-form?token=${'a'.repeat(43)}`), 'The judging page must request its token-specific public form.');
     assertWorkspaceNotRequested('The public judging page');
 
     await page.goto(`${origin}${basePath}/verify-certificate?code=JUS-2026-AR-8F31D2`, { waitUntil: 'domcontentloaded' });
     await page.getByText('Certificate verification is temporarily unavailable. Please try again.').waitFor();
+    await page.waitForFunction(() => document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content === 'noindex, nofollow');
     assert.ok([...requested].some(request => request === '/api/certificates/JUS-2026-AR-8F31D2/verification'), 'The certificate page must request verification for the supplied code.');
     assertWorkspaceNotRequested('The public certificate verification page');
   } finally {

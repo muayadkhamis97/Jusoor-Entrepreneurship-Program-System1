@@ -436,7 +436,10 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
   collectFlowTranslationKeys('grant-surfaces.tsx', keys);
   collectFlowTranslationKeys('communications-surfaces.tsx', keys);
   for (const role of ['coordinator', 'staff'] as const) {
-    getStaffNavigationItems(role).forEach(item => keys.add(item.label));
+    getStaffNavigationItems(role).forEach(item => {
+      keys.add(item.label);
+      if (item.mobileLabel) keys.add(item.mobileLabel);
+    });
   }
   [
     'Invite participant',
@@ -489,6 +492,11 @@ test('applicant, coordinator, and profile flow strings have Arabic translations'
     'Participant business-team assignments require the assignment migration.',
     'Participant access was saved, but the invitation email could not be sent. Check the connected Gmail account before inviting again.',
     'All pages',
+    'More',
+    'Operations',
+    'Learning',
+    'Communication',
+    'Settings',
     'Open all pages menu',
     'Your question',
     'Your answer',

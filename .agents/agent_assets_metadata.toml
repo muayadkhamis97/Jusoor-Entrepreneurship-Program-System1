@@ -1,0 +1,142 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "9UdUolOHaIdIyvGbhJ4Y4"
+uri = "file://generated-artifacts/participant-journey/participant-overview-en-390.png"
+type = "image"
+title = "Participant journey — English overview"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "69d36add-9b37-4aa1-b657-98b0a405f7dd"
+content_hash = "sha256:37b28b8f3429be98da326298aa3cb35d9a677dd808f7f2e13d0fcc65f34c21cf"
+size = 63647
+mtime_ms = 1794489029917
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/69d36add-9b37-4aa1-b657-98b0a405f7dd/72c7e0ce-954d-4f7f-9eea-affaccaeb16a"
+storage_version_token = "1794489064970185"
+content_type = "image/png"
+
+[[outputs]]
+id = "tigfShkiPrvrM8GfDbSC9"
+uri = "file://generated-artifacts/participant-journey/participant-sessions-en-390.png"
+type = "image"
+title = "Participant journey — English sessions"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "9cd3d3bf-605a-4bb9-aefa-a30ff4594cee"
+content_hash = "sha256:729460f4aa78ace1ff054be2b8496bb1cc57dcf327e77823cfe481ea05aee69a"
+size = 67891
+mtime_ms = 1794489030317
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/9cd3d3bf-605a-4bb9-aefa-a30ff4594cee/62e81f3d-45ef-45cf-be4e-c3c70cd4df10"
+storage_version_token = "1794489066298777"
+content_type = "image/png"
+
+[[outputs]]
+id = "dGG7dmfJpNFPh0mOHTcVt"
+uri = "file://generated-artifacts/participant-journey/participant-team-en-390.png"
+type = "image"
+title = "Participant journey — English business team"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "6f68dcb8-0354-44bd-a499-7f6fa3c02d44"
+content_hash = "sha256:506819fbe4b91d38b9d35992c7c617b3816ec7f3d0a698a190406706d8edb012"
+size = 56369
+mtime_ms = 1794489030673
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/6f68dcb8-0354-44bd-a499-7f6fa3c02d44/5916311e-641e-43c1-a6e8-bdd3e50da8db"
+storage_version_token = "1794489067624518"
+content_type = "image/png"
+
+[[outputs]]
+id = "b3bRWdEfXwuI2xRv3nXev"
+uri = "file://generated-artifacts/participant-journey/participant-updates-en-390.png"
+type = "image"
+title = "Participant journey — English updates"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "d47df5ba-f225-4525-be1e-a4e83e032432"
+content_hash = "sha256:86bd5925e0f364d07ba413465a18b1c27e375785adbdd61edd730bf0e89ef40e"
+size = 50930
+mtime_ms = 1794489031069
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/d47df5ba-f225-4525-be1e-a4e83e032432/cb0e107f-136d-41aa-9948-8eadb4868316"
+storage_version_token = "1794489068953358"
+content_type = "image/png"
+
+[[outputs]]
+id = "mEPFidpanKG28SYOiqFGS"
+uri = "file://generated-artifacts/participant-journey/participant-learning-en-390.png"
+type = "image"
+title = "Participant journey — English learning"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "09b55dfe-465b-4132-8241-b9ccd42fea12"
+content_hash = "sha256:859ed54089129824fb5a87e6696132bb25f902524a89fcb0e533b805e758dc26"
+size = 58873
+mtime_ms = 1794489031621
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/09b55dfe-465b-4132-8241-b9ccd42fea12/403248e1-de05-403c-912f-33e47f87f952"
+storage_version_token = "1794489070278976"
+content_type = "image/png"
+
+[[outputs]]
+id = "MJLc_IrMpiHSRbI7tRVhl"
+uri = "file://generated-artifacts/participant-journey/participant-overview-ar-390.png"
+type = "image"
+title = "Participant journey — Arabic overview"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "948a121a-4492-473a-ae34-890225752bbd"
+content_hash = "sha256:1bacf98ade8ae276bfa02ca703f8f20d6b653141e59eae442f77a5db6a1da91d"
+size = 61380
+mtime_ms = 1794489032765
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/948a121a-4492-473a-ae34-890225752bbd/24667381-1fa2-4eec-8beb-f80a4079259e"
+storage_version_token = "1794489071543355"
+content_type = "image/png"
+
+[[outputs]]
+id = "3tqm1FkXAHPaL-sZiu3Zm"
+uri = "file://generated-artifacts/participant-journey/participant-sessions-ar-390.png"
+type = "image"
+title = "Participant journey — Arabic sessions"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "b1747d2d-136e-49d3-9d33-9cae835b8c12"
+content_hash = "sha256:a47d451c9b5b5f1d46bc2954159a3b4bc7c2d9ac8d14f482c2d9185a5a0f633d"
+size = 69765
+mtime_ms = 1794489033121
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/b1747d2d-136e-49d3-9d33-9cae835b8c12/b2267082-ccf2-4865-b599-4031ff446d16"
+storage_version_token = "1794489073288502"
+content_type = "image/png"
+
+[[outputs]]
+id = "xd8GvSTfAAUH6ulgquGlu"
+uri = "file://generated-artifacts/participant-journey/participant-team-ar-390.png"
+type = "image"
+title = "Participant journey — Arabic business team"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "0e78b713-3afd-4655-b1c8-ba3bc292b1ff"
+content_hash = "sha256:e89b8235428a3490e47a9bffcb6aff4269e955da9acdd9effd6be4b729aa7d23"
+size = 57110
+mtime_ms = 1794489033449
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/0e78b713-3afd-4655-b1c8-ba3bc292b1ff/098e5b9c-5535-4157-94af-d0b8bd8735c9"
+storage_version_token = "1794489074535579"
+content_type = "image/png"
+
+[[outputs]]
+id = "FwFdDUDHx-wVjydn2PHm5"
+uri = "file://generated-artifacts/participant-journey/participant-updates-ar-390.png"
+type = "image"
+title = "Participant journey — Arabic updates"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "328c62e6-f23c-457e-ae4a-5a8daaa7aca5"
+content_hash = "sha256:464c39226dd185cd46d5430c50405c59805da9241635c7c6be82aed5293ba978"
+size = 55109
+mtime_ms = 1794489033785
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/328c62e6-f23c-457e-ae4a-5a8daaa7aca5/e4794273-aefa-42cb-bcef-7fc93298a60d"
+storage_version_token = "1794489075824669"
+content_type = "image/png"
+
+[[outputs]]
+id = "8aLWycoIHwfUAwvzJMAY6"
+uri = "file://generated-artifacts/participant-journey/participant-learning-ar-390.png"
+type = "image"
+title = "Participant journey — Arabic learning"
+description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+logical_id = "9f2cf00c-d36d-4e22-9de4-dfc471eb7497"
+content_hash = "sha256:5a2ca0ebb5ed0f0540f6e429025889f93dbff3206f0282da84257a2226cb3c35"
+size = 60155
+mtime_ms = 1794489034089
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/9f2cf00c-d36d-4e22-9de4-dfc471eb7497/f3fb6cab-210d-4325-8fd0-207fcc9669de"
+storage_version_token = "1794489077296635"
+content_type = "image/png"

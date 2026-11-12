@@ -11,7 +11,7 @@ const cssName = (name: string) => name.replace(/[A-Z]/g, value => `-${value.toLo
 function Swatches({ roles }: { roles: string[] }) {
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{roles.map(role => <div key={role} className="min-w-0 border border-border">
     <div className="h-24 border-b border-border" style={{ background: `hsl(var(--${cssName(role)}))` }} />
-    <div className="p-4"><p className="text-sm font-semibold">{role}</p><div className="mt-2 flex flex-wrap justify-between gap-2 font-mono text-[11px] text-muted-foreground">
+    <div className="p-4"><p className="text-sm font-semibold">{role}</p><div className="mt-2 flex flex-wrap justify-between gap-2 font-mono text-caption text-muted-foreground">
       <span>L {tokens.color.light[role as keyof typeof tokens.color.light]}</span><span>D {tokens.color.dark[role as keyof typeof tokens.color.dark]}</span>
     </div></div>
   </div>)}</div>;

@@ -41,7 +41,7 @@
 }
 .participant-business-title > div > span {
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: var(--type-body-min);
 }
 .participant-business-title h3 {
   margin: 4px 0 0;
@@ -51,7 +51,7 @@
 .participant-business-industry {
   margin: 6px 0 0;
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: var(--type-body-min);
 }
 .participant-business-roster {
   display: flex;
@@ -68,7 +68,7 @@
   border-radius: 999px;
   color: hsl(var(--foreground));
   background: hsl(var(--card));
-  font-size: 11px;
+  font-size: var(--type-body-min);
 }
 .participant-business-member.is-you {
   border-color: hsl(var(--primary) / .28);
@@ -82,12 +82,12 @@
   border-radius: 50%;
   color: hsl(var(--primary));
   background: hsl(var(--primary) / .10);
-  font-size: 12px;
+  font-size: var(--type-caption-min);
   font-weight: 700;
 }
 .participant-business-member small {
   color: hsl(var(--primary));
-  font-size: 11px;
+  font-size: var(--type-body-min);
   font-weight: 700;
 }
 .participant-business-privacy,
@@ -97,7 +97,7 @@
   gap: 7px;
   margin: 13px 0 0;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: var(--type-caption-min);
   line-height: 1.6;
 }
 .participant-business-privacy svg { flex: 0 0 auto; color: hsl(var(--primary)); }
@@ -156,7 +156,7 @@
 }
 .participant-section-index a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .participant-dashboard-section { display: grid; gap: 12px; margin-bottom: 14px; scroll-margin-top: 16px; }
-.si-input-label { display: block; margin: 7px 0 4px; color: hsl(var(--foreground)); font-size: 12px; font-weight: 700; }
+.si-input-label { display: block; margin: 7px 0 4px; color: hsl(var(--foreground)); font-size: var(--type-body-min); font-weight: 700; }
 @media (max-width: 700px) {
   .participant-next-action { align-items: stretch; flex-direction: column; padding: 14px; }
   .participant-next-action .button { align-self: flex-start; }

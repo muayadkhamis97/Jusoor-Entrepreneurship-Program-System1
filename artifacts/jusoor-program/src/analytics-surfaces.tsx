@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { currentLanguage, t, useAppLanguage } from "./language";
 import { AccessibleDialogSurface, UnsavedChangesDialog } from "./accessible-dialog";
 import { Button as EditorialButton } from "@workspace/program-editorial/components/ui/button";
+import { tokens as editorialTokens } from "@workspace/program-editorial/tokens";
 import { useProgramSelection } from "./program-selection";
 import { CSVLink } from "react-csv";
 import {
@@ -512,8 +513,8 @@ export function ProgramAnalyticsPage() {
           <article className="ana-panel ana-panel-trend">
             <div className="ana-panel-head"><div><span className="ana-eyebrow">{t('ATTENDANCE RECORDS')}</span><h3>{t('Participation over time')}</h3><p>{t('Recorded present, absent and excused marks by period.')}</p></div><ExportButton rows={trendRows.map((row) => ({ period: row.period, present: row.present, absent: row.absent, excused: row.excused }))} filename="attendance-trend.csv" /></div>
             {loading ? <div className="ana-chart-skeleton" /> : hasAttendanceData ? <div className="ana-chart"><ResponsiveContainer width="100%" height={230} debounce={0}><AreaChart data={trendRows} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 5" stroke={chartGrid} vertical={false} /><XAxis dataKey="period" tick={{ fontSize: 11, fill: chartTicks }} stroke={chartGrid} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: chartTicks }} stroke="transparent" axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip isAnimationActive={false} contentStyle={{ borderRadius: 8, borderColor: chartGrid, background: isDark ? "#1c302d" : "#fffdf7", color: isDark ? "#e8eee9" : "#283a36", fontSize: 12 }} />
+              <CartesianGrid strokeDasharray="3 5" stroke={chartGrid} vertical={false} /><XAxis dataKey="period" tick={{ fontSize: editorialTokens.fontSize.captionMinimum, fill: chartTicks }} stroke={chartGrid} tickLine={false} /><YAxis tick={{ fontSize: editorialTokens.fontSize.captionMinimum, fill: chartTicks }} stroke="transparent" axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip isAnimationActive={false} contentStyle={{ borderRadius: 8, borderColor: chartGrid, background: isDark ? "#1c302d" : "#fffdf7", color: isDark ? "#e8eee9" : "#283a36", fontSize: editorialTokens.fontSize.bodyMinimum }} />
                 <Area type="monotone" dataKey="present" name={t('Present')} stackId="attendance" stroke={COLORS.teal} fill={COLORS.teal} fillOpacity={.22} strokeWidth={2.3} isAnimationActive={false} />
                 <Area type="monotone" dataKey="absent" name={t('Absent')} stackId="attendance" stroke={COLORS.coral} fill={COLORS.coral} fillOpacity={.18} strokeWidth={2} isAnimationActive={false} />
                 <Area type="monotone" dataKey="excused" name={t('Excused')} stackId="attendance" stroke={COLORS.gold} fill={COLORS.gold} fillOpacity={.16} strokeWidth={1.8} isAnimationActive={false} />
@@ -580,9 +581,9 @@ export function ProgramAnalyticsPage() {
                     <ResponsiveContainer width="100%" height={235}>
                       <ComposedChart data={interactionAnalyticsQuery.data.trend} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 5" vertical={false} stroke={chartGrid} />
-                        <XAxis dataKey="periodStart" tickFormatter={(value: string) => dateLabel(value).replace(/,\s*\d{4}$/, "")} tick={{ fill: chartTicks, fontSize: 8 }} axisLine={false} tickLine={false} minTickGap={20} />
-                        <YAxis yAxisId="responses" allowDecimals={false} tick={{ fill: chartTicks, fontSize: 8 }} axisLine={false} tickLine={false} width={34} />
-                        <YAxis yAxisId="rate" orientation="right" domain={[0, 100]} tickFormatter={(value: number) => `${value}%`} tick={{ fill: chartTicks, fontSize: 8 }} axisLine={false} tickLine={false} width={42} />
+                        <XAxis dataKey="periodStart" tickFormatter={(value: string) => dateLabel(value).replace(/,\s*\d{4}$/, "")} tick={{ fill: chartTicks, fontSize: editorialTokens.fontSize.captionMinimum }} axisLine={false} tickLine={false} minTickGap={20} />
+                        <YAxis yAxisId="responses" allowDecimals={false} tick={{ fill: chartTicks, fontSize: editorialTokens.fontSize.captionMinimum }} axisLine={false} tickLine={false} width={34} />
+                        <YAxis yAxisId="rate" orientation="right" domain={[0, 100]} tickFormatter={(value: number) => `${value}%`} tick={{ fill: chartTicks, fontSize: editorialTokens.fontSize.captionMinimum }} axisLine={false} tickLine={false} width={42} />
                         <Tooltip labelFormatter={(value) => {
                           const point = interactionAnalyticsQuery.data?.trend.find((row) => row.periodStart === value);
                           return point ? trendPeriodLabel(point.periodStart, point.periodEnd) : String(value);

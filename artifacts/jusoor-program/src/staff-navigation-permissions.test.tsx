@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { canAccessStaffNavigationPath, getStaffNavigationItems } from './staff-navigation-items';
+import {
+  canAccessStaffNavigationPath,
+  getMobilePrimaryNavigationItems,
+  getStaffNavigationItems,
+  groupStaffNavigationItems,
+} from './staff-navigation-items';
 
 const adminPages = ['/analytics', '/branding', '/api-integrations', '/grants', '/applications', '/mentor-booking', '/team', '/profiles', '/access'];
 
@@ -21,6 +26,20 @@ test('Program Staff retain permitted read and operational functions', () => {
   assert.equal(canAccessStaffNavigationPath('staff', '/support/?type=mentor'), true);
   assert.equal(canAccessStaffNavigationPath('staff', '/team/'), false);
   assert.equal(canAccessStaffNavigationPath('staff', '/unknown'), false);
+});
+
+test('Admin routes are grouped and fit a four-tab mobile bar without losing destinations', () => {
+  const items = getStaffNavigationItems('coordinator');
+  const sections = groupStaffNavigationItems(items);
+  const primary = getMobilePrimaryNavigationItems(items);
+  const primaryPaths = new Set(primary.map(item => item.href));
+  const overflow = items.filter(item => !primaryPaths.has(item.href));
+
+  assert.deepEqual(sections.map(section => section.group), ['Operations', 'Learning', 'Communication', 'Settings']);
+  assert.deepEqual(sections.flatMap(section => section.items.map(item => item.href)).sort(), items.map(item => item.href).sort());
+  assert.deepEqual(primary.map(item => item.href), ['/', '/businesses', '/programs', '/sessions']);
+  assert.equal(primary.length, 4);
+  assert.equal(new Set([...primary, ...overflow].map(item => item.href)).size, items.length);
 });
 
 test('specialist accounts never inherit the Program Staff operations panel', () => {

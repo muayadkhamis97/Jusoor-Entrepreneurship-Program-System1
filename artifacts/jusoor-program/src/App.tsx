@@ -48,13 +48,13 @@ import {
    Activity, ArrowRight, ArrowUpRight, BarChart3, BookOpen, BriefcaseBusiness, CircleDollarSign, KeyRound,
    CalendarCheck, CalendarDays, Check, ChevronDown, CircleAlert, Download, ExternalLink, LogOut, RefreshCw,
    FileText, Filter, Handshake, LayoutDashboard, MapPin,
-   History, Mail, Pencil, Plus, Search, Shield, Sparkles, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
+   History, Mail, Pencil, Plus, Search, Shield, Trash2, Trophy, UserPlus, Users, Video, X, Palette,
 } from 'lucide-react';
 import { Link, Route, Switch, useLocation } from 'wouter';
 import { SessionCalendar } from './session-calendar';
 import { AccessibleDialogSurface, UnsavedChangesDialog } from './accessible-dialog';
 import { getStaffNavigationItems, MobileStaffNavigation } from './mobile-staff-navigation';
-import { canAccessStaffNavigationPath, isStaffNavigationItemActive } from './staff-navigation-items';
+import { canAccessStaffNavigationPath, groupStaffNavigationItems, isStaffNavigationItemActive } from './staff-navigation-items';
 import { participantSignInInstructions } from './participant-dashboard-helpers';
 import { trackEvent, trackZoomFailure } from './lib/analytics';
 import { brandedAdminRoleLabel, getDisplayBrandName, LanguageProvider, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
@@ -300,28 +300,34 @@ export function Shell({ children, staff, displayName }: { children: ReactNode; s
     href: `/${role}`,
     label: role === 'trainer' ? 'Trainer workspace' : role === 'mentor' ? 'Mentor workspace' : 'Judge workspace',
     icon: role === 'trainer' ? BookOpen : role === 'mentor' ? Handshake : Trophy,
+    group: role === 'trainer' ? 'Learning' as const : 'Operations' as const,
   }));
   const nav = [...getStaffNavigationItems(staff.primaryRole), ...specialistItems];
-  const label = nav.find(item => isStaffNavigationItemActive(path, item.href))?.label || 'Workspace';
+  const navGroups = groupStaffNavigationItems(nav);
+  const activeNavItem = nav.find(item => isStaffNavigationItemActive(path, item.href));
+  const label = activeNavItem?.label || 'Workspace';
+  const activeNavGroup = activeNavItem?.group;
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'J';
   return <div className="workspace noise">
     <aside className="sidebar">
        <Link href="/" className="brand" data-testid="link-brand">{branding?.logoUrl ? <img className="brand-logo" src={branding.logoUrl} alt="" /> : <span className="brand-mark">{brandName.slice(0, 1) || 'J'}</span>}<span><b>{brandName}</b><small>{t('PROGRAM HUB')}</small></span></Link>
-       <div className="workspace-tag"><span className="live-dot" /> {t('PROGRAM OPERATIONS')}</div>
-       <nav className="side-nav" aria-label={t('Main navigation')}>{nav.map(item => {
-         const Icon = item.icon; const active = isStaffNavigationItemActive(path, item.href);
-         return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} title={t(item.label)} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
-      })}</nav>
+        <nav className="side-nav" aria-label={t('Main navigation')}>{navGroups.map(({ group, items }) =>
+          <div className="side-nav-group" role="group" aria-label={t(group)} key={group}>
+            <span className="side-nav-group-label">{t(group)}</span>
+            {items.map(item => {
+              const Icon = item.icon; const active = isStaffNavigationItemActive(path, item.href);
+              return <Link key={item.href} href={item.href} className={`nav-link ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={17} strokeWidth={1.8} /><span>{t(item.label)}</span>{item.href === '/businesses' && <span className="nav-rail" />}</Link>;
+            })}
+          </div>
+        )}</nav>
       <div className="sidebar-bottom">
-         <div className="sidebar-note"><Sparkles size={15} /><div><b>{t('One journey, in view.')}</b><span>{t('Move each founder forward.')}</span></div></div>
           <div className="profile"><div className="profile-avatar">{initials}</div><div className="profile-copy"><b>{displayName}</b><small>{staff.primaryRole === 'coordinator' ? brandedAdminRoleLabel(branding?.brandName) : t('Program staff')}</small></div><button type="button" className="profile-signout" onClick={() => void signOut({ redirectUrl: appRootPath })} aria-label={t('Sign out')}><LogOut size={15} /></button></div>
       </div>
     </aside>
     <main className="main-panel">
-        <header className="topbar"><div className="crumb"><span data-testid="breadcrumb-brand-name">{brandName}</span><span className="crumb-slash">/</span><b data-testid="staff-current-page">{t(label)}</b></div><div className="topbar-actions"><span className="today-label"><CalendarDays size={14} /> {new Date().toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
+        <header className="topbar"><nav className="crumb" aria-label={t('Breadcrumb')}><Link href="/" className="crumb-home" data-testid="breadcrumb-brand-name">{brandName}</Link>{activeNavGroup && <><span className="crumb-slash" aria-hidden="true">/</span><span className="crumb-section">{t(activeNavGroup)}</span></>}<span className="crumb-slash" aria-hidden="true">/</span><b aria-current="page" data-testid="staff-current-page">{t(label)}</b></nav><div className="topbar-actions"><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
        <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: appRootPath })} />
       <div className="page-content page-enter">{children}</div>
-        <footer className="footer footer-brandless"><span>{t('PROGRAM OPERATIONS')} <i /> {t('FIELD NOTES')}</span></footer>
     </main>
   </div>;
 }
@@ -331,11 +337,11 @@ function PageHeading({ kicker, title, summary, action }: { kicker: string; title
 }
 
 function LoadingState({ label = 'Loading program records' }: { label?: string }) {
-  return <div className="loading-panel" aria-label={t(label)}><div className="skeleton skeleton-wide" /><div className="skeleton-grid"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>;
+  return <div className="loading-panel" role="status" aria-busy="true" aria-label={t(label)}><div className="skeleton skeleton-wide" /><div className="skeleton-grid"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>;
 }
 
 function ErrorState({ retry }: { retry: () => void }) {
-  return <div className="empty-panel error-panel"><div className="empty-icon"><CircleAlert size={22} /></div><h3>{t("We couldn't load this view.")}</h3><p>{t('Your records are safe. Try connecting again.')}</p><button className="button button-outline" onClick={retry} data-testid="button-retry"><Activity size={15} /> {t('Retry connection')}</button></div>;
+  return <div className="empty-panel error-panel" role="alert"><div className="empty-icon"><CircleAlert size={22} /></div><h3>{t("We couldn't load this view.")}</h3><p>{t('Your records are safe. Try connecting again.')}</p><button className="button button-outline" onClick={retry} data-testid="button-retry"><Activity size={15} /> {t('Retry connection')}</button></div>;
 }
 
 function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {

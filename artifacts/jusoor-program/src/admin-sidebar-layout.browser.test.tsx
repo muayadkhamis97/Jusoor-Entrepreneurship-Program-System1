@@ -5,6 +5,7 @@ import test from 'node:test';
 import { chromium } from 'playwright-core';
 import { createServer as createViteServer } from 'vite';
 import { getStaffNavigationItems } from './mobile-staff-navigation';
+import { getMobilePrimaryNavigationItems, groupStaffNavigationItems } from './staff-navigation-items';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
 const chromiumPath = process.env.CHROMIUM_PATH || '/repl/tools/bin/chromium';
@@ -56,15 +57,26 @@ test('Admin sidebar remains opaque, viewport-pinned and navigable across its rou
     });
     await page.goto(`${origin}/src/test-fixtures/admin-sidebar-layout.html`, { waitUntil: 'domcontentloaded' });
 
-    const footer = page.locator('.footer');
-    assert.doesNotMatch((await footer.textContent()) ?? '', /jusoor/i, 'Page footers should not repeat the organization name.');
-    const footerBounds = await footer.boundingBox();
-    const footerLabelBounds = await footer.locator('span').boundingBox();
-    assert.ok(footerBounds && footerLabelBounds && footerLabelBounds.x > footerBounds.x + footerBounds.width / 2, 'The remaining footer label should stay aligned to the right.');
+    assert.equal(await page.locator('.footer, .sidebar-note, .today-label').count(), 0, 'Decorative workspace labels and the date chip should not displace navigation or page content.');
+    const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+    assert.equal(await breadcrumb.locator('.crumb-home').getAttribute('href'), '/');
+    assert.equal(await breadcrumb.locator('.crumb-section').textContent(), 'Operations');
+    assert.equal(await page.locator('.side-nav a[title]').count(), 0, 'Desktop navigation links should not repeat their visible text in title attributes.');
 
     const sidebar = page.getByTestId('admin-sidebar');
     const navItems = getStaffNavigationItems('coordinator');
+    const navGroups = groupStaffNavigationItems(navItems);
+    const primaryItems = getMobilePrimaryNavigationItems(navItems);
+    const primaryPaths = new Set(primaryItems.map(item => item.href));
+    const overflowItems = navItems.filter(item => !primaryPaths.has(item.href));
     assert.equal(await page.locator('.side-nav a').count(), navItems.length);
+    assert.equal(await page.locator('.side-nav-group').count(), 4);
+    assert.deepEqual(await page.locator('.side-nav-group-label').allTextContents(), navGroups.map(section => section.group));
+    assert.equal(await page.locator('.side-nav').getAttribute('aria-label'), 'Main navigation');
+    assert.equal(await page.locator('.mobile-nav').getAttribute('aria-label'), 'Main navigation');
+    assert.equal(await page.locator('.side-nav').evaluate(element => getComputedStyle(element).display), 'flex');
+    assert.equal(await page.locator('.mobile-nav').evaluate(element => getComputedStyle(element).display), 'none');
+    assert.equal(await page.getByRole('navigation', { name: 'Main navigation' }).count(), 1, 'Only the desktop nav should be exposed on desktop.');
     const expectedBackground = await sidebar.evaluate(element => getComputedStyle(element).backgroundColor);
     const initialBounds = await sidebar.boundingBox();
     assert.equal(await sidebar.evaluate(element => getComputedStyle(element).position), 'fixed');
@@ -79,6 +91,9 @@ test('Admin sidebar remains opaque, viewport-pinned and navigable across its rou
       await item.click();
       assert.equal(await page.getByTestId('sidebar-current-route').textContent(), href);
       assert.equal(await item.getAttribute('aria-current'), 'page', `${label} should be identified as the active destination.`);
+      assert.equal(await page.locator('.crumb b').textContent(), label, `${label} should be the current breadcrumb page.`);
+      const expectedGroup = navGroups.find(group => group.items.some(navItem => navItem.href === href))?.group;
+      assert.equal(await page.locator('.crumb-section').textContent(), expectedGroup, `${label} should include its navigation section in the breadcrumb.`);
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       const afterPageScroll = await sidebar.boundingBox();
       assert.ok(afterPageScroll && Math.abs(afterPageScroll.y) <= 0.5 && Math.abs(afterPageScroll.height - viewport.height) <= 1, `Sidebar should stay pinned after scrolling on ${label}.`);
@@ -95,6 +110,24 @@ test('Admin sidebar remains opaque, viewport-pinned and navigable across its rou
     await page.setViewportSize({ width: 1440, height: 900 });
     const resizedBounds = await sidebar.boundingBox();
     assert.ok(resizedBounds && Math.abs(resizedBounds.height - 900) <= 1, 'Sidebar should resize to a taller viewport.');
+
+    await page.setViewportSize({ width: 390, height: 800 });
+    const mobileNav = page.getByTestId('mobile-staff-navigation');
+    assert.equal(await sidebar.evaluate(element => getComputedStyle(element).display), 'none');
+    assert.equal(await page.locator('.side-nav').evaluate(element => getComputedStyle(element).display), 'none');
+    assert.equal(await mobileNav.evaluate(element => getComputedStyle(element).display), 'flex');
+    assert.equal(await page.getByRole('navigation', { name: 'Main navigation' }).count(), 1, 'Only the mobile nav should be exposed on mobile.');
+    assert.equal(await mobileNav.getByRole('link').count(), primaryItems.length);
+    assert.equal(await mobileNav.locator('a[title]').count(), 0, 'Mobile navigation links should not repeat their visible text in title attributes.');
+    assert.equal(await mobileNav.getByTestId('button-mobile-more').isVisible(), true);
+    const mobileBounds = await mobileNav.boundingBox();
+    assert.ok(mobileBounds && Math.abs(mobileBounds.y + mobileBounds.height - 800) <= 1, 'The mobile navigation should stay fixed to the bottom edge.');
+    const moreButton = mobileNav.getByTestId('button-mobile-more');
+    await moreButton.click();
+    const moreMenu = page.getByRole('menu', { name: 'More' });
+    await moreMenu.waitFor();
+    assert.equal(await moreMenu.getByRole('menuitem').count(), overflowItems.length + 1, 'More should expose the remaining routes and sign out.');
+    assert.equal(await moreMenu.locator('a[title]').count(), 0, 'Overflow navigation links should not duplicate title text.');
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();

@@ -68,10 +68,12 @@
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
+  --text-body: var(--type-body-min);
+  --text-caption: var(--type-caption-min);
 
-  --text-xs: 0.75rem;
+  --text-xs: var(--type-caption-min);
   --text-xs--line-height: calc(1 / 0.75);
-  --text-sm: 0.875rem;
+  --text-sm: var(--type-body-min);
   --text-sm--line-height: calc(1.25 / 0.875);
   --text-base: 1rem;
   --text-base--line-height: calc(1.5 / 1);
@@ -150,6 +152,8 @@
   --app-font-sans: DM Sans, Noto Sans Arabic, sans-serif;
   --app-font-serif: DM Sans, Noto Sans Arabic, sans-serif;
   --app-font-mono: IBM Plex Mono, Noto Sans Arabic, monospace;
+  --type-body-min: 0.875rem;
+  --type-caption-min: 0.75rem;
   --radius: 0.1875rem;
   --spacing: 0.25rem;
 

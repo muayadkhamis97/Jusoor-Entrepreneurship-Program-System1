@@ -99,7 +99,7 @@ test('trainer course page has one page heading and readable trainer-scoped learn
   assert.match(courses, /\{!readOnly && <div className="page-heading">/);
   assert.match(styles, /\.course-hub-readonly \.course-module-copy p\{font-size:15px/);
   assert.match(styles, /\.course-hub-readonly \.discussion-body\{font-size:15px/);
-  assert.match(styles, /\.course-hub-readonly \.course-quiz-item-main p\{font-size:14px/);
+  assert.match(styles, /\.course-hub-readonly \.course-quiz-item-main p\{font-size:var\(--type-body-min\)/);
 });
 
 test('role workspace navigation links are grouped in an accessible dropdown', () => {
@@ -116,5 +116,5 @@ test('role workspace navigation links are grouped in an accessible dropdown', ()
     'link-role-profile',
     'button-role-signout',
   ]) assert.ok(surfaces.includes(destination), `The role navigation is missing ${destination}`);
-  assert.match(styles, /\.role-navigation-menu \[role=menuitem\]\{min-height:40px;gap:9px;[\s\S]*font:500 14px/);
+  assert.match(styles, /\.role-navigation-menu \[role=menuitem\]\{min-height:40px;gap:9px;[\s\S]*font:500 var\(--type-body-min\)/);
 });

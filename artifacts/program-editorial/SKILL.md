@@ -19,7 +19,8 @@ These observations come from the selected mockup's CSS/structure, not written br
 The user requested a sans-serif system. Use DM Sans for all Latin headings and
 body text, Noto Sans Arabic400–700 for Arabic glyphs, and IBM Plex Mono for short
 structural labels. Preserve the readable scale: hero44–88px with1.12 line height
-and−.025em tracking; headings24–32px/1.3; body16px/1.75 up to65ch; labels11px/1.55.
+and−.025em tracking; headings24–32px/1.3; body16px/1.75 up to65ch; labels12px/1.55.
+The shared token scale sets a14px minimum for body/form text and12px for captions.
 Arabic uses natural script spacing and extra line-height headroom. Do not synthesize
 Arabic italics. This current choice overrides the serif type in the extracted source.
 

@@ -32,6 +32,11 @@ function StartupRoutes() {
   const [location] = useLocation();
   const [hideLanding, setHideLanding] = useState(false);
   useEffect(() => {
+    const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.head.appendChild(document.createElement('meta'));
+    robots.name = 'robots';
+    robots.content = location === '/' && !hideLanding ? 'index, follow' : 'noindex, nofollow';
+  }, [location, hideLanding]);
+  useEffect(() => {
     if (location !== '/') setHideLanding(false);
   }, [location]);
 

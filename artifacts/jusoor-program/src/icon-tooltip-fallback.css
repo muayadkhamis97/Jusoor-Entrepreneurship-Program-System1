@@ -10,7 +10,7 @@
   color: hsl(var(--popover-foreground));
   box-shadow: var(--shadow-card);
   font-family: var(--app-font-sans);
-  font-size: var(--text-xs, 0.75rem);
+  font-size: var(--type-body-min);
   line-height: 1.5;
   overflow-wrap: anywhere;
   pointer-events: none;

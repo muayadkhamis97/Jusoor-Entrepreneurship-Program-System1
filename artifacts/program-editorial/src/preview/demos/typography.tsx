@@ -20,7 +20,7 @@ export default function TypographyDemo() {
     </section>
     <dl className="grid gap-5 border-t border-border pt-6 sm:grid-cols-2">
       <div><dt className="font-semibold">Headings</dt><dd className="mt-1 text-sm text-muted-foreground">24–32px · line height 1.3 · restrained tracking.</dd></div>
-      <div><dt className="font-semibold">Short labels</dt><dd className="mt-1 text-sm text-muted-foreground">11px · line height 1.55 · lighter Latin letter spacing.</dd></div>
+      <div><dt className="font-semibold">Short labels</dt><dd className="mt-1 text-sm text-muted-foreground">12px minimum · line height 1.55 · lighter Latin letter spacing.</dd></div>
     </dl>
     <Typography className="text-sm">One sans-serif family keeps interface and content consistent. Size, weight and spacing provide hierarchy; Noto Sans Arabic supports Arabic content.</Typography>
   </div>;

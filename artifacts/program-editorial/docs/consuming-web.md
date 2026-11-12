@@ -48,7 +48,9 @@ component with its own Arabic `lang` defaults toRTL unless `dir` is explicit.
 
 The current review-stage type scale deliberately improves on the extraction:
 hero44–88px/1.12 with restrained tracking, headings24–32px/1.3, body16px/1.75
-with a65ch maximum reading width, short labels11px/1.55. Arabic uses extra
+with a65ch maximum reading width, short labels at a12px minimum, body and form
+text at a14px minimum. These minimums are exported as `fontSize.captionMinimum`
+and `fontSize.bodyMinimum` tokens. Arabic uses extra
 line-height headroom, no added tracking and no synthetic italic emphasis.
 
 Button accepts native button props, `variant="primary" | "secondary" | "text" | "danger" | "pill"`, `size="sm" | "md"`,

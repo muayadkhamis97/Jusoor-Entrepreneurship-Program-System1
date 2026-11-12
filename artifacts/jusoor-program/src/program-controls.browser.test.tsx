@@ -130,14 +130,14 @@ test('workspace, analytics, API and grant controls share the same design tokens'
       return { height: style.height, fontSize: style.fontSize, radius: style.borderRadius };
     }));
     assert.deepEqual(compactVariants, [
-      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '36px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '34px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
-      { height: '32px', fontSize: '12px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '36px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '34px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '14px', radius: sharedControlRadius },
+      { height: '32px', fontSize: '14px', radius: sharedControlRadius },
     ], 'Feature-specific compact actions should use the shared sizing scale.');
 
     const fields = await page.locator(

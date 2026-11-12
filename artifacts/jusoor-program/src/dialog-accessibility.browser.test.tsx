@@ -5,7 +5,7 @@ import path from 'node:path';
 import test, { before } from 'node:test';
 import { chromium } from 'playwright-core';
 import { createServer as createViteServer } from 'vite';
-import { getStaffNavigationItems } from './staff-navigation-items';
+import { getMobilePrimaryNavigationItems, getStaffNavigationItems } from './staff-navigation-items';
 import { loadArabicTranslations, translate } from './language';
 
 const packageRoot = path.resolve(import.meta.dirname, '..');
@@ -58,35 +58,42 @@ test('production dialog call sites preserve dirty and pending-action safeguards'
 
 async function checkStaffMenu(page: import('playwright-core').Page, role: 'coordinator' | 'staff', language: 'en' | 'ar') {
   const items = getStaffNavigationItems(role);
-  const labels = items.map(item => translate(item.label, language));
+  const primaryItems = getMobilePrimaryNavigationItems(items);
+  const primaryLabels = primaryItems.map(item => translate(item.mobileLabel ?? item.label, language));
+  const primaryPaths = new Set(primaryItems.map(item => item.href));
+  const overflowItems = items.filter(item => !primaryPaths.has(item.href));
+  const overflowLabels = overflowItems.map(item => translate(item.label, language));
   const roleButton = page.getByTestId(role === 'coordinator' ? 'role-coordinator' : 'role-staff');
   await roleButton.click();
   const navigation = page.getByTestId('mobile-staff-navigation');
-  const activeLabel = labels[items.findIndex(item => item.href === '/sessions')];
+  const activeLabel = primaryLabels[primaryItems.findIndex(item => item.href === '/sessions')];
   const activeHref = '/sessions';
+  assert.equal(await navigation.getAttribute('aria-label'), translate('Main navigation', language));
 
   const links = navigation.getByRole('link');
-  assert.equal(await links.count(), labels.length, `${role} should expose every permitted destination in ${language}.`);
-  for (const [index, label] of labels.entries()) {
+  assert.equal(await links.count(), primaryItems.length, `${role} should show only its primary destinations in ${language}.`);
+  for (const [index, label] of primaryLabels.entries()) {
     const link = links.nth(index);
-    assert.equal((await link.locator('span').textContent())?.trim(), label, `${role} destination ${index + 1} should be labeled in ${language}.`);
-    assert.ok(await link.isVisible(), `${role} destination "${label}" should remain visible in ${language}.`);
+    assert.equal((await link.locator('span').textContent())?.trim(), label, `${role} primary destination ${index + 1} should be labeled in ${language}.`);
+    assert.ok(await link.isVisible(), `${role} primary destination "${label}" should remain visible in ${language}.`);
   }
 
-  const allPagesButton = page.getByTestId('button-mobile-all-pages');
-  await allPagesButton.focus();
+  const moreButton = page.getByTestId('button-mobile-more');
+  assert.equal(await moreButton.getAttribute('aria-label'), translate('More', language));
+  await moreButton.focus();
   await page.keyboard.press('Enter');
-  const allPagesMenu = page.getByRole('menu', { name: translate('All pages', language) });
-  await allPagesMenu.waitFor();
-  const menuItems = allPagesMenu.getByRole('menuitem');
-  assert.equal(await menuItems.count(), items.length, `${role} All pages menu should expose each permitted route in ${language}.`);
-  for (const [index, label] of labels.entries()) {
+  const moreMenu = page.getByRole('menu', { name: translate('More', language) });
+  await moreMenu.waitFor();
+  const menuItems = moreMenu.getByRole('menuitem');
+  assert.equal(await menuItems.count(), overflowItems.length + 1, `${role} More menu should expose remaining routes and sign out in ${language}.`);
+  for (const [index, label] of overflowLabels.entries()) {
     assert.equal((await menuItems.nth(index).textContent())?.trim(), label, `${role} menu destination ${index + 1} should be labeled in ${language}.`);
-    assert.equal(await menuItems.nth(index).getAttribute('href'), items[index].href, `${role} menu item should preserve its route in ${language}.`);
+    assert.equal(await menuItems.nth(index).getAttribute('href'), overflowItems[index].href, `${role} menu item should preserve its route in ${language}.`);
   }
+  assert.equal((await menuItems.nth(overflowItems.length).textContent())?.trim(), translate('Sign out', language));
   await page.keyboard.press('Escape');
-  await allPagesMenu.waitFor({ state: 'detached' });
-  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'button-mobile-all-pages');
+  await moreMenu.waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'button-mobile-more');
 
   const activeLink = navigation.getByRole('link', { name: activeLabel, exact: true });
   assert.equal(await activeLink.getAttribute('href'), activeHref);
@@ -107,9 +114,11 @@ async function checkStaffMenu(page: import('playwright-core').Page, role: 'coord
     width: element.clientWidth,
     contentWidth: element.scrollWidth,
     overflowX: getComputedStyle(element).overflowX,
+    position: getComputedStyle(element).position,
   }));
-  assert.equal(scrollMetrics.overflowX, 'auto');
-  assert.ok(scrollMetrics.contentWidth > scrollMetrics.width, `${role} menu should scroll horizontally in ${language}.`);
+  assert.equal(scrollMetrics.overflowX, 'hidden');
+  assert.ok(scrollMetrics.contentWidth <= scrollMetrics.width + 1, `${role} bottom bar should fit without horizontal scrolling in ${language}.`);
+  assert.equal(scrollMetrics.position, 'fixed');
 
   const assertFocusedLinkIsInView = async () => {
     const rect = await page.evaluate(() => {
@@ -122,30 +131,14 @@ async function checkStaffMenu(page: import('playwright-core').Page, role: 'coord
 
   await links.first().focus();
   await assertFocusedLinkIsInView();
-  for (let index = 1; index < labels.length; index += 1) {
+  for (let index = 1; index < primaryLabels.length; index += 1) {
     await page.keyboard.press('Tab');
     const focusedTestId = await page.evaluate(() => document.activeElement?.getAttribute('data-testid'));
     assert.equal(focusedTestId, await links.nth(index).getAttribute('data-testid'), `${role} destination ${index + 1} should be reachable by keyboard in ${language}.`);
     await assertFocusedLinkIsInView();
   }
-
-  await navigation.scrollIntoViewIfNeeded();
-  assert.equal(await page.evaluate(() => 'ontouchstart' in window), true, 'The browser fixture should expose touch input.');
-  const lastLink = links.nth(labels.length - 1);
-  const touchResult = await navigation.evaluate((element, direction) => {
-    const menu = element as HTMLElement;
-    menu.scrollLeft = direction === 'rtl' ? -menu.scrollWidth : menu.scrollWidth;
-    const item = menu.querySelectorAll('a')[menu.querySelectorAll('a').length - 1]!.getBoundingClientRect();
-    const nav = menu.getBoundingClientRect();
-    return {
-      overflowX: getComputedStyle(menu).overflowX,
-      scrollPosition: menu.scrollLeft,
-      visible: item.right > nav.left && item.left < nav.right,
-    };
-  }, language === 'ar' ? 'rtl' : 'ltr');
-  assert.equal(touchResult.overflowX, 'auto', `${role} menu should allow touch scrolling in ${language}.`);
-  assert.notEqual(touchResult.scrollPosition, 0, `${role} menu should scroll to its final item in ${language}.`);
-  assert.ok(touchResult.visible, `${role} final destination should be reachable in the touch-scroll container in ${language}.`);
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-testid')), 'button-mobile-more', `${role} More menu should follow the primary links in keyboard order.`);
 }
 
 type AccessibilityTreeNode = {
@@ -543,29 +536,37 @@ test('dialogs preserve focus and form state; mobile staff navigation labels its 
         await page.waitForFunction(expected => document.documentElement.lang === expected, language);
 
         const assertActiveDestination = async (href: string) => {
-          const item = getStaffNavigationItems(role).find(candidate => candidate.href === href);
+          const items = getStaffNavigationItems(role);
+          const item = items.find(candidate => candidate.href === href);
           assert.ok(item, `${role} should allow ${href}.`);
           const expectedLabel = translate(item.label, language);
-          const activeLink = page.getByTestId(`mobile-nav-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`);
-          await page.waitForFunction(({ route, testId }) => {
+          const primaryItems = getMobilePrimaryNavigationItems(items);
+          const isPrimary = primaryItems.some(candidate => candidate.href === href);
+          const testId = `${isPrimary ? 'mobile-nav' : 'mobile-menu'}-${href === '/' ? 'overview' : href.slice(1).replaceAll('/', '-')}`;
+          await page.waitForFunction(route => {
             const marker = document.querySelector('[data-testid="staff-page-marker"]');
-            const active = document.querySelector(`[data-testid="${testId}"]`);
-            return marker?.textContent === route && active?.getAttribute('aria-current') === 'page';
-          }, { route: await page.evaluate(() => window.location.pathname), testId: await activeLink.getAttribute('data-testid') });
-          assert.equal((await activeLink.locator('span').textContent())?.trim(), expectedLabel);
-          assert.equal(await activeLink.getAttribute('aria-current'), 'page');
-          assert.match(await activeLink.getAttribute('class') || '', /mobile-active/);
+            return marker?.textContent === route;
+          }, await page.evaluate(() => window.location.pathname));
           assert.equal(await page.getByTestId('staff-page-marker').textContent(), await page.evaluate(() => window.location.pathname));
           assert.equal(await page.getByTestId('staff-current-page-label').textContent(), expectedLabel);
-          const allPagesButton = page.getByTestId('button-mobile-all-pages');
-          await allPagesButton.focus();
-          await page.keyboard.press('Enter');
-          const allPagesMenu = page.getByRole('menu', { name: translate('All pages', language) });
-          await allPagesMenu.waitFor();
-          const menuActiveLink = allPagesMenu.getByRole('menuitem').filter({ hasText: expectedLabel });
-          assert.equal((await menuActiveLink.textContent())?.trim(), expectedLabel);
-          assert.equal(await menuActiveLink.getAttribute('aria-current'), 'page');
-          await page.keyboard.press('Escape');
+          if (isPrimary) {
+            const activeLink = page.getByTestId(testId);
+            await activeLink.waitFor();
+            assert.equal((await activeLink.locator('span').textContent())?.trim(), expectedLabel);
+            assert.equal(await activeLink.getAttribute('aria-current'), 'page');
+            assert.match(await activeLink.getAttribute('class') || '', /mobile-active/);
+          } else {
+            const moreButton = page.getByTestId('button-mobile-more');
+            assert.match(await moreButton.getAttribute('class') || '', /mobile-active/);
+            await moreButton.focus();
+            await page.keyboard.press('Enter');
+            const moreMenu = page.getByRole('menu', { name: translate('More', language) });
+            await moreMenu.waitFor();
+            const activeLink = moreMenu.getByTestId(testId);
+            assert.equal((await activeLink.locator('span').textContent())?.trim(), expectedLabel);
+            assert.equal(await activeLink.getAttribute('aria-current'), 'page');
+            await page.keyboard.press('Escape');
+          }
         };
 
         const directHref = directRoutes[role].replace(/\/+$/, '');

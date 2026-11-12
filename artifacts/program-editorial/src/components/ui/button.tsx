@@ -16,12 +16,12 @@ export function buttonStyles({ variant = "primary", size = "md", className }: Pi
   const boxed = variant !== "text";
   return cn(
     "inline-flex max-w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap font-sans font-semibold leading-none transition-[transform,background-color,color,border-color,filter] duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none [&_svg]:shrink-0 [&_svg]:size-4",
-    boxed && variant !== "pill" && (size === "sm" ? "h-8 px-2.5 text-xs" : "h-9 px-3.5 text-[13px]"),
+    boxed && variant !== "pill" && (size === "sm" ? "h-8 px-2.5 text-body" : "h-9 px-3.5 text-body"),
     variant === "primary" && "rounded-md bg-accent text-accent-foreground enabled:hover:brightness-90",
     variant === "secondary" && "rounded-md border border-border bg-card text-foreground enabled:hover:bg-muted",
     variant === "danger" && "rounded-md border border-destructive/30 bg-card text-destructive enabled:hover:bg-destructive/10",
-    variant === "text" && cn("bg-transparent text-primary px-1 rounded-sm enabled:hover:text-accent enabled:hover:underline underline-offset-4", size === "sm" ? "h-8 text-xs" : "h-9 text-[13px]"),
-    variant === "pill" && "rounded-full border border-border bg-card/65 px-3.5 py-2 text-[11px] text-foreground hover:bg-card",
+    variant === "text" && cn("bg-transparent text-primary px-1 rounded-sm enabled:hover:text-accent enabled:hover:underline underline-offset-4", size === "sm" ? "h-8 text-body" : "h-9 text-body"),
+    variant === "pill" && "rounded-full border border-border bg-card/65 px-3.5 py-2 text-caption text-foreground hover:bg-card",
     className,
   );
 }

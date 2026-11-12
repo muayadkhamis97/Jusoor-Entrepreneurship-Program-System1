@@ -177,7 +177,7 @@
   margin-top: var(--spacing);
   color: hsl(var(--accent));
   font-family: var(--app-font-mono);
-  font-size: 12px;
+  font-size: var(--type-body-min);
   font-weight: 500;
 }
 

@@ -90,6 +90,10 @@ export const tokens = {
       "monospace"
     ]
   },
+  "fontSize": {
+    "bodyMinimum": "0.875rem",
+    "captionMinimum": "0.75rem"
+  },
   "radius": "0.1875rem",
   "spacing": "0.25rem"
 } as const;

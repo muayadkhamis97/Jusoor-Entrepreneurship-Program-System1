@@ -2,7 +2,7 @@
   --program-control-radius: var(--radius);
   --program-control-button-height: 2.25rem;
   --program-control-button-padding: 0.875rem;
-  --program-control-button-font: 0.8125rem;
+  --program-control-button-font: var(--type-body-min);
   --program-control-field-height: 2.25rem;
   --program-control-field-font: 0.875rem;
   --program-control-focus-shadow: 0 0 0 3px hsl(var(--foreground) / 0.16);
@@ -71,7 +71,7 @@
 
 .ana-tool {
   --program-control-button-height: 2.125rem;
-  --program-control-button-font: 0.75rem;
+  --program-control-button-font: var(--type-body-min);
   --program-control-button-padding: 0.5625rem;
   border-color: hsl(var(--border));
   background: hsl(var(--card));
@@ -127,7 +127,7 @@
 }
 
 .api-button-revoke {
-  --program-control-button-font: var(--text-xs);
+  --program-control-button-font: var(--type-body-min);
   min-height: 2rem;
   padding-inline: 0.625rem;
   border-color: hsl(var(--destructive) / 0.3);
@@ -190,7 +190,7 @@
 .workspace button.grant-action-button {
   --program-control-button-height: 2rem;
   --program-control-button-padding: 0.625rem;
-  --program-control-button-font: 0.75rem;
+  --program-control-button-font: var(--type-body-min);
   min-height: var(--program-control-button-height);
   padding-inline: var(--program-control-button-padding);
   font-size: var(--program-control-button-font);

@@ -5,7 +5,7 @@ import { chromium } from 'playwright-core';
 
 const css = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8');
 const theme = css('../../program-editorial/src/index.css');
-const tokenNames = ['--text-xs', '--text-xs--line-height', '--text-sm', '--text-sm--line-height'];
+const tokenNames = ['--text-sm', '--text-sm--line-height'];
 const tokens = tokenNames.map(name => {
   const value = theme.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1];
   assert.ok(value, `Shared theme exports ${name}`);
@@ -36,8 +36,12 @@ test('role helpers and labels use readable shared sizes in English and Arabic', 
           : 'Add your appointment-schedule link so founders can book with you.';
         await page.setContent(`<!doctype html><html lang="${language}" dir="${language === 'ar' ? 'rtl' : 'ltr'}">
           <head><style>${styles}
-          :root{${tokens}}*{box-sizing:border-box}body{margin:0}
-          </style></head><body><div class="role-workspace"><main class="role-main">
+          :root{${tokens};--type-body-min:14px;--type-caption-min:12px}*{box-sizing:border-box}body{margin:0}
+          </style></head><body>
+          <div class="brand"><b>ENT system</b><small data-tracking-check="brand">PROGRAM HUB</small></div>
+          <div class="intake-hero"><h1 data-tracking-check="heading">كل خطوة تبدأ بفكرة</h1></div>
+          <div class="eyebrow" data-tracking-check="eyebrow">PROGRAM OPERATIONS</div>
+          <div class="role-workspace"><main class="role-main">
           <div class="role-form-grid">
             <label class="field" data-helper>Schedule link<input class="form-control" value="https://calendar.google.com/" /><small data-helper>${hint}</small></label>
             <fieldset class="field"><legend data-helper>Founders will book through</legend><label class="mentor-booking-choice"><input type="radio" /><span>Google Calendar<small data-helper>${hint}</small></span></label></fieldset>
@@ -60,9 +64,26 @@ test('role helpers and labels use readable shared sizes in English and Arabic', 
           return {
             helpers, metadata, input: inputs[0], outside: outside[0],
             scrollWidth: document.documentElement.scrollWidth,
+            tracking: [...document.querySelectorAll('[data-tracking-check]')].map(element => ({
+              name: (element as HTMLElement).dataset.trackingCheck,
+              letterSpacing: getComputedStyle(element).letterSpacing,
+            })),
           };
         });
         const context = `${language}, ${width}px`;
+        if (language === 'ar') {
+          for (const text of result.tracking) {
+            assert.ok(
+              text.letterSpacing === 'normal' || Number.parseFloat(text.letterSpacing) === 0,
+              `Arabic ${text.name} letter spacing is reset: ${context}`,
+            );
+          }
+        } else {
+          assert.ok(
+            result.tracking.every(text => text.letterSpacing !== 'normal' && Number.parseFloat(text.letterSpacing) !== 0),
+            `English display tracking remains active: ${context}`,
+          );
+        }
         for (const text of result.helpers) {
           assert.ok(text.size >= 14, `Helper at least 14px: ${context}`);
           assert.ok(text.height >= text.size * 1.4, `Comfortable helper leading: ${context}`);

@@ -4,6 +4,7 @@ import test from 'node:test';
 import { tokens } from '@workspace/program-editorial/tokens';
 
 const indexCss = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+const sharedThemeCss = readFileSync(new URL('../../program-editorial/src/index.css', import.meta.url), 'utf8');
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const languageCss = readFileSync(new URL('./language.css', import.meta.url), 'utf8');
 const analyticsCss = readFileSync(new URL('./analytics.css', import.meta.url), 'utf8');
@@ -56,11 +57,21 @@ test('Arabic font and direction support remain explicit in the style contract', 
 });
 
 test('small fixed UI text and placeholders use readable contrast and minimum sizing', () => {
-  assert.match(indexCss, /--ui-readable-min:\s*0\.75rem/);
-  assert.match(indexCss, /font-size:\s*max\(var\(--ui-readable-min\),\s*0\.9em\)/);
+  assert.equal(tokens.fontSize.captionMinimum, '0.75rem');
+  assert.equal(tokens.fontSize.bodyMinimum, '0.875rem');
+  assert.match(sharedThemeCss, /--text-body:\s*var\(--type-body-min\)/);
+  assert.match(sharedThemeCss, /--text-caption:\s*var\(--type-caption-min\)/);
+  assert.match(sharedThemeCss, /--text-xs:\s*var\(--type-caption-min\)/);
+  assert.match(sharedThemeCss, /--text-sm:\s*var\(--type-body-min\)/);
+  assert.doesNotMatch(indexCss, /--ui-readable-min|font-size:\s*max\(12px,\s*1em\)|font-size:\s*max\(var\(--ui-readable-min\)/);
   assert.match(indexCss, /::placeholder\s*\{\s*color:\s*hsl\(var\(--muted-foreground\)\);\s*opacity:\s*1/);
-  assert.match(indexCss, /\.participant-wrap :is\([^]*\.participant-entry-links a/);
-  assert.match(indexCss, /\.analytics-page :is\([^]*\.ana-panel-foot/);
+  assert.match(indexCss, /\.participant-entry-links a\s*\{[^}]*font-size:\s*var\(--type-body-min\)/);
+  assert.match(analyticsCss, /\.ana-panel-foot\s*\{[^}]*font-size:\s*var\(--type-body-min\)/);
+});
+
+test('shared loading and error states announce updates to screen readers', () => {
+  assert.match(appSource, /function LoadingState[^]*?className="loading-panel" role="status" aria-busy="true" aria-label=\{t\(label\)\}/);
+  assert.match(appSource, /function ErrorState[^]*?className="empty-panel error-panel" role="alert"/);
 });
 
 test('session date labels select an Arabic locale when Arabic is active', () => {
