@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { after, before, test } from "node:test";
 import express from "express";
+import { OutboundHttpTimeoutError } from "../src/lib/outbound-http";
 
 const nativeFetch = globalThis.fetch;
 let server: Server;
@@ -302,6 +303,35 @@ test("revokes Zoom authorization before removing the local connection", async ()
       programId: null,
       programName: null,
     });
+
+    await saveZoomConnection({
+      accessToken: "zoom-access-token",
+      refreshToken: "zoom-refresh-token",
+      expiresIn: 3600,
+    }, 7);
+    deleteCalls = 0;
+    auditValues = undefined;
+    pendingAuditValues = undefined;
+    providerCalls = [];
+    globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = String(input);
+      providerCalls.push({ url, init });
+      if (url === "https://api.zoom.us/v2/users/me") {
+        return new Response(JSON.stringify({ email: "zoom-account@example.test" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      throw new OutboundHttpTimeoutError(1);
+    }) as typeof fetch;
+
+    const timedOutRevocationResponse = await requestDisconnect();
+    assert.equal(timedOutRevocationResponse.status, 204);
+    assert.equal(providerCalls.length, 2);
+    assert.equal(providerCalls[1]?.url, "https://zoom.us/oauth/revoke");
+    assert.equal(deleteCalls, 1);
+    assert.equal(connection, null);
+    assert.equal(auditValues?.affectedAccountEmail, "zoom-account@example.test");
   } finally {
     restoreDelete();
     restoreInsert();

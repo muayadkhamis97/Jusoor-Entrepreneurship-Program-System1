@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ReplitConnectors } from "@replit/connectors-sdk";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import type { ProgramEmailBranding } from "../src/lib/email-branding";
 import {
   PlatformEmailSendUncertainError,

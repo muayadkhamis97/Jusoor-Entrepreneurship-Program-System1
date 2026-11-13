@@ -1,6 +1,6 @@
 - [Jusoor program lifecycle](jusoor-program-lifecycle.md) — Cohort intake leads through in-person bootcamp/hackathon, online incubation support, pitch-day selection, and demo-day grants.
 - [Zoom authorization](zoom-authorization.md) — Coordinators connect Zoom from the live Jusoor platform; account authorization should not happen through chat.
-- [Provider disconnect safety](provider-disconnect-safety.md) — Revoke provider authorization before clearing local tokens; keep the connection intact when revocation fails.
+- [Provider disconnect safety](provider-disconnect-safety.md) — Preserve connections on provider refusal; clear locally on timeout, while recording that revocation is unconfirmed.
 - [Zoom attendance matching](zoom-attendance.md) — Match only a unique report email to a business; leave missing or ambiguous attendees for staff review.
 - [Date-only API fields](date-only-api-fields.md) — Keep calendar dates as `YYYY-MM-DD` strings; generated Zod schemas coerce OpenAPI `format: date` values into `Date`.
 - [Jusoor analytics tracking](analytics-tracking.md) — Coordinators need attendance records and customizable impact KPIs, with missing data kept distinct from zero.
@@ -26,6 +26,7 @@
 - [Calendar sync skip alerts](calendar-sync-skip-alerts.md) — User-facing skip warnings persist in shared storage; operational log aggregation remains process-local.
 - [Zoom meeting creation recovery](zoom-meeting-creation-recovery.md) — Persist an in-flight claim before creating a meeting; ambiguous outcomes must fail closed and require reconciliation.
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
+- [Gmail connector timeouts](gmail-connector-timeouts.md) — Use the SDK's signal-aware proxy fetch for bounded Gmail requests; timed-out sends remain uncertain and must be checked in Sent before retry.
 - [Announcement email safety](announcement-email-safety.md) — Opt in per message, snapshot accepted recipients at publication, and hold ambiguous Gmail outcomes rather than risk duplicate sends.
 - [Invitation resend safety](invitation-resend-safety.md) — Give each explicit resend a distinct request ID; reuse it for retries and warn when Gmail delivery is uncertain.
 - [Mentor session targets](mentor-session-targets.md) — Each program sets a per-business 1:1 target; reports count toward it, and mentors can request more from authorized staff.
