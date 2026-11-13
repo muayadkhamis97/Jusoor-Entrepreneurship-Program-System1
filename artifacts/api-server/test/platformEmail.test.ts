@@ -4,6 +4,7 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 import type { ProgramEmailBranding } from "../src/lib/email-branding";
 import {
   PlatformEmailSendUncertainError,
+  PlatformEmailProviderError,
   platformEmailFailureDiagnostics,
   sendPlatformEmail,
 } from "../src/lib/platform-email";
@@ -134,7 +135,9 @@ test("Gmail sender stops if the connected mailbox profile cannot be read", async
   const { connectors, requests } = fakeConnectors({ profileStatus: 403 });
   await assert.rejects(
     sendPlatformEmail(email(), connectors, async () => testBranding),
-    /Gmail profile lookup returned HTTP 403/i,
+    error => error instanceof PlatformEmailProviderError &&
+      error.kind === "needs_reconnect" &&
+      error.httpStatus === 403,
   );
   assert.equal(
     requests.filter(request => request.path.endsWith("/messages/send")).length,
@@ -227,8 +230,9 @@ test("Gmail profile lookup stops before sending when the connector call times ou
       { profileMs: 15 },
     ),
     error => {
-      assert.ok(error instanceof OutboundHttpTimeoutError);
-      assert.equal(error.code, "ETIMEDOUT");
+      assert.ok(error instanceof PlatformEmailProviderError);
+      assert.equal(error.kind, "transient");
+      assert.equal(error.errorCode, "ETIMEDOUT");
       return true;
     },
   );

@@ -2141,6 +2141,8 @@ export const AnnouncementEmailStatusState = {
   complete: 'complete',
   needs_attention: 'needs_attention',
   paused: 'paused',
+  quota_paused: 'quota_paused',
+  needs_reconnect: 'needs_reconnect',
   unavailable: 'unavailable',
 } as const;
 
@@ -2149,6 +2151,7 @@ export interface AnnouncementEmailStatus {
   sent: number;
   pending: number;
   failed: number;
+  invalidRecipients: number;
   uncertain: number;
   skipped: number;
   canRetry: boolean;

@@ -5,34 +5,50 @@ import {
   staffMembersTable, staffProgramAssignmentsTable,
   businessesTable, participantBusinessMembershipsTable,
 } from "@workspace/db";
-import { PlatformEmailSendUncertainError, sendPlatformEmail } from "./platform-email";
+import {
+  gmailEmailTransport,
+  PlatformEmailSendUncertainError,
+  type EmailConnectionResult,
+  type EmailSendResult,
+  type EmailTransport,
+  type PlatformEmail,
+} from "./platform-email";
 import { logger } from "./logger";
 
 type DeliveryCounts = {
-  state: "not_requested" | "queued" | "processing" | "complete" | "needs_attention" | "paused" | "unavailable";
-  sent: number; pending: number; failed: number; uncertain: number; skipped: number; canRetry: boolean;
+  state: "not_requested" | "queued" | "processing" | "complete" | "needs_attention" | "paused" | "quota_paused" | "needs_reconnect" | "unavailable";
+  sent: number; pending: number; failed: number; invalidRecipients: number; uncertain: number; skipped: number; canRetry: boolean;
 };
 export const emptyEmailStatus = (state: DeliveryCounts["state"] = "not_requested"): DeliveryCounts => ({
-  state, sent: 0, pending: 0, failed: 0, uncertain: 0, skipped: 0, canRetry: false,
+  state, sent: 0, pending: 0, failed: 0, invalidRecipients: 0, uncertain: 0, skipped: 0, canRetry: false,
 });
 
 export function summarizeAnnouncementEmail(
   prepared: boolean,
-  rows: { status: string; attemptedAt: Date | null }[],
+  rows: { status: string; failureKind?: string | null; attemptedAt: Date | null }[],
   now = Date.now(),
+  pauseReason?: string | null,
 ): DeliveryCounts {
   const result = emptyEmailStatus(prepared ? "complete" : "queued");
   for (const row of rows) {
     if (row.status === "sent") result.sent++;
-    else if (row.status === "failed") result.failed++;
+    else if (row.status === "failed") {
+      result.failed++;
+      if (row.failureKind === "invalid_recipient") result.invalidRecipients++;
+    }
     else if (row.status === "skipped") result.skipped++;
     else if (row.status === "uncertain" || (row.status === "sending" &&
       row.attemptedAt && now - row.attemptedAt.getTime() > 10 * 60_000)) result.uncertain++;
     else result.pending++;
   }
-  if (result.pending) result.state = "processing";
+  if (pauseReason === "quota") result.state = "quota_paused";
+  else if (pauseReason === "needs_reconnect") result.state = "needs_reconnect";
+  else if (pauseReason === "author_access") result.state = "paused";
+  else if (result.pending) result.state = "processing";
   else if (result.failed || result.uncertain) result.state = "needs_attention";
-  result.canRetry = result.failed > 0;
+  result.canRetry = !pauseReason && rows.some(row =>
+    row.status === "failed" && row.failureKind !== "invalid_recipient",
+  );
   return result;
 }
 
@@ -43,9 +59,11 @@ export async function announcementEmailStatuses(ids: number[]): Promise<Map<numb
   const rows = await db.select().from(deliveries).where(inArray(deliveries.announcementId, ids));
   for (const batch of batches) {
     const status = summarizeAnnouncementEmail(
-      batch.preparedAt !== null, rows.filter(row => row.announcementId === batch.announcementId),
+      batch.preparedAt !== null,
+      rows.filter(row => row.announcementId === batch.announcementId),
+      Date.now(),
+      batch.paused ? batch.pauseReason ?? "author_access" : null,
     );
-    if (batch.paused) { status.state = "paused"; status.canRetry = false; }
     result.set(batch.announcementId, status);
   }
   return result;
@@ -114,7 +132,112 @@ function recipientScope(announcement: typeof announcements.$inferSelect, email?:
   );
 }
 
-export async function processAnnouncementEmails(send = sendPlatformEmail): Promise<void> {
+type LegacyEmailSender = (message: PlatformEmail) => Promise<void>;
+
+function asEmailTransport(transportOrSend: EmailTransport | LegacyEmailSender): EmailTransport {
+  if (typeof transportOrSend !== "function") return transportOrSend;
+  return {
+    checkConnection: async () => ({ kind: "ready" }),
+    async send(message): Promise<EmailSendResult> {
+      try {
+        await transportOrSend(message);
+        return { kind: "sent" };
+      } catch (error) {
+        return { kind: error instanceof PlatformEmailSendUncertainError ? "ambiguous" : "transient" };
+      }
+    },
+  };
+}
+
+async function pausePendingRequests(
+  reason: "quota" | "needs_reconnect",
+  resumeAt: Date | null,
+): Promise<void> {
+  const now = new Date();
+  const pendingIds = await db.select({ announcementId: deliveries.announcementId })
+    .from(deliveries)
+    .innerJoin(announcements, eq(deliveries.announcementId, announcements.id))
+    .where(and(
+      eq(deliveries.status, "pending"),
+      lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`),
+    ));
+  const unpreparedIds = await db.select({ announcementId: requests.announcementId })
+    .from(requests)
+    .innerJoin(announcements, eq(requests.announcementId, announcements.id))
+    .where(and(isNull(requests.preparedAt), lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`)));
+  const ids = [...new Set([
+    ...pendingIds.map(row => row.announcementId),
+    ...unpreparedIds.map(row => row.announcementId),
+  ])];
+  if (!ids.length) return;
+  await db.update(requests).set({
+    paused: true,
+    pauseReason: reason,
+    resumeAt,
+    checkedAt: now,
+  }).where(inArray(requests.announcementId, ids));
+}
+
+async function resumePausedRequests(transport: EmailTransport): Promise<void> {
+  const pausedRequests = await db.select({
+    request: requests,
+    announcement: announcements,
+  }).from(requests)
+    .innerJoin(announcements, eq(requests.announcementId, announcements.id))
+    .where(eq(requests.paused, true));
+  let reconnectCheck: EmailConnectionResult | undefined;
+  for (const { request, announcement } of pausedRequests) {
+    if (request.pauseReason === "quota") {
+      if (request.resumeAt && request.resumeAt.getTime() > Date.now()) continue;
+      await db.update(requests).set({
+        paused: false,
+        pauseReason: null,
+        resumeAt: null,
+        checkedAt: new Date(),
+      }).where(and(eq(requests.announcementId, request.announcementId), eq(requests.paused, true)));
+      continue;
+    }
+    if (request.pauseReason === "needs_reconnect") {
+      if (!reconnectCheck) {
+        try {
+          reconnectCheck = await transport.checkConnection();
+        } catch {
+          reconnectCheck = { kind: "transient" };
+        }
+      }
+      if (reconnectCheck.kind === "ready") {
+        await db.update(requests).set({
+          paused: false,
+          pauseReason: null,
+          resumeAt: null,
+          checkedAt: new Date(),
+        }).where(and(
+          eq(requests.announcementId, request.announcementId),
+          eq(requests.paused, true),
+          eq(requests.pauseReason, "needs_reconnect"),
+        ));
+      } else if (reconnectCheck.kind === "quota") {
+        const resumeAt = new Date(Date.now() + (reconnectCheck.retryAfterMs ?? 60 * 60_000));
+        await pausePendingRequests("quota", resumeAt);
+        return;
+      }
+      continue;
+    }
+    if (await authorMaySend(announcement)) {
+      await db.update(requests).set({
+        paused: false,
+        pauseReason: null,
+        resumeAt: null,
+        checkedAt: new Date(),
+      }).where(and(eq(requests.announcementId, request.announcementId), eq(requests.paused, true)));
+    }
+  }
+}
+
+export async function processAnnouncementEmails(
+  transportOrSend: EmailTransport | LegacyEmailSender = gmailEmailTransport,
+): Promise<void> {
+  const transport = asEmailTransport(transportOrSend);
   const due = await db.select({ announcement: announcements }).from(requests)
     .innerJoin(announcements, eq(requests.announcementId, announcements.id))
     .where(and(isNull(requests.preparedAt), lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`)))
@@ -127,7 +250,12 @@ export async function processAnnouncementEmails(send = sendPlatformEmail): Promi
         .where(eq(requests.announcementId, announcement.id)).for("update");
       if (!request || request.preparedAt) return;
       if (!await authorMaySend(announcement)) {
-        await tx.update(requests).set({ paused: true, checkedAt: new Date() }).where(eq(requests.announcementId, announcement.id));
+        await tx.update(requests).set({
+          paused: true,
+          pauseReason: "author_access",
+          resumeAt: null,
+          checkedAt: new Date(),
+        }).where(eq(requests.announcementId, announcement.id));
         return;
       }
       const recipients = normalizedAnnouncementRecipients(await tx.select({ email: applicationsTable.email })
@@ -135,42 +263,97 @@ export async function processAnnouncementEmails(send = sendPlatformEmail): Promi
       if (recipients.length) await tx.insert(deliveries).values(recipients.map(email => ({
         announcementId: announcement.id, email,
       }))).onConflictDoNothing();
-      await tx.update(requests).set({ preparedAt: new Date(), paused: false, checkedAt: new Date() }).where(eq(requests.announcementId, announcement.id));
+      await tx.update(requests).set({
+        preparedAt: new Date(),
+        ...(request.paused && (request.pauseReason === "quota" || request.pauseReason === "needs_reconnect")
+          ? {}
+          : { paused: false, pauseReason: null, resumeAt: null }),
+        checkedAt: new Date(),
+      }).where(eq(requests.announcementId, announcement.id));
     });
   }
+  await resumePausedRequests(transport);
   const pending = await db.select({ delivery: deliveries, announcement: announcements }).from(deliveries)
     .innerJoin(announcements, eq(deliveries.announcementId, announcements.id))
-    .where(and(eq(deliveries.status, "pending"), lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`)))
+    .innerJoin(requests, eq(deliveries.announcementId, requests.announcementId))
+    .where(and(
+      eq(deliveries.status, "pending"),
+      eq(requests.paused, false),
+      lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`),
+    ))
     .orderBy(sql`${deliveries.attemptedAt} asc nulls first`).limit(50);
   for (const { delivery, announcement } of pending) {
     if (!await authorMaySend(announcement)) {
-      await db.update(requests).set({ paused: true }).where(eq(requests.announcementId, announcement.id));
-      await db.update(deliveries).set({ attemptedAt: new Date() })
-        .where(and(eq(deliveries.id, delivery.id), eq(deliveries.status, "pending")));
+      await db.update(requests).set({
+        paused: true,
+        pauseReason: "author_access",
+        resumeAt: null,
+        checkedAt: new Date(),
+      }).where(eq(requests.announcementId, announcement.id));
       continue;
     }
-    await db.update(requests).set({ paused: false }).where(eq(requests.announcementId, announcement.id));
     // Persist a claim BEFORE contacting Gmail. Never reclaim an ambiguous/stale send.
-    const [claimed] = await db.update(deliveries).set({ status: "sending", attemptedAt: new Date() })
-      .where(and(eq(deliveries.id, delivery.id), eq(deliveries.status, "pending"))).returning({ id: deliveries.id });
+    const claimed = await db.transaction(async tx => {
+      const [request] = await tx.select({ paused: requests.paused }).from(requests)
+        .where(eq(requests.announcementId, announcement.id)).for("update");
+      if (!request || request.paused) return false;
+      const [row] = await tx.update(deliveries).set({
+        status: "sending",
+        failureKind: null,
+        attemptedAt: new Date(),
+      }).where(and(eq(deliveries.id, delivery.id), eq(deliveries.status, "pending")))
+        .returning({ id: deliveries.id });
+      return Boolean(row);
+    });
     if (!claimed) continue;
-    try {
-      const [recipient] = await db.select({ id: applicationsTable.id }).from(applicationsTable)
-        .where(recipientScope(announcement, delivery.email)).limit(1);
-      if (!recipient) {
-        await db.update(deliveries).set({ status: "skipped" }).where(eq(deliveries.id, delivery.id));
-        continue;
-      }
-      await send(announcementEmailContent(announcement, delivery.email));
-    } catch (error) {
-      await db.update(deliveries).set({
-        status: error instanceof PlatformEmailSendUncertainError ? "uncertain" : "failed",
-      }).where(eq(deliveries.id, delivery.id));
-      logger.warn({ announcementId: announcement.id, deliveryId: delivery.id }, "Announcement email requires attention");
+    const [recipient] = await db.select({ id: applicationsTable.id }).from(applicationsTable)
+      .where(recipientScope(announcement, delivery.email)).limit(1);
+    if (!recipient) {
+      await db.update(deliveries).set({ status: "skipped", failureKind: null })
+        .where(eq(deliveries.id, delivery.id));
       continue;
     }
-    // If this write fails, leave the committed claim in sending (never a retryable failure).
-    await db.update(deliveries).set({ status: "sent", sentAt: new Date() }).where(eq(deliveries.id, delivery.id));
+    let result: EmailSendResult;
+    try {
+      result = await transport.send(announcementEmailContent(announcement, delivery.email));
+    } catch {
+      // A transport that rejects unexpectedly may have already sent the message.
+      result = { kind: "ambiguous" };
+    }
+    if (result.kind === "sent") {
+      // If this write fails, leave the committed claim in sending (never a retryable failure).
+      await db.update(deliveries).set({
+        status: "sent",
+        failureKind: null,
+        sentAt: new Date(),
+      }).where(eq(deliveries.id, delivery.id));
+      continue;
+    }
+    if (result.kind === "quota" || result.kind === "needs_reconnect") {
+      await db.update(deliveries).set({
+        status: "pending",
+        failureKind: null,
+        attemptedAt: new Date(),
+      }).where(eq(deliveries.id, delivery.id));
+      if (result.kind === "quota") {
+        const resumeAt = new Date(Date.now() + (result.retryAfterMs ?? 60 * 60_000));
+        await pausePendingRequests("quota", resumeAt);
+        logger.warn({ announcementId: announcement.id, failureKind: "quota", resumeAt }, "Announcement email delivery paused");
+      } else {
+        await pausePendingRequests("needs_reconnect", null);
+        logger.warn({ announcementId: announcement.id, failureKind: "needs_reconnect" }, "Announcement email delivery paused");
+      }
+      break;
+    }
+    await db.update(deliveries).set({
+      status: result.kind === "ambiguous" ? "uncertain" : "failed",
+      failureKind: result.kind,
+    }).where(eq(deliveries.id, delivery.id));
+    logger.warn({
+      announcementId: announcement.id,
+      deliveryId: delivery.id,
+      failureKind: result.kind,
+    }, "Announcement email requires attention");
   }
 }
 

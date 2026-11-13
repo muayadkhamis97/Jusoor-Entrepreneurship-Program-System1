@@ -36,10 +36,12 @@ describe("private announcement reply API", { skip: !databaseAvailable }, () => {
         body text NOT NULL DEFAULT 'A message for participants', created_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TEMP TABLE jusoor_announcement_email_requests (
-        announcement_id integer PRIMARY KEY, prepared_at timestamptz, paused boolean NOT NULL DEFAULT false, checked_at timestamptz NOT NULL DEFAULT now()
+        announcement_id integer PRIMARY KEY, prepared_at timestamptz, paused boolean NOT NULL DEFAULT false,
+        pause_reason text, resume_at timestamptz, checked_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TEMP TABLE jusoor_announcement_email_deliveries (
-        id integer PRIMARY KEY, announcement_id integer, email text, status text, attempted_at timestamptz, sent_at timestamptz
+        id integer PRIMARY KEY, announcement_id integer, email text, status text, failure_kind text,
+        attempted_at timestamptz, sent_at timestamptz
       );
       INSERT INTO jusoor_programs VALUES (11,'One',NULL),(22,'Two',NULL),(33,'Archived',now());
       INSERT INTO jusoor_businesses VALUES (201,11,'Shared team'),(202,11,'Other business'),(203,22,'Other program'),(204,33,'Archived business');

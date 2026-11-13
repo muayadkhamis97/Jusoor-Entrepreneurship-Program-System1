@@ -10,21 +10,28 @@ const stateLabels: Record<AnnouncementEmailStatus['state'], string> = {
   complete: 'Email processing complete.',
   needs_attention: 'Some email deliveries need attention.',
   paused: 'Email paused: the author no longer has access to this active program. An Admin must review their access.',
+  quota_paused: 'Email paused: the daily Gmail sending limit was reached. Pending emails will resume automatically.',
+  needs_reconnect: 'Email disconnected: reconnect the Gmail connection before pending emails can resume.',
   unavailable: 'Email status unavailable. The portal announcement is saved.',
 };
+
+export function announcementEmailStateMessage(state: AnnouncementEmailStatus['state']): string {
+  return stateLabels[state];
+}
 
 export function AnnouncementEmailDelivery({ id, email }: { id: number; email?: AnnouncementEmailStatus }) {
   const client = useQueryClient();
   const retry = useRetryAnnouncementEmail();
   if (!email) return null;
   return <section className="recording-receipt-actions" aria-label={t('Announcement email delivery')} data-testid={`announcement-email-${id}`}>
-    <p role="status">{t(stateLabels[email.state])}</p>
+    <p role="status">{t(announcementEmailStateMessage(email.state))}</p>
     {email.state === 'complete' && email.sent + email.pending + email.failed + email.uncertain + email.skipped === 0 &&
       <p>{t('No accepted participants matched this audience at publication. No emails were sent.')}</p>}
     {email.state !== 'not_requested' && email.state !== 'unavailable' && email.state !== 'queued' && <>
-      <p>{t('Accepted by Gmail')}: {email.sent} · {t('Pending')}: {email.pending} · {t('Failed')}: {email.failed} · {t('Uncertain')}: {email.uncertain} · {t('Skipped')}: {email.skipped}</p>
+      <p>{t('Accepted by Gmail')}: {email.sent} · {t('Pending')}: {email.pending} · {t('Failed')}: {email.failed}{email.invalidRecipients > 0 ? ` · ${t('Invalid addresses')}: ${email.invalidRecipients}` : ''} · {t('Uncertain')}: {email.uncertain} · {t('Skipped')}: {email.skipped}</p>
       <small>{t('Accepted by Gmail does not confirm inbox delivery. Skipped recipients are no longer eligible.')}</small>
     </>}
+    {email.invalidRecipients > 0 && <p className="form-error">{t('Some recipient addresses were rejected and will not be retried.')}</p>}
     {email.uncertain > 0 && <p className="form-error">{t('Delivery could not be confirmed. These attempts are held for staff review and cannot be retried here, to prevent duplicate emails.')}</p>}
     {email.canRetry && <Button type="button" variant="text" disabled={retry.isPending} data-testid={`retry-announcement-email-${id}`}
       onClick={() => retry.mutate({ id }, { onSuccess: () => { void client.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() }); } })}>

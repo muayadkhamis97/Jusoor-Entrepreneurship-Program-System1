@@ -6098,14 +6098,15 @@ components:
     AnnouncementEmailStatus:
       type: object
       properties:
-        state: { type: string, enum: [not_requested, queued, processing, complete, needs_attention, paused, unavailable] }
+        state: { type: string, enum: [not_requested, queued, processing, complete, needs_attention, paused, quota_paused, needs_reconnect, unavailable] }
         sent: { type: integer }
         pending: { type: integer }
         failed: { type: integer }
+        invalidRecipients: { type: integer }
         uncertain: { type: integer }
         skipped: { type: integer }
         canRetry: { type: boolean }
-      required: [state, sent, pending, failed, uncertain, skipped, canRetry]
+      required: [state, sent, pending, failed, invalidRecipients, uncertain, skipped, canRetry]
     AnnouncementsList:
       type: array
       items: { $ref: "#/components/schemas/Announcement" }

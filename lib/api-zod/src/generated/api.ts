@@ -3984,10 +3984,11 @@ export const ListAnnouncementsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "status": zod.enum(['scheduled', 'published']),
   "email": zod.object({
-  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
+  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'quota_paused', 'needs_reconnect', 'unavailable']),
   "sent": zod.int(),
   "pending": zod.int(),
   "failed": zod.int(),
+  "invalidRecipients": zod.int(),
   "uncertain": zod.int(),
   "skipped": zod.int(),
   "canRetry": zod.boolean()
@@ -4033,10 +4034,11 @@ export const CreateAnnouncementResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "status": zod.enum(['scheduled', 'published']),
   "email": zod.object({
-  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
+  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'quota_paused', 'needs_reconnect', 'unavailable']),
   "sent": zod.int(),
   "pending": zod.int(),
   "failed": zod.int(),
+  "invalidRecipients": zod.int(),
   "uncertain": zod.int(),
   "skipped": zod.int(),
   "canRetry": zod.boolean()
@@ -4052,10 +4054,11 @@ export const RetryAnnouncementEmailParams = zod.object({
 })
 
 export const RetryAnnouncementEmailResponse = zod.object({
-  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'unavailable']),
+  "state": zod.enum(['not_requested', 'queued', 'processing', 'complete', 'needs_attention', 'paused', 'quota_paused', 'needs_reconnect', 'unavailable']),
   "sent": zod.int(),
   "pending": zod.int(),
   "failed": zod.int(),
+  "invalidRecipients": zod.int(),
   "uncertain": zod.int(),
   "skipped": zod.int(),
   "canRetry": zod.boolean()

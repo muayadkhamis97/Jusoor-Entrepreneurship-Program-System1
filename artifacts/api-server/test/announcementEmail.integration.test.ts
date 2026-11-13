@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import express from "express";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
 
 const databaseAvailable = Boolean(process.env.TEST_DATABASE_URL);
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
@@ -42,6 +43,8 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         announcement_id integer PRIMARY KEY REFERENCES jusoor_program_announcements(id) ON DELETE CASCADE,
         prepared_at timestamptz,
         paused boolean NOT NULL DEFAULT false,
+        pause_reason text,
+        resume_at timestamptz,
         checked_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TEMP TABLE jusoor_announcement_email_deliveries (
@@ -49,6 +52,7 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         announcement_id integer NOT NULL REFERENCES jusoor_announcement_email_requests(announcement_id) ON DELETE CASCADE,
         email text NOT NULL,
         status text NOT NULL DEFAULT 'pending',
+        failure_kind text,
         attempted_at timestamptz,
         sent_at timestamptz
       );
@@ -140,6 +144,106 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       assert.equal((await post(`/communications/${result.id}/email/retry`)).status, 200);
       await processAnnouncementEmails(send);
       assert.equal(sent.length, 3);
+    });
+    await t.test("Gmail quota pauses pending recipients and resumes them later", async () => {
+      const result = await create({ programId: 1 });
+      let quotaCalls = 0;
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async () => {
+          quotaCalls++;
+          return { kind: "quota", retryAfterMs: 60_000 };
+        },
+      });
+      const [request] = await db.select().from(schema.announcementEmailRequestsTable)
+        .where(eq(schema.announcementEmailRequestsTable.announcementId, result.id));
+      assert.equal(quotaCalls, 1);
+      assert.equal(request?.paused, true, JSON.stringify(request));
+      assert.equal(request?.pauseReason, "quota", JSON.stringify(request));
+      const paused = (await announcementEmailStatuses([result.id])).get(result.id)!;
+      assert.equal(paused.state, "quota_paused");
+      assert.equal(paused.pending, 3);
+      assert.equal(paused.failed, 0);
+      assert.ok(request?.resumeAt && request.resumeAt.getTime() > Date.now());
+
+      await connection.query(
+        "UPDATE pg_temp.jusoor_announcement_email_requests SET resume_at = now() - interval '1 minute' WHERE announcement_id = $1",
+        [result.id],
+      );
+      const resumedRecipients: string[] = [];
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async message => {
+          resumedRecipients.push(...message.recipients);
+          return { kind: "sent" };
+        },
+      });
+      assert.equal(resumedRecipients.length, 3);
+      const completed = (await announcementEmailStatuses([result.id])).get(result.id)!;
+      assert.equal(completed.sent, 3);
+      assert.equal(completed.failed, 0);
+    });
+    await t.test("Gmail auth failures wait for a healthy connection before sending again", async () => {
+      const result = await create({ programId: 1 });
+      let connectionState: "needs_reconnect" | "ready" = "needs_reconnect";
+      let checks = 0;
+      let sends = 0;
+      const transport = {
+        checkConnection: async () => {
+          checks++;
+          return { kind: connectionState } as const;
+        },
+        send: async () => {
+          sends++;
+          return { kind: "needs_reconnect" } as const;
+        },
+      };
+      await processAnnouncementEmails(transport);
+      const paused = (await announcementEmailStatuses([result.id])).get(result.id)!;
+      assert.equal(paused.state, "needs_reconnect");
+      assert.equal(paused.pending, 3);
+      assert.equal(paused.failed, 0);
+      assert.equal(sends, 1);
+
+      await processAnnouncementEmails(transport);
+      assert.equal(sends, 1, "a disconnected connection must not consume another send attempt");
+      connectionState = "ready";
+      await processAnnouncementEmails({
+        ...transport,
+        send: async message => {
+          sends++;
+          sent.push(...message.recipients);
+          return { kind: "sent" } as const;
+        },
+      });
+      assert.equal(checks, 2);
+      assert.equal(sends, 4);
+      assert.equal((await announcementEmailStatuses([result.id])).get(result.id)?.sent, 3);
+    });
+    await t.test("invalid recipients remain failed and cannot be retried", async () => {
+      const result = await create({ programId: 1 });
+      let sends = 0;
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async () => {
+          sends++;
+          return { kind: "invalid_recipient" };
+        },
+      });
+      const status = (await announcementEmailStatuses([result.id])).get(result.id)!;
+      assert.equal(status.failed, 3);
+      assert.equal(status.invalidRecipients, 3);
+      assert.equal(status.canRetry, false);
+      await post(`/communications/${result.id}/email/retry`);
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async () => {
+          sends++;
+          return { kind: "sent" };
+        },
+      });
+      assert.equal(sends, 3);
+      assert.equal((await announcementEmailStatuses([result.id])).get(result.id)?.failed, 3);
     });
     await t.test("accepted membership is rechecked on retry and later enrollment does not expand the audience", async () => {
       const result = await create({ programId: 1 });

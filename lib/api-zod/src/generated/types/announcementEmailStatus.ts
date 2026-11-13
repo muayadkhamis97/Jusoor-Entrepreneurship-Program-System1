@@ -12,6 +12,7 @@ export interface AnnouncementEmailStatus {
   sent: number;
   pending: number;
   failed: number;
+  invalidRecipients: number;
   uncertain: number;
   skipped: number;
   canRetry: boolean;

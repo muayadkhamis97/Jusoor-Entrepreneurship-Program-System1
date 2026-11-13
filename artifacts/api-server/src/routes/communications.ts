@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, inArray, isNull, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, ne, or, type SQL } from "drizzle-orm";
 import {
   CreateAnnouncementBody,
   CreateAnnouncementResponse,
@@ -350,9 +350,13 @@ router.post("/communications/:id/email/retry", async (req, res): Promise<void> =
     res.status(404).json({ error: "Accessible email-enabled announcement not found." });
     return;
   }
-  await db.update(announcementEmailDeliveriesTable).set({ status: "pending" })
+  await db.update(announcementEmailDeliveriesTable).set({ status: "pending", failureKind: null })
     .where(and(eq(announcementEmailDeliveriesTable.announcementId, announcement.id),
-      eq(announcementEmailDeliveriesTable.status, "failed")));
+      eq(announcementEmailDeliveriesTable.status, "failed"),
+      or(
+        isNull(announcementEmailDeliveriesTable.failureKind),
+        ne(announcementEmailDeliveriesTable.failureKind, "invalid_recipient"),
+      )));
   const statuses = await announcementEmailStatuses([announcement.id]);
   res.json(RetryAnnouncementEmailResponse.parse(statuses.get(announcement.id)));
 });

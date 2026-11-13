@@ -23,6 +23,26 @@ export type PlatformEmail = {
   idempotencyKey: string;
 };
 
+export type EmailFailureKind =
+  | "quota"
+  | "needs_reconnect"
+  | "invalid_recipient"
+  | "transient"
+  | "ambiguous";
+
+export type EmailSendResult =
+  | { kind: "sent" }
+  | { kind: EmailFailureKind; retryAfterMs?: number };
+
+export type EmailConnectionResult =
+  | { kind: "ready" }
+  | { kind: "quota" | "needs_reconnect" | "transient"; retryAfterMs?: number };
+
+export interface EmailTransport {
+  checkConnection(): Promise<EmailConnectionResult>;
+  send(message: PlatformEmail): Promise<EmailSendResult>;
+}
+
 type ConnectorClient = Pick<ReplitConnectors, "proxy"> &
   Partial<Pick<ReplitConnectors, "createProxyFetch" | "getProxyUrl">>;
 type LoadEmailBranding = () => Promise<ProgramEmailBranding>;
@@ -38,6 +58,24 @@ export type PlatformEmailTimeouts = {
 };
 
 const defaultConnectorProxy = ReplitConnectors.prototype.proxy;
+
+export class PlatformEmailProviderError extends Error {
+  readonly httpStatus?: number;
+  readonly errorCode?: string;
+  readonly retryAfterMs?: number;
+
+  constructor(
+    readonly kind: Exclude<EmailFailureKind, "ambiguous">,
+    message: string,
+    details: { httpStatus?: number; errorCode?: string; retryAfterMs?: number } = {},
+  ) {
+    super(message);
+    this.name = "PlatformEmailProviderError";
+    this.httpStatus = details.httpStatus;
+    this.errorCode = details.errorCode;
+    this.retryAfterMs = details.retryAfterMs;
+  }
+}
 
 // Only use safe retries when Gmail definitely did not accept this attempt.
 export class PlatformEmailSendUncertainError extends Error {
@@ -61,6 +99,14 @@ export function platformEmailFailureDiagnostics(error: unknown): Record<string, 
     return {
       failureKind: "delivery_outcome_unknown",
       operation: error.operation,
+      ...(error.httpStatus ? { providerStatus: error.httpStatus } : {}),
+      ...(error.errorCode ? { errorCode: error.errorCode } : {}),
+    };
+  }
+  if (error instanceof PlatformEmailProviderError) {
+    return {
+      failureKind: `gmail_${error.kind}`,
+      operation: "provider_request",
       ...(error.httpStatus ? { providerStatus: error.httpStatus } : {}),
       ...(error.errorCode ? { errorCode: error.errorCode } : {}),
     };
@@ -136,20 +182,8 @@ export async function sendPlatformEmail(
   const brandedText = renderBrandedEmailText(message.text, branding);
   const brandedHtml = renderBrandedEmailHtml(message.html, branding);
 
-  const profileResponse = await gmailRequest(
-    connectors,
-    "/gmail/v1/users/me/profile",
-    { method: "GET" },
-    requestTimeouts.profileMs,
-  );
-  if (!profileResponse.ok) {
-    throw new Error(`Gmail profile lookup returned HTTP ${profileResponse.status}.`);
-  }
-  const profile = await profileResponse.json() as { emailAddress?: unknown };
-  if (typeof profile.emailAddress !== "string") {
-    throw new Error("Gmail did not return the connected account address.");
-  }
-  const from = validateEmailAddress(profile.emailAddress);
+  const profile = await connectedGmailProfile(connectors, requestTimeouts.profileMs);
+  const from = profile.emailAddress;
 
   for (const recipient of recipients) {
     const messageId = stableMessageId(message.idempotencyKey, recipient);
@@ -177,13 +211,82 @@ export async function sendPlatformEmail(
       });
     }
     if (!response.ok) {
-      if (response.status >= 500 || response.status === 408) {
-        throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.", {
-          httpStatus: response.status,
-        });
-      }
-      throw new Error(`Gmail send returned HTTP ${response.status}.`);
+      throw await gmailResponseFailure(response, "send");
     }
+  }
+}
+
+export function createGmailEmailTransport(
+  connectors: ConnectorClient = new ReplitConnectors(),
+  loadBranding: LoadEmailBranding = loadProgramEmailBranding,
+  timeouts: Partial<PlatformEmailTimeouts> = {},
+): EmailTransport {
+  return {
+    async checkConnection(): Promise<EmailConnectionResult> {
+      try {
+        await connectedGmailProfile(connectors, timeouts.profileMs ?? gmailProfileTimeoutMs);
+        return { kind: "ready" };
+      } catch (error) {
+        const result = toEmailSendResult(error, "profile_lookup");
+        return {
+          kind: result.kind === "sent" || result.kind === "ambiguous" || result.kind === "invalid_recipient"
+            ? "transient"
+            : result.kind,
+          ...("retryAfterMs" in result && result.retryAfterMs
+            ? { retryAfterMs: result.retryAfterMs }
+            : {}),
+        };
+      }
+    },
+    async send(message: PlatformEmail): Promise<EmailSendResult> {
+      try {
+        await sendPlatformEmail(message, connectors, loadBranding, timeouts);
+        return { kind: "sent" };
+      } catch (error) {
+        return toEmailSendResult(error, "send");
+      }
+    },
+  };
+}
+
+export const gmailEmailTransport: EmailTransport = createGmailEmailTransport();
+
+async function connectedGmailProfile(
+  connectors: ConnectorClient,
+  timeoutMs: number,
+): Promise<{ emailAddress: string }> {
+  let response: Response;
+  try {
+    response = await gmailRequest(
+      connectors,
+      "/gmail/v1/users/me/profile",
+      { method: "GET" },
+      timeoutMs,
+    );
+  } catch (error) {
+    throw toProviderFailure(error, "profile_lookup");
+  }
+  if (!response.ok) throw await gmailResponseFailure(response, "profile_lookup");
+
+  let profile: { emailAddress?: unknown };
+  try {
+    profile = await response.json() as { emailAddress?: unknown };
+  } catch {
+    throw new PlatformEmailProviderError("transient", "Gmail profile response was unavailable.");
+  }
+  if (typeof profile.emailAddress !== "string") {
+    throw new PlatformEmailProviderError(
+      "needs_reconnect",
+      "Gmail did not return the connected account address.",
+    );
+  }
+  try {
+    return { emailAddress: validateEmailAddress(profile.emailAddress) };
+  } catch {
+    throw new PlatformEmailProviderError(
+      "needs_reconnect",
+      "Gmail did not return a valid connected account address.",
+    );
   }
 }
 
@@ -196,17 +299,127 @@ async function wasAlreadySent(
     q: `in:sent rfc822msgid:${messageId}`,
     maxResults: "1",
   });
-  const response = await gmailRequest(
-    connectors,
-    `/gmail/v1/users/me/messages?${query.toString()}`,
-    { method: "GET" },
-    timeoutMs,
-  );
-  if (!response.ok) {
-    throw new Error(`Gmail sent-message lookup returned HTTP ${response.status}.`);
+  let response: Response;
+  try {
+    response = await gmailRequest(
+      connectors,
+      `/gmail/v1/users/me/messages?${query.toString()}`,
+      { method: "GET" },
+      timeoutMs,
+    );
+  } catch (error) {
+    throw toProviderFailure(error, "sent_message_lookup");
   }
-  const result = await response.json() as { messages?: unknown };
+  if (!response.ok) throw await gmailResponseFailure(response, "sent_message_lookup");
+  let result: { messages?: unknown };
+  try {
+    result = await response.json() as { messages?: unknown };
+  } catch {
+    throw new PlatformEmailProviderError("transient", "Gmail sent-message lookup was unavailable.");
+  }
   return Array.isArray(result.messages) && result.messages.length > 0;
+}
+
+type GmailOperation = "profile_lookup" | "sent_message_lookup" | "send";
+
+async function gmailResponseFailure(
+  response: Response,
+  operation: GmailOperation,
+): Promise<PlatformEmailProviderError | PlatformEmailSendUncertainError> {
+  const payload = await response.clone().json().catch(() => null) as {
+    error?: { status?: unknown; errors?: Array<{ reason?: unknown }> };
+  } | null;
+  const reasons = [
+    ...(typeof payload?.error?.status === "string" ? [payload.error.status] : []),
+    ...(Array.isArray(payload?.error?.errors)
+      ? payload.error.errors.map(error => error.reason).filter((reason): reason is string => typeof reason === "string")
+      : []),
+  ];
+  const normalizedReasons = reasons.map(reason => reason.toLowerCase());
+  const rateLimited = response.status === 429 || normalizedReasons.some(reason =>
+    /rate.?limit|daily.?limit|quota.?exceeded|user.?rate.?limit/.test(reason),
+  );
+  const errorCode = reasons.find(reason => /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(reason));
+  if (rateLimited) {
+    const dailyQuota = normalizedReasons.some(reason => /daily.?limit|quota.?exceeded/.test(reason));
+    return new PlatformEmailProviderError(
+      "quota",
+      "Gmail sending is temporarily limited.",
+      {
+        httpStatus: response.status,
+        ...(errorCode ? { errorCode } : {}),
+        retryAfterMs: retryAfterMs(response, dailyQuota),
+      },
+    );
+  }
+  if (response.status === 401 || response.status === 403) {
+    return new PlatformEmailProviderError(
+      "needs_reconnect",
+      "The connected Gmail account needs to be reconnected.",
+      { httpStatus: response.status, ...(errorCode ? { errorCode } : {}) },
+    );
+  }
+  if (operation === "send" && (response.status >= 500 || response.status === 408)) {
+    return new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.", {
+      httpStatus: response.status,
+      ...(errorCode ? { errorCode } : {}),
+    });
+  }
+  if (operation === "send" && [400, 404, 422].includes(response.status)) {
+    return new PlatformEmailProviderError(
+      "invalid_recipient",
+      "Gmail rejected the recipient address.",
+      { httpStatus: response.status, ...(errorCode ? { errorCode } : {}) },
+    );
+  }
+  return new PlatformEmailProviderError(
+    "transient",
+    `Gmail ${operation.replaceAll("_", " ")} returned HTTP ${response.status}.`,
+    { httpStatus: response.status, ...(errorCode ? { errorCode } : {}) },
+  );
+}
+
+function retryAfterMs(response: Response, dailyQuota: boolean): number {
+  const header = response.headers.get("retry-after");
+  if (header) {
+    const seconds = Number(header);
+    const parsed = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header) - Date.now();
+    if (Number.isFinite(parsed) && parsed > 0) return Math.min(parsed, 24 * 60 * 60_000);
+  }
+  return dailyQuota ? 24 * 60 * 60_000 : 60 * 60_000;
+}
+
+function toProviderFailure(
+  error: unknown,
+  operation: GmailOperation,
+): PlatformEmailProviderError | PlatformEmailSendUncertainError {
+  if (error instanceof PlatformEmailProviderError || error instanceof PlatformEmailSendUncertainError) {
+    return error;
+  }
+  const errorCode = safeErrorCode(error);
+  if (operation === "send") {
+    return new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.", {
+      ...(errorCode ? { errorCode } : {}),
+    });
+  }
+  return new PlatformEmailProviderError(
+    "transient",
+    `Gmail ${operation.replaceAll("_", " ")} could not be completed.`,
+    errorCode ? { errorCode } : {},
+  );
+}
+
+function toEmailSendResult(
+  error: unknown,
+  operation: GmailOperation,
+): EmailSendResult {
+  const failure = toProviderFailure(error, operation);
+  return {
+    kind: failure instanceof PlatformEmailSendUncertainError ? "ambiguous" : failure.kind,
+    ...("retryAfterMs" in failure && failure.retryAfterMs
+      ? { retryAfterMs: failure.retryAfterMs }
+      : {}),
+  };
 }
 
 async function gmailRequest(
