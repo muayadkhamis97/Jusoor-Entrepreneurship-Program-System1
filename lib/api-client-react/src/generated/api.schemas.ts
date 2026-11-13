@@ -3426,6 +3426,29 @@ export interface MentorBookingFollowUpUpdate {
   calendlyFollowUpNote: string | null;
 }
 
+export type MentorFollowUpDigestStatusStatus = typeof MentorFollowUpDigestStatusStatus[keyof typeof MentorFollowUpDigestStatusStatus];
+
+
+export const MentorFollowUpDigestStatusStatus = {
+  pending: 'pending',
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+  uncertain: 'uncertain',
+} as const;
+
+export interface MentorFollowUpDigestStatus {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  calendarDate: string;
+  status: MentorFollowUpDigestStatusStatus;
+  /** @minimum 0 */
+  attempts: number;
+  /** @nullable */
+  lastAttemptAt: string | null;
+  /** @nullable */
+  sentAt: string | null;
+}
+
 export interface StaffInput {
   email: string;
   role: StaffRole;
@@ -4666,6 +4689,13 @@ type?: SupportType;
 export type ListPitchesParams = {
 businessId?: number;
 eventType?: PitchEventType;
+};
+
+export type GetMentorFollowUpDigestStatusParams = {
+/**
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+calendarDate: string;
 };
 
 export type GetStaffAssignmentHistoryParams = {

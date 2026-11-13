@@ -14,6 +14,8 @@ import {
   GetAuthMeResponse,
   GetMentorBookingStatusResponse,
   GetMentorBookingStatusResponseItem,
+  GetMentorFollowUpDigestStatusQueryParams,
+  GetMentorFollowUpDigestStatusResponse,
   GetIntegrationDisconnectHistoryResponse,
   GetProgramTeamAssignmentsParams,
   GetProgramTeamAssignmentsResponse,
@@ -41,6 +43,7 @@ import {
   staffProgramAssignmentsTable,
   staffAssignmentAuditEventsTable,
   integrationDisconnectAuditEventsTable,
+  mentorFollowUpDigestDeliveriesTable,
   staffProgramRolesTable,
   sessionsTable,
   trainingAssignmentsTable,
@@ -744,6 +747,36 @@ router.get("/staff/mentor-booking-status", requireCoordinator, async (_req, res)
     calendlyConnected: Boolean(calendlyBookingUrl),
     googleCalendarConnected: Boolean(googleCalendarAccountEmail),
   }))));
+});
+
+router.get("/staff/mentor-follow-up-digest-status", requireCoordinator, async (req, res): Promise<void> => {
+  const query = GetMentorFollowUpDigestStatusQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: "A valid program calendar date is required." });
+    return;
+  }
+  if (!isValidCalendarDate(query.data.calendarDate)) {
+    res.status(400).json({ error: "A valid program calendar date is required." });
+    return;
+  }
+
+  const staff = res.locals.staff as StaffAccess;
+  const deliveries = await db.select({
+    calendarDate: mentorFollowUpDigestDeliveriesTable.calendarDate,
+    status: mentorFollowUpDigestDeliveriesTable.status,
+    attempts: mentorFollowUpDigestDeliveriesTable.attempts,
+    lastAttemptAt: mentorFollowUpDigestDeliveriesTable.lastAttemptAt,
+    sentAt: mentorFollowUpDigestDeliveriesTable.sentAt,
+  })
+    .from(mentorFollowUpDigestDeliveriesTable)
+    .where(and(
+      eq(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId, staff.id),
+      eq(mentorFollowUpDigestDeliveriesTable.calendarDate, query.data.calendarDate),
+    ))
+    .limit(1);
+
+  res.set("Cache-Control", "no-store");
+  res.json(GetMentorFollowUpDigestStatusResponse.parse(deliveries));
 });
 
 router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async (req, res): Promise<void> => {

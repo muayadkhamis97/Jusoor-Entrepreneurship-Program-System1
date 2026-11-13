@@ -5419,6 +5419,31 @@ export const GetMentorBookingStatusResponse = zod.array(GetMentorBookingStatusRe
 
 
 /**
+ * @summary Read the signed-in coordinator's mentor digest delivery status for a program date
+ */
+export const getMentorFollowUpDigestStatusQueryCalendarDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const GetMentorFollowUpDigestStatusQueryParams = zod.object({
+  "calendarDate": zod.coerce.string().regex(getMentorFollowUpDigestStatusQueryCalendarDateRegExp)
+})
+
+export const getMentorFollowUpDigestStatusResponseCalendarDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getMentorFollowUpDigestStatusResponseAttemptsMin = 0;
+
+
+
+export const GetMentorFollowUpDigestStatusResponseItem = zod.object({
+  "calendarDate": zod.string().regex(getMentorFollowUpDigestStatusResponseCalendarDateRegExp),
+  "status": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
+  "attempts": zod.int().min(getMentorFollowUpDigestStatusResponseAttemptsMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "sentAt": zod.coerce.date().nullable()
+})
+export const GetMentorFollowUpDigestStatusResponse = zod.array(GetMentorFollowUpDigestStatusResponseItem)
+
+
+/**
  * @summary Disconnect a mentor's Google Calendar account as a coordinator
  */
 export const DisconnectStaffGoogleCalendarParams = zod.object({

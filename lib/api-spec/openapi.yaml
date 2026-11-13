@@ -3496,6 +3496,31 @@ paths:
                   $ref: "#/components/schemas/MentorBookingStatus"
         "403":
           description: Coordinator role required
+  /staff/mentor-follow-up-digest-status:
+    get:
+      operationId: getMentorFollowUpDigestStatus
+      tags: [staff]
+      summary: Read the signed-in coordinator's mentor digest delivery status for a program date
+      parameters:
+        - name: calendarDate
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      responses:
+        "200":
+          description: Existing mentor digest delivery status for the selected date, or an empty list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MentorFollowUpDigestStatus"
+        "400":
+          description: Invalid program calendar date
+        "403":
+          description: Coordinator role required
   /staff/{id}/google-calendar-connection:
     delete:
       operationId: disconnectStaffGoogleCalendar
@@ -6933,6 +6958,15 @@ components:
         calendlyFollowUpDate: { type: ["string", "null"], pattern: '^\d{4}-\d{2}-\d{2}$' }
         calendlyFollowUpNote: { type: ["string", "null"], maxLength: 1000 }
       required: [calendlyFollowUpDate, calendlyFollowUpNote]
+    MentorFollowUpDigestStatus:
+      type: object
+      properties:
+        calendarDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        status: { type: string, enum: [pending, sending, sent, failed, uncertain] }
+        attempts: { type: integer, minimum: 0 }
+        lastAttemptAt: { type: ["string", "null"], format: date-time }
+        sentAt: { type: ["string", "null"], format: date-time }
+      required: [calendarDate, status, attempts, lastAttemptAt, sentAt]
     StaffInput:
       type: object
       properties:

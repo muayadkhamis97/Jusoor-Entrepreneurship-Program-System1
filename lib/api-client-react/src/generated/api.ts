@@ -91,6 +91,7 @@ import type {
   EntrepreneurApplication,
   EntrepreneurApplicationInput,
   GetLearningProgressAnalyticsParams,
+  GetMentorFollowUpDigestStatusParams,
   GetProgramAnalyticsParams,
   GetProgramGoogleSheetsDestinationHistoryParams,
   GetProgramSessionInteractionAnalyticsParams,
@@ -155,6 +156,7 @@ import type {
   MentorDashboard,
   MentorEngagement,
   MentorEngagementUpdate,
+  MentorFollowUpDigestStatus,
   MentorMeetingReport,
   MentorMeetingReportInput,
   MentorMeetingReports,
@@ -14357,6 +14359,90 @@ export function useGetMentorBookingStatus<TData = Awaited<ReturnType<typeof getM
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMentorBookingStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMentorFollowUpDigestStatusUrl = (params: GetMentorFollowUpDigestStatusParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/staff/mentor-follow-up-digest-status?${stringifiedParams}` : `/api/staff/mentor-follow-up-digest-status`
+}
+
+/**
+ * @summary Read the signed-in coordinator's mentor digest delivery status for a program date
+ */
+export const getMentorFollowUpDigestStatus = async (params: GetMentorFollowUpDigestStatusParams, options?: Parameters<typeof customFetch>[1]): Promise<MentorFollowUpDigestStatus[]> => {
+
+  return customFetch<MentorFollowUpDigestStatus[]>(getGetMentorFollowUpDigestStatusUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMentorFollowUpDigestStatusQueryKey = (params?: GetMentorFollowUpDigestStatusParams,) => {
+    return [
+    `/api/staff/mentor-follow-up-digest-status`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMentorFollowUpDigestStatusQueryOptions = <TData = Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>, TError = ErrorType<void>>(params: GetMentorFollowUpDigestStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMentorFollowUpDigestStatusQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>> = ({ signal }) => getMentorFollowUpDigestStatus(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMentorFollowUpDigestStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>>
+export type GetMentorFollowUpDigestStatusQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the signed-in coordinator's mentor digest delivery status for a program date
+ */
+
+export function useGetMentorFollowUpDigestStatus<TData = Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>, TError = ErrorType<void>>(
+ params: GetMentorFollowUpDigestStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMentorFollowUpDigestStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMentorFollowUpDigestStatusQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

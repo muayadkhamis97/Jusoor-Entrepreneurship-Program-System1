@@ -11,6 +11,7 @@ import { sessionProgramField } from './session-form-requirements';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
 import { AnnouncementEmailPauseAlert } from './announcement-email-pause-alert';
+import { MentorDigestStatus } from './mentor-digest-status';
 import { lazy, Suspense, type ChangeEvent, type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -1066,6 +1067,7 @@ function MentorBookingStatusPage() {
       summary="See booking connections and keep track of follow-ups for mentors who have not connected a booking account."
       action={<button className="button button-outline" onClick={() => void query.refetch()} disabled={query.isFetching} data-testid="button-refresh-mentor-booking">{query.isFetching ? t('Refreshing…') : <><RefreshCw size={14} /> {t('Refresh status')}</>}</button>}
     />
+    <MentorDigestStatus />
     {query.isLoading ? <LoadingState label="Loading mentor booking status" /> : query.isError ? <ErrorState retry={() => void query.refetch()} /> : <>
       <section className="metric-grid mentor-booking-metrics">
         <Metric label="Mentors" value={mentors.length} hint="Invited and active accounts" icon={Users} />
