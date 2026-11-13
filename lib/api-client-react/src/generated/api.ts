@@ -27,6 +27,7 @@ import type {
   Announcement,
   AnnouncementConversation,
   AnnouncementDeleteResult,
+  AnnouncementEmailPauseAlert,
   AnnouncementEmailStatus,
   AnnouncementInput,
   AnnouncementReadResult,
@@ -10765,6 +10766,83 @@ export const useCreateAnnouncement = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateAnnouncementMutationOptions(options));
     }
+
+export const getGetAnnouncementEmailPauseAlertUrl = () => {
+
+
+
+
+  return `/api/communications/email-pause-alert`
+}
+
+/**
+ * @summary Get active announcement email pause status for Admin alerts
+ */
+export const getAnnouncementEmailPauseAlert = async ( options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementEmailPauseAlert> => {
+
+  return customFetch<AnnouncementEmailPauseAlert>(getGetAnnouncementEmailPauseAlertUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnnouncementEmailPauseAlertQueryKey = () => {
+    return [
+    `/api/communications/email-pause-alert`
+    ] as const;
+    }
+
+
+export const getGetAnnouncementEmailPauseAlertQueryOptions = <TData = Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnnouncementEmailPauseAlertQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>> = ({ signal }) => getAnnouncementEmailPauseAlert({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnnouncementEmailPauseAlertQueryResult = NonNullable<Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>>
+export type GetAnnouncementEmailPauseAlertQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get active announcement email pause status for Admin alerts
+ */
+
+export function useGetAnnouncementEmailPauseAlert<TData = Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnnouncementEmailPauseAlert>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnnouncementEmailPauseAlertQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRetryAnnouncementEmailUrl = (id: number,) => {
 

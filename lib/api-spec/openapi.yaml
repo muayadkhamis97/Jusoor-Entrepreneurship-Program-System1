@@ -2606,6 +2606,20 @@ paths:
           description: Invalid input
         "403":
           description: Coordinator access required
+  /communications/email-pause-alert:
+    get:
+      operationId: getAnnouncementEmailPauseAlert
+      tags: [communications]
+      summary: Get active announcement email pause status for Admin alerts
+      responses:
+        "200":
+          description: Aggregated pause status without announcement or recipient details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementEmailPauseAlert"
+        "403":
+          description: Admin access required
   /communications/{id}/email/retry:
     post:
       operationId: retryAnnouncementEmail
@@ -6129,6 +6143,13 @@ components:
           type: array
           items: { $ref: "#/components/schemas/EmailDeliveryFailure" }
       required: [state, sent, pending, failed, invalidRecipients, uncertain, skipped, canRetry]
+    AnnouncementEmailPauseAlert:
+      type: object
+      properties:
+        quotaPaused: { type: boolean }
+        reconnectPaused: { type: boolean }
+        nextRetryAt: { type: ["string", "null"], format: date-time }
+      required: [quotaPaused, reconnectPaused, nextRetryAt]
     EmailDeliveryFailure:
       type: object
       properties:

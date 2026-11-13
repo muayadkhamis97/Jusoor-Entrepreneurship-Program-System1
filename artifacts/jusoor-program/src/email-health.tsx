@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCheckEmailHealth, type EmailHealthStep } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { Dialog } from '@workspace/program-editorial/components/ui/dialog';
 import { t } from './language';
+import { useSearch } from 'wouter';
 
 const stepLabels: Record<EmailHealthStep['step'], string> = {
   profile: 'Read connected mailbox',
@@ -23,7 +24,11 @@ export function emailHealthGuidance(step: EmailHealthStep): string {
 }
 
 export function EmailHealth() {
+  const [search] = useSearch();
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(search).get('emailHealth') === '1') setOpen(true);
+  }, [search]);
   const [requestId] = useState(() => crypto.randomUUID());
   const check = useCheckEmailHealth({ mutation: { retry: false } });
   const [sendAttempted, setSendAttempted] = useState(false);

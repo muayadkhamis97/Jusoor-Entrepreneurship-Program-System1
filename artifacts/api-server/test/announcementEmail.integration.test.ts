@@ -101,6 +101,9 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
     const post = async (path: string, data = {}, role = "coordinator") => fetch(`${origin}${path}`, {
       method: "POST", headers: { "Content-Type": "application/json", "x-role": role }, body: JSON.stringify(data),
     });
+    const get = async (path: string, role = "coordinator") => fetch(`${origin}${path}`, {
+      headers: { "x-role": role },
+    });
     const create = async (data = {}) => {
       const response = await post("/communications", { kind: "update", title: "Important update", body: "Please read this announcement.", notifyByEmail: true, ...data });
       const result = await response.json();
@@ -170,6 +173,16 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       assert.equal(paused.pending, 3);
       assert.equal(paused.failed, 0);
       assert.ok(request?.resumeAt && request.resumeAt.getTime() > Date.now());
+      const pauseAlertResponse = await get("/communications/email-pause-alert");
+      assert.equal(pauseAlertResponse.status, 200);
+      const pauseAlert = await pauseAlertResponse.json() as Record<string, unknown>;
+      assert.deepEqual(pauseAlert, {
+        quotaPaused: true,
+        reconnectPaused: false,
+        nextRetryAt: request?.resumeAt?.toISOString(),
+      });
+      assert.equal(await get("/communications/email-pause-alert", "staff").then(response => response.status), 403);
+      assert.equal(Object.keys(pauseAlert).some(key => /email|content|provider|credential/i.test(key)), false);
 
       const addedWhilePaused = await create({ programId: 1 });
       await processAnnouncementEmails({
@@ -197,6 +210,11 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       const completed = (await announcementEmailStatuses([result.id])).get(result.id)!;
       assert.equal(completed.sent, 3);
       assert.equal(completed.failed, 0);
+      assert.deepEqual(await get("/communications/email-pause-alert").then(response => response.json()), {
+        quotaPaused: false,
+        reconnectPaused: false,
+        nextRetryAt: null,
+      });
     });
     await t.test("Gmail auth failures wait for a healthy connection before sending again", async () => {
       const result = await create({ programId: 1 });

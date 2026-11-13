@@ -4085,6 +4085,16 @@ export const CreateAnnouncementResponse = zod.object({
 
 
 /**
+ * @summary Get active announcement email pause status for Admin alerts
+ */
+export const GetAnnouncementEmailPauseAlertResponse = zod.object({
+  "quotaPaused": zod.boolean(),
+  "reconnectPaused": zod.boolean(),
+  "nextRetryAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * @summary Retry only safely failed deliveries for an opted-in announcement
  */
 export const RetryAnnouncementEmailParams = zod.object({

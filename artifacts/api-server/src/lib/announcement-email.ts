@@ -27,6 +27,26 @@ export const emptyEmailStatus = (state: DeliveryCounts["state"] = "not_requested
   state, sent: 0, pending: 0, failed: 0, invalidRecipients: 0, uncertain: 0, skipped: 0, canRetry: false,
 });
 
+export type AnnouncementEmailPauseAlert = {
+  quotaPaused: boolean;
+  reconnectPaused: boolean;
+  nextRetryAt: string | null;
+};
+
+export function summarizeAnnouncementEmailPauseAlert(
+  rows: { pauseReason: string | null; resumeAt: Date | null }[],
+): AnnouncementEmailPauseAlert {
+  const paused = rows.filter(row => row.pauseReason === "quota" || row.pauseReason === "needs_reconnect");
+  const retryTimes = paused.flatMap(row => row.resumeAt ? [row.resumeAt] : []);
+  return {
+    quotaPaused: paused.some(row => row.pauseReason === "quota"),
+    reconnectPaused: paused.some(row => row.pauseReason === "needs_reconnect"),
+    nextRetryAt: retryTimes.length
+      ? new Date(Math.min(...retryTimes.map(time => time.getTime()))).toISOString()
+      : null,
+  };
+}
+
 export function summarizeAnnouncementEmail(
   prepared: boolean,
   rows: { status: string; failureKind?: string | null; attemptedAt: Date | null }[],

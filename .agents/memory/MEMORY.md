@@ -28,6 +28,7 @@
 - [Platform email sender](platform-email-sender.md) — Use the project-connected Gmail integration for all automated platform email.
 - [Gmail connector timeouts](gmail-connector-timeouts.md) — Use the SDK's signal-aware proxy fetch for bounded Gmail requests; timed-out sends remain uncertain and must be checked in Sent before retry.
 - [Announcement email safety](announcement-email-safety.md) — Opt in per message, snapshot accepted recipients at publication, and hold ambiguous Gmail outcomes rather than risk duplicate sends.
+- [Announcement outage alerts](announcement-email-outage-alerts.md) — Derive in-app Admin alerts from persisted pause state; never send outage alerts through the provider being reported.
 - [Invitation resend safety](invitation-resend-safety.md) — Give each explicit resend a distinct request ID; reuse it for retries and warn when Gmail delivery is uncertain.
 - [Mentor session targets](mentor-session-targets.md) — Each program sets a per-business 1:1 target; reports count toward it, and mentors can request more from authorized staff.
 - [Coaching and mentoring terminology](coaching-mentoring-terminology.md) — Coaching and mentoring refer to one service, not separate program categories.

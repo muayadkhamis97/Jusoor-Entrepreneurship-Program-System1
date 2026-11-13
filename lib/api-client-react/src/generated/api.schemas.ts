@@ -2216,6 +2216,13 @@ export interface AnnouncementInput {
   notifyByEmail?: boolean;
 }
 
+export interface AnnouncementEmailPauseAlert {
+  quotaPaused: boolean;
+  reconnectPaused: boolean;
+  /** @nullable */
+  nextRetryAt: string | null;
+}
+
 export interface EmailHealthInput {
   sendTest: boolean;
   requestId: string;

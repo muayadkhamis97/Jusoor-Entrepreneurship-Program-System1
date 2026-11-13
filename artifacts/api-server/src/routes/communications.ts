@@ -4,6 +4,7 @@ import {
   CreateAnnouncementBody,
   CreateAnnouncementResponse,
   DeleteAnnouncementResponse,
+  GetAnnouncementEmailPauseAlertResponse,
   GetRecordingNoticeReceiptsParams,
   GetRecordingNoticeReceiptsResponse,
   ListAnnouncementsResponse,
@@ -28,12 +29,32 @@ import {
   isMissingAnnouncementBusinessColumn,
 } from "../lib/announcement-targeting";
 import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
-import { announcementEmailStatuses, emptyEmailStatus } from "../lib/announcement-email";
+import {
+  announcementEmailStatuses,
+  emptyEmailStatus,
+  summarizeAnnouncementEmailPauseAlert,
+} from "../lib/announcement-email";
 import { createAnnouncementRepliesRouter } from "./announcementReplies";
 
 const router: IRouter = Router();
 router.use("/communications", requireOperationsStaff);
 router.use("/communications", createAnnouncementRepliesRouter("staff"));
+
+router.get("/communications/email-pause-alert", async (_req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess;
+  if (staff.role !== "coordinator") {
+    res.status(403).json({ error: "Admin access required." });
+    return;
+  }
+  const rows = await db.select({
+    pauseReason: announcementEmailRequestsTable.pauseReason,
+    resumeAt: announcementEmailRequestsTable.resumeAt,
+  }).from(announcementEmailRequestsTable).where(and(
+    eq(announcementEmailRequestsTable.paused, true),
+    inArray(announcementEmailRequestsTable.pauseReason, ["quota", "needs_reconnect"]),
+  ));
+  res.json(GetAnnouncementEmailPauseAlertResponse.parse(summarizeAnnouncementEmailPauseAlert(rows)));
+});
 
 async function announcementScope(staff: StaffAccess, includePublishedGlobal = false): Promise<SQL | undefined> {
   if (staff.role === "coordinator") return undefined;

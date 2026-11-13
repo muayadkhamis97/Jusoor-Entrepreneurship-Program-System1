@@ -18,6 +18,7 @@ export * from './analyticsSummary';
 export * from './announcement';
 export * from './announcementConversation';
 export * from './announcementDeleteResult';
+export * from './announcementEmailPauseAlert';
 export * from './announcementEmailStatus';
 export * from './announcementEmailStatusState';
 export * from './announcementInput';

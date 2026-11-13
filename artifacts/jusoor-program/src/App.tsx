@@ -10,6 +10,7 @@ import { getBrandingThemeTokens, getPanelSurfaceColors } from './branding-contra
 import { sessionProgramField } from './session-form-requirements';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
+import { AnnouncementEmailPauseAlert } from './announcement-email-pause-alert';
 import { lazy, Suspense, type ChangeEvent, type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -327,7 +328,10 @@ export function Shell({ children, staff, displayName }: { children: ReactNode; s
     <main className="main-panel">
         <header className="topbar"><nav className="crumb" aria-label={t('Breadcrumb')}><Link href="/" className="crumb-home" data-testid="breadcrumb-brand-name">{brandName}</Link>{activeNavGroup && <><span className="crumb-slash" aria-hidden="true">/</span><span className="crumb-section">{t(activeNavGroup)}</span></>}<span className="crumb-slash" aria-hidden="true">/</span><b aria-current="page" data-testid="staff-current-page">{t(label)}</b></nav><div className="topbar-actions"><span className="role-chip">{staff.primaryRole === 'coordinator' ? t('ADMIN') : t('STAFF')}</span><LanguageToggle /></div></header>
        <MobileStaffNavigation items={nav} currentPath={path} onSignOut={() => void signOut({ redirectUrl: appRootPath })} />
-      <div className="page-content page-enter">{children}</div>
+      <div className="page-content page-enter">
+        {staff.primaryRole === 'coordinator' && <AnnouncementEmailPauseAlert />}
+        {children}
+      </div>
     </main>
   </div>;
 }

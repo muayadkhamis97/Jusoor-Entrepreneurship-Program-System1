@@ -4,7 +4,12 @@ import type { ReplitConnectors } from "@replit/connectors-sdk";
 
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
-const { announcementEmailContent, normalizedAnnouncementRecipients, summarizeAnnouncementEmail } = await import("../src/lib/announcement-email");
+const {
+  announcementEmailContent,
+  normalizedAnnouncementRecipients,
+  summarizeAnnouncementEmail,
+  summarizeAnnouncementEmailPauseAlert,
+} = await import("../src/lib/announcement-email");
 const {
   createGmailEmailTransport,
   sendPlatformEmail,
@@ -37,6 +42,24 @@ test("delivery summaries distinguish zero recipients, safe failures and ambiguou
   ], 20 * 60_000);
   assert.deepEqual(result, { state: "needs_attention", sent: 1, failed: 1, invalidRecipients: 0, uncertain: 2, skipped: 1, pending: 0, canRetry: true });
   assert.equal(summarizeAnnouncementEmail(true, [{ status: "uncertain", attemptedAt: null }]).canRetry, false);
+});
+
+test("Admin pause alert aggregates only active quota and reconnect pauses", () => {
+  const quotaRetry = new Date("2026-11-13T12:00:00.000Z");
+  const reconnectRetry = new Date("2026-11-13T13:00:00.000Z");
+  assert.deepEqual(summarizeAnnouncementEmailPauseAlert([
+    { pauseReason: "quota", resumeAt: quotaRetry },
+    { pauseReason: "needs_reconnect", resumeAt: reconnectRetry },
+    { pauseReason: "author_access", resumeAt: null },
+    { pauseReason: null, resumeAt: null },
+  ]), {
+    quotaPaused: true,
+    reconnectPaused: true,
+    nextRetryAt: quotaRetry.toISOString(),
+  });
+  assert.deepEqual(summarizeAnnouncementEmailPauseAlert([
+    { pauseReason: "author_access", resumeAt: null },
+  ]), { quotaPaused: false, reconnectPaused: false, nextRetryAt: null });
 });
 
 test("Gmail transport distinguishes quota, reconnect, invalid recipient, and ambiguous send outcomes", async () => {
