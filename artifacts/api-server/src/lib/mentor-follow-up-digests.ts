@@ -17,7 +17,7 @@ import {
   staffProgramRolesTable,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { sendPlatformEmail } from "./platform-email";
+import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
 
 const programTimeZone = "Asia/Amman";
 const deliveryHour = 9;
@@ -299,7 +299,7 @@ async function deliverCoordinatorDigest(input: {
       })
       .where(eq(mentorFollowUpDigestDeliveriesTable.id, claimed.id));
     logger.warn(
-      { coordinatorStaffId, calendarDate, attempt },
+      { coordinatorStaffId, calendarDate, attempt, emailFailure: platformEmailFailureDiagnostics(error) },
       "Mentor follow-up digest email failed and will be retried",
     );
   }

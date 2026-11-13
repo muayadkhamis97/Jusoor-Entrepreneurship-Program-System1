@@ -2146,6 +2146,17 @@ export const AnnouncementEmailStatusState = {
   unavailable: 'unavailable',
 } as const;
 
+export interface EmailDeliveryFailure {
+  deliveryId: number;
+  failureKind: string;
+  /** @nullable */
+  operation: string | null;
+  /** @nullable */
+  providerStatus: number | null;
+  /** @nullable */
+  reason: string | null;
+}
+
 export interface AnnouncementEmailStatus {
   state: AnnouncementEmailStatusState;
   sent: number;
@@ -2155,6 +2166,9 @@ export interface AnnouncementEmailStatus {
   uncertain: number;
   skipped: number;
   canRetry: boolean;
+  /** @nullable */
+  nextRetryAt?: string | null;
+  failures?: EmailDeliveryFailure[];
 }
 
 export interface Announcement {
@@ -2200,6 +2214,47 @@ export interface AnnouncementInput {
   body: string;
   scheduledFor?: string;
   notifyByEmail?: boolean;
+}
+
+export interface EmailHealthInput {
+  sendTest: boolean;
+  requestId: string;
+}
+
+export type EmailHealthStepStep = typeof EmailHealthStepStep[keyof typeof EmailHealthStepStep];
+
+
+export const EmailHealthStepStep = {
+  profile: 'profile',
+  lookup: 'lookup',
+  send: 'send',
+  metadata: 'metadata',
+} as const;
+
+export type EmailHealthStepStatus = typeof EmailHealthStepStatus[keyof typeof EmailHealthStepStatus];
+
+
+export const EmailHealthStepStatus = {
+  ok: 'ok',
+  failed: 'failed',
+  skipped: 'skipped',
+} as const;
+
+export interface EmailHealthStep {
+  step: EmailHealthStepStep;
+  status: EmailHealthStepStatus;
+  /** @nullable */
+  httpStatus: number | null;
+  /** @nullable */
+  reason: string | null;
+  /** @nullable */
+  failureKind: string | null;
+}
+
+export interface EmailHealthReport {
+  steps: EmailHealthStep[];
+  /** @nullable */
+  messageIdPreserved: boolean | null;
 }
 
 export type AnnouncementsList = Announcement[];

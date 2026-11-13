@@ -31,19 +31,27 @@ export type EmailFailureKind =
   | "ambiguous";
 
 export type EmailSendResult =
-  | { kind: "sent" }
-  | { kind: EmailFailureKind; retryAfterMs?: number };
+  | { kind: "sent"; gmailMessageId?: string }
+  | { kind: EmailFailureKind; retryAfterMs?: number; diagnostics?: EmailFailureDiagnostics };
+
+export type EmailFailureDiagnostics = {
+  failureKind: string;
+  errorName?: string;
+  operation?: string;
+  providerStatus?: number;
+  errorCode?: string;
+};
 
 export type EmailConnectionResult =
   | { kind: "ready" }
-  | { kind: "quota" | "needs_reconnect" | "transient"; retryAfterMs?: number };
+  | { kind: "quota" | "needs_reconnect" | "transient"; retryAfterMs?: number; diagnostics?: EmailFailureDiagnostics };
 
 export interface EmailTransport {
   checkConnection(): Promise<EmailConnectionResult>;
   send(message: PlatformEmail): Promise<EmailSendResult>;
 }
 
-type ConnectorClient = Pick<ReplitConnectors, "proxy"> &
+export type ConnectorClient = Pick<ReplitConnectors, "proxy"> &
   Partial<Pick<ReplitConnectors, "createProxyFetch" | "getProxyUrl">>;
 type LoadEmailBranding = () => Promise<ProgramEmailBranding>;
 type ConnectorRequestOptions = {
@@ -63,17 +71,19 @@ export class PlatformEmailProviderError extends Error {
   readonly httpStatus?: number;
   readonly errorCode?: string;
   readonly retryAfterMs?: number;
+  readonly operation: string;
 
   constructor(
     readonly kind: Exclude<EmailFailureKind, "ambiguous">,
     message: string,
-    details: { httpStatus?: number; errorCode?: string; retryAfterMs?: number } = {},
+    details: { httpStatus?: number; errorCode?: string; retryAfterMs?: number; operation?: string } = {},
   ) {
     super(message);
     this.name = "PlatformEmailProviderError";
     this.httpStatus = details.httpStatus;
     this.errorCode = details.errorCode;
     this.retryAfterMs = details.retryAfterMs;
+    this.operation = details.operation ?? "provider_request";
   }
 }
 
@@ -94,7 +104,7 @@ export class PlatformEmailSendUncertainError extends Error {
   }
 }
 
-export function platformEmailFailureDiagnostics(error: unknown): Record<string, string | number> {
+export function platformEmailFailureDiagnostics(error: unknown): EmailFailureDiagnostics {
   if (error instanceof PlatformEmailSendUncertainError) {
     return {
       failureKind: "delivery_outcome_unknown",
@@ -106,7 +116,7 @@ export function platformEmailFailureDiagnostics(error: unknown): Record<string, 
   if (error instanceof PlatformEmailProviderError) {
     return {
       failureKind: `gmail_${error.kind}`,
-      operation: "provider_request",
+      operation: error.operation,
       ...(error.httpStatus ? { providerStatus: error.httpStatus } : {}),
       ...(error.errorCode ? { errorCode: error.errorCode } : {}),
     };
@@ -166,6 +176,7 @@ export async function sendPlatformEmail(
   connectors: ConnectorClient = new ReplitConnectors(),
   loadBranding: LoadEmailBranding = loadProgramEmailBranding,
   timeouts: Partial<PlatformEmailTimeouts> = {},
+  onAccepted?: (receipt: { gmailMessageId: string; messageId: string; httpStatus: number }) => void,
 ): Promise<void> {
   const requestTimeouts = {
     profileMs: timeouts.profileMs ?? gmailProfileTimeoutMs,
@@ -213,6 +224,10 @@ export async function sendPlatformEmail(
     if (!response.ok) {
       throw await gmailResponseFailure(response, "send");
     }
+    const accepted = await response.json().catch(() => null) as { id?: unknown } | null;
+    if (typeof accepted?.id === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(accepted.id)) {
+      onAccepted?.({ gmailMessageId: accepted.id, messageId, httpStatus: response.status });
+    }
   }
 }
 
@@ -225,6 +240,7 @@ export function createGmailEmailTransport(
     async checkConnection(): Promise<EmailConnectionResult> {
       try {
         await connectedGmailProfile(connectors, timeouts.profileMs ?? gmailProfileTimeoutMs);
+        await wasAlreadySent(connectors, "health-check@platform.invalid", timeouts.sentLookupMs ?? gmailSentLookupTimeoutMs);
         return { kind: "ready" };
       } catch (error) {
         const result = toEmailSendResult(error, "profile_lookup");
@@ -232,6 +248,7 @@ export function createGmailEmailTransport(
           kind: result.kind === "sent" || result.kind === "ambiguous" || result.kind === "invalid_recipient"
             ? "transient"
             : result.kind,
+          ...("diagnostics" in result ? { diagnostics: result.diagnostics } : {}),
           ...("retryAfterMs" in result && result.retryAfterMs
             ? { retryAfterMs: result.retryAfterMs }
             : {}),
@@ -240,8 +257,11 @@ export function createGmailEmailTransport(
     },
     async send(message: PlatformEmail): Promise<EmailSendResult> {
       try {
-        await sendPlatformEmail(message, connectors, loadBranding, timeouts);
-        return { kind: "sent" };
+        let gmailMessageId: string | undefined;
+        await sendPlatformEmail(message, connectors, loadBranding, timeouts, receipt => {
+          gmailMessageId = receipt.gmailMessageId;
+        });
+        return { kind: "sent", ...(gmailMessageId ? { gmailMessageId } : {}) };
       } catch (error) {
         return toEmailSendResult(error, "send");
       }
@@ -320,9 +340,9 @@ async function wasAlreadySent(
   return Array.isArray(result.messages) && result.messages.length > 0;
 }
 
-type GmailOperation = "profile_lookup" | "sent_message_lookup" | "send";
+type GmailOperation = "profile_lookup" | "sent_message_lookup" | "send" | "message_metadata";
 
-async function gmailResponseFailure(
+export async function gmailResponseFailure(
   response: Response,
   operation: GmailOperation,
 ): Promise<PlatformEmailProviderError | PlatformEmailSendUncertainError> {
@@ -330,10 +350,10 @@ async function gmailResponseFailure(
     error?: { status?: unknown; errors?: Array<{ reason?: unknown }> };
   } | null;
   const reasons = [
-    ...(typeof payload?.error?.status === "string" ? [payload.error.status] : []),
     ...(Array.isArray(payload?.error?.errors)
       ? payload.error.errors.map(error => error.reason).filter((reason): reason is string => typeof reason === "string")
       : []),
+    ...(typeof payload?.error?.status === "string" ? [payload.error.status] : []),
   ];
   const normalizedReasons = reasons.map(reason => reason.toLowerCase());
   const rateLimited = response.status === 429 || normalizedReasons.some(reason =>
@@ -347,6 +367,7 @@ async function gmailResponseFailure(
       "Gmail sending is temporarily limited.",
       {
         httpStatus: response.status,
+        operation,
         ...(errorCode ? { errorCode } : {}),
         retryAfterMs: retryAfterMs(response, dailyQuota),
       },
@@ -356,7 +377,7 @@ async function gmailResponseFailure(
     return new PlatformEmailProviderError(
       "needs_reconnect",
       "The connected Gmail account needs to be reconnected.",
-      { httpStatus: response.status, ...(errorCode ? { errorCode } : {}) },
+      { httpStatus: response.status, operation, ...(errorCode ? { errorCode } : {}) },
     );
   }
   if (operation === "send" && (response.status >= 500 || response.status === 408)) {
@@ -365,17 +386,17 @@ async function gmailResponseFailure(
       ...(errorCode ? { errorCode } : {}),
     });
   }
-  if (operation === "send" && [400, 404, 422].includes(response.status)) {
+  if (operation === "send" && response.status === 400) {
     return new PlatformEmailProviderError(
       "invalid_recipient",
       "Gmail rejected the recipient address.",
-      { httpStatus: response.status, ...(errorCode ? { errorCode } : {}) },
+      { httpStatus: response.status, operation, ...(errorCode ? { errorCode } : {}) },
     );
   }
   return new PlatformEmailProviderError(
     "transient",
     `Gmail ${operation.replaceAll("_", " ")} returned HTTP ${response.status}.`,
-    { httpStatus: response.status, ...(errorCode ? { errorCode } : {}) },
+    { httpStatus: response.status, operation, ...(errorCode ? { errorCode } : {}) },
   );
 }
 
@@ -403,9 +424,9 @@ function toProviderFailure(
     });
   }
   return new PlatformEmailProviderError(
-    "transient",
+    "needs_reconnect",
     `Gmail ${operation.replaceAll("_", " ")} could not be completed.`,
-    errorCode ? { errorCode } : {},
+    { operation, ...(errorCode ? { errorCode } : {}) },
   );
 }
 
@@ -416,13 +437,14 @@ function toEmailSendResult(
   const failure = toProviderFailure(error, operation);
   return {
     kind: failure instanceof PlatformEmailSendUncertainError ? "ambiguous" : failure.kind,
+    diagnostics: platformEmailFailureDiagnostics(failure),
     ...("retryAfterMs" in failure && failure.retryAfterMs
       ? { retryAfterMs: failure.retryAfterMs }
       : {}),
   };
 }
 
-async function gmailRequest(
+export async function gmailRequest(
   connectors: ConnectorClient,
   path: string,
   options: ConnectorRequestOptions,
@@ -459,7 +481,7 @@ async function gmailRequest(
   );
 }
 
-function stableMessageId(idempotencyKey: string, recipient: string): string {
+export function stableMessageId(idempotencyKey: string, recipient: string): string {
   const digest = createHash("sha256")
     .update(`${idempotencyKey}\0${recipient.toLowerCase()}`)
     .digest("hex");

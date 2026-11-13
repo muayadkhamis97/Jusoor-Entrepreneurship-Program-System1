@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AnnouncementEmailStatusState } from './announcementEmailStatusState';
+import type { EmailDeliveryFailure } from './emailDeliveryFailure';
 
 export interface AnnouncementEmailStatus {
   state: AnnouncementEmailStatusState;
@@ -16,4 +17,7 @@ export interface AnnouncementEmailStatus {
   uncertain: number;
   skipped: number;
   canRetry: boolean;
+  /** @nullable */
+  nextRetryAt?: Date | null;
+  failures?: EmailDeliveryFailure[];
 }

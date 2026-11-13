@@ -1,4 +1,4 @@
-import { sendPlatformEmail } from "./platform-email";
+import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
 import { and, asc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import {
   applicationsTable,
@@ -290,7 +290,7 @@ async function sendPendingReminders(now: Date): Promise<void> {
         lastError: safeError(error),
         updatedAt: new Date(),
       }).where(eq(courseReminderDeliveriesTable.id, item.delivery.id));
-      logger.warn({ applicationId: item.application.id, moduleId: item.delivery.moduleId, attempt }, "Course reminder email failed and will be retried");
+      logger.warn({ applicationId: item.application.id, moduleId: item.delivery.moduleId, attempt, emailFailure: platformEmailFailureDiagnostics(error) }, "Course reminder email failed and will be retried");
     }
   }
 }

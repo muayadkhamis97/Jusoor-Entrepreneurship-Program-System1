@@ -9,6 +9,7 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import { businessesForProgram, buildAnnouncementAudienceTarget, type AnnouncementAudienceMode } from './announcement-audience';
 import { AnnouncementEmailDelivery } from './announcement-email-status';
 import { AnnouncementReplies } from './announcement-replies';
+import { EmailHealth } from './email-health';
 import './calendar-communications.css';
 
 const fmtDate = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -87,6 +88,7 @@ export function CommunicationsPage({ staffOnly = false }: { staffOnly?: boolean 
   const programs = programsQuery.data || [];
 
   return <main className="communications-page">
+    {!staffOnly && <EmailHealth />}
     <div className="page-heading"><div><div className="eyebrow">{t('COHORT & BUSINESS MESSAGES')}</div><h1 className="app-title">{t('Communications')}</h1><p>{t(staffOnly ? 'Share an in-app update with an assigned program or one of its business teams.' : 'Share an in-app update with all cohorts, one cohort, or a business team.')}</p></div><Link href="/chat" className="button button-outline" data-testid="link-open-chat"><MessagesSquare size={15} aria-hidden="true" /> {t('Chat')}</Link></div>
     <section className="communications-intro"><span className="communications-emblem"><Megaphone size={19} /></span><div><div className="eyebrow">{t('IN-APP ONLY')}</div><b>{t('One reliable place for what founders need to know.')}</b><p>{t('Published notes appear in the private participant portal. Share an update now or schedule a message for later.')}</p></div><span className="privacy-mark">{t('PRIVATE')}<br />{t('PORTAL')}</span></section>
     <div className="communications-layout">

@@ -14,10 +14,14 @@ import {
   type PlatformEmail,
 } from "./platform-email";
 import { logger } from "./logger";
+import { platformEmailFailureDiagnostics } from "./platform-email";
+import type { EmailDeliveryFailure } from "@workspace/api-zod";
 
 type DeliveryCounts = {
   state: "not_requested" | "queued" | "processing" | "complete" | "needs_attention" | "paused" | "quota_paused" | "needs_reconnect" | "unavailable";
   sent: number; pending: number; failed: number; invalidRecipients: number; uncertain: number; skipped: number; canRetry: boolean;
+  nextRetryAt?: string | null;
+  failures?: EmailDeliveryFailure[];
 };
 export const emptyEmailStatus = (state: DeliveryCounts["state"] = "not_requested"): DeliveryCounts => ({
   state, sent: 0, pending: 0, failed: 0, invalidRecipients: 0, uncertain: 0, skipped: 0, canRetry: false,
@@ -64,6 +68,12 @@ export async function announcementEmailStatuses(ids: number[]): Promise<Map<numb
       Date.now(),
       batch.paused ? batch.pauseReason ?? "author_access" : null,
     );
+    status.nextRetryAt = batch.resumeAt?.toISOString() ?? null;
+    status.failures = rows.filter(row => row.announcementId === batch.announcementId && row.failureKind)
+      .map(row => ({
+        deliveryId: row.id, failureKind: row.failureKind!,
+        operation: row.failureOperation, providerStatus: row.providerStatus, reason: row.providerReason,
+      }));
     result.set(batch.announcementId, status);
   }
   return result;
@@ -143,7 +153,10 @@ function asEmailTransport(transportOrSend: EmailTransport | LegacyEmailSender): 
         await transportOrSend(message);
         return { kind: "sent" };
       } catch (error) {
-        return { kind: error instanceof PlatformEmailSendUncertainError ? "ambiguous" : "transient" };
+        return {
+          kind: error instanceof PlatformEmailSendUncertainError ? "ambiguous" : "transient",
+          diagnostics: platformEmailFailureDiagnostics(error),
+        };
       }
     },
   };
@@ -152,6 +165,7 @@ function asEmailTransport(transportOrSend: EmailTransport | LegacyEmailSender): 
 async function pausePendingRequests(
   reason: "quota" | "needs_reconnect",
   resumeAt: Date | null,
+  recordAttempt = false,
 ): Promise<void> {
   const now = new Date();
   const pendingIds = await db.select({ announcementId: deliveries.announcementId })
@@ -175,7 +189,12 @@ async function pausePendingRequests(
     pauseReason: reason,
     resumeAt,
     checkedAt: now,
+    ...(recordAttempt ? { pauseAttempts: sql`${requests.pauseAttempts} + 1` } : {}),
   }).where(inArray(requests.announcementId, ids));
+}
+
+export function announcementEmailBackoffMs(previousAttempts: number): number {
+  return [5 * 60_000, 15 * 60_000, 60 * 60_000][Math.min(Math.max(previousAttempts, 0), 2)]!;
 }
 
 async function resumePausedRequests(transport: EmailTransport): Promise<void> {
@@ -201,12 +220,19 @@ async function resumePausedRequests(transport: EmailTransport): Promise<void> {
       continue;
     }
     if (request.pauseReason === "needs_reconnect") {
+      if (request.resumeAt && request.resumeAt.getTime() > Date.now()) {
+        await pausePendingRequests("needs_reconnect", request.resumeAt);
+        return;
+      }
       if (!reconnectCheck) {
         try {
           reconnectCheck = await transport.checkConnection();
-        } catch {
-          reconnectCheck = { kind: "transient" };
+        } catch (error) {
+          reconnectCheck = { kind: "transient", diagnostics: platformEmailFailureDiagnostics(error) };
         }
+        if (reconnectCheck.kind !== "ready") logger.warn({
+          emailFailure: reconnectCheck.diagnostics ?? { failureKind: reconnectCheck.kind },
+        }, "Announcement Gmail connection check failed");
       }
       if (reconnectCheck.kind === "ready") {
         await db.update(requests).set({
@@ -220,11 +246,14 @@ async function resumePausedRequests(transport: EmailTransport): Promise<void> {
           eq(requests.pauseReason, "needs_reconnect"),
         ));
       } else if (reconnectCheck.kind === "quota") {
-        const resumeAt = new Date(Date.now() + (reconnectCheck.retryAfterMs ?? 60 * 60_000));
-        await pausePendingRequests("quota", resumeAt);
+        const resumeAt = new Date(Date.now() + Math.max(
+          reconnectCheck.retryAfterMs ?? 0, announcementEmailBackoffMs(request.pauseAttempts),
+        ));
+        await pausePendingRequests("quota", resumeAt, true);
         return;
       } else {
-        await pausePendingRequests("needs_reconnect", null);
+        const resumeAt = new Date(Date.now() + announcementEmailBackoffMs(request.pauseAttempts));
+        await pausePendingRequests("needs_reconnect", resumeAt, true);
         return;
       }
       continue;
@@ -312,6 +341,12 @@ export async function processAnnouncementEmails(
       return Boolean(row);
     });
     if (!claimed) continue;
+    if (delivery.gmailMessageId) {
+      // A persisted Gmail receipt proves acceptance even if the local status was interrupted.
+      await db.update(deliveries).set({ status: "sent", failureKind: null })
+        .where(eq(deliveries.id, delivery.id));
+      continue;
+    }
     const [recipient] = await db.select({ id: applicationsTable.id }).from(applicationsTable)
       .where(recipientScope(announcement, delivery.email)).limit(1);
     if (!recipient) {
@@ -322,9 +357,9 @@ export async function processAnnouncementEmails(
     let result: EmailSendResult;
     try {
       result = await transport.send(announcementEmailContent(announcement, delivery.email));
-    } catch {
+    } catch (error) {
       // A transport that rejects unexpectedly may have already sent the message.
-      result = { kind: "ambiguous" };
+      result = { kind: "ambiguous", diagnostics: platformEmailFailureDiagnostics(error) };
     }
     if (result.kind === "sent") {
       // If this write fails, leave the committed claim in sending (never a retryable failure).
@@ -332,33 +367,45 @@ export async function processAnnouncementEmails(
         status: "sent",
         failureKind: null,
         sentAt: new Date(),
+        failureOperation: null, providerStatus: null, providerReason: null,
+        gmailMessageId: result.gmailMessageId ?? null,
       }).where(eq(deliveries.id, delivery.id));
       continue;
     }
+    const emailFailure = result.diagnostics ?? { failureKind: result.kind };
+    const failureDetails = {
+      failureKind: result.kind,
+      failureOperation: emailFailure.operation ?? null,
+      providerStatus: emailFailure.providerStatus ?? null,
+      providerReason: emailFailure.errorCode ?? null,
+    };
     if (result.kind === "quota" || result.kind === "needs_reconnect") {
       await db.update(deliveries).set({
         status: "pending",
-        failureKind: null,
+        ...failureDetails,
         attemptedAt: new Date(),
       }).where(eq(deliveries.id, delivery.id));
+      const [request] = await db.select({ attempts: requests.pauseAttempts }).from(requests)
+        .where(eq(requests.announcementId, announcement.id));
+      const resumeAt = new Date(Date.now() + Math.max(
+        announcementEmailBackoffMs(request?.attempts ?? 0), result.retryAfterMs ?? 0,
+      ));
       if (result.kind === "quota") {
-        const resumeAt = new Date(Date.now() + (result.retryAfterMs ?? 60 * 60_000));
-        await pausePendingRequests("quota", resumeAt);
-        logger.warn({ announcementId: announcement.id, failureKind: "quota", resumeAt }, "Announcement email delivery paused");
+        await pausePendingRequests("quota", resumeAt, true);
       } else {
-        await pausePendingRequests("needs_reconnect", null);
-        logger.warn({ announcementId: announcement.id, failureKind: "needs_reconnect" }, "Announcement email delivery paused");
+        await pausePendingRequests("needs_reconnect", resumeAt, true);
       }
+      logger.warn({ announcementId: announcement.id, emailFailure, resumeAt }, "Announcement email delivery paused");
       break;
     }
     await db.update(deliveries).set({
       status: result.kind === "ambiguous" ? "uncertain" : "failed",
-      failureKind: result.kind,
+      ...failureDetails,
     }).where(eq(deliveries.id, delivery.id));
     logger.warn({
       announcementId: announcement.id,
       deliveryId: delivery.id,
-      failureKind: result.kind,
+      emailFailure,
     }, "Announcement email requires attention");
   }
 }

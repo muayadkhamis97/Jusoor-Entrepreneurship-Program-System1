@@ -1,4 +1,5 @@
-import { sendPlatformEmail } from "./platform-email";
+import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
+import { logger } from "./logger";
 import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import {
   db,
@@ -243,6 +244,7 @@ export async function retryZoomRecordingAlertEmail(
       .where(eq(zoomRecordingAlertsTable.id, alertId));
     return "sent";
   } catch (error) {
+    logger.warn({ alertId, emailFailure: platformEmailFailureDiagnostics(error) }, "Zoom recording alert email failed");
     const message = publicEmailError(error);
     await db
       .update(zoomRecordingAlertsTable)

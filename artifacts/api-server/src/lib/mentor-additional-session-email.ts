@@ -1,5 +1,6 @@
 import type { PlatformEmail } from "./platform-email";
-import { sendPlatformEmail } from "./platform-email";
+import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
+import { logger } from "./logger";
 
 export type MentorAdditionalSessionDecisionEmailInput = {
   requestId: number;
@@ -56,7 +57,12 @@ export async function sendMentorAdditionalSessionDecisionEmail(
   input: MentorAdditionalSessionDecisionEmailInput,
   send: EmailSender = sendPlatformEmail,
 ): Promise<void> {
-  await send(buildMentorAdditionalSessionDecisionEmail(input));
+  try {
+    await send(buildMentorAdditionalSessionDecisionEmail(input));
+  } catch (error) {
+    logger.warn({ requestId: input.requestId, emailFailure: platformEmailFailureDiagnostics(error) }, "Mentor additional-session decision email failed");
+    throw error;
+  }
 }
 
 export function buildMentorAdditionalSessionWithdrawalEmail(
@@ -77,7 +83,12 @@ export async function sendMentorAdditionalSessionWithdrawalEmail(
   input: MentorAdditionalSessionWithdrawalEmailInput,
   send: EmailSender = sendPlatformEmail,
 ): Promise<void> {
-  await send(buildMentorAdditionalSessionWithdrawalEmail(input));
+  try {
+    await send(buildMentorAdditionalSessionWithdrawalEmail(input));
+  } catch (error) {
+    logger.warn({ requestId: input.requestId, emailFailure: platformEmailFailureDiagnostics(error) }, "Mentor additional-session withdrawal email failed");
+    throw error;
+  }
 }
 
 function escapeHtml(value: string): string {

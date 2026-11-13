@@ -231,7 +231,8 @@ test("Gmail profile lookup stops before sending when the connector call times ou
     ),
     error => {
       assert.ok(error instanceof PlatformEmailProviderError);
-      assert.equal(error.kind, "transient");
+      assert.equal(error.kind, "needs_reconnect");
+      assert.equal(error.operation, "profile_lookup");
       assert.equal(error.errorCode, "ETIMEDOUT");
       return true;
     },

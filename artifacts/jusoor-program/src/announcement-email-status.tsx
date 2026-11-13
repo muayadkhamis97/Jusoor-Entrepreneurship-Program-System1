@@ -1,7 +1,24 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { getListAnnouncementsQueryKey, useRetryAnnouncementEmail, type AnnouncementEmailStatus } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
-import { t } from './language';
+import { currentLanguage, t } from './language';
+
+export function emailFailureLabel(kind: string): string {
+  return ({
+    quota: 'Gmail sending limit reached',
+    needs_reconnect: 'Gmail connection or permission problem',
+    invalid_recipient: 'Recipient address rejected',
+    transient: 'Temporary Gmail failure',
+    ambiguous: 'Delivery outcome unknown',
+  } as Record<string, string>)[kind] ?? 'Email delivery failed';
+}
+export function emailOperationLabel(operation: string | null): string {
+  return ({
+    profile_lookup: 'Read connected mailbox',
+    sent_message_lookup: 'Search sent mail',
+    send: 'Send message',
+  } as Record<string, string>)[operation ?? ''] ?? 'Email processing';
+}
 
 const stateLabels: Record<AnnouncementEmailStatus['state'], string> = {
   not_requested: 'Portal only — email not requested.',
@@ -33,6 +50,15 @@ export function AnnouncementEmailDelivery({ id, email }: { id: number; email?: A
     </>}
     {email.invalidRecipients > 0 && <p className="form-error">{t('Some recipient addresses were rejected and will not be retried.')}</p>}
     {email.uncertain > 0 && <p className="form-error">{t('Delivery could not be confirmed. These attempts are held for staff review and cannot be retried here, to prevent duplicate emails.')}</p>}
+    {email.nextRetryAt && <p>{t('Next connection check or retry')}: <time dateTime={email.nextRetryAt}>{new Date(email.nextRetryAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en')}</time></p>}
+    {Boolean(email.failures?.length) && <details>
+      <summary>{t('Delivery diagnostics')}</summary>
+      <ul>{email.failures?.map(failure => <li key={failure.deliveryId}>
+        {t('Delivery record')} #{failure.deliveryId}: {t(emailFailureLabel(failure.failureKind))} — {t(emailOperationLabel(failure.operation))}
+        {failure.providerStatus !== null && ` · ${t('HTTP status')}: ${failure.providerStatus}`}
+        {failure.reason && <> · {t('Provider reason')}: <code>{failure.reason}</code></>}
+      </li>)}</ul>
+    </details>}
     {email.canRetry && <Button type="button" variant="text" disabled={retry.isPending} data-testid={`retry-announcement-email-${id}`}
       onClick={() => retry.mutate({ id }, { onSuccess: () => { void client.invalidateQueries({ queryKey: getListAnnouncementsQueryKey() }); } })}>
       {t(retry.isPending ? 'Queuing retry…' : 'Retry failed emails')}

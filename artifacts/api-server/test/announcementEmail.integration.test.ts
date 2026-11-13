@@ -45,6 +45,7 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         paused boolean NOT NULL DEFAULT false,
         pause_reason text,
         resume_at timestamptz,
+        pause_attempts integer NOT NULL DEFAULT 0,
         checked_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TEMP TABLE jusoor_announcement_email_deliveries (
@@ -53,6 +54,10 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         email text NOT NULL,
         status text NOT NULL DEFAULT 'pending',
         failure_kind text,
+        failure_operation text,
+        provider_status integer,
+        provider_reason text,
+        gmail_message_id text,
         attempted_at timestamptz,
         sent_at timestamptz
       );
@@ -205,7 +210,10 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         },
         send: async () => {
           sends++;
-          return { kind: "needs_reconnect" } as const;
+          return { kind: "needs_reconnect", diagnostics: {
+            failureKind: "gmail_needs_reconnect", operation: "sent_message_lookup",
+            providerStatus: 403, errorCode: "insufficientPermissions",
+          } } as const;
         },
       };
       await processAnnouncementEmails(transport);
@@ -214,11 +222,24 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       assert.equal(paused.pending, 3);
       assert.equal(paused.failed, 0);
       assert.equal(sends, 1);
+      assert.equal(paused.failures?.[0]?.operation, "sent_message_lookup");
+      assert.equal(paused.failures?.[0]?.providerStatus, 403);
+      assert.equal(paused.failures?.[0]?.reason, "insufficientPermissions");
 
       const addedWhileDisconnected = await create({ programId: 1 });
       await processAnnouncementEmails(transport);
       assert.equal(sends, 1, "a disconnected connection must not consume another send attempt");
+      assert.equal(checks, 0, "connection checks obey the persistent backoff");
       assert.equal((await announcementEmailStatuses([addedWhileDisconnected.id])).get(addedWhileDisconnected.id)?.state, "needs_reconnect");
+      await connection.query("UPDATE pg_temp.jusoor_announcement_email_requests SET resume_at = now() - interval '1 minute' WHERE pause_reason = 'needs_reconnect'");
+      await processAnnouncementEmails(transport);
+      assert.equal(checks, 1);
+      assert.equal(sends, 1);
+      const [backoff] = await db.select().from(schema.announcementEmailRequestsTable)
+        .where(eq(schema.announcementEmailRequestsTable.announcementId, result.id));
+      assert.equal(backoff.pauseAttempts, 2);
+      assert.ok(backoff.resumeAt && backoff.resumeAt.getTime() - Date.now() > 14 * 60_000);
+      await connection.query("UPDATE pg_temp.jusoor_announcement_email_requests SET resume_at = now() - interval '1 minute' WHERE pause_reason = 'needs_reconnect'");
       connectionState = "ready";
       await processAnnouncementEmails({
         ...transport,
@@ -232,6 +253,24 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       assert.equal(sends, 7);
       assert.equal((await announcementEmailStatuses([result.id])).get(result.id)?.sent, 3);
       assert.equal((await announcementEmailStatuses([addedWhileDisconnected.id])).get(addedWhileDisconnected.id)?.sent, 3);
+    });
+    await t.test("persisted Gmail receipts prevent resending after an interrupted status update", async () => {
+      const result = await create({ programId: 1 });
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async () => ({ kind: "sent", gmailMessageId: "gmail-receipt-123" }),
+      });
+      await connection.query("UPDATE pg_temp.jusoor_announcement_email_deliveries SET status = 'pending' WHERE announcement_id = $1", [result.id]);
+      let resendCalls = 0;
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async () => {
+          resendCalls++;
+          return { kind: "sent" };
+        },
+      });
+      assert.equal(resendCalls, 0);
+      assert.equal((await announcementEmailStatuses([result.id])).get(result.id)?.sent, 3);
     });
     await t.test("invalid recipients remain failed and cannot be retried", async () => {
       const result = await create({ programId: 1 });

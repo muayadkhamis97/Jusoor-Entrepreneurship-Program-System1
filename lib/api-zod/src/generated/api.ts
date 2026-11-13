@@ -3967,6 +3967,28 @@ export const RemovePitchJudgeResponse = zod.void()
 
 
 /**
+ * @summary Check Gmail connectivity and optionally send one test to the verified Admin
+ */
+export const checkEmailHealthBodySendTestDefault = false;
+
+export const CheckEmailHealthBody = zod.object({
+  "sendTest": zod.boolean().default(checkEmailHealthBodySendTestDefault),
+  "requestId": zod.uuid()
+})
+
+export const CheckEmailHealthResponse = zod.object({
+  "steps": zod.array(zod.object({
+  "step": zod.enum(['profile', 'lookup', 'send', 'metadata']),
+  "status": zod.enum(['ok', 'failed', 'skipped']),
+  "httpStatus": zod.int().nullable(),
+  "reason": zod.string().nullable(),
+  "failureKind": zod.string().nullable()
+})),
+  "messageIdPreserved": zod.boolean().nullable()
+})
+
+
+/**
  * @summary List program announcements for coordinators
  */
 export const ListAnnouncementsResponseItem = zod.object({
@@ -3991,7 +4013,15 @@ export const ListAnnouncementsResponseItem = zod.object({
   "invalidRecipients": zod.int(),
   "uncertain": zod.int(),
   "skipped": zod.int(),
-  "canRetry": zod.boolean()
+  "canRetry": zod.boolean(),
+  "nextRetryAt": zod.coerce.date().nullish(),
+  "failures": zod.array(zod.object({
+  "deliveryId": zod.int(),
+  "failureKind": zod.string(),
+  "operation": zod.string().nullable(),
+  "providerStatus": zod.int().nullable(),
+  "reason": zod.string().nullable()
+})).optional()
 }).optional()
 })
 export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
@@ -4041,7 +4071,15 @@ export const CreateAnnouncementResponse = zod.object({
   "invalidRecipients": zod.int(),
   "uncertain": zod.int(),
   "skipped": zod.int(),
-  "canRetry": zod.boolean()
+  "canRetry": zod.boolean(),
+  "nextRetryAt": zod.coerce.date().nullish(),
+  "failures": zod.array(zod.object({
+  "deliveryId": zod.int(),
+  "failureKind": zod.string(),
+  "operation": zod.string().nullable(),
+  "providerStatus": zod.int().nullable(),
+  "reason": zod.string().nullable()
+})).optional()
 }).optional()
 })
 
@@ -4061,7 +4099,15 @@ export const RetryAnnouncementEmailResponse = zod.object({
   "invalidRecipients": zod.int(),
   "uncertain": zod.int(),
   "skipped": zod.int(),
-  "canRetry": zod.boolean()
+  "canRetry": zod.boolean(),
+  "nextRetryAt": zod.coerce.date().nullish(),
+  "failures": zod.array(zod.object({
+  "deliveryId": zod.int(),
+  "failureKind": zod.string(),
+  "operation": zod.string().nullable(),
+  "providerStatus": zod.int().nullable(),
+  "reason": zod.string().nullable()
+})).optional()
 })
 
 

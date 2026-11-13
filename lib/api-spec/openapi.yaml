@@ -2553,6 +2553,24 @@ paths:
           description: Assignment removed
         "409":
           description: A submitted scorecard cannot be removed
+  /staff/email-health:
+    post:
+      operationId: checkEmailHealth
+      tags: [communications]
+      summary: Check Gmail connectivity and optionally send one test to the verified Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailHealthInput" }
+      responses:
+        "200":
+          description: Independent Gmail step results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailHealthReport" }
+        "403":
+          description: Admin access or a verified own email is required
   /communications:
     get:
       operationId: listAnnouncements
@@ -6106,7 +6124,44 @@ components:
         uncertain: { type: integer }
         skipped: { type: integer }
         canRetry: { type: boolean }
+        nextRetryAt: { type: ["string", "null"], format: date-time }
+        failures:
+          type: array
+          items: { $ref: "#/components/schemas/EmailDeliveryFailure" }
       required: [state, sent, pending, failed, invalidRecipients, uncertain, skipped, canRetry]
+    EmailDeliveryFailure:
+      type: object
+      properties:
+        deliveryId: { type: integer }
+        failureKind: { type: string }
+        operation: { type: ["string", "null"] }
+        providerStatus: { type: ["integer", "null"] }
+        reason: { type: ["string", "null"] }
+      required: [deliveryId, failureKind, operation, providerStatus, reason]
+    EmailHealthInput:
+      type: object
+      additionalProperties: false
+      properties:
+        sendTest: { type: boolean, default: false }
+        requestId: { type: string, format: uuid }
+      required: [sendTest, requestId]
+    EmailHealthStep:
+      type: object
+      properties:
+        step: { type: string, enum: [profile, lookup, send, metadata] }
+        status: { type: string, enum: [ok, failed, skipped] }
+        httpStatus: { type: ["integer", "null"] }
+        reason: { type: ["string", "null"] }
+        failureKind: { type: ["string", "null"] }
+      required: [step, status, httpStatus, reason, failureKind]
+    EmailHealthReport:
+      type: object
+      properties:
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/EmailHealthStep" }
+        messageIdPreserved: { type: ["boolean", "null"] }
+      required: [steps, messageIdPreserved]
     AnnouncementsList:
       type: array
       items: { $ref: "#/components/schemas/Announcement" }

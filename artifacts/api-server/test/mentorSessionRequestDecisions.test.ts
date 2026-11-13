@@ -358,7 +358,10 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => {
-    (_req as typeof _req & { log: { error: () => void } }).log = { error: () => undefined };
+    (_req as typeof _req & { log: { error: () => void; warn: () => void } }).log = {
+      error: () => undefined,
+      warn: () => undefined,
+    };
     res.locals.staff = requestStaff;
     next();
   });

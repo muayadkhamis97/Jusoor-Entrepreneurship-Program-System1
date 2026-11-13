@@ -11,11 +11,13 @@ import participantInvitationsRouter from "./participantInvitations";
 import communicationsRouter from "./communications";
 import analyticsRouter from "./analytics";
 import grantsRouter from "./grants";
+import emailHealthRouter from "./emailHealth";
 import { requireOperationsStaff } from "../middlewares/staffAccess";
 
 const router: IRouter = Router();
 
 router.use(staffRouter);
+router.use(emailHealthRouter);
 router.use(participantInvitationsRouter);
 router.use(requireOperationsStaff);
 router.use(applicationsRouter);

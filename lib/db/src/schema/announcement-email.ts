@@ -9,6 +9,7 @@ export const announcementEmailRequestsTable = pgTable("jusoor_announcement_email
   paused: boolean("paused").notNull().default(false),
   pauseReason: text("pause_reason"),
   resumeAt: timestamp("resume_at", { withTimezone: true }),
+  pauseAttempts: integer("pause_attempts").notNull().default(0),
   checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -18,6 +19,10 @@ export const announcementEmailDeliveriesTable = pgTable("jusoor_announcement_ema
   email: text("email").notNull(),
   status: text("status").notNull().default("pending"),
   failureKind: text("failure_kind"),
+  failureOperation: text("failure_operation"),
+  providerStatus: integer("provider_status"),
+  providerReason: text("provider_reason"),
+  gmailMessageId: text("gmail_message_id"),
   attemptedAt: timestamp("attempted_at", { withTimezone: true }),
   sentAt: timestamp("sent_at", { withTimezone: true }),
 }, table => [

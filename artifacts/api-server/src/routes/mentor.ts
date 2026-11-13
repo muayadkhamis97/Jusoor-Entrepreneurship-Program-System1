@@ -51,7 +51,7 @@ import { activeProgramIdsFor } from "../lib/programScope";
 import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import { revokeGoogleCalendarAuthorization } from "../lib/googleCalendarSync";
 import { isGoogleCalendarBookingUrl } from "../lib/googleCalendarBookingUrl";
-import { sendPlatformEmail } from "../lib/platform-email";
+import { sendPlatformEmail, platformEmailFailureDiagnostics } from "../lib/platform-email";
 import {
   sendMentorAdditionalSessionDecisionEmail,
   sendMentorAdditionalSessionWithdrawalEmail,
@@ -376,7 +376,7 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
       approvedAdditionalSessions: request.approvedAdditionalSessions,
     });
   } catch (error) {
-    req.log.error({ err: error, requestId: request.id }, "Mentor additional-session decision email failed");
+    req.log.warn({ emailFailure: platformEmailFailureDiagnostics(error), requestId: request.id }, "Mentor additional-session decision email failed");
   }
   res.json(ResolveStaffMentorAdditionalSessionRequestResponse.parse(request));
 });
@@ -448,7 +448,7 @@ staffMentorMeetingReportsRouter.post("/mentor-additional-session-requests/:id/re
     });
     emailNotificationStatus = "delivered";
   } catch (error) {
-    req.log.error({ err: error, requestId: details.id }, "Additional mentor-session request email retry failed");
+    req.log.warn({ emailFailure: platformEmailFailureDiagnostics(error), requestId: details.id }, "Additional mentor-session request email retry failed");
   }
   await db.update(mentorSessionRequestsTable)
     .set({ emailNotificationStatus, emailNotificationUpdatedAt: new Date() })
@@ -503,7 +503,7 @@ router.post("/additional-session-requests/:id/withdraw", async (req, res): Promi
   try {
     await notifyMentorAdditionalSessionWithdrawal(req, withdrawn.id);
   } catch (error) {
-    req.log.error({ err: error, requestId: withdrawn.id }, "Mentor additional-session withdrawal email failed");
+    req.log.warn({ emailFailure: platformEmailFailureDiagnostics(error), requestId: withdrawn.id }, "Mentor additional-session withdrawal email failed");
   }
   res.json(WithdrawMentorAdditionalSessionRequestResponse.parse(withdrawn));
 });
@@ -639,7 +639,7 @@ router.post("/support/:id/additional-session-requests", async (req, res): Promis
     });
     emailNotificationStatus = "delivered";
   } catch (error) {
-    req.log.error({ err: error, requestId: request.id }, "Additional mentor-session request email failed");
+    req.log.warn({ emailFailure: platformEmailFailureDiagnostics(error), requestId: request.id }, "Additional mentor-session request email failed");
   }
   await db.update(mentorSessionRequestsTable)
     .set({ emailNotificationStatus, emailNotificationUpdatedAt: new Date() })

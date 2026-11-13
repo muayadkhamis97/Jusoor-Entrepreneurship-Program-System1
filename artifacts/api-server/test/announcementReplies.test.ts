@@ -37,10 +37,12 @@ describe("private announcement reply API", { skip: !databaseAvailable }, () => {
       );
       CREATE TEMP TABLE jusoor_announcement_email_requests (
         announcement_id integer PRIMARY KEY, prepared_at timestamptz, paused boolean NOT NULL DEFAULT false,
-        pause_reason text, resume_at timestamptz, checked_at timestamptz NOT NULL DEFAULT now()
+        pause_reason text, resume_at timestamptz, pause_attempts integer NOT NULL DEFAULT 0,
+        checked_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TEMP TABLE jusoor_announcement_email_deliveries (
         id integer PRIMARY KEY, announcement_id integer, email text, status text, failure_kind text,
+        failure_operation text, provider_status integer, provider_reason text, gmail_message_id text,
         attempted_at timestamptz, sent_at timestamptz
       );
       INSERT INTO jusoor_programs VALUES (11,'One',NULL),(22,'Two',NULL),(33,'Archived',now());
