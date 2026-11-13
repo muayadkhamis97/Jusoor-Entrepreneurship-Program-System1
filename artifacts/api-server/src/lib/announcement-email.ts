@@ -188,7 +188,10 @@ async function resumePausedRequests(transport: EmailTransport): Promise<void> {
   let reconnectCheck: EmailConnectionResult | undefined;
   for (const { request, announcement } of pausedRequests) {
     if (request.pauseReason === "quota") {
-      if (request.resumeAt && request.resumeAt.getTime() > Date.now()) continue;
+      if (request.resumeAt && request.resumeAt.getTime() > Date.now()) {
+        await pausePendingRequests("quota", request.resumeAt);
+        return;
+      }
       await db.update(requests).set({
         paused: false,
         pauseReason: null,
@@ -219,6 +222,9 @@ async function resumePausedRequests(transport: EmailTransport): Promise<void> {
       } else if (reconnectCheck.kind === "quota") {
         const resumeAt = new Date(Date.now() + (reconnectCheck.retryAfterMs ?? 60 * 60_000));
         await pausePendingRequests("quota", resumeAt);
+        return;
+      } else {
+        await pausePendingRequests("needs_reconnect", null);
         return;
       }
       continue;

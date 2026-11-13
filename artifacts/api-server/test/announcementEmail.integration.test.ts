@@ -158,17 +158,27 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       const [request] = await db.select().from(schema.announcementEmailRequestsTable)
         .where(eq(schema.announcementEmailRequestsTable.announcementId, result.id));
       assert.equal(quotaCalls, 1);
-      assert.equal(request?.paused, true, JSON.stringify(request));
-      assert.equal(request?.pauseReason, "quota", JSON.stringify(request));
+      assert.equal(request?.paused, true);
+      assert.equal(request?.pauseReason, "quota");
       const paused = (await announcementEmailStatuses([result.id])).get(result.id)!;
       assert.equal(paused.state, "quota_paused");
       assert.equal(paused.pending, 3);
       assert.equal(paused.failed, 0);
       assert.ok(request?.resumeAt && request.resumeAt.getTime() > Date.now());
 
+      const addedWhilePaused = await create({ programId: 1 });
+      await processAnnouncementEmails({
+        checkConnection: async () => ({ kind: "ready" }),
+        send: async () => {
+          quotaCalls++;
+          return { kind: "quota", retryAfterMs: 60_000 };
+        },
+      });
+      assert.equal(quotaCalls, 1, "new announcements inherit an active quota pause without attempting delivery");
+      assert.equal((await announcementEmailStatuses([addedWhilePaused.id])).get(addedWhilePaused.id)?.state, "quota_paused");
       await connection.query(
-        "UPDATE pg_temp.jusoor_announcement_email_requests SET resume_at = now() - interval '1 minute' WHERE announcement_id = $1",
-        [result.id],
+        "UPDATE pg_temp.jusoor_announcement_email_requests SET resume_at = now() - interval '1 minute' WHERE announcement_id = ANY($1::int[])",
+        [[result.id, addedWhilePaused.id]],
       );
       const resumedRecipients: string[] = [];
       await processAnnouncementEmails({
@@ -178,7 +188,7 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
           return { kind: "sent" };
         },
       });
-      assert.equal(resumedRecipients.length, 3);
+      assert.equal(resumedRecipients.length, 6);
       const completed = (await announcementEmailStatuses([result.id])).get(result.id)!;
       assert.equal(completed.sent, 3);
       assert.equal(completed.failed, 0);
@@ -205,8 +215,10 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       assert.equal(paused.failed, 0);
       assert.equal(sends, 1);
 
+      const addedWhileDisconnected = await create({ programId: 1 });
       await processAnnouncementEmails(transport);
       assert.equal(sends, 1, "a disconnected connection must not consume another send attempt");
+      assert.equal((await announcementEmailStatuses([addedWhileDisconnected.id])).get(addedWhileDisconnected.id)?.state, "needs_reconnect");
       connectionState = "ready";
       await processAnnouncementEmails({
         ...transport,
@@ -217,8 +229,9 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         },
       });
       assert.equal(checks, 2);
-      assert.equal(sends, 4);
+      assert.equal(sends, 7);
       assert.equal((await announcementEmailStatuses([result.id])).get(result.id)?.sent, 3);
+      assert.equal((await announcementEmailStatuses([addedWhileDisconnected.id])).get(addedWhileDisconnected.id)?.sent, 3);
     });
     await t.test("invalid recipients remain failed and cannot be retried", async () => {
       const result = await create({ programId: 1 });
