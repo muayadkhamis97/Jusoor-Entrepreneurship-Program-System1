@@ -202,6 +202,7 @@ test("exchanges Zoom OAuth tokens and persists only encrypted token values", asy
     assert.equal(redirect, "http://localhost/sessions?zoom=connected");
     assert.equal(staffSelected, true);
     assert.equal(String(tokenRequest?.body).includes("private-authorization-code"), true);
+    assert.ok(tokenRequest?.signal instanceof AbortSignal);
     assert.ok(persisted);
     assert.notEqual(persisted.encryptedAccessToken, accessToken);
     assert.notEqual(persisted.encryptedRefreshToken, refreshToken);
@@ -211,6 +212,37 @@ test("exchanges Zoom OAuth tokens and persists only encrypted token values", asy
     restoreInsert();
     restoreSelect();
     globalThis.fetch = nativeFetch;
+  }
+});
+
+test("Zoom OAuth callback redirects safely when token exchange times out", async () => {
+  const nativeAbortTimeout = AbortSignal.timeout;
+  const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  Object.defineProperty(AbortSignal, "timeout", {
+    configurable: true,
+    value: () => nativeAbortTimeout.call(AbortSignal, 5),
+  });
+  globalThis.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      assert.ok(signal);
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    })) as typeof fetch;
+
+  try {
+    const response = await request(
+      "/api/zoom/callback?state=expected-zoom-state&code=sensitive-zoom-authorization-code",
+      { headers: { cookie: oauthCookie() }, redirect: "manual" },
+    );
+    const redirect = response.headers.get("location") ?? "";
+    assert.equal(response.status, 302);
+    assert.equal(redirect, "http://localhost/sessions?zoom=error");
+    assert.doesNotMatch(redirect, /sensitive-zoom-authorization-code|plaintext-zoom/);
+  } finally {
+    globalThis.fetch = nativeFetch;
+    if (originalTimeoutDescriptor) {
+      Object.defineProperty(AbortSignal, "timeout", originalTimeoutDescriptor);
+    }
   }
 });
 
@@ -702,6 +734,72 @@ test("reports Zoom meeting permission failures without provider details", async 
     restoreSelect();
     restoreInsert();
     globalThis.fetch = nativeFetch;
+  }
+});
+
+test("Zoom API body timeout becomes a sanitized 504 integration error", async () => {
+  const { saveZoomConnection, getZoomAccountEmail, ZoomIntegrationError } =
+    await import("../src/lib/zoom");
+  let connection: Record<string, unknown> | null = null;
+  const restoreInsert = replaceDbMethod("insert", (() => ({
+    values(values: Record<string, unknown>) {
+      connection = {
+        ...values,
+        id: 106,
+        accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      };
+      return { onConflictDoUpdate: async () => undefined };
+    },
+  })) as (...args: never[]) => unknown);
+  const restoreSelect = replaceDbMethod("select", (() => {
+    let table: unknown;
+    const query = {
+      from(value: unknown) {
+        table = value;
+        return query;
+      },
+      where() {
+        return query;
+      },
+      async limit() {
+        return table === zoomConnectionsTable && connection ? [connection] : [];
+      },
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  const nativeAbortTimeout = AbortSignal.timeout;
+  const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  Object.defineProperty(AbortSignal, "timeout", {
+    configurable: true,
+    value: () => nativeAbortTimeout.call(AbortSignal, 5),
+  });
+  globalThis.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) => {
+    const signal = init?.signal;
+    assert.ok(signal);
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        signal.addEventListener("abort", () => controller.error(signal.reason), { once: true });
+      },
+    });
+    return new Response(body, { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    await saveZoomConnection({ accessToken, refreshToken, expiresIn: 3600 }, 71);
+    await assert.rejects(getZoomAccountEmail(), (error: unknown) => {
+      assert.ok(error instanceof ZoomIntegrationError);
+      assert.equal(error.statusCode, 504);
+      assert.match(error.message, /took too long/i);
+      assert.doesNotMatch(error.message, /provider|token|authorization/i);
+      return true;
+    });
+  } finally {
+    restoreSelect();
+    restoreInsert();
+    globalThis.fetch = nativeFetch;
+    if (originalTimeoutDescriptor) {
+      Object.defineProperty(AbortSignal, "timeout", originalTimeoutDescriptor);
+    }
   }
 });
 

@@ -250,6 +250,40 @@ test("keeps the mentor's saved connection when Google cannot revoke its grant", 
   assert.equal(auditValues, undefined);
 });
 
+test("completes local mentor disconnect when Google revocation times out", async () => {
+  const nativeAbortTimeout = AbortSignal.timeout;
+  const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  selectedMentor = {
+    id: 27,
+    email: "mentor@example.test",
+    role: "mentor",
+    googleCalendarRefreshTokenEncrypted: encryptGoogleCalendarToken("mentor-refresh-token"),
+    googleCalendarAccessTokenEncrypted: null,
+  };
+  Object.defineProperty(AbortSignal, "timeout", {
+    configurable: true,
+    value: () => nativeAbortTimeout.call(AbortSignal, 5),
+  });
+  globalThis.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      assert.ok(signal);
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    })) as typeof fetch;
+
+  try {
+    const response = await disconnectMentorCalendar();
+    assert.equal(response.status, 204);
+    assert.equal(updateCalls, 1);
+    assert.equal(auditValues?.integrationType, "mentor_google_calendar");
+  } finally {
+    globalThis.fetch = nativeFetch;
+    if (originalTimeoutDescriptor) {
+      Object.defineProperty(AbortSignal, "timeout", originalTimeoutDescriptor);
+    }
+  }
+});
+
 test("keeps the mentor's local calendar connection when the audit insert fails after revocation", async () => {
   selectedMentor = {
     id: 27,

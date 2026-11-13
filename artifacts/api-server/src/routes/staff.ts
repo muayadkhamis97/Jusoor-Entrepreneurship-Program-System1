@@ -769,10 +769,16 @@ router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async
   }
 
   try {
-    await revokeGoogleCalendarAuthorization(
+    const revocationConfirmed = await revokeGoogleCalendarAuthorization(
       target.googleCalendarRefreshTokenEncrypted,
       target.googleCalendarAccessTokenEncrypted,
     );
+    if (!revocationConfirmed) {
+      req.log.warn(
+        { targetStaffId: target.id },
+        "Google Calendar revocation could not be confirmed; clearing the local connection",
+      );
+    }
   } catch {
     req.log.warn(
       { targetStaffId: target.id },

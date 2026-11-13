@@ -7,6 +7,13 @@ import {
   visibleEmailBrandName,
   type ProgramEmailBranding,
 } from "./email-branding";
+import {
+  fetchWithTimeout,
+  gmailProfileTimeoutMs,
+  gmailSendTimeoutMs,
+  gmailSentLookupTimeoutMs,
+  promiseWithTimeout,
+} from "./outbound-http";
 
 export type PlatformEmail = {
   recipients: string[];
@@ -16,8 +23,21 @@ export type PlatformEmail = {
   idempotencyKey: string;
 };
 
-type ConnectorClient = Pick<ReplitConnectors, "proxy">;
+type ConnectorClient = Pick<ReplitConnectors, "proxy"> &
+  Partial<Pick<ReplitConnectors, "createProxyFetch" | "getProxyUrl">>;
 type LoadEmailBranding = () => Promise<ProgramEmailBranding>;
+type ConnectorRequestOptions = {
+  method: string;
+  body?: unknown;
+};
+
+export type PlatformEmailTimeouts = {
+  profileMs: number;
+  sendMs: number;
+  sentLookupMs: number;
+};
+
+const defaultConnectorProxy = ReplitConnectors.prototype.proxy;
 
 // Only use safe retries when Gmail definitely did not accept this attempt.
 export class PlatformEmailSendUncertainError extends Error {
@@ -99,7 +119,13 @@ export async function sendPlatformEmail(
   message: PlatformEmail,
   connectors: ConnectorClient = new ReplitConnectors(),
   loadBranding: LoadEmailBranding = loadProgramEmailBranding,
+  timeouts: Partial<PlatformEmailTimeouts> = {},
 ): Promise<void> {
+  const requestTimeouts = {
+    profileMs: timeouts.profileMs ?? gmailProfileTimeoutMs,
+    sendMs: timeouts.sendMs ?? gmailSendTimeoutMs,
+    sentLookupMs: timeouts.sentLookupMs ?? gmailSentLookupTimeoutMs,
+  };
   const recipients = [...new Set(message.recipients.map(validateEmailAddress))];
   if (!recipients.length) throw new Error("Email has no recipients.");
   const subject = validateHeader(message.subject, "subject");
@@ -110,10 +136,11 @@ export async function sendPlatformEmail(
   const brandedText = renderBrandedEmailText(message.text, branding);
   const brandedHtml = renderBrandedEmailHtml(message.html, branding);
 
-  const profileResponse = await connectors.proxy(
-    "google-mail",
+  const profileResponse = await gmailRequest(
+    connectors,
     "/gmail/v1/users/me/profile",
     { method: "GET" },
+    requestTimeouts.profileMs,
   );
   if (!profileResponse.ok) {
     throw new Error(`Gmail profile lookup returned HTTP ${profileResponse.status}.`);
@@ -126,7 +153,7 @@ export async function sendPlatformEmail(
 
   for (const recipient of recipients) {
     const messageId = stableMessageId(message.idempotencyKey, recipient);
-    if (await wasAlreadySent(connectors, messageId)) continue;
+    if (await wasAlreadySent(connectors, messageId, requestTimeouts.sentLookupMs)) continue;
 
     const raw = encodeMessage({
       from: formatFromHeader(visibleEmailBrandName(branding.brandName), from),
@@ -138,10 +165,11 @@ export async function sendPlatformEmail(
     });
     let response: Awaited<ReturnType<ConnectorClient["proxy"]>>;
     try {
-      response = await connectors.proxy(
-        "google-mail",
+      response = await gmailRequest(
+        connectors,
         "/gmail/v1/users/me/messages/send",
         { method: "POST", body: { raw } },
+        requestTimeouts.sendMs,
       );
     } catch (error) {
       throw new PlatformEmailSendUncertainError("Gmail delivery outcome is unknown.", {
@@ -162,21 +190,60 @@ export async function sendPlatformEmail(
 async function wasAlreadySent(
   connectors: ConnectorClient,
   messageId: string,
+  timeoutMs: number,
 ): Promise<boolean> {
   const query = new URLSearchParams({
     q: `in:sent rfc822msgid:${messageId}`,
     maxResults: "1",
   });
-  const response = await connectors.proxy(
-    "google-mail",
+  const response = await gmailRequest(
+    connectors,
     `/gmail/v1/users/me/messages?${query.toString()}`,
     { method: "GET" },
+    timeoutMs,
   );
   if (!response.ok) {
     throw new Error(`Gmail sent-message lookup returned HTTP ${response.status}.`);
   }
   const result = await response.json() as { messages?: unknown };
   return Array.isArray(result.messages) && result.messages.length > 0;
+}
+
+async function gmailRequest(
+  connectors: ConnectorClient,
+  path: string,
+  options: ConnectorRequestOptions,
+  timeoutMs: number,
+): Promise<Response> {
+  if (
+    connectors.proxy === defaultConnectorProxy &&
+    connectors.createProxyFetch &&
+    connectors.getProxyUrl
+  ) {
+    const headers: Record<string, string> = {};
+    let body: string | undefined;
+    if (options.body !== undefined && options.body !== null) {
+      body = JSON.stringify(options.body);
+      headers["Content-Type"] = "application/json";
+    }
+    return fetchWithTimeout(
+      `${connectors.getProxyUrl()}${path.startsWith("/") ? path : `/${path}`}`,
+      {
+        method: options.method,
+        ...(body ? { body } : {}),
+        headers,
+      },
+      timeoutMs,
+      connectors.createProxyFetch("google-mail"),
+    );
+  }
+
+  // ProxyOptions currently has no AbortSignal. Bound compatible mock/client
+  // implementations too; production uses createProxyFetch above to abort I/O.
+  return promiseWithTimeout(
+    connectors.proxy("google-mail", path, options),
+    timeoutMs,
+  );
 }
 
 function stableMessageId(idempotencyKey: string, recipient: string): string {

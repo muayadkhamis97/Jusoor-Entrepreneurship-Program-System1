@@ -20,6 +20,11 @@ import {
   googleCalendarPrivacy,
   syncGoogleCalendarMentor,
 } from "../lib/googleCalendarSync";
+import {
+  fetchWithTimeout,
+  googleCalendarProfileTimeoutMs,
+  googleCalendarTokenTimeoutMs,
+} from "../lib/outbound-http";
 
 const router: IRouter = Router();
 const cookieName = "jusoor_google_calendar_oauth";
@@ -190,7 +195,7 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    const tokenResponse = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -204,7 +209,7 @@ router.get("/callback", async (req, res): Promise<void> => {
         client_secret: clientSecret,
         code_verifier: payload.codeVerifier,
       }),
-    });
+    }, googleCalendarTokenTimeoutMs);
     const tokenData = await tokenResponse.json().catch(() => ({})) as {
       access_token?: unknown;
       refresh_token?: unknown;
@@ -224,9 +229,9 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const profileResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+    const profileResponse = await fetchWithTimeout("https://openidconnect.googleapis.com/v1/userinfo", {
       headers: { Authorization: `Bearer ${tokenData.access_token}`, Accept: "application/json" },
-    });
+    }, googleCalendarProfileTimeoutMs);
     const profile = await profileResponse.json().catch(() => ({})) as {
       sub?: unknown;
       email?: unknown;

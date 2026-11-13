@@ -40,6 +40,7 @@ import {
   verifyZoomWebhookSignature,
   ZoomIntegrationError,
 } from "../lib/zoom";
+import { fetchWithTimeout, zoomTokenTimeoutMs } from "../lib/outbound-http";
 import {
   canRetryZoomRecordingAlertEmail,
   isGoogleDriveRecordingUrl,
@@ -554,7 +555,7 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const tokenResponse = await fetch("https://zoom.us/oauth/token", {
+    const tokenResponse = await fetchWithTimeout("https://zoom.us/oauth/token", {
       method: "POST",
       headers: {
         Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
@@ -567,7 +568,7 @@ router.get("/callback", async (req, res): Promise<void> => {
         redirect_uri: payload.redirectUri,
         code_verifier: payload.codeVerifier,
       }),
-    });
+    }, zoomTokenTimeoutMs);
     const tokenData = (await tokenResponse.json().catch(() => ({}))) as TokenResponse;
     if (
       !tokenResponse.ok ||
@@ -617,7 +618,12 @@ router.post(
       } catch {
         // Identity lookup is best-effort; a failed lookup must not block revocation.
       }
-      await revokeZoomAuthorization();
+      const revocationConfirmed = await revokeZoomAuthorization();
+      if (!revocationConfirmed) {
+        req.log.warn(
+          "Zoom revocation could not be confirmed; clearing the local connection",
+        );
+      }
       const staff = res.locals.staff as StaffAccess;
       await db.transaction(async (tx) => {
         const [connection] = await tx.select({ id: zoomConnectionsTable.id })

@@ -15,6 +15,11 @@ import {
   type PoolClient,
 } from "@workspace/db";
 import { logGoogleCalendarSyncSkipped, logger } from "./logger";
+import {
+  fetchWithTimeout,
+  googleCalendarRevokeTimeoutMs,
+  isOutboundNetworkFailure,
+} from "./outbound-http";
 
 const googleCalendarEventsScope = "https://www.googleapis.com/auth/calendar.events.owned.readonly";
 const calendarApiBase = "https://www.googleapis.com/calendar/v3";
@@ -94,9 +99,9 @@ function decryptGoogleCalendarToken(value: string | null | undefined): string | 
 export async function revokeGoogleCalendarAuthorization(
   encryptedRefreshToken: string | null | undefined,
   encryptedAccessToken: string | null | undefined,
-): Promise<void> {
+): Promise<boolean> {
   const encryptedToken = encryptedRefreshToken || encryptedAccessToken;
-  if (!encryptedToken) return;
+  if (!encryptedToken) return true;
 
   const token = decryptGoogleCalendarToken(encryptedToken);
   if (!token) {
@@ -108,15 +113,16 @@ export async function revokeGoogleCalendarAuthorization(
 
   let response: Response;
   try {
-    response = await fetch("https://oauth2.googleapis.com/revoke", {
+    response = await fetchWithTimeout("https://oauth2.googleapis.com/revoke", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
       },
       body: new URLSearchParams({ token }),
-    });
-  } catch {
+    }, googleCalendarRevokeTimeoutMs);
+  } catch (error) {
+    if (isOutboundNetworkFailure(error)) return false;
     throw new GoogleCalendarSyncError(
       "Google Calendar access could not be revoked. Your connection was not changed.",
       502,
@@ -129,6 +135,7 @@ export async function revokeGoogleCalendarAuthorization(
       502,
     );
   }
+  return true;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

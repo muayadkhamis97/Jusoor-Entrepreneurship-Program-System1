@@ -14,6 +14,15 @@ import {
   type Session,
   type ZoomConnection,
 } from "@workspace/db";
+import {
+  fetchWithTimeout,
+  hasOutboundResponseTimedOut,
+  isOutboundNetworkFailure,
+  OutboundHttpTimeoutError,
+  zoomApiTimeoutMs,
+  zoomRevokeTimeoutMs,
+  zoomTokenTimeoutMs,
+} from "./outbound-http";
 
 const zoomApiBase = "https://api.zoom.us/v2";
 const zoomWebhookTimestampToleranceMs = 5 * 60 * 1000;
@@ -184,9 +193,9 @@ export async function removeZoomConnection(): Promise<void> {
     .where(eq(zoomConnectionsTable.provider, "zoom"));
 }
 
-export async function revokeZoomAuthorization(): Promise<void> {
+export async function revokeZoomAuthorization(): Promise<boolean> {
   const connection = await getZoomConnection();
-  if (!connection) return;
+  if (!connection) return true;
 
   const clientId = process.env.ZOOM_CLIENT_ID;
   const clientSecret = process.env.ZOOM_CLIENT_SECRET;
@@ -200,7 +209,7 @@ export async function revokeZoomAuthorization(): Promise<void> {
 
   let response: Response;
   try {
-    response = await fetch("https://zoom.us/oauth/revoke", {
+    response = await fetchWithTimeout("https://zoom.us/oauth/revoke", {
       method: "POST",
       headers: {
         Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
@@ -208,8 +217,9 @@ export async function revokeZoomAuthorization(): Promise<void> {
         Accept: "application/json",
       },
       body: new URLSearchParams({ token: refreshToken }),
-    });
-  } catch {
+    }, zoomRevokeTimeoutMs);
+  } catch (error) {
+    if (isOutboundNetworkFailure(error)) return false;
     throw new ZoomIntegrationError(
       "Zoom access could not be revoked. Your connection was not changed.",
       502,
@@ -222,6 +232,7 @@ export async function revokeZoomAuthorization(): Promise<void> {
       502,
     );
   }
+  return true;
 }
 
 export async function getZoomConnection(): Promise<ZoomConnection | null> {
@@ -276,19 +287,38 @@ async function getAccessToken(): Promise<string> {
     );
   }
 
-  const response = await fetch("https://zoom.us/oauth/token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-  });
-  const result = (await response.json().catch(() => ({}))) as ZoomTokenResponse;
+  let response: Response;
+  try {
+    response = await fetchWithTimeout("https://zoom.us/oauth/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    }, zoomTokenTimeoutMs);
+  } catch (error) {
+    const timedOut = error instanceof OutboundHttpTimeoutError;
+    throw new ZoomIntegrationError(
+      timedOut
+        ? "Zoom authorization took too long to refresh. Try again shortly."
+        : "Zoom could not refresh its authorization. Try again shortly.",
+      timedOut ? 504 : 502,
+    );
+  }
+  const result = (await response.json().catch(() => {
+    if (hasOutboundResponseTimedOut(response)) {
+      throw new ZoomIntegrationError(
+        "Zoom authorization took too long to refresh. Try again shortly.",
+        504,
+      );
+    }
+    return {};
+  })) as ZoomTokenResponse;
   if (!response.ok) {
     throw new ZoomIntegrationError(
       response.status === 401 || response.status === 400
@@ -325,16 +355,35 @@ async function zoomRequest<T>(
   init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const accessToken = await getAccessToken();
-  const response = await fetch(`${zoomApiBase}${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-    },
-    ...(init.body ? { body: JSON.stringify(init.body) } : {}),
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(`${zoomApiBase}${path}`, {
+      method: init.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(init.body ? { body: JSON.stringify(init.body) } : {}),
+    }, zoomApiTimeoutMs);
+  } catch (error) {
+    const timedOut = error instanceof OutboundHttpTimeoutError;
+    throw new ZoomIntegrationError(
+      timedOut
+        ? "Zoom took too long to complete this request. Try again shortly."
+        : "Zoom could not complete this request. Try again shortly.",
+      timedOut ? 504 : 502,
+    );
+  }
+  const result = await response.json().catch(() => {
+    if (hasOutboundResponseTimedOut(response)) {
+      throw new ZoomIntegrationError(
+        "Zoom took too long to complete this request. Try again shortly.",
+        504,
+      );
+    }
+    return {};
   });
-  const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401) {
       throw new ZoomIntegrationError(

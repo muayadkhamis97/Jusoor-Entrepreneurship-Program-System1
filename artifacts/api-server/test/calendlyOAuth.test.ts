@@ -309,6 +309,44 @@ test("does not expose OAuth codes or provider response secrets when token exchan
   assert.doesNotMatch(JSON.stringify(logEntries), new RegExp(`${clientCode}|${accessToken}|invalid_grant`));
 });
 
+test("Calendly OAuth callback redirects safely when token exchange times out", async () => {
+  const nativeAbortTimeout = AbortSignal.timeout;
+  const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  const timeoutValues: number[] = [];
+  Object.defineProperty(AbortSignal, "timeout", {
+    configurable: true,
+    value: (timeoutMs: number) => {
+      timeoutValues.push(timeoutMs);
+      return nativeAbortTimeout.call(AbortSignal, 5);
+    },
+  });
+  globalThis.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      assert.ok(signal);
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    })) as typeof fetch;
+  logEntries.length = 0;
+
+  try {
+    const response = await callbackRequest(
+      validState(),
+      `state=expected-state-value&code=${clientCode}`,
+    );
+    const redirect = response.headers.get("location") ?? "";
+    assert.equal(response.status, 302);
+    assert.equal(redirect, "http://localhost/mentor?calendly=error");
+    assert.deepEqual(timeoutValues, [10_000]);
+    assert.doesNotMatch(redirect, new RegExp(`${clientCode}|${accessToken}`));
+    assert.doesNotMatch(JSON.stringify(logEntries), new RegExp(`${clientCode}|${accessToken}`));
+  } finally {
+    globalThis.fetch = nativeFetch;
+    if (originalTimeoutDescriptor) {
+      Object.defineProperty(AbortSignal, "timeout", originalTimeoutDescriptor);
+    }
+  }
+});
+
 test("exchanges a code, saves only mentor connection data, and keeps credentials out of responses and logs", async () => {
   const persistedValues: Record<string, unknown>[] = [];
   const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
@@ -378,6 +416,7 @@ test("exchanges a code, saves only mentor connection data, and keeps credentials
     assert.equal(response.status, 302);
     assert.equal(redirect, "http://localhost/mentor?calendly=connected");
     assert.equal(fetchCalls.length, 5);
+    assert.ok(fetchCalls.every(call => call.init?.signal instanceof AbortSignal));
     assert.match(String(fetchCalls[0]?.init?.body), new RegExp(clientCode));
     assert.deepEqual(Object.keys(persistedValues[0] ?? {}).sort(), [
       "bookingProvider",

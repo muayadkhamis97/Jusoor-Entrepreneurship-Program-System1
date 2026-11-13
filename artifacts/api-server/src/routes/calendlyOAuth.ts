@@ -28,6 +28,12 @@ import {
   sealCalendlyOAuthState,
   type CalendlyOAuthState,
 } from "../lib/calendlyOAuthState";
+import {
+  calendlyProfileTimeoutMs,
+  calendlyTokenTimeoutMs,
+  calendlyWebhookTimeoutMs,
+  fetchWithTimeout,
+} from "../lib/outbound-http";
 
 const router: IRouter = Router();
 const cookieName = "jusoor_calendly_oauth";
@@ -362,7 +368,7 @@ async function createWebhookSubscription(
   organizationUri: string,
   signingKey: string,
 ): Promise<{ uri: string; status: number } | null> {
-  const response = await fetch("https://api.calendly.com/webhook_subscriptions", {
+  const response = await fetchWithTimeout("https://api.calendly.com/webhook_subscriptions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -377,7 +383,7 @@ async function createWebhookSubscription(
       user: userUri,
       signing_key: signingKey,
     }),
-  });
+  }, calendlyWebhookTimeoutMs);
   if (!response.ok) return { uri: "", status: response.status };
   const result = await response.json() as { resource?: { uri?: unknown } };
   return typeof result.resource?.uri === "string"
@@ -486,11 +492,11 @@ router.get("/callback", async (req, res): Promise<void> => {
       client_secret: clientSecret,
       code_verifier: payload.codeVerifier,
     });
-    const tokenResponse = await fetch("https://auth.calendly.com/oauth/token", {
+    const tokenResponse = await fetchWithTimeout("https://auth.calendly.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
       body: tokenBody,
-    });
+    }, calendlyTokenTimeoutMs);
     if (!tokenResponse.ok) {
       req.log.warn({ statusCode: tokenResponse.status }, "Calendly token exchange failed");
       finish("error");
@@ -502,9 +508,9 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const profileResponse = await fetch("https://api.calendly.com/users/me", {
+    const profileResponse = await fetchWithTimeout("https://api.calendly.com/users/me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}`, Accept: "application/json" },
-    });
+    }, calendlyProfileTimeoutMs);
     if (!profileResponse.ok) {
       req.log.warn({ statusCode: profileResponse.status }, "Calendly profile lookup failed");
       finish("error");
@@ -587,10 +593,10 @@ router.get("/callback", async (req, res): Promise<void> => {
           previousUri.hostname === "api.calendly.com" &&
           previousUri.pathname.startsWith("/webhook_subscriptions/")
         ) {
-          const deletion = await fetch(previousUri, {
+          const deletion = await fetchWithTimeout(previousUri, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${tokenData.access_token}`, Accept: "application/json" },
-          });
+          }, calendlyWebhookTimeoutMs);
           if (!deletion.ok && deletion.status !== 404) {
             req.log.warn({ statusCode: deletion.status }, "Previous Calendly webhook cleanup failed");
           }

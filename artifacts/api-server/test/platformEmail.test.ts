@@ -7,6 +7,7 @@ import {
   platformEmailFailureDiagnostics,
   sendPlatformEmail,
 } from "../src/lib/platform-email";
+import { OutboundHttpTimeoutError } from "../src/lib/outbound-http";
 
 const testBranding: ProgramEmailBranding = {
   brandName: "Future Founders",
@@ -211,4 +212,109 @@ test("Gmail send failures retain safe HTTP and network diagnostics", async () =>
       return true;
     },
   );
+});
+
+test("Gmail profile lookup stops before sending when the connector call times out", async () => {
+  const connectors = {
+    proxy: async () => new Promise<Response>(() => {}),
+  } as unknown as Pick<ReplitConnectors, "proxy">;
+
+  await assert.rejects(
+    sendPlatformEmail(
+      email(),
+      connectors,
+      async () => testBranding,
+      { profileMs: 15 },
+    ),
+    error => {
+      assert.ok(error instanceof OutboundHttpTimeoutError);
+      assert.equal(error.code, "ETIMEDOUT");
+      return true;
+    },
+  );
+});
+
+test("Gmail send timeout stays uncertain and a later attempt checks Sent before sending again", async () => {
+  let sendCalls = 0;
+  let sentLookups = 0;
+  let providerAcceptedMessage = false;
+  const connectors = {
+    async proxy(_connector: string, path: string) {
+      if (path.endsWith("/profile")) {
+        return new Response(JSON.stringify({ emailAddress: "sender@example.test" }));
+      }
+      if (path.includes("/messages?")) {
+        sentLookups += 1;
+        return new Response(JSON.stringify(
+          providerAcceptedMessage ? { messages: [{ id: "provider-message" }] } : {},
+        ));
+      }
+      if (path.endsWith("/messages/send")) {
+        sendCalls += 1;
+        providerAcceptedMessage = true;
+        return new Promise<Response>(() => {});
+      }
+      throw new Error("Unexpected test connector request.");
+    },
+  } as unknown as Pick<ReplitConnectors, "proxy">;
+
+  await assert.rejects(
+    sendPlatformEmail(
+      email(),
+      connectors,
+      async () => testBranding,
+      { sendMs: 15, sentLookupMs: 15 },
+    ),
+    error => {
+      assert.ok(error instanceof PlatformEmailSendUncertainError);
+      assert.deepEqual(platformEmailFailureDiagnostics(error), {
+        failureKind: "delivery_outcome_unknown",
+        operation: "send",
+        errorCode: "ETIMEDOUT",
+      });
+      assert.doesNotMatch(error.message, /provider-message|sender@example\.test/);
+      return true;
+    },
+  );
+  assert.equal(sendCalls, 1);
+
+  await sendPlatformEmail(
+    email(),
+    connectors,
+    async () => testBranding,
+    { sendMs: 15, sentLookupMs: 15 },
+  );
+  assert.equal(sentLookups, 2);
+  assert.equal(sendCalls, 1, "retry must not resend before checking Gmail Sent");
+});
+
+test("Gmail production connector requests receive an abort signal", async () => {
+  const requestUrls: string[] = [];
+  const receivedSignals: (AbortSignal | null)[] = [];
+  const connectors = {
+    proxy: ReplitConnectors.prototype.proxy,
+    getProxyUrl: () => "https://connectors.example.test/api/v2/proxy",
+    createProxyFetch: (_connector: string) => async (
+      input: Parameters<typeof fetch>[0],
+      init?: RequestInit,
+    ) => {
+      requestUrls.push(String(input));
+      receivedSignals.push(init?.signal ?? null);
+      return new Response(JSON.stringify({ emailAddress: "sender@example.test" }));
+    },
+  } as unknown as NonNullable<Parameters<typeof sendPlatformEmail>[1]>;
+
+  await sendPlatformEmail(
+    email(),
+    connectors,
+    async () => testBranding,
+  );
+
+  assert.equal(
+    requestUrls[0],
+    "https://connectors.example.test/api/v2/proxy/gmail/v1/users/me/profile",
+  );
+  assert.ok(requestUrls.some(url => url.endsWith("/gmail/v1/users/me/messages/send")));
+  assert.ok(receivedSignals.length > 0);
+  assert.ok(receivedSignals.every(signal => signal instanceof AbortSignal));
 });

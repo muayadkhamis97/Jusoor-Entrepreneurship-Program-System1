@@ -204,6 +204,7 @@ test("verifies the mentor's Google account and stores only encrypted Google toke
     assert.notEqual(persistedValues[0]?.googleCalendarRefreshTokenEncrypted, "sensitive-google-refresh-token");
     assert.notEqual(persistedValues[0]?.googleCalendarAccessTokenEncrypted, accessToken);
     assert.equal(fetchCalls.length, 2);
+    assert.ok(fetchCalls.every(call => call.init?.signal instanceof AbortSignal));
     assert.match(String(fetchCalls[0]?.init?.body), new RegExp(authCode));
     const persistedTokenFields = persistedValues.map(({ googleCalendarBookingUrl: _bookingUrl, ...values }) => values);
     assert.doesNotMatch(JSON.stringify(persistedTokenFields), new RegExp(`${authCode}|${accessToken}|sensitive-google-refresh-token`));
@@ -213,6 +214,50 @@ test("verifies the mentor's Google account and stores only encrypted Google toke
     restoreUpdate();
     restoreSelect();
     globalThis.fetch = nativeFetch;
+  }
+});
+
+test("Google OAuth callback redirects safely when token exchange times out", async () => {
+  const nativeAbortTimeout = AbortSignal.timeout;
+  const originalTimeoutDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "timeout");
+  const timeoutValues: number[] = [];
+  const restoreSelect = replaceDbMethod("select", (() => {
+    const query = {
+      from() { return query; },
+      where() { return query; },
+      limit: async () => [{ id: 71 }],
+    };
+    return query;
+  }) as (...args: never[]) => unknown);
+  Object.defineProperty(AbortSignal, "timeout", {
+    configurable: true,
+    value: (timeoutMs: number) => {
+      timeoutValues.push(timeoutMs);
+      return nativeAbortTimeout.call(AbortSignal, 5);
+    },
+  });
+  globalThis.fetch = (async (_input: URL | RequestInfo, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      assert.ok(signal);
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    })) as typeof fetch;
+
+  try {
+    const response = await callbackRequest(
+      validState(),
+      "state=expected-google-state&code=sensitive-google-authorization-code",
+    );
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "/mentor?googleCalendar=error");
+    assert.deepEqual(timeoutValues, [10_000]);
+    assert.doesNotMatch(JSON.stringify(logEntries), /sensitive-google-authorization-code|access-token/);
+  } finally {
+    restoreSelect();
+    globalThis.fetch = nativeFetch;
+    if (originalTimeoutDescriptor) {
+      Object.defineProperty(AbortSignal, "timeout", originalTimeoutDescriptor);
+    }
   }
 });
 

@@ -1193,7 +1193,7 @@ router.patch("/booking-settings", async (req, res): Promise<void> => {
   }));
 });
 
-router.delete("/google-calendar/connection", async (_req, res): Promise<void> => {
+router.delete("/google-calendar/connection", async (req, res): Promise<void> => {
   const staff = res.locals.staff as StaffAccess;
   const [connection] = await db.select({
     id: staffMembersTable.id,
@@ -1214,10 +1214,16 @@ router.delete("/google-calendar/connection", async (_req, res): Promise<void> =>
   }
 
   try {
-    await revokeGoogleCalendarAuthorization(
+    const revocationConfirmed = await revokeGoogleCalendarAuthorization(
       connection.googleCalendarRefreshTokenEncrypted,
       connection.googleCalendarAccessTokenEncrypted,
     );
+    if (!revocationConfirmed) {
+      req.log.warn(
+        { staffId: staff.id },
+        "Google Calendar revocation could not be confirmed; clearing the local connection",
+      );
+    }
   } catch {
     res.status(502).json({
       error: "Google Calendar access could not be revoked. The connection was not changed. Try again or contact an administrator.",
