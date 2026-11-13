@@ -584,6 +584,8 @@ export const getLearningProgressAnalyticsResponseProgramsItemRemindersSentMin = 
 
 export const getLearningProgressAnalyticsResponseProgramsItemRemindersFailedMin = 0;
 
+export const getLearningProgressAnalyticsResponseProgramsItemRemindersUncertainMin = 0;
+
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneCompletedRequiredModulesMin = 0;
 
 export const getLearningProgressAnalyticsResponseProgramsItemParticipantsItemOneTotalRequiredModulesMin = 0;
@@ -639,11 +641,20 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "pending": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersPendingMin),
   "sent": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersSentMin),
   "failed": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersFailedMin),
+  "uncertain": zod.int().min(getLearningProgressAnalyticsResponseProgramsItemRemindersUncertainMin),
   "latestError": zod.union([zod.object({
   "message": zod.string(),
   "failedAt": zod.coerce.date()
 }),zod.null()]),
   "failedDeliveries": zod.array(zod.object({
+  "id": zod.int(),
+  "founderName": zod.string(),
+  "businessName": zod.string(),
+  "moduleTitle": zod.string(),
+  "lastError": zod.string(),
+  "failedAt": zod.coerce.date()
+})),
+  "uncertainDeliveries": zod.array(zod.object({
   "id": zod.int(),
   "founderName": zod.string(),
   "businessName": zod.string(),
@@ -3787,7 +3798,7 @@ export const ListZoomRecordingAlertsResponseItem = zod.object({
   "title": zod.string(),
   "scheduledDate": zod.string().regex(listZoomRecordingAlertsResponseScheduledDateRegExp),
   "readyAt": zod.coerce.date(),
-  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
+  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
   "emailAttempts": zod.int(),
   "emailError": zod.string().nullable(),
   "canRetryEmail": zod.boolean()
@@ -3811,7 +3822,7 @@ export const RetryZoomRecordingAlertEmailResponse = zod.object({
   "title": zod.string(),
   "scheduledDate": zod.string().regex(retryZoomRecordingAlertEmailResponseScheduledDateRegExp),
   "readyAt": zod.coerce.date(),
-  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed']),
+  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
   "emailAttempts": zod.int(),
   "emailError": zod.string().nullable(),
   "canRetryEmail": zod.boolean()

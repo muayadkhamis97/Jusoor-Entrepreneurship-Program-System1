@@ -22,7 +22,7 @@ const program = (overrides: Partial<LearningProgressProgram> = {}) => ({
     averageGainPercentagePoints: 72.5,
   },
   certificatesIssued: 0,
-  reminders: { pending: 0, sent: 0, failed: 0, latestError: null, failedDeliveries: [] },
+  reminders: { pending: 0, sent: 0, failed: 0, uncertain: 0, latestError: null, failedDeliveries: [], uncertainDeliveries: [] },
   participants: [],
   ...overrides,
 } satisfies LearningProgressProgram);

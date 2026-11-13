@@ -17,7 +17,12 @@ import {
   staffProgramRolesTable,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
+import {
+  PlatformEmailSendUncertainError,
+  sendPlatformEmail,
+  platformEmailFailureDiagnostics,
+  type PlatformEmail,
+} from "./platform-email";
 
 const programTimeZone = "Asia/Amman";
 const deliveryHour = 9;
@@ -25,6 +30,8 @@ const workerIntervalMs = 5 * 60 * 1000;
 const staleClaimMs = 10 * 60 * 1000;
 const baseRetryDelayMs = 15 * 60 * 1000;
 const maxRetryDelayMs = 24 * 60 * 60 * 1000;
+const uncertainDeliveryMessage =
+  "Email delivery could not be confirmed. Check Gmail Sent before taking further action. Automatic retries are disabled to prevent duplicate emails.";
 
 type OverdueMentor = {
   email: string;
@@ -185,7 +192,7 @@ async function sendDigestEmail(input: {
   calendarDate: string;
   mentors: { email: string; calendlyFollowUpDate: string }[];
   idempotencyKey: string;
-}): Promise<void> {
+}, sendEmail: (message: PlatformEmail) => Promise<void>): Promise<void> {
   const overdueViewUrl = getOverdueViewUrl();
   const rows = input.mentors.map(
     ({ email, calendlyFollowUpDate }) => `- ${email} (due ${calendlyFollowUpDate})`,
@@ -207,7 +214,7 @@ async function sendDigestEmail(input: {
     .join("");
   const html = `<h1>Overdue mentor follow-ups</h1><p>Program day: ${escapeHtml(input.calendarDate)}</p><p>${input.mentors.length} mentor${input.mentors.length === 1 ? "" : "s"} need follow-up:</p><ul>${htmlRows}</ul><p><a href="${escapeHtml(overdueViewUrl)}">Open the overdue view</a></p>`;
 
-  await sendPlatformEmail({
+  await sendEmail({
     recipients: [input.coordinatorEmail],
     subject: `Overdue mentor follow-ups (${input.mentors.length})`,
     text,
@@ -222,10 +229,9 @@ async function deliverCoordinatorDigest(input: {
   calendarDate: string;
   mentors: { email: string; calendlyFollowUpDate: string }[];
   now: Date;
-}): Promise<void> {
+}, sendEmail: (message: PlatformEmail) => Promise<void>): Promise<void> {
   const { coordinatorStaffId, coordinatorEmail, calendarDate, mentors, now } =
     input;
-  const staleBefore = new Date(now.getTime() - staleClaimMs);
   const [claimed] = await db
     .update(mentorFollowUpDigestDeliveriesTable)
     .set({
@@ -241,24 +247,12 @@ async function deliverCoordinatorDigest(input: {
           coordinatorStaffId,
         ),
         eq(mentorFollowUpDigestDeliveriesTable.calendarDate, calendarDate),
-        or(
-          and(
-            inArray(mentorFollowUpDigestDeliveriesTable.status, [
-              "pending",
-              "failed",
-            ]),
-            lte(mentorFollowUpDigestDeliveriesTable.nextAttemptAt, now),
-          ),
-          and(
-            eq(mentorFollowUpDigestDeliveriesTable.status, "sending"),
-            or(
-              isNull(mentorFollowUpDigestDeliveriesTable.lastAttemptAt),
-              lt(
-                mentorFollowUpDigestDeliveriesTable.lastAttemptAt,
-                staleBefore,
-              ),
-            ),
-          ),
+        and(
+          inArray(mentorFollowUpDigestDeliveriesTable.status, [
+            "pending",
+            "failed",
+          ]),
+          lte(mentorFollowUpDigestDeliveriesTable.nextAttemptAt, now),
         ),
       ),
     )
@@ -273,7 +267,7 @@ async function deliverCoordinatorDigest(input: {
       calendarDate,
       mentors,
       idempotencyKey,
-    });
+    }, sendEmail);
     await db
       .update(mentorFollowUpDigestDeliveriesTable)
       .set({ status: "sent", sentAt: new Date(), lastError: null })
@@ -288,29 +282,51 @@ async function deliverCoordinatorDigest(input: {
       maxRetryDelayMs,
       baseRetryDelayMs * 2 ** Math.min(attempt - 1, 6),
     );
-    const message =
-      error instanceof Error ? error.message.slice(0, 400) : "Email delivery failed.";
+    const uncertain = error instanceof PlatformEmailSendUncertainError;
+    const message = uncertain
+      ? uncertainDeliveryMessage
+      : error instanceof Error ? error.message.slice(0, 400) : "Email delivery failed.";
     await db
       .update(mentorFollowUpDigestDeliveriesTable)
       .set({
-        status: "failed",
+        status: uncertain ? "uncertain" : "failed",
         nextAttemptAt: new Date(now.getTime() + retryDelayMs),
         lastError: message,
       })
       .where(eq(mentorFollowUpDigestDeliveriesTable.id, claimed.id));
     logger.warn(
       { coordinatorStaffId, calendarDate, attempt, emailFailure: platformEmailFailureDiagnostics(error) },
-      "Mentor follow-up digest email failed and will be retried",
+      uncertain
+        ? "Mentor follow-up digest email delivery is uncertain and will not be retried automatically"
+        : "Mentor follow-up digest email failed and will be retried",
     );
   }
 }
 
-async function processMentorFollowUpDigests(): Promise<void> {
+export async function processMentorFollowUpDigests(
+  now = new Date(),
+  sendEmail: (message: PlatformEmail) => Promise<void> = sendPlatformEmail,
+): Promise<void> {
   if (workerRunning || workerSchemaUnavailable) return;
   workerRunning = true;
   try {
-    const now = new Date();
     if (!isMentorFollowUpDigestDue(now)) return;
+
+    await db
+      .update(mentorFollowUpDigestDeliveriesTable)
+      .set({ status: "uncertain", lastError: uncertainDeliveryMessage })
+      .where(
+        and(
+          eq(mentorFollowUpDigestDeliveriesTable.status, "sending"),
+          or(
+            isNull(mentorFollowUpDigestDeliveriesTable.lastAttemptAt),
+            lt(
+              mentorFollowUpDigestDeliveriesTable.lastAttemptAt,
+              new Date(now.getTime() - staleClaimMs),
+            ),
+          ),
+        ),
+      );
 
     const calendarDate = getProgramCalendarDate(now);
     const mentors = await getOverdueMentors(calendarDate);
@@ -360,7 +376,6 @@ async function processMentorFollowUpDigests(): Promise<void> {
           eq(mentorFollowUpDigestDeliveriesTable.calendarDate, calendarDate),
           eq(staffMembersTable.role, "coordinator"),
           eq(staffMembersTable.status, "active"),
-          or(
             and(
               inArray(mentorFollowUpDigestDeliveriesTable.status, [
                 "pending",
@@ -368,17 +383,6 @@ async function processMentorFollowUpDigests(): Promise<void> {
               ]),
               lte(mentorFollowUpDigestDeliveriesTable.nextAttemptAt, now),
             ),
-            and(
-              eq(mentorFollowUpDigestDeliveriesTable.status, "sending"),
-              or(
-                isNull(mentorFollowUpDigestDeliveriesTable.lastAttemptAt),
-                lt(
-                  mentorFollowUpDigestDeliveriesTable.lastAttemptAt,
-                  new Date(now.getTime() - staleClaimMs),
-                ),
-              ),
-            ),
-          ),
         ),
       )
       .orderBy(asc(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId));
@@ -389,7 +393,7 @@ async function processMentorFollowUpDigests(): Promise<void> {
         calendarDate,
         mentors,
         now,
-      });
+      }, sendEmail);
     }
   } catch (error) {
     if (isMissingSchemaObject(error)) {

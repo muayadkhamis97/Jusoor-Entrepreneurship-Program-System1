@@ -15,6 +15,9 @@ export interface CourseReminderSummary {
   sent: number;
   /** @minimum 0 */
   failed: number;
+  /** @minimum 0 */
+  uncertain: number;
   latestError: CourseReminderSummaryLatestError;
   failedDeliveries: CourseReminderFailure[];
+  uncertainDeliveries: CourseReminderFailure[];
 }

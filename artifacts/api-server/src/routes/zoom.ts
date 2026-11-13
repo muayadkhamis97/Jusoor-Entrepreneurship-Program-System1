@@ -43,6 +43,7 @@ import {
 import { fetchWithTimeout, zoomTokenTimeoutMs } from "../lib/outbound-http";
 import {
   canRetryZoomRecordingAlertEmail,
+  holdStaleZoomRecordingAlertEmails,
   isGoogleDriveRecordingUrl,
   parseZoomRecordingReadyEvent,
   retryZoomRecordingAlertEmail,
@@ -323,6 +324,7 @@ router.get(
   requireStaff,
   requireRole("coordinator"),
   async (_req, res): Promise<void> => {
+    await holdStaleZoomRecordingAlertEmails();
     const rows = await db
       .select({
         id: zoomRecordingAlertsTable.id,

@@ -828,8 +828,8 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
             <span>{dateLabel(alert.scheduledDate)} {t('· Ready to upload to Drive')}</span>
           </div>
           <div className="recording-ready-email">
-            <span className={alert.emailStatus === 'sent' ? 'zoom-status-success' : alert.emailStatus === 'failed' ? 'zoom-status-error' : ''}>
-              {alert.emailStatus === 'sent' ? t('Email sent') : alert.emailStatus === 'failed' ? t('Email needs attention') : alert.emailStatus === 'sending' ? t('Email sending…') : t('Email pending')}
+            <span className={alert.emailStatus === 'sent' ? 'zoom-status-success' : alert.emailStatus === 'failed' || alert.emailStatus === 'uncertain' ? 'zoom-status-error' : ''}>
+              {alert.emailStatus === 'sent' ? t('Email sent') : alert.emailStatus === 'failed' ? t('Email needs attention') : alert.emailStatus === 'uncertain' ? t('Email delivery uncertain') : alert.emailStatus === 'sending' ? t('Email sending…') : t('Email pending')}
             </span>
             {alert.emailError && <span className="zoom-status-error" role="alert">{alert.emailError}</span>}
             {alert.canRetryEmail && <button className="button button-quiet" onClick={() => retryRecordingAlertEmail(alert.id)} disabled={retryRecordingEmailMutation.isPending} data-testid={`button-retry-recording-email-${alert.id}`}>{retryRecordingEmailMutation.isPending ? t('Retrying…') : t('Retry email')}</button>}

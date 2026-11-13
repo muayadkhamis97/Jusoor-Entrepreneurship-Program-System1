@@ -154,7 +154,7 @@
 .lp-reminders { margin:13px 16px; padding:13px; border:1px solid var(--lp-line); border-radius:var(--radius); background:hsl(var(--background) / .62); }
 .lp-reminders-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
 .lp-reminders-heading h4 { margin:3px 0 0; font:700 var(--type-body-min) var(--app-font-serif); }.lp-reminders-heading>small { color:var(--lp-muted); font-size:var(--type-body-min); }
-.lp-reminder-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.lp-reminder-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
 .lp-reminder-counts>div { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; border:1px solid var(--lp-line); border-radius:var(--radius); background:var(--lp-card); }
 .lp-reminder-counts span { color:var(--lp-muted); font-size:var(--type-body-min); }.lp-reminder-counts b { font:600 var(--type-body-min) var(--app-font-mono); }.lp-reminder-counts .has-failures b { color:hsl(var(--destructive)); }
 .lp-reminder-latest-error { display:flex; gap:8px; align-items:flex-start; margin-top:9px; padding:9px; border:1px solid hsl(var(--destructive) / .25); border-radius:var(--radius); background:hsl(var(--destructive) / .06); color:hsl(var(--destructive)); }
@@ -211,7 +211,8 @@
   .lp-assessment-comparison{grid-template-columns:1fr;gap:7px}.lp-assessment-comparison>div{display:flex;justify-content:space-between;align-items:center}
   .lp-assessment-coverage{grid-template-columns:1fr;gap:6px}.lp-assessment-coverage>div{justify-content:space-between}
   .lp-assessment-history{padding:12px 9px}.lp-history-header{align-items:flex-start;flex-direction:column}.lp-history-table{min-width:590px}
-  .lp-reminders { margin:10px 9px; padding:10px; }.lp-reminders-heading { align-items:flex-start; flex-direction:column; gap:4px; }
+   .lp-reminders { margin:10px 9px; padding:10px; }.lp-reminders-heading { align-items:flex-start; flex-direction:column; gap:4px; }
+   .lp-reminder-counts { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .lp-reminder-failures article { align-items:flex-start; flex-direction:column; }.lp-reminder-failures .lp-button { align-self:flex-start; }
 }
 @media print {

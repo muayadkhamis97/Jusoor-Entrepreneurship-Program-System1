@@ -1,4 +1,9 @@
-import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
+import {
+  PlatformEmailSendUncertainError,
+  sendPlatformEmail,
+  platformEmailFailureDiagnostics,
+  type PlatformEmail,
+} from "./platform-email";
 import { logger } from "./logger";
 import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import {
@@ -19,7 +24,11 @@ export type ZoomRecordingAlertEmailStatus =
   | "pending"
   | "sending"
   | "sent"
-  | "failed";
+  | "failed"
+  | "uncertain";
+
+const uncertainDeliveryMessage =
+  "Email delivery could not be confirmed. Check Gmail Sent before taking further action. Automatic retries are disabled to prevent duplicate emails.";
 
 export function parseZoomRecordingReadyEvent(
   envelope: unknown,
@@ -116,7 +125,7 @@ async function sendReadyEmail(input: {
   title: string;
   scheduledDate: string;
   recipients: string[];
-}): Promise<void> {
+}, sendEmail: (message: PlatformEmail) => Promise<void> = sendPlatformEmail): Promise<void> {
   if (input.recipients.length === 0) {
     throw new RecordingEmailConfigurationError(
       "No active admin account has an email address to receive alerts.",
@@ -131,7 +140,7 @@ async function sendReadyEmail(input: {
     "After staff upload the video to Drive, add the share link to the session in the platform.",
   ].join("\n");
   const html = `<p>A Zoom recording is ready to upload to Google Drive.</p><p><strong>Session:</strong> ${escapeHtml(title)}<br><strong>Date:</strong> ${escapeHtml(input.scheduledDate)}</p><p>After staff upload the video to Drive, add the share link to the session in the platform.</p>`;
-  await sendPlatformEmail({
+  await sendEmail({
     recipients: input.recipients,
     subject: `Zoom recording ready: ${title}`,
     text,
@@ -142,19 +151,38 @@ async function sendReadyEmail(input: {
 
 function isRetryableStatus(
   status: string,
-  lastAttemptAt: Date | null,
-  now: Date,
+  _lastAttemptAt: Date | null,
+  _now: Date,
 ): boolean {
-  if (status === "pending" || status === "failed") return true;
-  return (
-    status === "sending" &&
-    (!lastAttemptAt || now.getTime() - lastAttemptAt.getTime() >= STALE_EMAIL_CLAIM_MS)
-  );
+  return status === "pending" || status === "failed";
+}
+
+export async function holdStaleZoomRecordingAlertEmails(now = new Date()): Promise<void> {
+  await db
+    .update(zoomRecordingAlertsTable)
+    .set({
+      emailStatus: "uncertain",
+      emailError: uncertainDeliveryMessage,
+    })
+    .where(
+      and(
+        eq(zoomRecordingAlertsTable.emailStatus, "sending"),
+        or(
+          isNull(zoomRecordingAlertsTable.emailLastAttemptAt),
+          lt(
+            zoomRecordingAlertsTable.emailLastAttemptAt,
+            new Date(now.getTime() - STALE_EMAIL_CLAIM_MS),
+          ),
+        ),
+      ),
+    );
 }
 
 export async function retryZoomRecordingAlertEmail(
   alertId: number,
+  sendEmail: (message: PlatformEmail) => Promise<void> = sendPlatformEmail,
 ): Promise<ZoomRecordingAlertEmailStatus | null> {
+  await holdStaleZoomRecordingAlertEmails();
   const [alert] = await db
     .select({
       id: zoomRecordingAlertsTable.id,
@@ -233,7 +261,7 @@ export async function retryZoomRecordingAlertEmail(
       title: alert.title,
       scheduledDate: alert.scheduledDate,
       recipients,
-    });
+    }, sendEmail);
     await db
       .update(zoomRecordingAlertsTable)
       .set({
@@ -245,12 +273,13 @@ export async function retryZoomRecordingAlertEmail(
     return "sent";
   } catch (error) {
     logger.warn({ alertId, emailFailure: platformEmailFailureDiagnostics(error) }, "Zoom recording alert email failed");
-    const message = publicEmailError(error);
+    const uncertain = error instanceof PlatformEmailSendUncertainError;
+    const message = uncertain ? uncertainDeliveryMessage : publicEmailError(error);
     await db
       .update(zoomRecordingAlertsTable)
-      .set({ emailStatus: "failed", emailError: message })
+      .set({ emailStatus: uncertain ? "uncertain" : "failed", emailError: message })
       .where(eq(zoomRecordingAlertsTable.id, alertId));
-    return "failed";
+    return uncertain ? "uncertain" : "failed";
   }
 }
 

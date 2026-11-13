@@ -14,4 +14,5 @@ export const ZoomRecordingEmailStatus = {
   sending: 'sending',
   sent: 'sent',
   failed: 'failed',
+  uncertain: 'uncertain',
 } as const;

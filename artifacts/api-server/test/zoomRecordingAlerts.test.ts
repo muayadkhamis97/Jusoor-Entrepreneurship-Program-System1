@@ -73,7 +73,7 @@ test("only valid Google Drive file links can clear a readiness alert", () => {
   );
 });
 
-test("email retries allow failed or stale sends but not a recent in-flight send", () => {
+test("only pending and definite failures can be retried", () => {
   const now = new Date("2026-10-12T12:00:00.000Z");
   assert.equal(canRetryZoomRecordingAlertEmail("failed", null, now), true);
   assert.equal(canRetryZoomRecordingAlertEmail("pending", null, now), true);
@@ -83,7 +83,8 @@ test("email retries allow failed or stale sends but not a recent in-flight send"
   );
   assert.equal(
     canRetryZoomRecordingAlertEmail("sending", new Date(now.getTime() - 600_000), now),
-    true,
+    false,
   );
+  assert.equal(canRetryZoomRecordingAlertEmail("uncertain", null, now), false);
   assert.equal(canRetryZoomRecordingAlertEmail("sent", null, now), false);
 });

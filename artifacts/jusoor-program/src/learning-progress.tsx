@@ -393,6 +393,7 @@ function ReminderDeliveryPanel({ program, retryingId, onRetry }: {
       <div><span>{t('Pending')}</span><b data-testid={`text-reminders-pending-${program.programId}`}>{reminders.pending}</b></div>
       <div><span>{t('Sent')}</span><b data-testid={`text-reminders-sent-${program.programId}`}>{reminders.sent}</b></div>
       <div className={reminders.failed ? 'has-failures' : ''}><span>{t('Failed')}</span><b data-testid={`text-reminders-failed-${program.programId}`}>{reminders.failed}</b></div>
+      <div className={reminders.uncertain ? 'has-failures' : ''}><span>{t('Uncertain')}</span><b data-testid={`text-reminders-uncertain-${program.programId}`}>{reminders.uncertain}</b></div>
     </div>
     {reminders.latestError && <div className="lp-reminder-latest-error" data-testid={`text-reminders-latest-error-${program.programId}`}>
       <CircleAlert size={15} /><div><b>{t('Latest delivery error')}</b><span>{reminders.latestError.message}</span><small>{fmtTimestamp(reminders.latestError.failedAt)}</small></div>
@@ -407,7 +408,15 @@ function ReminderDeliveryPanel({ program, retryingId, onRetry }: {
       </article>)}
       {reminders.failed > reminders.failedDeliveries.length && <small className="lp-reminder-more">{t('Showing the 20 most recent failed reminders.')}</small>}
     </div>}
-    {reminders.failed === 0 && <p className="lp-reminder-clear">{t('No failed reminders for this cohort.')}</p>}
+    {reminders.uncertainDeliveries.length > 0 && <div className="lp-reminder-failures" data-testid={`list-uncertain-reminders-${program.programId}`}>
+      <b>{t('Uncertain deliveries')}</b>
+      <p>{t('Email delivery could not be confirmed. Check Gmail Sent before taking further action. Automatic retries are disabled to prevent duplicate emails.')}</p>
+      {reminders.uncertainDeliveries.map(delivery => <article key={delivery.id} data-testid={`row-uncertain-reminder-${delivery.id}`}>
+        <div><strong>{delivery.founderName}</strong><span>{delivery.businessName} · {delivery.moduleTitle}</span><small>{fmtTimestamp(delivery.failedAt)}</small></div>
+      </article>)}
+      {reminders.uncertain > reminders.uncertainDeliveries.length && <small className="lp-reminder-more">{t('Showing the 20 most recent uncertain reminders.')}</small>}
+    </div>}
+    {reminders.failed === 0 && reminders.uncertain === 0 && <p className="lp-reminder-clear">{t('No failed reminders for this cohort.')}</p>}
   </section>;
 }
 

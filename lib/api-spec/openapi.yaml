@@ -5378,6 +5378,7 @@ components:
         pending: { type: integer, minimum: 0 }
         sent: { type: integer, minimum: 0 }
         failed: { type: integer, minimum: 0 }
+        uncertain: { type: integer, minimum: 0 }
         latestError:
           oneOf:
             - type: object
@@ -5389,7 +5390,10 @@ components:
         failedDeliveries:
           type: array
           items: { $ref: "#/components/schemas/CourseReminderFailure" }
-      required: [pending, sent, failed, latestError, failedDeliveries]
+        uncertainDeliveries:
+          type: array
+          items: { $ref: "#/components/schemas/CourseReminderFailure" }
+      required: [pending, sent, failed, uncertain, latestError, failedDeliveries, uncertainDeliveries]
     CourseReminderFailure:
       type: object
       properties:
@@ -6592,7 +6596,7 @@ components:
       required: [clientConfigured, connected, connectedAt, connectedBy, callbackUrl, webhookUrl]
     ZoomRecordingEmailStatus:
       type: string
-      enum: [pending, sending, sent, failed]
+      enum: [pending, sending, sent, failed, uncertain]
     ZoomRecordingAlert:
       type: object
       properties:

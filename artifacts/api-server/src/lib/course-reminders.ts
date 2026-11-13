@@ -1,4 +1,9 @@
-import { sendPlatformEmail, platformEmailFailureDiagnostics } from "./platform-email";
+import {
+  PlatformEmailSendUncertainError,
+  sendPlatformEmail,
+  platformEmailFailureDiagnostics,
+  type PlatformEmail,
+} from "./platform-email";
 import { and, asc, eq, inArray, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import {
   applicationsTable,
@@ -19,6 +24,8 @@ const reminderWindows = [
 ] as const;
 const weeklyReminder = { kind: "weekly_incomplete", subject: "Keep your course moving" } as const;
 const staleClaimMs = 10 * 60 * 1000;
+const uncertainDeliveryMessage =
+  "Email delivery could not be confirmed. Check Gmail Sent before taking further action. Automatic retries are disabled to prevent duplicate emails.";
 
 let workerTimer: ReturnType<typeof setInterval> | undefined;
 let workerRunning = false;
@@ -141,7 +148,7 @@ async function sendCourseReminder(input: {
   moduleTitle: string;
   dueAt: Date | null;
   subject: string;
-}): Promise<void> {
+}, sendEmail: (message: PlatformEmail) => Promise<void> = sendPlatformEmail): Promise<void> {
   const deadline = input.dueAt?.toLocaleString("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -158,7 +165,7 @@ async function sendCourseReminder(input: {
     ? `<p><strong>Deadline:</strong> ${escapeHtml(deadline)} UTC</p>`
     : "<p>This required module is still incomplete.</p>";
   const html = `<p>Hello ${escapeHtml(input.founderName)},</p><p>This is a reminder about the <strong>${escapeHtml(input.moduleTitle)}</strong> learning module in ${escapeHtml(input.programName)}.</p>${deadlineHtml}<p>Sign in to the program platform to review your learning progress and complete the module.</p>`;
-  await sendPlatformEmail({
+  await sendEmail({
     recipients: [input.email],
     subject: `${input.subject}: ${input.moduleTitle}`,
     text,
@@ -215,7 +222,10 @@ async function queueDueReminders(now: Date): Promise<void> {
   }
 }
 
-async function sendPendingReminders(now: Date): Promise<void> {
+async function sendPendingReminders(
+  now: Date,
+  sendEmail: (message: PlatformEmail) => Promise<void>,
+): Promise<void> {
   const pending = await db.select({
     delivery: courseReminderDeliveriesTable,
     application: applicationsTable,
@@ -275,7 +285,7 @@ async function sendPendingReminders(now: Date): Promise<void> {
         moduleTitle: item.moduleTitle,
         dueAt: item.delivery.reminderKind === weeklyReminder.kind ? null : item.delivery.dueAt,
         subject: reminder.subject,
-      });
+        }, sendEmail);
       await db.update(courseReminderDeliveriesTable).set({
         status: "sent",
         sentAt: new Date(),
@@ -284,33 +294,43 @@ async function sendPendingReminders(now: Date): Promise<void> {
       }).where(eq(courseReminderDeliveriesTable.id, item.delivery.id));
     } catch (error) {
       const retryDelayMs = Math.min(24 * 60 * 60 * 1000, 15 * 60 * 1000 * (2 ** Math.min(attempt - 1, 6)));
+      const uncertain = error instanceof PlatformEmailSendUncertainError;
       await db.update(courseReminderDeliveriesTable).set({
-        status: "failed",
+        status: uncertain ? "uncertain" : "failed",
         nextAttemptAt: new Date(Date.now() + retryDelayMs),
-        lastError: safeError(error),
+        lastError: uncertain ? uncertainDeliveryMessage : safeError(error),
         updatedAt: new Date(),
       }).where(eq(courseReminderDeliveriesTable.id, item.delivery.id));
-      logger.warn({ applicationId: item.application.id, moduleId: item.delivery.moduleId, attempt, emailFailure: platformEmailFailureDiagnostics(error) }, "Course reminder email failed and will be retried");
+      logger.warn({
+        applicationId: item.application.id,
+        moduleId: item.delivery.moduleId,
+        attempt,
+        emailFailure: platformEmailFailureDiagnostics(error),
+      }, uncertain
+        ? "Course reminder email delivery is uncertain and will not be retried automatically"
+        : "Course reminder email failed and will be retried");
     }
   }
 }
 
-async function processCourseReminders(): Promise<void> {
+export async function processCourseReminders(
+  now = new Date(),
+  sendEmail: (message: PlatformEmail) => Promise<void> = sendPlatformEmail,
+): Promise<void> {
   if (workerRunning) return;
   workerRunning = true;
   try {
-    const now = new Date();
     await db.update(courseReminderDeliveriesTable).set({
-      status: "failed",
+      status: "uncertain",
       nextAttemptAt: now,
-      lastError: "Previous email attempt did not finish.",
+      lastError: uncertainDeliveryMessage,
       updatedAt: now,
     }).where(and(
       eq(courseReminderDeliveriesTable.status, "sending"),
       lt(courseReminderDeliveriesTable.updatedAt, new Date(now.getTime() - staleClaimMs)),
     ));
     await queueDueReminders(now);
-    await sendPendingReminders(now);
+    await sendPendingReminders(now, sendEmail);
   } catch (error) {
     logger.error({ err: error }, "Course reminder worker failed");
   } finally {

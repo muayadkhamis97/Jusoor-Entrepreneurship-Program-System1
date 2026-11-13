@@ -532,7 +532,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
   const rows = await loadProgressData(applications);
   const byApplicationId = new Map(rows.map((row) => [row.application.id, row]));
   const programIds = programs.map((program) => program.id);
-  const [reminderCounts, failedReminders] = await Promise.all([
+  const [reminderCounts, reminderIssues] = await Promise.all([
     db.select({
       programId: courseModulesTable.programId,
       status: courseReminderDeliveriesTable.status,
@@ -544,6 +544,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
     db.select({
       programId: courseModulesTable.programId,
       id: courseReminderDeliveriesTable.id,
+      status: courseReminderDeliveriesTable.status,
       founderName: applicationsTable.founderName,
       businessName: applicationsTable.businessName,
       moduleTitle: courseModulesTable.title,
@@ -554,7 +555,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
       .innerJoin(applicationsTable, eq(applicationsTable.id, courseReminderDeliveriesTable.applicationId))
       .where(and(
         inArray(courseModulesTable.programId, programIds),
-        eq(courseReminderDeliveriesTable.status, "failed"),
+        inArray(courseReminderDeliveriesTable.status, ["failed", "uncertain"]),
       ))
       .orderBy(desc(courseReminderDeliveriesTable.updatedAt)),
   ]);
@@ -562,8 +563,17 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
     pending: 0,
     sent: 0,
     failed: 0,
+    uncertain: 0,
     latestError: null as { message: string; failedAt: Date } | null,
     failedDeliveries: [] as Array<{
+      id: number;
+      founderName: string;
+      businessName: string;
+      moduleTitle: string;
+      lastError: string;
+      failedAt: Date;
+    }>,
+    uncertainDeliveries: [] as Array<{
       id: number;
       founderName: string;
       businessName: string;
@@ -578,14 +588,18 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
     if (row.status === "pending" || row.status === "sending") summary.pending += row.count;
     if (row.status === "sent") summary.sent += row.count;
     if (row.status === "failed") summary.failed += row.count;
+    if (row.status === "uncertain") summary.uncertain += row.count;
   }
-  for (const row of failedReminders) {
+  for (const row of reminderIssues) {
     const summary = remindersByProgram.get(row.programId);
     if (!summary) continue;
     const lastError = row.lastError ?? "Email delivery failed.";
     if (!summary.latestError) summary.latestError = { message: lastError, failedAt: row.failedAt };
-    if (summary.failedDeliveries.length < 20) {
-      summary.failedDeliveries.push({
+    const target = row.status === "uncertain"
+      ? summary.uncertainDeliveries
+      : summary.failedDeliveries;
+    if (target.length < 20) {
+      target.push({
         id: row.id,
         founderName: row.founderName,
         businessName: row.businessName,
