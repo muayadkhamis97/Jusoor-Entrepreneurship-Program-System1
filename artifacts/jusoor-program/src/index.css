@@ -123,6 +123,7 @@ button, input, select, textarea { font: inherit; }
 .closed-application-returning:hover { text-decoration:underline; }
 .intake-grid { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:45px; margin-top:33px; align-items:start; }
 .intake-form { display:grid; gap:27px; }
+.application-honeypot { position: absolute; inset-inline-start: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .intake-form-section { padding:0 0 24px; border-bottom:1px solid hsl(var(--border) / .75); }
 .intake-section-head { display:flex; gap:13px; align-items:flex-start; margin-bottom:17px; }
 .intake-step { color:hsl(var(--accent)); font:var(--type-body-min) var(--app-font-mono); padding-top:5px; }

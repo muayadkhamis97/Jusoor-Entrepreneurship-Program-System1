@@ -954,6 +954,22 @@ paths:
           description: Invalid application
         "409":
           description: The email already has an application for this program
+        "429":
+          description: Too many applications from this connection or email address
+          headers:
+            Retry-After:
+              description: Seconds until another submission may be attempted
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required: [error]
   /applications/{id}:
     patch:
       operationId: reviewApplication
@@ -5015,14 +5031,14 @@ components:
       type: object
       properties:
         programId: { type: integer }
-        founderName: { type: string, minLength: 2, maxLength: 160 }
-        email: { type: string, format: email, maxLength: 320 }
-        phone: { type: ["string", "null"], maxLength: 50 }
-        businessName: { type: string, minLength: 2, maxLength: 180 }
+        founderName: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        businessName: { type: string, minLength: 2, maxLength: 160 }
         industry: { type: ["string", "null"], maxLength: 120 }
-        website: { type: ["string", "null"], format: uri, maxLength: 500 }
+        website: { type: ["string", "null"], format: uri, maxLength: 300 }
         summary: { type: string, minLength: 30, maxLength: 3000 }
-        supportNeeds: { type: string, minLength: 10, maxLength: 1500 }
+        supportNeeds: { type: string, minLength: 10, maxLength: 3000 }
       required: [programId, founderName, email, businessName, summary, supportNeeds]
     ApplicationReceipt:
       type: object

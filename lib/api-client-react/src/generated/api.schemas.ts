@@ -681,19 +681,19 @@ export interface EntrepreneurApplicationInput {
   programId: number;
   /**
      * @minLength 2
-     * @maxLength 160
+     * @maxLength 120
      */
   founderName: string;
-  /** @maxLength 320 */
+  /** @maxLength 254 */
   email: string;
   /**
-     * @maxLength 50
+     * @maxLength 40
      * @nullable
      */
   phone?: string | null;
   /**
      * @minLength 2
-     * @maxLength 180
+     * @maxLength 160
      */
   businessName: string;
   /**
@@ -702,7 +702,7 @@ export interface EntrepreneurApplicationInput {
      */
   industry?: string | null;
   /**
-     * @maxLength 500
+     * @maxLength 300
      * @nullable
      */
   website?: string | null;
@@ -713,7 +713,7 @@ export interface EntrepreneurApplicationInput {
   summary: string;
   /**
      * @minLength 10
-     * @maxLength 1500
+     * @maxLength 3000
      */
   supportNeeds: string;
 }
@@ -4476,6 +4476,10 @@ export type ListBusinessesParams = {
 search?: string;
 stage?: BusinessStage;
 programId?: number;
+};
+
+export type SubmitApplication429 = {
+  error: string;
 };
 
 export type GetXapiStatementsParams = {

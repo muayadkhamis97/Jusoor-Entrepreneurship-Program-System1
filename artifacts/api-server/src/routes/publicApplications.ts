@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, eq, gte, or, isNull } from "drizzle-orm";
 import { getAuth, clerkClient } from "@clerk/express";
 import {
@@ -7,9 +7,38 @@ import {
   SubmitApplicationResponse,
 } from "@workspace/api-zod";
 import { applicationsTable, db, programsTable } from "@workspace/db";
+import { consumeDatabaseRateLimit } from "../lib/databaseRateLimit";
 import { lockGoogleSheetsProgram, queueGoogleSheetsEvent } from "../lib/googleSheetsSync";
 
 const router: IRouter = Router();
+const APPLICATION_IP_LIMIT = 20;
+const APPLICATION_IP_WINDOW_MS = 10 * 60_000;
+const APPLICATION_EMAIL_LIMIT = 5;
+const APPLICATION_EMAIL_WINDOW_MS = 60 * 60_000;
+const TOO_MANY_APPLICATIONS_ERROR = "Too many applications from this connection. Please wait a few minutes and try again.";
+
+async function checkApplicationRateLimit(
+  req: Request,
+  res: Response,
+  key: string,
+  maximum: number,
+  periodMs: number,
+): Promise<boolean> {
+  let result;
+  try {
+    result = await consumeDatabaseRateLimit(key, maximum, periodMs);
+  } catch (error) {
+    req.log.error({ err: error }, "Public application rate limit could not be checked");
+    res.status(503).json({ error: "Application submissions are temporarily unavailable. Please try again shortly." });
+    return false;
+  }
+  if (!result.allowed) {
+    res.setHeader("Retry-After", result.retryAfterSeconds);
+    res.status(429).json({ error: TOO_MANY_APPLICATIONS_ERROR });
+    return false;
+  }
+  return true;
+}
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
@@ -38,11 +67,32 @@ router.post("/applications", async (req, res): Promise<void> => {
     ? req.body as Record<string, unknown>
     : {};
   const trim = (value: unknown): unknown => typeof value === "string" ? value.trim() : value;
+  const email = trim(source.email);
+  if (!await checkApplicationRateLimit(
+    req, res, `public-application:ip:${req.ip}`, APPLICATION_IP_LIMIT, APPLICATION_IP_WINDOW_MS,
+  )) return;
+  if (typeof email === "string" && email.length > 0 && !await checkApplicationRateLimit(
+    req,
+    res,
+    `public-application:email:${email.toLowerCase()}`,
+    APPLICATION_EMAIL_LIMIT,
+    APPLICATION_EMAIL_WINDOW_MS,
+  )) return;
+
+  if (typeof source.contactNote === "string" && source.contactNote.trim().length > 0) {
+    req.log.info("Public application honeypot field was filled");
+    res.status(201).json(SubmitApplicationResponse.parse({
+      id: 0,
+      status: "submitted",
+      createdAt: new Date(),
+    }));
+    return;
+  }
+
   const optionalText = (key: string): unknown => {
     const value = trim(source[key]);
     return value === "" ? null : value;
   };
-  const email = trim(source.email);
   const parsed = SubmitApplicationBody.safeParse({
     ...source,
     founderName: trim(source.founderName),

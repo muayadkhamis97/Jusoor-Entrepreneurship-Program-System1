@@ -21,6 +21,9 @@ export function applicationSubmitErrorKey(error: unknown): string {
   if (status === 409) {
     return 'An application for this email and program already exists. Sign in with that email to track it, or contact the program team.';
   }
+  if (status === 429) {
+    return 'Too many applications from this connection. Please wait a few minutes and try again.';
+  }
   if (/closed|not accepting|not open/i.test(message)) {
     return 'This program is no longer accepting applications. Explore open programs instead.';
   }

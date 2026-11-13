@@ -230,6 +230,7 @@ import type {
   StaffMentorMeetingReport,
   StaffMentorMeetingReportCoach,
   StaffUpdate,
+  SubmitApplication429,
   SubmitPublicJudgingResponseParams,
   SupportCalendlyMeeting,
   SupportEngagement,
@@ -3991,7 +3992,7 @@ return customFetch<ApplicationReceipt>(getSubmitApplicationUrl(),
 
 export const getSubmitApplicationMutationKey = () => ['submitApplication'] as const;
 
-export const getSubmitApplicationMutationOptions = <TError = ErrorType<void>,
+export const getSubmitApplicationMutationOptions = <TError = ErrorType<void | SubmitApplication429>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitApplication>>, TError,SubmitApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof submitApplication>>, TError,SubmitApplicationMutationVariables, TContext> => {
 
@@ -4020,13 +4021,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SubmitApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitApplication>>>
     export type SubmitApplicationMutationBody = BodyType<EntrepreneurApplicationInput>
-    export type SubmitApplicationMutationError = ErrorType<void>
+    export type SubmitApplicationMutationError = ErrorType<void | SubmitApplication429>
     export type SubmitApplicationMutationVariables = {data: BodyType<EntrepreneurApplicationInput>}
 
     /**
  * @summary Submit a public program application
  */
-export const useSubmitApplication = <TError = ErrorType<void>,
+export const useSubmitApplication = <TError = ErrorType<void | SubmitApplication429>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitApplication>>, TError,SubmitApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof submitApplication>>,

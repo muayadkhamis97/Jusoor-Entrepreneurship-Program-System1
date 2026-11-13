@@ -47,16 +47,28 @@ const CoursePackagePlayer = lazy(() => import('./course-package-player').then(mo
 
 const applicationSchema = z.object({
   programId: z.string().min(1, 'Choose a cohort to apply to.'),
-  founderName: z.string().trim().min(2, 'Enter your full name.').max(160, 'Founder name must be 160 characters or fewer.'),
-  email: z.string().trim().email('Enter a valid email address.').max(320, 'Email address must be 320 characters or fewer.'),
-  phone: z.string().max(50, 'Phone number must be 50 characters or fewer.').optional(),
-  businessName: z.string().trim().min(2, 'Enter your venture name.').max(180, 'Venture name must be 180 characters or fewer.'),
+  founderName: z.string().trim().min(2, 'Enter your full name.').max(120, 'Founder name must be 120 characters or fewer.'),
+  email: z.string().trim().email('Enter a valid email address.').max(254, 'Email address must be 254 characters or fewer.'),
+  phone: z.string().max(40, 'Phone number must be 40 characters or fewer.').optional(),
+  businessName: z.string().trim().min(2, 'Enter your venture name.').max(160, 'Venture name must be 160 characters or fewer.'),
   industry: z.string().max(120, 'Industry must be 120 characters or fewer.').optional(),
-  website: z.string().max(500, 'Website must be 500 characters or fewer.').optional().refine(value => !value || /^https?:\/\//i.test(value), 'Include http:// or https://'),
+  website: z.string().max(300, 'Website must be 300 characters or fewer.').optional().refine(value => !value || /^https?:\/\//i.test(value), 'Include http:// or https://'),
   summary: z.string().trim().min(30, 'Tell us at least 30 characters about your venture.').max(3000, 'Venture description must be 3,000 characters or fewer.'),
-  supportNeeds: z.string().trim().min(10, 'Tell us at least 10 characters about the support you need.').max(1500, 'Support request must be 1,500 characters or fewer.'),
+  supportNeeds: z.string().trim().min(10, 'Tell us at least 10 characters about the support you need.').max(3000, 'Support request must be 3,000 characters or fewer.'),
+  contactNote: z.string().max(300).optional(),
 });
 type ApplicationFormValues = z.infer<typeof applicationSchema>;
+type PublicApplicationSubmission = EntrepreneurApplicationInput & { contactNote: string };
+const applicationFieldMaxLengths = {
+  founderName: 120,
+  email: 254,
+  phone: 40,
+  businessName: 160,
+  industry: 120,
+  website: 300,
+  summary: 3000,
+  supportNeeds: 3000,
+} as const;
 
 const dateText = (value?: string | null) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : t('To be announced');
 const word = (value?: string | null) => value ? t(value.replaceAll('_', ' ').replace(/\b\w/g, part => part.toUpperCase())) : '—';
@@ -106,18 +118,19 @@ export function ApplyPage() {
   const [receipt, setReceipt] = useState<{ id: number; status: string } | null>(null);
   const form = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationSchema),
-    defaultValues: { programId: '', founderName: '', email: '', phone: '', businessName: '', industry: '', website: '', summary: '', supportNeeds: '' },
+    defaultValues: { programId: '', founderName: '', email: '', phone: '', businessName: '', industry: '', website: '', summary: '', supportNeeds: '', contactNote: '' },
   });
   const programs = programsQuery.data || [];
   const selectedProgram = programs.find(program => String(program.id) === form.watch('programId'));
   const onSubmit = (values: ApplicationFormValues) => {
-    const data: EntrepreneurApplicationInput = {
+    const data: PublicApplicationSubmission = {
       programId: Number(values.programId),
       founderName: values.founderName.trim(),
       email: values.email.trim(),
       businessName: values.businessName.trim(),
       summary: values.summary.trim(),
       supportNeeds: values.supportNeeds.trim(),
+      contactNote: values.contactNote?.trim() ?? '',
       ...(values.phone?.trim() ? { phone: values.phone.trim() } : {}),
       ...(values.industry?.trim() ? { industry: values.industry.trim() } : {}),
       ...(values.website?.trim() ? { website: values.website.trim() } : {}),
@@ -167,6 +180,7 @@ export function ApplyPage() {
      </section>
     : <div className="intake-grid">
       <Form {...form}><form className="intake-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+         <div className="application-honeypot" aria-hidden="true"><input {...form.register('contactNote')} type="text" tabIndex={-1} autoComplete="off" /></div>
         <section className="intake-form-section"><div className="intake-section-head"><span className="intake-step">01</span><div><h2>{t('Choose your cohort')}</h2><p>{t('Start with the program that fits the work ahead.')}</p></div></div>
             <FormField control={form.control} name="programId" render={({ field }) => <FormItem className="intake-field"><FormLabel>{t('Open program')} <i>*</i></FormLabel><FormControl><select {...field} data-testid="input-programId"><option value="">{t('Select a program')}</option>{programs.map((program: ApplicationProgram) => <option key={program.id} value={String(program.id)}>{program.name} · {word(program.format)}</option>)}</select></FormControl><ApplicationFormMessage />{selectedProgram && <small>{t(selectedProgram.description || 'A program designed to help founders make their next move.')}{selectedProgram.applicationDeadline ? ` ${t('Applications close')} ${dateText(selectedProgram.applicationDeadline)}.` : ''}</small>}</FormItem>} />
         </section>
@@ -183,7 +197,7 @@ export function ApplyPage() {
         <section className="intake-form-section"><div className="intake-section-head"><span className="intake-step">03</span><div><h2>{t('What are you working toward?')}</h2><p>{t('Specifics help us understand your stage and the kind of support that could matter.')}</p></div></div>
           <div className="intake-fields">
             <TextAreaField form={form} name="summary" label="Tell us about your venture" placeholder="What problem are you solving, who is it for, and what progress have you made so far?" helper="30–3,000 characters" testId="input-summary" />
-            <TextAreaField form={form} name="supportNeeds" label="What support would move you forward?" placeholder="Think about mentorship, market access, product development, funding readiness, or something else." helper="10–1,500 characters" testId="input-supportNeeds" />
+            <TextAreaField form={form} name="supportNeeds" label="What support would move you forward?" placeholder="Think about mentorship, market access, product development, funding readiness, or something else." helper="10–3,000 characters" testId="input-supportNeeds" />
           </div>
         </section>
         {submit.isError && <div className="form-error" role="alert"><CircleAlert size={16} />{t(applicationSubmitErrorKey(submit.error))}</div>}
@@ -195,11 +209,11 @@ export function ApplyPage() {
 }
 
 function TextField({ form, name, label, placeholder, type = 'text', testId }: { form: ReturnType<typeof useForm<ApplicationFormValues>>; name: 'founderName' | 'email' | 'phone' | 'businessName' | 'industry' | 'website'; label: string; placeholder: string; type?: string; testId: string }) {
-  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field"><FormLabel>{t(label)}{['founderName', 'email', 'businessName'].includes(name) && <i> *</i>}</FormLabel><FormControl><input {...field} type={type} autoComplete={name === 'founderName' ? 'name' : name === 'email' ? 'email' : 'off'} placeholder={t(placeholder)} data-testid={testId} /></FormControl><ApplicationFormMessage /></FormItem>} />;
+  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field"><FormLabel>{t(label)}{['founderName', 'email', 'businessName'].includes(name) && <i> *</i>}</FormLabel><FormControl><input {...field} type={type} maxLength={applicationFieldMaxLengths[name]} autoComplete={name === 'founderName' ? 'name' : name === 'email' ? 'email' : 'off'} placeholder={t(placeholder)} data-testid={testId} /></FormControl><ApplicationFormMessage /></FormItem>} />;
 }
 
 function TextAreaField({ form, name, label, placeholder, helper, testId }: { form: ReturnType<typeof useForm<ApplicationFormValues>>; name: 'summary' | 'supportNeeds'; label: string; placeholder: string; helper: string; testId: string }) {
-  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field field-span"><FormLabel>{t(label)} <i>*</i></FormLabel><FormControl><textarea {...field} placeholder={t(placeholder)} data-testid={testId} /></FormControl><small>{t(helper)}</small><ApplicationFormMessage /></FormItem>} />;
+  return <FormField control={form.control} name={name} render={({ field }) => <FormItem className="intake-field field-span"><FormLabel>{t(label)} <i>*</i></FormLabel><FormControl><textarea {...field} maxLength={applicationFieldMaxLengths[name]} placeholder={t(placeholder)} data-testid={testId} /></FormControl><small>{t(helper)}</small><ApplicationFormMessage /></FormItem>} />;
 }
 
 export function ApplicationsReviewPage() {

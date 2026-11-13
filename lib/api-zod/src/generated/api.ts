@@ -1646,24 +1646,24 @@ export const ListApplicationsResponse = zod.array(ListApplicationsResponseItem)
  * @summary Submit a public program application
  */
 export const submitApplicationBodyFounderNameMin = 2;
-export const submitApplicationBodyFounderNameMax = 160;
+export const submitApplicationBodyFounderNameMax = 120;
 
-export const submitApplicationBodyEmailMax = 320;
+export const submitApplicationBodyEmailMax = 254;
 
-export const submitApplicationBodyPhoneMax = 50;
+export const submitApplicationBodyPhoneMax = 40;
 
 export const submitApplicationBodyBusinessNameMin = 2;
-export const submitApplicationBodyBusinessNameMax = 180;
+export const submitApplicationBodyBusinessNameMax = 160;
 
 export const submitApplicationBodyIndustryMax = 120;
 
-export const submitApplicationBodyWebsiteMax = 500;
+export const submitApplicationBodyWebsiteMax = 300;
 
 export const submitApplicationBodySummaryMin = 30;
 export const submitApplicationBodySummaryMax = 3000;
 
 export const submitApplicationBodySupportNeedsMin = 10;
-export const submitApplicationBodySupportNeedsMax = 1500;
+export const submitApplicationBodySupportNeedsMax = 3000;
 
 
 

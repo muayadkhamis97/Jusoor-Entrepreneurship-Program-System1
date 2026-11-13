@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applicationSubmitErrorKey } from './application-errors';
+import { loadArabicTranslations, translate } from './language';
+
+await loadArabicTranslations();
 
 test('application submission explains duplicate applications and keeps other failures retryable', () => {
   assert.match(
@@ -28,4 +31,11 @@ test('application submission explains duplicate applications and keeps other fai
     /no longer accepting applications/,
   );
   assert.match(applicationSubmitErrorKey(new Error('offline')), /Check your connection and try again/);
+});
+
+test('application rate-limit feedback is available in English and Arabic', () => {
+  const message = applicationSubmitErrorKey({ status: 429 });
+  assert.equal(message, 'Too many applications from this connection. Please wait a few minutes and try again.');
+  assert.equal(translate(message, 'en'), message);
+  assert.equal(translate(message, 'ar'), 'تلقّينا طلبات تقديم كثيرة من هذا الاتصال. يرجى الانتظار بضع دقائق ثم المحاولة مرة أخرى.');
 });
