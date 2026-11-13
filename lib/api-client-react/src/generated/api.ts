@@ -210,6 +210,8 @@ import type {
   PublicJudgingForm,
   PutXapiActivityStateParams,
   PutXapiStatementParams,
+  ReconcileHeldEmailDeliveryBody,
+  ReconcileHeldEmailDeliveryResponse,
   RecordingNoticeReceipts,
   ResolveMentorAdditionalSessionRequestInput,
   ResolveMentorAdditionalSessionRequestResponse,
@@ -1997,6 +1999,95 @@ export const useRetryCourseReminder = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRetryCourseReminderMutationOptions(options));
+    }
+
+export const getReconcileCourseReminderDeliveryUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/learning-progress/reminders/${id}/reconcile`
+}
+
+/**
+ * @summary Record a confirmed delivery or authorize a verified-absent course reminder retry
+ */
+export const reconcileCourseReminderDelivery = async (id: number,
+    reconcileHeldEmailDeliveryBody: ReconcileHeldEmailDeliveryBody, options?: Parameters<typeof customFetch>[1]): Promise<ReconcileHeldEmailDeliveryResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReconcileHeldEmailDeliveryResponse>(getReconcileCourseReminderDeliveryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reconcileHeldEmailDeliveryBody)
+  }
+);}
+
+
+
+
+
+export const getReconcileCourseReminderDeliveryMutationKey = () => ['reconcileCourseReminderDelivery'] as const;
+
+export const getReconcileCourseReminderDeliveryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileCourseReminderDelivery>>, TError,ReconcileCourseReminderDeliveryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileCourseReminderDelivery>>, TError,ReconcileCourseReminderDeliveryMutationVariables, TContext> => {
+
+const mutationKey = getReconcileCourseReminderDeliveryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileCourseReminderDelivery>>, ReconcileCourseReminderDeliveryMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reconcileCourseReminderDelivery(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileCourseReminderDeliveryMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileCourseReminderDelivery>>>
+    export type ReconcileCourseReminderDeliveryMutationBody = BodyType<ReconcileHeldEmailDeliveryBody>
+    export type ReconcileCourseReminderDeliveryMutationError = ErrorType<void>
+    export type ReconcileCourseReminderDeliveryMutationVariables = {id: number;data: BodyType<ReconcileHeldEmailDeliveryBody>}
+
+    /**
+ * @summary Record a confirmed delivery or authorize a verified-absent course reminder retry
+ */
+export const useReconcileCourseReminderDelivery = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileCourseReminderDelivery>>, TError,ReconcileCourseReminderDeliveryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileCourseReminderDelivery>>,
+        TError,
+        ReconcileCourseReminderDeliveryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconcileCourseReminderDeliveryMutationOptions(options));
     }
 
 export const getGetSessionAttendanceRegisterUrl = (sessionId: number,) => {
@@ -10021,6 +10112,95 @@ export const useRetryZoomRecordingAlertEmail = <TError = ErrorType<void>,
       return useMutation(getRetryZoomRecordingAlertEmailMutationOptions(options));
     }
 
+export const getReconcileZoomRecordingAlertEmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/zoom/recording-alerts/${id}/reconcile-email`
+}
+
+/**
+ * @summary Record a confirmed alert delivery or authorize a verified-absent retry
+ */
+export const reconcileZoomRecordingAlertEmail = async (id: number,
+    reconcileHeldEmailDeliveryBody: ReconcileHeldEmailDeliveryBody, options?: Parameters<typeof customFetch>[1]): Promise<ZoomRecordingAlert> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ZoomRecordingAlert>(getReconcileZoomRecordingAlertEmailUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reconcileHeldEmailDeliveryBody)
+  }
+);}
+
+
+
+
+
+export const getReconcileZoomRecordingAlertEmailMutationKey = () => ['reconcileZoomRecordingAlertEmail'] as const;
+
+export const getReconcileZoomRecordingAlertEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileZoomRecordingAlertEmail>>, TError,ReconcileZoomRecordingAlertEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileZoomRecordingAlertEmail>>, TError,ReconcileZoomRecordingAlertEmailMutationVariables, TContext> => {
+
+const mutationKey = getReconcileZoomRecordingAlertEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileZoomRecordingAlertEmail>>, ReconcileZoomRecordingAlertEmailMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reconcileZoomRecordingAlertEmail(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileZoomRecordingAlertEmailMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileZoomRecordingAlertEmail>>>
+    export type ReconcileZoomRecordingAlertEmailMutationBody = BodyType<ReconcileHeldEmailDeliveryBody>
+    export type ReconcileZoomRecordingAlertEmailMutationError = ErrorType<void>
+    export type ReconcileZoomRecordingAlertEmailMutationVariables = {id: number;data: BodyType<ReconcileHeldEmailDeliveryBody>}
+
+    /**
+ * @summary Record a confirmed alert delivery or authorize a verified-absent retry
+ */
+export const useReconcileZoomRecordingAlertEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileZoomRecordingAlertEmail>>, TError,ReconcileZoomRecordingAlertEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileZoomRecordingAlertEmail>>,
+        TError,
+        ReconcileZoomRecordingAlertEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconcileZoomRecordingAlertEmailMutationOptions(options));
+    }
+
 export const getGetJudgeDashboardUrl = () => {
 
 
@@ -14454,6 +14634,95 @@ export function useGetMentorFollowUpDigestStatus<TData = Awaited<ReturnType<type
 
 
 
+
+export const getReconcileMentorFollowUpDigestDeliveryUrl = (calendarDate: string,) => {
+
+
+
+
+  return `/api/staff/mentor-follow-up-digest-status/${calendarDate}/reconcile`
+}
+
+/**
+ * @summary Record a confirmed digest delivery or authorize a verified-absent retry
+ */
+export const reconcileMentorFollowUpDigestDelivery = async (calendarDate: string,
+    reconcileHeldEmailDeliveryBody: ReconcileHeldEmailDeliveryBody, options?: Parameters<typeof customFetch>[1]): Promise<MentorFollowUpDigestStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MentorFollowUpDigestStatus>(getReconcileMentorFollowUpDigestDeliveryUrl(calendarDate),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reconcileHeldEmailDeliveryBody)
+  }
+);}
+
+
+
+
+
+export const getReconcileMentorFollowUpDigestDeliveryMutationKey = () => ['reconcileMentorFollowUpDigestDelivery'] as const;
+
+export const getReconcileMentorFollowUpDigestDeliveryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileMentorFollowUpDigestDelivery>>, TError,ReconcileMentorFollowUpDigestDeliveryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileMentorFollowUpDigestDelivery>>, TError,ReconcileMentorFollowUpDigestDeliveryMutationVariables, TContext> => {
+
+const mutationKey = getReconcileMentorFollowUpDigestDeliveryMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileMentorFollowUpDigestDelivery>>, ReconcileMentorFollowUpDigestDeliveryMutationVariables> = (props) => {
+          const {calendarDate,data} = props ?? {};
+
+          return  reconcileMentorFollowUpDigestDelivery(calendarDate,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileMentorFollowUpDigestDeliveryMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileMentorFollowUpDigestDelivery>>>
+    export type ReconcileMentorFollowUpDigestDeliveryMutationBody = BodyType<ReconcileHeldEmailDeliveryBody>
+    export type ReconcileMentorFollowUpDigestDeliveryMutationError = ErrorType<void>
+    export type ReconcileMentorFollowUpDigestDeliveryMutationVariables = {calendarDate: string;data: BodyType<ReconcileHeldEmailDeliveryBody>}
+
+    /**
+ * @summary Record a confirmed digest delivery or authorize a verified-absent retry
+ */
+export const useReconcileMentorFollowUpDigestDelivery = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileMentorFollowUpDigestDelivery>>, TError,ReconcileMentorFollowUpDigestDeliveryMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileMentorFollowUpDigestDelivery>>,
+        TError,
+        ReconcileMentorFollowUpDigestDeliveryMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconcileMentorFollowUpDigestDeliveryMutationOptions(options));
+    }
 
 export const getDisconnectStaffGoogleCalendarUrl = (id: number,) => {
 

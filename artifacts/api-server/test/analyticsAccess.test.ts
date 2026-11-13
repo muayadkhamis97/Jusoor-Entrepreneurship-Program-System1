@@ -130,4 +130,25 @@ test("course reminder retries require a coordinator and validate the delivery id
 
   assert.equal(denied.status, 403);
   assert.equal(invalidId.status, 400);
+
+  role = "staff";
+  const reconcileDenied = await request("/api/analytics/learning-progress/reminders/1/reconcile", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ gmailChecked: true, deliveryFound: false }),
+  });
+  role = "coordinator";
+  const reconcileInvalidId = await request("/api/analytics/learning-progress/reminders/not-a-delivery/reconcile", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ gmailChecked: true, deliveryFound: false }),
+  });
+  const reconcileUnverified = await request("/api/analytics/learning-progress/reminders/1/reconcile", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ gmailChecked: false, deliveryFound: false }),
+  });
+  assert.equal(reconcileDenied.status, 403);
+  assert.equal(reconcileInvalidId.status, 400);
+  assert.equal(reconcileUnverified.status, 400);
 });

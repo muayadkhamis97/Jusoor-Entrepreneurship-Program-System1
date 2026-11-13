@@ -13,6 +13,7 @@ import {
   useIssueCourseCertificate,
   useRevokeCourseCertificate,
   useRetryCourseReminder,
+  useReconcileCourseReminderDelivery,
   useRecordParticipantCourseActivity,
   useRecordParticipantModuleProgress,
 } from '@workspace/api-client-react';
@@ -381,10 +382,37 @@ function ParticipantRow({ participant, onIssue, pending, onRevoke, revoking }: {
   </details>;
 }
 
-function ReminderDeliveryPanel({ program, retryingId, onRetry }: {
+function UncertainReminderActions({ delivery, resolving, onResolve }: {
+  delivery: CourseReminderFailure;
+  resolving: boolean;
+  onResolve: (delivery: CourseReminderFailure, deliveryFound: boolean) => void;
+}) {
+  const [gmailChecked, setGmailChecked] = useState(false);
+  return <div className="lp-reminder-reconcile" data-testid={`controls-reconcile-reminder-${delivery.id}`}>
+    <small>{t('Search Gmail Sent for this exact Message-ID:')} <code>{delivery.messageId}</code></small>
+    <label><input
+      type="checkbox"
+      checked={gmailChecked}
+      onChange={event => setGmailChecked(event.target.checked)}
+      data-testid={`checkbox-gmail-checked-reminder-${delivery.id}`}
+    />{t('I checked Gmail Sent for this message.')}</label>
+    <div>
+      <button type="button" className="lp-button lp-button-outline" onClick={() => onResolve(delivery, true)} disabled={!gmailChecked || resolving} data-testid={`button-confirm-reminder-delivered-${delivery.id}`}>
+        {t('Record as delivered')}
+      </button>
+      <button type="button" className="lp-button lp-button-outline" onClick={() => onResolve(delivery, false)} disabled={!gmailChecked || resolving} data-testid={`button-retry-absent-reminder-${delivery.id}`}>
+        {resolving ? t('Resolving…') : t('Retry; confirmed absent')}
+      </button>
+    </div>
+  </div>;
+}
+
+function ReminderDeliveryPanel({ program, retryingId, resolvingId, onRetry, onResolve }: {
   program: LearningProgressProgram;
   retryingId: number | null;
+  resolvingId: number | null;
   onRetry: (delivery: CourseReminderFailure) => void;
+  onResolve: (delivery: CourseReminderFailure, deliveryFound: boolean) => void;
 }) {
   const reminders = program.reminders;
   return <section className="lp-reminders" data-testid={`panel-course-reminders-${program.programId}`}>
@@ -410,9 +438,10 @@ function ReminderDeliveryPanel({ program, retryingId, onRetry }: {
     </div>}
     {reminders.uncertainDeliveries.length > 0 && <div className="lp-reminder-failures" data-testid={`list-uncertain-reminders-${program.programId}`}>
       <b>{t('Uncertain deliveries')}</b>
-      <p>{t('Email delivery could not be confirmed. Check Gmail Sent before taking further action. Automatic retries are disabled to prevent duplicate emails.')}</p>
+      <p>{t('Delivery is on hold. Check Gmail Sent using the exact Message-ID. Recent messages can take time to appear; retry only after confirming the message is absent.')}</p>
       {reminders.uncertainDeliveries.map(delivery => <article key={delivery.id} data-testid={`row-uncertain-reminder-${delivery.id}`}>
         <div><strong>{delivery.founderName}</strong><span>{delivery.businessName} · {delivery.moduleTitle}</span><small>{fmtTimestamp(delivery.failedAt)}</small></div>
+        <UncertainReminderActions delivery={delivery} resolving={resolvingId !== null} onResolve={onResolve} />
       </article>)}
       {reminders.uncertain > reminders.uncertainDeliveries.length && <small className="lp-reminder-more">{t('Showing the 20 most recent uncertain reminders.')}</small>}
     </div>}
@@ -457,6 +486,7 @@ export function LearningProgressAnalytics() {
   const issue = useIssueCourseCertificate();
   const revoke = useRevokeCourseCertificate();
   const retryReminder = useRetryCourseReminder();
+  const reconcileReminder = useReconcileCourseReminderDelivery();
   const programs = query.data?.programs || [];
   const programCatalogRef = useRef(programs);
   if (programs.length) {
@@ -477,6 +507,7 @@ export function LearningProgressAnalytics() {
   const [previewLanguage, setPreviewLanguage] = useState<CertificateLanguage>('both');
   const [revokingCertificateId, setRevokingCertificateId] = useState<number | null>(null);
   const [retryingReminder, setRetryingReminder] = useState<number | null>(null);
+  const [resolvingReminder, setResolvingReminder] = useState<number | null>(null);
   const openCertificatePreview = (person: LearningProgressParticipant) => {
     issue.reset();
     setPreviewIssuedAt(new Date().toISOString());
@@ -515,6 +546,14 @@ export function LearningProgressAnalytics() {
       onSettled: () => setRetryingReminder(null),
     });
   };
+  const reconcileUncertainReminder = (delivery: CourseReminderFailure, deliveryFound: boolean) => {
+    reconcileReminder.reset();
+    setResolvingReminder(delivery.id);
+    reconcileReminder.mutate({ id: delivery.id, data: { gmailChecked: true, deliveryFound } }, {
+      onSuccess: () => void client.invalidateQueries({ queryKey: getGetLearningProgressAnalyticsQueryKey() }),
+      onSettled: () => setResolvingReminder(null),
+    });
+  };
   const completion = allParticipants.length ? allParticipants.reduce((sum, person) => sum + person.completionPercent, 0) / allParticipants.length : 0;
   const totalTime = allParticipants.reduce((sum, person) => sum + person.activeSeconds, 0);
   const certs = visiblePrograms.reduce((sum, program) => sum + program.certificatesIssued, 0);
@@ -529,10 +568,11 @@ export function LearningProgressAnalytics() {
         {issue.isError && <div className="lp-mutation-error" role="alert" data-testid="error-issue-certificate">{t('Certificate could not be issued. Confirm eligibility and try again.')}</div>}
         {revoke.isError && <div className="lp-mutation-error" role="alert" data-testid="error-revoke-certificate">{t('Certificate could not be revoked. Refresh the record and try again.')}</div>}
          {retryReminder.isError && <div className="lp-mutation-error" role="alert" data-testid="error-retry-course-reminder">{t('Reminder could not be queued. Refresh the cohort status and try again.')}</div>}
+        {reconcileReminder.isError && <div className="lp-mutation-error" role="alert" data-testid="error-reconcile-course-reminder">{t('The held reminder could not be resolved. Refresh the status and try again.')}</div>}
         {visiblePrograms.map(program => <article className="lp-analytics-program" key={program.programId} data-testid={`card-learning-analytics-program-${program.programId}`}>
           <header><div><span className="lp-eyebrow">{t('COHORT LEARNING')}</span><h3>{program.programName}</h3></div><div className="lp-program-stats"><span><b>{program.completedParticipants}</b> / {program.participantCount} {t('completed')}</span><span><b>{program.averageCompletionPercent.toFixed(1)}%</b> {t('average progress')}</span><span><b>{fmtTime(program.averageActiveSeconds)}</b> {t('average active time')}</span><span><b>{program.averageQuizPercent == null ? '—' : `${program.averageQuizPercent.toFixed(1)}%`}</b> {t('quiz average')}</span><span><b>{program.certificatesIssued}</b> {t('certificates')}</span></div></header>
            <CohortAssessmentGainPanel programId={program.programId} summary={program.assessmentGain} />
-           <ReminderDeliveryPanel program={program} retryingId={retryingReminder} onRetry={retryFailedReminder} />
+           <ReminderDeliveryPanel program={program} retryingId={retryingReminder} resolvingId={resolvingReminder} onRetry={retryFailedReminder} onResolve={reconcileUncertainReminder} />
           <div className="lp-roster-head"><span>{t('PARTICIPANT / BUSINESS')}</span><span>{t('COURSE COMPLETION')}</span><span>{t('ACTIVE TIME')}</span><span>{t('CERTIFICATE STATE')}</span></div>
            {program.participants.length ? program.participants.map(person => <ParticipantRow key={person.applicationId} participant={person} onIssue={openCertificatePreview} pending={issuing === person.applicationId} onRevoke={revokeCertificate} revoking={revokingCertificateId === person.certificate?.id} />) : <div className="lp-empty-roster">{t('No participants are enrolled in this learning cohort yet.')}</div>}
         </article>)}

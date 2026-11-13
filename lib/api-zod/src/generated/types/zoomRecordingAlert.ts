@@ -19,4 +19,5 @@ export interface ZoomRecordingAlert {
   /** @nullable */
   emailError: string | null;
   canRetryEmail: boolean;
+  messageId: string;
 }

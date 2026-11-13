@@ -251,6 +251,7 @@ async function deliverCoordinatorDigest(input: {
           inArray(mentorFollowUpDigestDeliveriesTable.status, [
             "pending",
             "failed",
+            "retry_authorized",
           ]),
           lte(mentorFollowUpDigestDeliveriesTable.nextAttemptAt, now),
         ),
@@ -330,7 +331,6 @@ export async function processMentorFollowUpDigests(
 
     const calendarDate = getProgramCalendarDate(now);
     const mentors = await getOverdueMentors(calendarDate);
-    if (!mentors.length) return;
 
     const coordinators = await db
       .select({
@@ -347,21 +347,25 @@ export async function processMentorFollowUpDigests(
       .orderBy(asc(staffMembersTable.id));
     if (!coordinators.length) return;
 
-    await db
-      .insert(mentorFollowUpDigestDeliveriesTable)
-      .values(
-        coordinators.map(({ staffId }) => ({
-          coordinatorStaffId: staffId,
-          calendarDate,
-        })),
-      )
-      .onConflictDoNothing();
+    if (mentors.length) {
+      await db
+        .insert(mentorFollowUpDigestDeliveriesTable)
+        .values(
+          coordinators.map(({ staffId }) => ({
+            coordinatorStaffId: staffId,
+            calendarDate,
+          })),
+        )
+        .onConflictDoNothing();
+    }
 
+    const retryableStates = ["pending", "failed", "retry_authorized"] as const;
     const retryableDeliveries = await db
       .select({
         coordinatorStaffId:
           mentorFollowUpDigestDeliveriesTable.coordinatorStaffId,
         coordinatorEmail: staffMembersTable.email,
+        calendarDate: mentorFollowUpDigestDeliveriesTable.calendarDate,
       })
       .from(mentorFollowUpDigestDeliveriesTable)
       .innerJoin(
@@ -376,22 +380,26 @@ export async function processMentorFollowUpDigests(
           eq(mentorFollowUpDigestDeliveriesTable.calendarDate, calendarDate),
           eq(staffMembersTable.role, "coordinator"),
           eq(staffMembersTable.status, "active"),
+          or(
             and(
-              inArray(mentorFollowUpDigestDeliveriesTable.status, [
-                "pending",
-                "failed",
-              ]),
-              lte(mentorFollowUpDigestDeliveriesTable.nextAttemptAt, now),
+              eq(mentorFollowUpDigestDeliveriesTable.calendarDate, calendarDate),
+              inArray(mentorFollowUpDigestDeliveriesTable.status, retryableStates),
             ),
+            eq(mentorFollowUpDigestDeliveriesTable.status, "retry_authorized"),
+          ),
+          lte(mentorFollowUpDigestDeliveriesTable.nextAttemptAt, now),
         ),
       )
       .orderBy(asc(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId));
 
     for (const delivery of retryableDeliveries) {
+      const deliveryMentors = delivery.calendarDate === calendarDate
+        ? mentors
+        : await getOverdueMentors(delivery.calendarDate);
+      if (!deliveryMentors.length) continue;
       await deliverCoordinatorDigest({
         ...delivery,
-        calendarDate,
-        mentors,
+        mentors: deliveryMentors,
         now,
       }, sendEmail);
     }

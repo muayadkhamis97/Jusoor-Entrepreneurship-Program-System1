@@ -15,4 +15,5 @@ export const MentorFollowUpDigestStatusStatus = {
   sent: 'sent',
   failed: 'failed',
   uncertain: 'uncertain',
+  retry_authorized: 'retry_authorized',
 } as const;

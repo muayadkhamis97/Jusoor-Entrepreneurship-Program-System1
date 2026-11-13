@@ -1200,6 +1200,7 @@ export interface CourseReminderFailure {
   moduleTitle: string;
   lastError: string;
   failedAt: string;
+  messageId: string;
 }
 
 export type CourseReminderSummaryLatestError = {
@@ -1263,6 +1264,25 @@ export const RetryCourseReminderStatus = {
 export interface RetryCourseReminder {
   id: number;
   status: RetryCourseReminderStatus;
+}
+
+export interface ReconcileHeldEmailDeliveryBody {
+  gmailChecked: true;
+  deliveryFound: boolean;
+}
+
+export type ReconcileHeldEmailDeliveryResponseStatus = typeof ReconcileHeldEmailDeliveryResponseStatus[keyof typeof ReconcileHeldEmailDeliveryResponseStatus];
+
+
+export const ReconcileHeldEmailDeliveryResponseStatus = {
+  sent: 'sent',
+  pending: 'pending',
+} as const;
+
+export interface ReconcileHeldEmailDeliveryResponse {
+  id: number;
+  status: ReconcileHeldEmailDeliveryResponseStatus;
+  messageId: string;
 }
 
 export interface LearningProgressAnalytics {
@@ -3039,6 +3059,7 @@ export interface ZoomRecordingAlert {
   /** @nullable */
   emailError: string | null;
   canRetryEmail: boolean;
+  messageId: string;
 }
 
 export type ZoomRecordingAlertList = ZoomRecordingAlert[];
@@ -3435,6 +3456,7 @@ export const MentorFollowUpDigestStatusStatus = {
   sent: 'sent',
   failed: 'failed',
   uncertain: 'uncertain',
+  retry_authorized: 'retry_authorized',
 } as const;
 
 export interface MentorFollowUpDigestStatus {
@@ -3447,6 +3469,8 @@ export interface MentorFollowUpDigestStatus {
   lastAttemptAt: string | null;
   /** @nullable */
   sentAt: string | null;
+  /** @nullable */
+  messageId: string | null;
 }
 
 export interface StaffInput {

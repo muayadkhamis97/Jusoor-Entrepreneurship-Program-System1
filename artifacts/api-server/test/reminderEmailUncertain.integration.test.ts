@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import test from "node:test";
+import express from "express";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 import type { ReplitConnectors } from "@replit/connectors-sdk";
@@ -90,6 +92,7 @@ async function makeIsolatedTables(connection: {
     "jusoor_mentor_follow_up_digest_deliveries",
     "jusoor_sessions",
     "jusoor_zoom_recording_alerts",
+    "jusoor_reminder_email_reconciliation_audit",
   ];
   for (const table of tables) {
     assert.match(table, /^jusoor_[a-z_]+$/);
@@ -187,6 +190,73 @@ test("reminder workers hold lost Gmail responses and keep definite failures retr
         connector.requests.filter((request) => request.path.endsWith("/messages/send")).length,
         1,
       );
+
+      const { staffLearningProgressRouter } = await import("../src/routes/courseProgress");
+      const app = express();
+      app.use(express.json());
+      app.use((_request, response, next) => {
+        response.locals.staff = {
+          id: 401,
+          email: "coordinator@example.test",
+          role: "coordinator",
+        };
+        next();
+      });
+      app.use("/api", staffLearningProgressRouter);
+      const server = createServer(app);
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        const address = server.address();
+        assert.ok(address && typeof address !== "string");
+        const retryAuthorized = await fetch(
+          `http://127.0.0.1:${address.port}/api/analytics/learning-progress/reminders/301/reconcile`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ gmailChecked: true, deliveryFound: false }),
+          },
+        );
+        assert.equal(retryAuthorized.status, 202);
+        assert.deepEqual(await retryAuthorized.json(), {
+          id: 301,
+          status: "pending",
+          messageId: `<${stableMessageId("jusoor-course-reminder-301", "stale@example.test")}>`,
+        });
+        const auditBeforeSend = await schema.db.select().from(schema.reminderEmailReconciliationAuditTable);
+        assert.equal(auditBeforeSend.length, 1);
+        assert.equal(auditBeforeSend[0]?.action, "retry_authorized");
+        assert.equal(auditBeforeSend[0]?.confirmedAbsent, true);
+        assert.equal(auditBeforeSend[0]?.messageId, `<${stableMessageId("jusoor-course-reminder-301", "stale@example.test")}>`);
+
+        const deliberateRetryKeys: string[] = [];
+        await processCourseReminders(now, async (message) => {
+          deliberateRetryKeys.push(message.idempotencyKey);
+        });
+        assert.deepEqual(deliberateRetryKeys, ["jusoor-course-reminder-301"]);
+        const [retriedDelivery] = await schema.db.select().from(schema.courseReminderDeliveriesTable)
+          .where(eq(schema.courseReminderDeliveriesTable.id, 301));
+        assert.equal(retriedDelivery?.status, "sent");
+
+        const confirmed = await fetch(
+          `http://127.0.0.1:${address.port}/api/analytics/learning-progress/reminders/${uncertain.id}/reconcile`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ gmailChecked: true, deliveryFound: true }),
+          },
+        );
+        assert.equal(confirmed.status, 200);
+        const auditAfterConfirm = await schema.db.select().from(schema.reminderEmailReconciliationAuditTable);
+        assert.equal(auditAfterConfirm.length, 2);
+        assert.equal(auditAfterConfirm[1]?.action, "delivery_confirmed");
+        assert.equal(auditAfterConfirm[1]?.confirmedAbsent, false);
+        assert.equal(auditAfterConfirm[1]?.messageId, `<${stableMessageId(
+          `jusoor-course-reminder-${uncertain.id}`,
+          "course@example.test",
+        )}>`);
+      } finally {
+        await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+      }
     });
 
     await t.test("mentor digests hold stale claims and lost responses", async () => {

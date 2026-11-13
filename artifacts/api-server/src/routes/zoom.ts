@@ -10,6 +10,9 @@ import {
   ListZoomRecordingAlertsResponse,
   RetryZoomRecordingAlertEmailParams,
   RetryZoomRecordingAlertEmailResponse,
+  ReconcileZoomRecordingAlertEmailParams,
+  ReconcileZoomRecordingAlertEmailBody,
+  ReconcileZoomRecordingAlertEmailResponse,
   CreateOrUpdateZoomMeetingParams,
   CreateOrUpdateZoomMeetingResponse,
   DisconnectZoomBody,
@@ -24,6 +27,7 @@ import {
   zoomRecordingAlertsTable,
   zoomConnectionsTable,
   integrationDisconnectAuditEventsTable,
+  reminderEmailReconciliationAuditTable,
 } from "@workspace/db";
 import { requireStaff } from "../middlewares/staffAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
@@ -40,6 +44,7 @@ import {
   verifyZoomWebhookSignature,
   ZoomIntegrationError,
 } from "../lib/zoom";
+import { stableMessageId } from "../lib/platform-email";
 import { fetchWithTimeout, zoomTokenTimeoutMs } from "../lib/outbound-http";
 import {
   canRetryZoomRecordingAlertEmail,
@@ -324,6 +329,11 @@ router.get(
   requireStaff,
   requireRole("coordinator"),
   async (_req, res): Promise<void> => {
+    const staff = res.locals.staff as StaffAccess | undefined;
+    if (!staff) {
+      res.status(403).json({ error: "Coordinator access is required." });
+      return;
+    }
     await holdStaleZoomRecordingAlertEmails();
     const rows = await db
       .select({
@@ -332,6 +342,7 @@ router.get(
         title: sessionsTable.title,
         scheduledDate: sessionsTable.scheduledDate,
         readyAt: zoomRecordingAlertsTable.readyAt,
+        eventKey: zoomRecordingAlertsTable.eventKey,
         emailStatus: zoomRecordingAlertsTable.emailStatus,
         emailAttempts: zoomRecordingAlertsTable.emailAttempts,
         emailLastAttemptAt: zoomRecordingAlertsTable.emailLastAttemptAt,
@@ -350,6 +361,7 @@ router.get(
       ListZoomRecordingAlertsResponse.parse(
         rows.map((row) => ({
           ...row,
+          messageId: `<${stableMessageId(`jusoor-zoom-recording-${row.id}-${row.eventKey}`, staff.email)}>`,
           canRetryEmail: canRetryZoomRecordingAlertEmail(
             row.emailStatus,
             row.emailLastAttemptAt,
@@ -380,6 +392,7 @@ router.post(
     const [row] = await db
       .select({
         id: zoomRecordingAlertsTable.id,
+        eventKey: zoomRecordingAlertsTable.eventKey,
         sessionId: sessionsTable.id,
         title: sessionsTable.title,
         scheduledDate: sessionsTable.scheduledDate,
@@ -402,6 +415,11 @@ router.post(
       res.status(404).json({ error: "Recording alert not found." });
       return;
     }
+    const staff = res.locals.staff as StaffAccess | undefined;
+    if (!staff) {
+      res.status(403).json({ error: "Coordinator access is required." });
+      return;
+    }
     res.json(
       RetryZoomRecordingAlertEmailResponse.parse({
         id: row.id,
@@ -412,12 +430,112 @@ router.post(
         emailStatus: row.emailStatus,
         emailAttempts: row.emailAttempts,
         emailError: row.emailError,
+        messageId: `<${stableMessageId(`jusoor-zoom-recording-${row.id}-${row.eventKey}`, staff.email)}>`,
         canRetryEmail: canRetryZoomRecordingAlertEmail(
           row.emailStatus,
           row.emailLastAttemptAt,
         ),
       }),
     );
+  },
+);
+
+router.post(
+  "/recording-alerts/:id/reconcile-email",
+  requireStaff,
+  requireRole("coordinator"),
+  async (req, res): Promise<void> => {
+    const staff = res.locals.staff as StaffAccess | undefined;
+    const params = ReconcileZoomRecordingAlertEmailParams.safeParse(req.params);
+    const body = ReconcileZoomRecordingAlertEmailBody.safeParse(req.body);
+    if (!staff) {
+      res.status(403).json({ error: "Coordinator access is required." });
+      return;
+    }
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    if (!body.success || body.data.gmailChecked !== true) {
+      res.status(400).json({ error: "Check Gmail Sent before resolving this delivery." });
+      return;
+    }
+
+    const [identity] = await db.select({
+      id: zoomRecordingAlertsTable.id,
+      eventKey: zoomRecordingAlertsTable.eventKey,
+    }).from(zoomRecordingAlertsTable)
+      .where(eq(zoomRecordingAlertsTable.id, params.data.id))
+      .limit(1);
+    if (!identity) {
+      res.status(404).json({ error: "Recording alert not found." });
+      return;
+    }
+    const messageId = `<${stableMessageId(
+      `jusoor-zoom-recording-${identity.id}-${identity.eventKey}`,
+      staff.email,
+    )}>`;
+    const confirmedDelivery = body.data.deliveryFound;
+    const now = new Date();
+    const updated = await db.transaction(async (tx) => {
+      const [alert] = await tx.update(zoomRecordingAlertsTable)
+        .set(confirmedDelivery
+          ? { emailStatus: "sent", emailSentAt: now, emailError: null }
+          : { emailStatus: "pending", emailError: null })
+        .where(and(
+          eq(zoomRecordingAlertsTable.id, params.data.id),
+          eq(zoomRecordingAlertsTable.emailStatus, "uncertain"),
+          isNull(zoomRecordingAlertsTable.resolvedAt),
+        ))
+        .returning({ id: zoomRecordingAlertsTable.id });
+      if (!alert) return false;
+      await tx.insert(reminderEmailReconciliationAuditTable).values({
+        deliveryType: "zoom_recording_alert",
+        deliveryId: alert.id,
+        actorStaffId: staff.id,
+        actorEmail: staff.email,
+        action: confirmedDelivery ? "delivery_confirmed" : "retry_authorized",
+        messageId,
+        confirmedAbsent: !confirmedDelivery,
+      });
+      return true;
+    });
+    if (!updated) {
+      const [existing] = await db.select({ id: zoomRecordingAlertsTable.id })
+        .from(zoomRecordingAlertsTable)
+        .where(eq(zoomRecordingAlertsTable.id, params.data.id))
+        .limit(1);
+      if (!existing) {
+        res.status(404).json({ error: "Recording alert not found." });
+        return;
+      }
+      res.status(409).json({ error: "This recording alert is no longer held for review." });
+      return;
+    }
+
+    if (!confirmedDelivery) {
+      await retryZoomRecordingAlertEmail(params.data.id);
+    }
+    const [row] = await db.select({
+      id: zoomRecordingAlertsTable.id,
+      sessionId: sessionsTable.id,
+      title: sessionsTable.title,
+      scheduledDate: sessionsTable.scheduledDate,
+      readyAt: zoomRecordingAlertsTable.readyAt,
+      emailStatus: zoomRecordingAlertsTable.emailStatus,
+      emailAttempts: zoomRecordingAlertsTable.emailAttempts,
+      emailLastAttemptAt: zoomRecordingAlertsTable.emailLastAttemptAt,
+      emailError: zoomRecordingAlertsTable.emailError,
+      resolvedAt: zoomRecordingAlertsTable.resolvedAt,
+    }).from(zoomRecordingAlertsTable)
+      .innerJoin(sessionsTable, eq(zoomRecordingAlertsTable.sessionId, sessionsTable.id))
+      .where(eq(zoomRecordingAlertsTable.id, params.data.id))
+      .limit(1);
+    res.status(confirmedDelivery ? 200 : 202).json(ReconcileZoomRecordingAlertEmailResponse.parse({
+      ...row,
+      messageId,
+      canRetryEmail: canRetryZoomRecordingAlertEmail(row.emailStatus, row.emailLastAttemptAt),
+    }));
   },
 );
 

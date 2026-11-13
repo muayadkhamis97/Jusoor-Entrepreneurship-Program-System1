@@ -37,7 +37,7 @@ import {
   useListSessions, useListStaff, useListSupport, useGetMentorBookingStatus, useUpdateBusiness, useUpdateMentorBookingFollowUp, useUpdatePitch,
   useStartZoomConnection, useUpdateProgram, useUpdateSession, useUpdateSupport,
   useUpdateStaff, useAssignPitchJudge, useRemovePitchJudge, useListPitchJudges,
-   useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail, useCreateParticipantInvitation, useListParticipantInvitations,
+   useListZoomRecordingAlerts, useRetryZoomRecordingAlertEmail, useReconcileZoomRecordingAlertEmail, useCreateParticipantInvitation, useListParticipantInvitations,
   useResendParticipantInvitation, useResendStaffInvitationEmail, useRetryStaffInvitationEmail,
 } from '@workspace/api-client-react';
 import type {
@@ -628,6 +628,8 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   const [editing, setEditing] = useState<Session | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<Session | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [checkedRecordingAlerts, setCheckedRecordingAlerts] = useState<Record<number, boolean>>({});
+  const [reconcilingRecordingAlertId, setReconcilingRecordingAlertId] = useState<number | null>(null);
   const [zoomActionMessage, setZoomActionMessage] = useState<
     | { tone: 'good' | 'bad'; text: string }
     | { tone: 'good'; kind: 'meeting-saved'; title: string }
@@ -655,6 +657,7 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   const disconnectZoom = useDisconnectZoom();
   const createZoomMeeting = useCreateOrUpdateZoomMeeting();
   const retryRecordingEmailMutation = useRetryZoomRecordingAlertEmail();
+  const reconcileRecordingEmailMutation = useReconcileZoomRecordingAlertEmail();
   const staffQuery = useListStaff({ query: { queryKey: getListStaffQueryKey(), enabled: coordinator } });
   const trainers = coordinator ? (staffQuery.data || []).filter(person => person.role === 'trainer' && person.status === 'active') : [];
   const create = useCreateSession();
@@ -751,6 +754,17 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
     },
     onError: () => trackZoomFailure({ name: 'zoom_recording_alert_retry_failure' }),
   });
+  const reconcileRecordingAlertEmail = (id: number, deliveryFound: boolean) => {
+    reconcileRecordingEmailMutation.reset();
+    setReconcilingRecordingAlertId(id);
+    reconcileRecordingEmailMutation.mutate({ id, data: { gmailChecked: true, deliveryFound } }, {
+      onSuccess: () => {
+        setCheckedRecordingAlerts(previous => ({ ...previous, [id]: false }));
+        void recordingAlertsQuery.refetch();
+      },
+      onSettled: () => setReconcilingRecordingAlertId(null),
+    });
+  };
   const publishAssignment = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAssignmentError('');
@@ -833,9 +847,23 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
               {alert.emailStatus === 'sent' ? t('Email sent') : alert.emailStatus === 'failed' ? t('Email needs attention') : alert.emailStatus === 'uncertain' ? t('Email delivery uncertain') : alert.emailStatus === 'sending' ? t('Email sending…') : t('Email pending')}
             </span>
             {alert.emailError && <span className="zoom-status-error" role="alert">{alert.emailError}</span>}
+            {alert.emailStatus === 'uncertain' && <>
+              <span>{t('Search Gmail Sent for this exact Message-ID:')} <code>{alert.messageId}</code></span>
+              <label><input
+                type="checkbox"
+                checked={Boolean(checkedRecordingAlerts[alert.id])}
+                onChange={event => setCheckedRecordingAlerts(previous => ({ ...previous, [alert.id]: event.target.checked }))}
+                data-testid={`checkbox-gmail-checked-recording-${alert.id}`}
+              />{t('I checked Gmail Sent for this message.')}</label>
+              <div className="recording-ready-reconcile">
+                <button className="button button-quiet" onClick={() => reconcileRecordingAlertEmail(alert.id, true)} disabled={!checkedRecordingAlerts[alert.id] || reconcilingRecordingAlertId !== null} data-testid={`button-confirm-recording-delivered-${alert.id}`}>{t('Record as delivered')}</button>
+                <button className="button button-quiet" onClick={() => reconcileRecordingAlertEmail(alert.id, false)} disabled={!checkedRecordingAlerts[alert.id] || reconcilingRecordingAlertId !== null} data-testid={`button-retry-absent-recording-${alert.id}`}>{reconcilingRecordingAlertId === alert.id ? t('Resolving…') : t('Retry; confirmed absent')}</button>
+              </div>
+            </>}
             {alert.canRetryEmail && <button className="button button-quiet" onClick={() => retryRecordingAlertEmail(alert.id)} disabled={retryRecordingEmailMutation.isPending} data-testid={`button-retry-recording-email-${alert.id}`}>{retryRecordingEmailMutation.isPending ? t('Retrying…') : t('Retry email')}</button>}
           </div>
         </div>)}
+        {reconcileRecordingEmailMutation.isError && <span className="zoom-status-error" role="alert">{t('The held email could not be resolved. Refresh the status and try again.')}</span>}
         {recordingAlertsQuery.isError && <button className="button button-quiet" onClick={() => void recordingAlertsQuery.refetch()}>{t('Retry loading alerts')}</button>}
         <span>{t('When staff add the session’s Google Drive link, this alert clears and participants get the recording through the embedded player.')}</span>
       </div>

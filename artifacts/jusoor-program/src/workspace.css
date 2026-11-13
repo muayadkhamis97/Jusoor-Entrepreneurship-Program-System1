@@ -432,6 +432,10 @@ textarea.form-control { height: auto; min-height: 73px; padding: 8px 9px; line-h
 .recording-ready-session span,.recording-ready-email span { overflow-wrap: anywhere; }
 .recording-ready-email { display: flex; align-items: flex-end; flex-direction: column; gap: 4px; text-align: end; }
 .recording-ready-email .button { --program-control-button-height: 2rem; --program-control-button-padding: 0.5625rem; --program-control-button-font: var(--type-body-min); }
+.recording-ready-email label,.mentor-digest-confirm-check { display:flex; align-items:flex-start; gap:calc(var(--spacing) * 2); max-width:34rem; text-align:start; }
+.recording-ready-email input,.mentor-digest-confirm-check input { margin-top:var(--spacing); }
+.recording-ready-email code,.mentor-digest-status code { overflow-wrap:anywhere; font-family:var(--app-font-mono); }
+.recording-ready-reconcile,.mentor-digest-reconcile-actions { display:flex; flex-wrap:wrap; gap:calc(var(--spacing) * 2); }
 .team-error { margin-bottom: 14px; }
 .staff-panel { padding: 19px 21px 5px; }
 .staff-panel .panel-heading { margin-bottom: 12px; }

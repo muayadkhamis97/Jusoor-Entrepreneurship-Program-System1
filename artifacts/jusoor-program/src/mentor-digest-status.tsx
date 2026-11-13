@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetMentorFollowUpDigestStatusQueryKey,
   useGetMentorFollowUpDigestStatus,
+  useReconcileMentorFollowUpDigestDelivery,
   type MentorFollowUpDigestStatus,
 } from '@workspace/api-client-react';
 import { CalendarDays, RefreshCw } from 'lucide-react';
@@ -35,6 +37,8 @@ function formatDateTime(value: string | null): string {
 export function mentorDigestStatusLabel(status: MentorFollowUpDigestStatus['status']): string {
   return status === 'uncertain'
     ? 'Email delivery uncertain'
+    : status === 'retry_authorized'
+      ? 'Retry authorized'
     : status === 'failed'
       ? 'Email failed'
       : status === 'sent'
@@ -46,7 +50,9 @@ export function mentorDigestStatusLabel(status: MentorFollowUpDigestStatus['stat
 
 export function mentorDigestStatusGuidance(status: MentorFollowUpDigestStatus['status']): string | null {
   return status === 'uncertain'
-    ? 'Uncertain digest deliveries are held for review and are not retried automatically to prevent duplicate emails.'
+    ? 'Delivery is on hold. Check Gmail Sent using the exact Message-ID. Recent messages can take time to appear; retry only after confirming the message is absent.'
+    : status === 'retry_authorized'
+      ? 'The retry was authorized after Gmail Sent was checked. The same message identity will be retained.'
     : null;
 }
 
@@ -58,6 +64,10 @@ function statusClass(status: MentorFollowUpDigestStatus['status']): string {
 
 export function MentorDigestStatus() {
   const [calendarDate, setCalendarDate] = useState(programCalendarDate);
+  const [gmailChecked, setGmailChecked] = useState(false);
+  const reconcile = useReconcileMentorFollowUpDigestDelivery();
+  const client = useQueryClient();
+  useEffect(() => setGmailChecked(false), [calendarDate]);
   const query = useGetMentorFollowUpDigestStatus(
     { calendarDate },
     {
@@ -68,6 +78,15 @@ export function MentorDigestStatus() {
     },
   );
   const delivery = query.data?.[0];
+  const reconcileDelivery = (deliveryFound: boolean) => {
+    reconcile.reset();
+    reconcile.mutate({ calendarDate, data: { gmailChecked: true, deliveryFound } }, {
+      onSuccess: () => {
+        setGmailChecked(false);
+        void client.invalidateQueries({ queryKey: getGetMentorFollowUpDigestStatusQueryKey({ calendarDate }) });
+      },
+    });
+  };
 
   return <section className="panel staff-panel mentor-digest-status" data-testid="panel-mentor-digest-status">
     <div className="panel-heading">
@@ -118,6 +137,22 @@ export function MentorDigestStatus() {
                 <span className="note-mark"><CalendarDays size={13} /></span>
                 {t(mentorDigestStatusGuidance(delivery.status)!)}
               </p>}
+              {delivery.status === 'uncertain' && <>
+                <p className="dashboard-note" data-testid="text-mentor-digest-message-identity">
+                  {t('Search Gmail Sent for this exact Message-ID:')} <code>{delivery.messageId}</code>
+                </p>
+                <label className="mentor-digest-confirm-check"><input
+                  type="checkbox"
+                  checked={gmailChecked}
+                  onChange={event => setGmailChecked(event.target.checked)}
+                  data-testid="checkbox-gmail-checked-mentor-digest"
+                />{t('I checked Gmail Sent for this message.')}</label>
+                <div className="mentor-digest-reconcile-actions">
+                  <button className="button button-outline" type="button" onClick={() => reconcileDelivery(true)} disabled={!gmailChecked || reconcile.isPending} data-testid="button-confirm-mentor-digest-delivered">{t('Record as delivered')}</button>
+                  <button className="button button-outline" type="button" onClick={() => reconcileDelivery(false)} disabled={!gmailChecked || reconcile.isPending} data-testid="button-retry-absent-mentor-digest">{reconcile.isPending ? t('Resolving…') : t('Retry; confirmed absent')}</button>
+                </div>
+              </>}
+              {reconcile.isError && <p className="form-error" role="alert" data-testid="error-reconcile-mentor-digest">{t('The held email could not be resolved. Refresh the status and try again.')}</p>}
             </div>
           : <p className="empty-panel" role="status" data-testid="text-mentor-digest-empty">{t('No digest delivery record exists for this date.')}</p>}
   </section>;

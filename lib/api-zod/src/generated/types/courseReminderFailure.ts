@@ -13,4 +13,5 @@ export interface CourseReminderFailure {
   moduleTitle: string;
   lastError: string;
   failedAt: Date;
+  messageId: string;
 }

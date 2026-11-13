@@ -446,6 +446,37 @@ paths:
           description: Reminder delivery not found
         "409":
           description: Reminder is no longer failed
+  /analytics/learning-progress/reminders/{id}/reconcile:
+    post:
+      operationId: reconcileCourseReminderDelivery
+      tags: [dashboard]
+      summary: Record a confirmed delivery or authorize a verified-absent course reminder retry
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReconcileHeldEmailDeliveryBody" }
+      responses:
+        "200":
+          description: Confirmed course reminder delivery recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReconcileHeldEmailDeliveryResponse" }
+        "202":
+          description: Verified-absent course reminder queued for retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReconcileHeldEmailDeliveryResponse" }
+        "400":
+          description: Gmail Sent verification is required
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Reminder delivery not found
+        "409":
+          description: Reminder delivery is no longer held
   /analytics/attendance/{sessionId}:
     get:
       operationId: getSessionAttendanceRegister
@@ -2447,6 +2478,32 @@ paths:
           description: Coordinator access required
         "404":
           description: Recording alert not found
+  /zoom/recording-alerts/{id}/reconcile-email:
+    post:
+      operationId: reconcileZoomRecordingAlertEmail
+      tags: [sessions]
+      summary: Record a confirmed alert delivery or authorize a verified-absent retry
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReconcileHeldEmailDeliveryBody" }
+      responses:
+        "200":
+          description: Confirmed delivery recorded or retry result returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ZoomRecordingAlert" }
+        "400":
+          description: Gmail Sent verification is required
+        "403":
+          description: Coordinator access required
+        "404":
+          description: Recording alert not found
+        "409":
+          description: Recording alert delivery is no longer held
   /judge/dashboard:
     get:
       operationId: getJudgeDashboard
@@ -3521,6 +3578,42 @@ paths:
           description: Invalid program calendar date
         "403":
           description: Coordinator role required
+  /staff/mentor-follow-up-digest-status/{calendarDate}/reconcile:
+    post:
+      operationId: reconcileMentorFollowUpDigestDelivery
+      tags: [staff]
+      summary: Record a confirmed digest delivery or authorize a verified-absent retry
+      parameters:
+        - name: calendarDate
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReconcileHeldEmailDeliveryBody" }
+      responses:
+        "200":
+          description: Confirmed delivery recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MentorFollowUpDigestStatus" }
+        "202":
+          description: Verified-absent digest retry authorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MentorFollowUpDigestStatus" }
+        "400":
+          description: Gmail Sent verification or valid calendar date is required
+        "403":
+          description: Coordinator role required
+        "404":
+          description: Digest delivery not found
+        "409":
+          description: Digest delivery is no longer held
   /staff/{id}/google-calendar-connection:
     delete:
       operationId: disconnectStaffGoogleCalendar
@@ -5428,13 +5521,27 @@ components:
         moduleTitle: { type: string }
         lastError: { type: string }
         failedAt: { type: string, format: date-time }
-      required: [id, founderName, businessName, moduleTitle, lastError, failedAt]
+        messageId: { type: string }
+      required: [id, founderName, businessName, moduleTitle, lastError, failedAt, messageId]
     RetryCourseReminder:
       type: object
       properties:
         id: { type: integer }
         status: { type: string, enum: [pending] }
       required: [id, status]
+    ReconcileHeldEmailDeliveryBody:
+      type: object
+      properties:
+        gmailChecked: { type: boolean, enum: [true] }
+        deliveryFound: { type: boolean }
+      required: [gmailChecked, deliveryFound]
+    ReconcileHeldEmailDeliveryResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [sent, pending] }
+        messageId: { type: string }
+      required: [id, status, messageId]
     LearningProgressAnalytics:
       type: object
       properties:
@@ -6634,7 +6741,8 @@ components:
         emailAttempts: { type: integer }
         emailError: { type: ["string", "null"] }
         canRetryEmail: { type: boolean }
-      required: [id, sessionId, title, scheduledDate, readyAt, emailStatus, emailAttempts, emailError, canRetryEmail]
+        messageId: { type: string }
+      required: [id, sessionId, title, scheduledDate, readyAt, emailStatus, emailAttempts, emailError, canRetryEmail, messageId]
     ZoomRecordingAlertList:
       type: array
       items:
@@ -6962,11 +7070,12 @@ components:
       type: object
       properties:
         calendarDate: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
-        status: { type: string, enum: [pending, sending, sent, failed, uncertain] }
+        status: { type: string, enum: [pending, sending, sent, failed, uncertain, retry_authorized] }
         attempts: { type: integer, minimum: 0 }
         lastAttemptAt: { type: ["string", "null"], format: date-time }
         sentAt: { type: ["string", "null"], format: date-time }
-      required: [calendarDate, status, attempts, lastAttemptAt, sentAt]
+        messageId: { type: ["string", "null"] }
+      required: [calendarDate, status, attempts, lastAttemptAt, sentAt, messageId]
     StaffInput:
       type: object
       properties:

@@ -652,7 +652,8 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "businessName": zod.string(),
   "moduleTitle": zod.string(),
   "lastError": zod.string(),
-  "failedAt": zod.coerce.date()
+  "failedAt": zod.coerce.date(),
+  "messageId": zod.string()
 })),
   "uncertainDeliveries": zod.array(zod.object({
   "id": zod.int(),
@@ -660,7 +661,8 @@ export const GetLearningProgressAnalyticsResponse = zod.object({
   "businessName": zod.string(),
   "moduleTitle": zod.string(),
   "lastError": zod.string(),
-  "failedAt": zod.coerce.date()
+  "failedAt": zod.coerce.date(),
+  "messageId": zod.string()
 }))
 }),
   "participants": zod.array(zod.object({
@@ -818,6 +820,25 @@ export const RetryCourseReminderParams = zod.object({
 export const RetryCourseReminderResponse = zod.object({
   "id": zod.int(),
   "status": zod.enum(['pending'])
+})
+
+
+/**
+ * @summary Record a confirmed delivery or authorize a verified-absent course reminder retry
+ */
+export const ReconcileCourseReminderDeliveryParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ReconcileCourseReminderDeliveryBody = zod.object({
+  "gmailChecked": zod.literal(true),
+  "deliveryFound": zod.boolean()
+})
+
+export const ReconcileCourseReminderDeliveryResponse = zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['sent', 'pending']),
+  "messageId": zod.string()
 })
 
 
@@ -3801,7 +3822,8 @@ export const ListZoomRecordingAlertsResponseItem = zod.object({
   "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
   "emailAttempts": zod.int(),
   "emailError": zod.string().nullable(),
-  "canRetryEmail": zod.boolean()
+  "canRetryEmail": zod.boolean(),
+  "messageId": zod.string()
 })
 export const ListZoomRecordingAlertsResponse = zod.array(ListZoomRecordingAlertsResponseItem)
 
@@ -3825,7 +3847,37 @@ export const RetryZoomRecordingAlertEmailResponse = zod.object({
   "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
   "emailAttempts": zod.int(),
   "emailError": zod.string().nullable(),
-  "canRetryEmail": zod.boolean()
+  "canRetryEmail": zod.boolean(),
+  "messageId": zod.string()
+})
+
+
+/**
+ * @summary Record a confirmed alert delivery or authorize a verified-absent retry
+ */
+export const ReconcileZoomRecordingAlertEmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ReconcileZoomRecordingAlertEmailBody = zod.object({
+  "gmailChecked": zod.literal(true),
+  "deliveryFound": zod.boolean()
+})
+
+export const reconcileZoomRecordingAlertEmailResponseScheduledDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ReconcileZoomRecordingAlertEmailResponse = zod.object({
+  "id": zod.int(),
+  "sessionId": zod.int(),
+  "title": zod.string(),
+  "scheduledDate": zod.string().regex(reconcileZoomRecordingAlertEmailResponseScheduledDateRegExp),
+  "readyAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
+  "emailAttempts": zod.int(),
+  "emailError": zod.string().nullable(),
+  "canRetryEmail": zod.boolean(),
+  "messageId": zod.string()
 })
 
 
@@ -5435,12 +5487,43 @@ export const getMentorFollowUpDigestStatusResponseAttemptsMin = 0;
 
 export const GetMentorFollowUpDigestStatusResponseItem = zod.object({
   "calendarDate": zod.string().regex(getMentorFollowUpDigestStatusResponseCalendarDateRegExp),
-  "status": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain']),
+  "status": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain', 'retry_authorized']),
   "attempts": zod.int().min(getMentorFollowUpDigestStatusResponseAttemptsMin),
   "lastAttemptAt": zod.coerce.date().nullable(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "messageId": zod.string().nullable()
 })
 export const GetMentorFollowUpDigestStatusResponse = zod.array(GetMentorFollowUpDigestStatusResponseItem)
+
+
+/**
+ * @summary Record a confirmed digest delivery or authorize a verified-absent retry
+ */
+export const reconcileMentorFollowUpDigestDeliveryPathCalendarDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ReconcileMentorFollowUpDigestDeliveryParams = zod.object({
+  "calendarDate": zod.coerce.string().regex(reconcileMentorFollowUpDigestDeliveryPathCalendarDateRegExp)
+})
+
+export const ReconcileMentorFollowUpDigestDeliveryBody = zod.object({
+  "gmailChecked": zod.literal(true),
+  "deliveryFound": zod.boolean()
+})
+
+export const reconcileMentorFollowUpDigestDeliveryResponseCalendarDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const reconcileMentorFollowUpDigestDeliveryResponseAttemptsMin = 0;
+
+
+
+export const ReconcileMentorFollowUpDigestDeliveryResponse = zod.object({
+  "calendarDate": zod.string().regex(reconcileMentorFollowUpDigestDeliveryResponseCalendarDateRegExp),
+  "status": zod.enum(['pending', 'sending', 'sent', 'failed', 'uncertain', 'retry_authorized']),
+  "attempts": zod.int().min(reconcileMentorFollowUpDigestDeliveryResponseAttemptsMin),
+  "lastAttemptAt": zod.coerce.date().nullable(),
+  "sentAt": zod.coerce.date().nullable(),
+  "messageId": zod.string().nullable()
+})
 
 
 /**

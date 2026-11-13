@@ -21,6 +21,9 @@ import {
   RecordParticipantModuleProgressResponse,
   RetryCourseReminderParams,
   RetryCourseReminderResponse,
+  ReconcileCourseReminderDeliveryParams,
+  ReconcileCourseReminderDeliveryBody,
+  ReconcileCourseReminderDeliveryResponse,
 } from "@workspace/api-zod";
 import {
   applicationsTable,
@@ -33,6 +36,7 @@ import {
   courseQuizAttemptsTable,
   courseQuizzesTable,
   courseReminderDeliveriesTable,
+  reminderEmailReconciliationAuditTable,
   db,
   programsTable,
   staffMembersTable,
@@ -42,6 +46,7 @@ import type { ParticipantAccess } from "../middlewares/participantAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { isCourseModuleReleased } from "../lib/courseAccess";
 import { assessmentAttemptBelongsToApplication, calculateCohortAssessmentGain } from "../lib/assessmentGains";
+import { stableMessageId } from "../lib/platform-email";
 
 export const participantCourseProgressRouter: IRouter = Router();
 export const staffLearningProgressRouter: IRouter = Router();
@@ -547,6 +552,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
       status: courseReminderDeliveriesTable.status,
       founderName: applicationsTable.founderName,
       businessName: applicationsTable.businessName,
+      email: applicationsTable.email,
       moduleTitle: courseModulesTable.title,
       lastError: courseReminderDeliveriesTable.lastError,
       failedAt: courseReminderDeliveriesTable.updatedAt,
@@ -572,6 +578,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
       moduleTitle: string;
       lastError: string;
       failedAt: Date;
+        messageId: string;
     }>,
     uncertainDeliveries: [] as Array<{
       id: number;
@@ -580,6 +587,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
       moduleTitle: string;
       lastError: string;
       failedAt: Date;
+        messageId: string;
     }>,
   }]));
   for (const row of reminderCounts) {
@@ -606,6 +614,7 @@ staffLearningProgressRouter.get("/analytics/learning-progress", async (req, res)
         moduleTitle: row.moduleTitle,
         lastError,
         failedAt: row.failedAt,
+        messageId: `<${stableMessageId(`jusoor-course-reminder-${row.id}`, row.email)}>`,
       });
     }
   }
@@ -880,4 +889,72 @@ staffLearningProgressRouter.post("/analytics/learning-progress/reminders/:id/ret
     id: delivery.id,
     status: "pending",
   }));
+});
+
+staffLearningProgressRouter.post("/analytics/learning-progress/reminders/:id/reconcile", async (req, res): Promise<void> => {
+  const staff = res.locals.staff as StaffAccess | undefined;
+  const params = ReconcileCourseReminderDeliveryParams.safeParse(req.params);
+  const body = ReconcileCourseReminderDeliveryBody.safeParse(req.body);
+  if (!staff || staff.role !== "coordinator") {
+    res.status(403).json({ error: "Admin access is required." });
+    return;
+  }
+  if (!params.success) {
+    res.status(400).json({ error: "A valid reminder delivery id is required." });
+    return;
+  }
+  if (!body.success || body.data.gmailChecked !== true) {
+    res.status(400).json({ error: "Check Gmail Sent before resolving this delivery." });
+    return;
+  }
+
+  const now = new Date();
+  const confirmedDelivery = body.data.deliveryFound;
+  const message = await db.transaction(async (tx) => {
+    const [delivery] = await tx.update(courseReminderDeliveriesTable)
+      .set(confirmedDelivery
+        ? { status: "sent", sentAt: now, lastError: null, updatedAt: now }
+        : { status: "pending", nextAttemptAt: now, lastError: null, updatedAt: now })
+      .where(and(
+        eq(courseReminderDeliveriesTable.id, params.data.id),
+        eq(courseReminderDeliveriesTable.status, "uncertain"),
+      ))
+      .returning({
+        id: courseReminderDeliveriesTable.id,
+        applicationId: courseReminderDeliveriesTable.applicationId,
+      });
+    if (!delivery) return null;
+
+    const [application] = await tx.select({ email: applicationsTable.email })
+      .from(applicationsTable)
+      .where(eq(applicationsTable.id, delivery.applicationId))
+      .limit(1);
+    if (!application) throw new Error("Course reminder recipient could not be found.");
+    const messageId = `<${stableMessageId(`jusoor-course-reminder-${delivery.id}`, application.email)}>`;
+    await tx.insert(reminderEmailReconciliationAuditTable).values({
+      deliveryType: "course_reminder",
+      deliveryId: delivery.id,
+      actorStaffId: staff.id,
+      actorEmail: staff.email,
+      action: confirmedDelivery ? "delivery_confirmed" : "retry_authorized",
+      messageId,
+      confirmedAbsent: !confirmedDelivery,
+    });
+    return { id: delivery.id, status: confirmedDelivery ? "sent" as const : "pending" as const, messageId };
+  });
+
+  if (!message) {
+    const [existing] = await db.select({ id: courseReminderDeliveriesTable.id })
+      .from(courseReminderDeliveriesTable)
+      .where(eq(courseReminderDeliveriesTable.id, params.data.id))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Course reminder delivery not found." });
+      return;
+    }
+    res.status(409).json({ error: "This reminder is no longer held for review." });
+    return;
+  }
+
+  res.status(confirmedDelivery ? 200 : 202).json(ReconcileCourseReminderDeliveryResponse.parse(message));
 });

@@ -17,4 +17,6 @@ export interface MentorFollowUpDigestStatus {
   lastAttemptAt: Date | null;
   /** @nullable */
   sentAt: Date | null;
+  /** @nullable */
+  messageId: string | null;
 }

@@ -16,6 +16,9 @@ import {
   GetMentorBookingStatusResponseItem,
   GetMentorFollowUpDigestStatusQueryParams,
   GetMentorFollowUpDigestStatusResponse,
+  ReconcileMentorFollowUpDigestDeliveryParams,
+  ReconcileMentorFollowUpDigestDeliveryBody,
+  ReconcileMentorFollowUpDigestDeliveryResponse,
   GetIntegrationDisconnectHistoryResponse,
   GetProgramTeamAssignmentsParams,
   GetProgramTeamAssignmentsResponse,
@@ -44,6 +47,7 @@ import {
   staffAssignmentAuditEventsTable,
   integrationDisconnectAuditEventsTable,
   mentorFollowUpDigestDeliveriesTable,
+  reminderEmailReconciliationAuditTable,
   staffProgramRolesTable,
   sessionsTable,
   trainingAssignmentsTable,
@@ -57,7 +61,7 @@ import { canManageProgramAssignments } from "../lib/programAssignmentAuthorizati
 import { makeBusinessTeamAuditEvent, makeStaffRoleAuditEvent } from "../lib/staffAssignmentAudit";
 import { hasPostgresErrorCode } from "../lib/postgres-error-utils";
 import { sendStaffInvitationEmail, type StaffInvitationRole } from "../lib/staff-invitation-email";
-import { platformEmailFailureDiagnostics } from "../lib/platform-email";
+import { platformEmailFailureDiagnostics, stableMessageId } from "../lib/platform-email";
 import { logger } from "../lib/logger";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
@@ -767,8 +771,10 @@ router.get("/staff/mentor-follow-up-digest-status", requireCoordinator, async (r
     attempts: mentorFollowUpDigestDeliveriesTable.attempts,
     lastAttemptAt: mentorFollowUpDigestDeliveriesTable.lastAttemptAt,
     sentAt: mentorFollowUpDigestDeliveriesTable.sentAt,
+    recipientEmail: staffMembersTable.email,
   })
     .from(mentorFollowUpDigestDeliveriesTable)
+    .innerJoin(staffMembersTable, eq(staffMembersTable.id, mentorFollowUpDigestDeliveriesTable.coordinatorStaffId))
     .where(and(
       eq(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId, staff.id),
       eq(mentorFollowUpDigestDeliveriesTable.calendarDate, query.data.calendarDate),
@@ -776,7 +782,93 @@ router.get("/staff/mentor-follow-up-digest-status", requireCoordinator, async (r
     .limit(1);
 
   res.set("Cache-Control", "no-store");
-  res.json(GetMentorFollowUpDigestStatusResponse.parse(deliveries));
+  res.json(GetMentorFollowUpDigestStatusResponse.parse(deliveries.map((delivery) => ({
+    ...delivery,
+    messageId: `<${stableMessageId(
+      `jusoor-mentor-follow-up-digest-${staff.id}-${delivery.calendarDate}`,
+      delivery.recipientEmail,
+    )}>`,
+  }))));
+});
+
+router.post("/staff/mentor-follow-up-digest-status/:calendarDate/reconcile", requireCoordinator, async (req, res): Promise<void> => {
+  const params = ReconcileMentorFollowUpDigestDeliveryParams.safeParse(req.params);
+  const body = ReconcileMentorFollowUpDigestDeliveryBody.safeParse(req.body);
+  if (!params.success || !isValidCalendarDate(params.data.calendarDate)) {
+    res.status(400).json({ error: "A valid program calendar date is required." });
+    return;
+  }
+  if (!body.success || body.data.gmailChecked !== true) {
+    res.status(400).json({ error: "Check Gmail Sent before resolving this delivery." });
+    return;
+  }
+
+  const staff = res.locals.staff as StaffAccess;
+  const now = new Date();
+  const confirmedDelivery = body.data.deliveryFound;
+  const message = await db.transaction(async (tx) => {
+    const [delivery] = await tx.update(mentorFollowUpDigestDeliveriesTable)
+      .set(confirmedDelivery
+        ? { status: "sent", sentAt: now, lastError: null }
+        : { status: "retry_authorized", nextAttemptAt: now, lastError: null })
+      .where(and(
+        eq(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId, staff.id),
+        eq(mentorFollowUpDigestDeliveriesTable.calendarDate, params.data.calendarDate),
+        eq(mentorFollowUpDigestDeliveriesTable.status, "uncertain"),
+      ))
+      .returning({
+        id: mentorFollowUpDigestDeliveriesTable.id,
+        calendarDate: mentorFollowUpDigestDeliveriesTable.calendarDate,
+      });
+    if (!delivery) return null;
+    const messageId = `<${stableMessageId(
+      `jusoor-mentor-follow-up-digest-${staff.id}-${delivery.calendarDate}`,
+      staff.email,
+    )}>`;
+    await tx.insert(reminderEmailReconciliationAuditTable).values({
+      deliveryType: "mentor_digest",
+      deliveryId: delivery.id,
+      actorStaffId: staff.id,
+      actorEmail: staff.email,
+      action: confirmedDelivery ? "delivery_confirmed" : "retry_authorized",
+      messageId,
+      confirmedAbsent: !confirmedDelivery,
+    });
+    return { delivery, messageId };
+  });
+
+  if (!message) {
+    const [existing] = await db.select({ status: mentorFollowUpDigestDeliveriesTable.status })
+      .from(mentorFollowUpDigestDeliveriesTable)
+      .where(and(
+        eq(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId, staff.id),
+        eq(mentorFollowUpDigestDeliveriesTable.calendarDate, params.data.calendarDate),
+      ))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Digest delivery not found." });
+      return;
+    }
+    res.status(409).json({ error: "This digest is no longer held for review." });
+    return;
+  }
+
+  const [delivery] = await db.select({
+    calendarDate: mentorFollowUpDigestDeliveriesTable.calendarDate,
+    status: mentorFollowUpDigestDeliveriesTable.status,
+    attempts: mentorFollowUpDigestDeliveriesTable.attempts,
+    lastAttemptAt: mentorFollowUpDigestDeliveriesTable.lastAttemptAt,
+    sentAt: mentorFollowUpDigestDeliveriesTable.sentAt,
+  }).from(mentorFollowUpDigestDeliveriesTable)
+    .where(and(
+      eq(mentorFollowUpDigestDeliveriesTable.coordinatorStaffId, staff.id),
+      eq(mentorFollowUpDigestDeliveriesTable.calendarDate, params.data.calendarDate),
+    ))
+    .limit(1);
+  res.status(confirmedDelivery ? 200 : 202).json(ReconcileMentorFollowUpDigestDeliveryResponse.parse({
+    ...delivery,
+    messageId: message.messageId,
+  }));
 });
 
 router.delete("/staff/:id/google-calendar-connection", requireCoordinator, async (req, res): Promise<void> => {
