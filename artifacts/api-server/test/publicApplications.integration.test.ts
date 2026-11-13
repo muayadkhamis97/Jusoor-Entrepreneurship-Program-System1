@@ -76,7 +76,7 @@ test("public application abuse protection uses isolated PostgreSQL tables", {
 
     const infoLogs: unknown[][] = [];
     const app = express();
-    app.set("trust proxy", true);
+    app.set("trust proxy", 1);
     app.use(express.json());
     app.use((req, _res, next) => {
       req.log = {

@@ -1,4 +1,5 @@
 import express, { type Express, type RequestHandler } from "express";
+import { isIP } from "node:net";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -40,7 +41,7 @@ import {
   clerkProxyMiddleware,
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
-import { requireOperationsStaff, requireStaff } from "./middlewares/staffAccess";
+import { requireCoordinator, requireOperationsStaff, requireStaff } from "./middlewares/staffAccess";
 import { requireParticipant } from "./middlewares/participantAccess";
 import { createChatRouter } from "./routes/chat";
 import judgingFormsRouter from "./routes/judgingForms";
@@ -57,12 +58,20 @@ import { createAnnouncementRepliesRouter } from "./routes/announcementReplies";
 export function createApp(options: {
   authenticationMiddleware?: RequestHandler;
   participantMiddleware?: RequestHandler;
+  requestLogger?: typeof logger;
 } = {}): Express {
 const app: Express = express();
+const configuredProxyHops = process.env.TRUST_PROXY_HOPS?.trim();
+const trustedProxyHops = configuredProxyHops ? Number(configuredProxyHops) : 1;
+if (!/^\d+$/.test(configuredProxyHops || "1") || !Number.isSafeInteger(trustedProxyHops)) {
+  throw new Error("TRUST_PROXY_HOPS must be a nonnegative integer.");
+}
+app.set("trust proxy", trustedProxyHops);
 
 app.use(
   pinoHttp({
-    logger,
+    logger: options.requestLogger ?? logger,
+    customProps: (req) => ({ clientIp: req.ip }),
     serializers: {
       req(req) {
         return {
@@ -94,6 +103,31 @@ app.use(options.authenticationMiddleware ?? clerkMiddleware((req) => ({
       process.env.CLERK_PUBLISHABLE_KEY,
     ),
   })));
+
+// Temporary coordinator-only diagnostic. Remove after the deployed proxy chain
+// has been observed from a signed-in browser or phone.
+app.get("/api/staff/client-ip-diagnostic", requireStaff, requireCoordinator, (req, res): void => {
+  const rawForwardedFor = req.get("x-forwarded-for") ?? null;
+  const forwardedParts = rawForwardedFor?.split(",").map((value) => value.trim()) ?? [];
+  const safeForwardedFor = rawForwardedFor !== null &&
+    rawForwardedFor.length <= 512 &&
+    forwardedParts.length > 0 &&
+    forwardedParts.every((value) => isIP(value) !== 0)
+    ? rawForwardedFor
+    : null;
+  const diagnostic = {
+    ip: req.ip,
+    ips: req.ips,
+    xForwardedFor: safeForwardedFor,
+  };
+  req.log.info({
+    clientIp: diagnostic.ip,
+    clientIps: diagnostic.ips,
+    xForwardedFor: diagnostic.xForwardedFor,
+  }, "Temporary staff client IP diagnostic");
+  res.setHeader("Cache-Control", "no-store");
+  res.json(diagnostic);
+});
 
 app.use("/api", healthRouter);
 app.use("/api", publicApplicationsRouter);
