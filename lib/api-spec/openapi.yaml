@@ -163,6 +163,47 @@ paths:
           description: Invalid branding settings
         "403":
           description: Coordinator access required
+  /branding/logo/upload-url:
+    post:
+      operationId: createBrandLogoUploadUrl
+      tags: [staff]
+      summary: Create a short-lived upload URL for a program logo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandLogoUploadInput"
+      responses:
+        "200":
+          description: Signed upload URL and public logo URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandLogoUploadResponse"
+        "400":
+          description: Unsupported logo file
+        "403":
+          description: Coordinator access required
+  /branding/logo/{logoId}:
+    get:
+      operationId: getProgramBrandLogo
+      tags: [staff]
+      summary: Serve the currently configured program logo
+      parameters:
+        - name: logoId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Current program logo image
+          content:
+            image/jpeg: {}
+            image/png: {}
+            image/webp: {}
+        "404":
+          description: Logo not found
   /dashboard:
     get:
       operationId: getDashboard
@@ -5127,7 +5168,7 @@ components:
       type: object
       properties:
         brandName: { type: string }
-        logoUrl: { type: ["string", "null"], format: uri }
+        logoUrl: { type: ["string", "null"], format: uri, maxLength: 2048 }
         primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         sidebarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
@@ -5143,6 +5184,18 @@ components:
         sidebarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         topbarColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
       required: [brandName, logoUrl, primaryColor, accentColor]
+    BrandLogoUploadInput:
+      type: object
+      properties:
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        size: { type: integer, minimum: 1, maximum: 5242880 }
+      required: [contentType, size]
+    BrandLogoUploadResponse:
+      type: object
+      properties:
+        uploadUrl: { type: string, format: uri }
+        logoUrl: { type: string, format: uri, minLength: 1, maxLength: 2048 }
+      required: [uploadUrl, logoUrl]
     ApplicationStatus:
       type: string
       enum: [submitted, under_review, accepted, declined]

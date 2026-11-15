@@ -8,7 +8,10 @@
 
 export interface ProgramBranding {
   brandName: string;
-  /** @nullable */
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
   logoUrl: string | null;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   primaryColor: string;

@@ -158,6 +158,8 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Get the public program branding settings
  */
+export const getProgramBrandingResponseLogoUrlMax = 2048;
+
 export const getProgramBrandingResponsePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const getProgramBrandingResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const getProgramBrandingResponseSidebarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
@@ -166,7 +168,7 @@ export const getProgramBrandingResponseTopbarColorRegExp = new RegExp('^#[0-9A-F
 
 export const GetProgramBrandingResponse = zod.object({
   "brandName": zod.string(),
-  "logoUrl": zod.url().nullable(),
+  "logoUrl": zod.url().max(getProgramBrandingResponseLogoUrlMax).nullable(),
   "primaryColor": zod.string().regex(getProgramBrandingResponsePrimaryColorRegExp),
   "accentColor": zod.string().regex(getProgramBrandingResponseAccentColorRegExp),
   "sidebarColor": zod.string().regex(getProgramBrandingResponseSidebarColorRegExp),
@@ -196,6 +198,8 @@ export const UpdateProgramBrandingBody = zod.object({
   "topbarColor": zod.string().regex(updateProgramBrandingBodyTopbarColorRegExp).optional()
 })
 
+export const updateProgramBrandingResponseLogoUrlMax = 2048;
+
 export const updateProgramBrandingResponsePrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateProgramBrandingResponseAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateProgramBrandingResponseSidebarColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
@@ -204,12 +208,44 @@ export const updateProgramBrandingResponseTopbarColorRegExp = new RegExp('^#[0-9
 
 export const UpdateProgramBrandingResponse = zod.object({
   "brandName": zod.string(),
-  "logoUrl": zod.url().nullable(),
+  "logoUrl": zod.url().max(updateProgramBrandingResponseLogoUrlMax).nullable(),
   "primaryColor": zod.string().regex(updateProgramBrandingResponsePrimaryColorRegExp),
   "accentColor": zod.string().regex(updateProgramBrandingResponseAccentColorRegExp),
   "sidebarColor": zod.string().regex(updateProgramBrandingResponseSidebarColorRegExp),
   "topbarColor": zod.string().regex(updateProgramBrandingResponseTopbarColorRegExp)
 })
+
+
+/**
+ * @summary Create a short-lived upload URL for a program logo
+ */
+export const createBrandLogoUploadUrlBodySizeMax = 5242880;
+
+
+
+export const CreateBrandLogoUploadUrlBody = zod.object({
+  "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp']),
+  "size": zod.int().min(1).max(createBrandLogoUploadUrlBodySizeMax)
+})
+
+export const createBrandLogoUploadUrlResponseLogoUrlMax = 2048;
+
+
+
+export const CreateBrandLogoUploadUrlResponse = zod.object({
+  "uploadUrl": zod.url(),
+  "logoUrl": zod.url().min(1).max(createBrandLogoUploadUrlResponseLogoUrlMax)
+})
+
+
+/**
+ * @summary Serve the currently configured program logo
+ */
+export const GetProgramBrandLogoParams = zod.object({
+  "logoId": zod.uuid()
+})
+
+export const GetProgramBrandLogoResponse = zod.unknown()
 
 
 /**

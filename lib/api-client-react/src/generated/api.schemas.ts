@@ -581,7 +581,10 @@ export interface HealthStatus {
 
 export interface ProgramBranding {
   brandName: string;
-  /** @nullable */
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
   logoUrl: string | null;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   primaryColor: string;
@@ -612,6 +615,33 @@ export interface ProgramBrandingInput {
   sidebarColor?: string;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   topbarColor?: string;
+}
+
+export type BrandLogoUploadInputContentType = typeof BrandLogoUploadInputContentType[keyof typeof BrandLogoUploadInputContentType];
+
+
+export const BrandLogoUploadInputContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface BrandLogoUploadInput {
+  contentType: BrandLogoUploadInputContentType;
+  /**
+     * @minimum 1
+     * @maximum 5242880
+     */
+  size: number;
+}
+
+export interface BrandLogoUploadResponse {
+  uploadUrl: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  logoUrl: string;
 }
 
 export type ApplicationStatus = typeof ApplicationStatus[keyof typeof ApplicationStatus];

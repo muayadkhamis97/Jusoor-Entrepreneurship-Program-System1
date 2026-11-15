@@ -19,6 +19,13 @@
 .branding-url{display:flex;align-items:center;gap:9px;padding-inline-start:12px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--background));color:hsl(var(--muted-foreground))}
 .branding-url:focus-within{border-color:hsl(var(--primary)/.6);box-shadow:0 0 0 3px hsl(var(--primary)/.09)}
 .branding-url input:not([type=color]){border:0;box-shadow:none!important;background:transparent}
+.branding-logo-upload{display:grid;gap:7px}
+.branding-logo-upload input[type=file]{width:100%;min-width:0;padding:9px 10px;border:1px dashed hsl(var(--border));border-radius:var(--radius);background:hsl(var(--background));color:hsl(var(--foreground));font:var(--type-body-min) var(--app-font-sans)}
+.branding-logo-upload input[type=file]::file-selector-button{margin-inline-end:10px;padding:6px 10px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--card));color:hsl(var(--foreground));font:600 var(--type-body-min) var(--app-font-sans);cursor:pointer}
+.branding-logo-actions{display:flex;justify-content:flex-start}
+.branding-upload-error,.branding-upload-success{font-size:var(--type-body-min);font-weight:500}
+.branding-upload-error{color:hsl(var(--destructive))}
+.branding-upload-success{color:hsl(var(--primary))}
 .branding-color-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
 .branding-color-control{display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px}
 .branding-color-control input[type=color]{width:48px;height:43px;padding:4px;border:1px solid hsl(var(--border));border-radius:var(--radius);background:hsl(var(--background));cursor:pointer}

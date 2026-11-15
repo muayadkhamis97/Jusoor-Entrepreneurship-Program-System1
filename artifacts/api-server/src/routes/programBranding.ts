@@ -1,12 +1,23 @@
 import { eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
+import { pipeline } from "node:stream/promises";
 import {
+  CreateBrandLogoUploadUrlBody,
+  CreateBrandLogoUploadUrlResponse,
   GetProgramBrandingResponse,
   UpdateProgramBrandingBody,
   UpdateProgramBrandingResponse,
 } from "@workspace/api-zod";
 import { db, programBrandingTable } from "@workspace/db";
 import { requireCoordinator, requireStaff } from "../middlewares/staffAccess";
+import {
+  brandLogoIdFromObjectPath,
+  brandLogoIdFromReference,
+  createBrandLogoUploadUrl,
+  getBrandLogoFile,
+  isBrandLogoId,
+  isSupportedBrandLogo,
+} from "../lib/brandLogoStorage";
 
 const router: IRouter = Router();
 
@@ -24,12 +35,59 @@ function getVisibleBrandName(brandName: string | null | undefined): string {
   return configured && !/(jusoor|جسور)/i.test(configured) ? configured : "Program Hub";
 }
 
-router.get("/branding", async (_req, res): Promise<void> => {
+router.get("/branding", async (req, res): Promise<void> => {
   const [settings] = await db.select().from(programBrandingTable).limit(1);
   const visibleSettings = settings
-    ? { ...settings, brandName: getVisibleBrandName(settings.brandName) }
+    ? {
+      ...settings,
+      brandName: getVisibleBrandName(settings.brandName),
+      logoUrl: visibleLogoUrl(settings.logoUrl, req),
+    }
     : defaultBranding;
   res.json(GetProgramBrandingResponse.parse(visibleSettings));
+});
+
+router.get("/branding/logo/:logoId", async (req, res): Promise<void> => {
+  const logoId = req.params.logoId;
+  if (!isBrandLogoId(logoId)) {
+    res.status(404).json({ error: "Program logo not found." });
+    return;
+  }
+  const [settings] = await db.select({ logoUrl: programBrandingTable.logoUrl })
+    .from(programBrandingTable).limit(1);
+  if (brandLogoIdFromReference(settings?.logoUrl ?? null) !== logoId.toLowerCase()) {
+    res.status(404).json({ error: "Program logo not found." });
+    return;
+  }
+  try {
+    const file = await getBrandLogoFile(logoId);
+    const [metadata] = await file.getMetadata();
+    res.setHeader("Content-Type", metadata.contentType!);
+    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (metadata.size) res.setHeader("Content-Length", String(metadata.size));
+    await pipeline(file.createReadStream(), res);
+  } catch (error) {
+    req.log.error({ err: error }, "Could not stream configured program logo");
+    if (!res.headersSent) res.status(404).json({ error: "Program logo not found." });
+    else res.destroy();
+  }
+});
+
+router.post("/branding/logo/upload-url", requireStaff, requireCoordinator, async (req, res): Promise<void> => {
+  const body = CreateBrandLogoUploadUrlBody.safeParse(req.body);
+  if (!body.success || !isSupportedBrandLogo(body.data?.contentType ?? "", body.data?.size ?? 0)) {
+    res.status(400).json({ error: "Choose a JPEG, PNG, or WebP logo up to 5 MB." });
+    return;
+  }
+  try {
+    const upload = await createBrandLogoUploadUrl(publicOrigin(req));
+    res.json(CreateBrandLogoUploadUrlResponse.parse(upload));
+  } catch (error) {
+    req.log.error({ err: error }, "Could not create program logo upload URL");
+    res.status(503).json({ error: "Logo upload storage is unavailable right now." });
+  }
 });
 
 router.put("/branding", requireStaff, requireCoordinator, async (req, res): Promise<void> => {
@@ -49,9 +107,19 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
     return;
   }
 
-  if (parsed.data.logoUrl) {
+  let storedLogoUrl = parsed.data.logoUrl;
+  const uploadedLogoId = brandLogoIdFromReference(storedLogoUrl);
+  if (uploadedLogoId) {
     try {
-      const logoUrl = new URL(parsed.data.logoUrl);
+      await getBrandLogoFile(uploadedLogoId);
+    } catch {
+      res.status(400).json({ error: "Uploaded logo could not be verified. Upload it again." });
+      return;
+    }
+    storedLogoUrl = new URL(`/api/branding/logo/${uploadedLogoId}`, publicOrigin(req)).toString();
+  } else if (storedLogoUrl) {
+    try {
+      const logoUrl = new URL(storedLogoUrl);
       if (logoUrl.protocol !== "https:" || logoUrl.username || logoUrl.password) {
         res.status(400).json({ error: "Logo URL must be a public HTTPS URL without embedded credentials." });
         return;
@@ -68,7 +136,7 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
     .values({
       id: 1,
       brandName,
-      logoUrl: parsed.data.logoUrl,
+      logoUrl: storedLogoUrl,
       primaryColor: parsed.data.primaryColor.toLowerCase(),
       accentColor: parsed.data.accentColor.toLowerCase(),
       sidebarColor,
@@ -78,7 +146,7 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
       target: programBrandingTable.id,
       set: {
         brandName,
-        logoUrl: parsed.data.logoUrl,
+        logoUrl: storedLogoUrl,
         primaryColor: parsed.data.primaryColor.toLowerCase(),
         accentColor: parsed.data.accentColor.toLowerCase(),
         sidebarColor,
@@ -88,7 +156,32 @@ router.put("/branding", requireStaff, requireCoordinator, async (req, res): Prom
     })
     .returning();
 
-  res.json(UpdateProgramBrandingResponse.parse(settings));
+  res.json(UpdateProgramBrandingResponse.parse({
+    ...settings,
+    logoUrl: visibleLogoUrl(settings.logoUrl, req),
+  }));
 });
+
+function visibleLogoUrl(storedLogoUrl: string | null, req: Request): string | null {
+  const logoId = brandLogoIdFromObjectPath(storedLogoUrl);
+  const referenceId = brandLogoIdFromReference(storedLogoUrl);
+  const id = logoId ?? referenceId;
+  if (!id) return storedLogoUrl;
+  if (storedLogoUrl && !storedLogoUrl.startsWith("/objects/")) {
+    try {
+      const url = new URL(storedLogoUrl);
+      if (url.protocol === "https:") return url.toString();
+    } catch {
+      // Older relative logo references are rebuilt against the current public host below.
+    }
+  }
+  return new URL(`/api/branding/logo/${id}`, publicOrigin(req)).toString();
+}
+
+function publicOrigin(req: Request): string {
+  const host = req.get("host");
+  if (!host || /[\\/@]/.test(host)) throw new Error("A valid public request host is required for branding.");
+  return new URL(`https://${host}`).origin;
+}
 
 export default router;

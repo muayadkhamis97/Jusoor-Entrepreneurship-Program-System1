@@ -1,8 +1,8 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type CSSProperties, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getGetProgramBrandingQueryKey, useGetProgramBranding, useUpdateProgramBranding } from '@workspace/api-client-react';
+import { getGetProgramBrandingQueryKey, useCreateBrandLogoUploadUrl, useGetProgramBranding, useUpdateProgramBranding } from '@workspace/api-client-react';
 import type { ProgramBrandingInput } from '@workspace/api-client-react';
-import { Check, CircleAlert, Image, Palette, RotateCcw, Save } from 'lucide-react';
+import { Check, CircleAlert, Image, Palette, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { getDisplayBrandName, isAllowedDisplayBrandName, t, useAppLanguage } from './language';
 import './branding-surfaces.css';
 import { getAccessibleBrandForeground, getAccessiblePanelForeground } from './branding-contrast';
@@ -27,11 +27,16 @@ export function BrandingPage() {
   const client = useQueryClient();
   const query = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
   const update = useUpdateProgramBranding();
+  const createLogoUpload = useCreateBrandLogoUploadUrl();
   const [form, setForm] = useState<BrandingForm>(defaults);
   const [savedForm, setSavedForm] = useState<BrandingForm>(defaults);
   const [initialized, setInitialized] = useState(false);
   const [saved, setSaved] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [logoUploadError, setLogoUploadError] = useState('');
+  const [logoUploadMessage, setLogoUploadMessage] = useState('');
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   useEffect(() => {
     if (query.data && !initialized) {
       const initialForm = { ...query.data, brandName: getDisplayBrandName(query.data.brandName) };
@@ -40,9 +45,44 @@ export function BrandingPage() {
       setInitialized(true);
     }
   }, [query.data, initialized]);
+  useEffect(() => () => {
+    if (logoPreviewUrl) URL.revokeObjectURL(logoPreviewUrl);
+  }, [logoPreviewUrl]);
   const change = (key: keyof BrandingForm, value: string | null) => {
     setSaved(false);
+    if (key === 'logoUrl') {
+      setLogoPreviewUrl(null);
+      setLogoUploadMessage('');
+    }
     setForm(current => ({ ...current, [key]: value }));
+  };
+  const uploadLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      setLogoUploadError('Choose a JPEG, PNG, or WebP image up to 5 MB.');
+      return;
+    }
+    setLogoUploadError('');
+    setLogoUploadMessage('');
+    setUploadingLogo(true);
+    try {
+      const signed = await createLogoUpload.mutateAsync({ data: { contentType: file.type as 'image/jpeg' | 'image/png' | 'image/webp', size: file.size } });
+      const response = await fetch(signed.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!response.ok) throw new Error('Logo upload failed.');
+      change('logoUrl', signed.logoUrl);
+      setLogoPreviewUrl(URL.createObjectURL(file));
+      setLogoUploadMessage('Logo uploaded. Save branding to apply it.');
+    } catch {
+      setLogoUploadError('Logo upload failed. Please try again.');
+    } finally {
+      setUploadingLogo(false);
+    }
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,13 +102,15 @@ export function BrandingPage() {
         setForm(data);
         setSavedForm(data);
         setSaved(true);
+        setLogoPreviewUrl(null);
+        setLogoUploadMessage('');
         void client.invalidateQueries({ queryKey: getGetProgramBrandingQueryKey() });
       },
     });
   };
-  const restore = () => { setForm(defaults); setSaved(false); setValidationError(''); };
+  const restore = () => { setForm(defaults); setSaved(false); setValidationError(''); setLogoPreviewUrl(null); setLogoUploadError(''); setLogoUploadMessage(''); };
   const hasUnsavedChanges = (Object.keys(defaults) as (keyof BrandingForm)[]).some(key => form[key] !== savedForm[key]);
-  const busy = query.isLoading || update.isPending;
+  const busy = query.isLoading || update.isPending || uploadingLogo;
   if (query.isLoading) return <main className="branding-page"><div className="branding-skeleton" /><div className="branding-skeleton" /></main>;
   if (query.isError) return <main className="branding-page"><section className="branding-error"><CircleAlert /><h1>{t('Brand settings could not load.')}</h1><p>{t('Your current identity is unchanged. Try again.')}</p><button className="button button-outline" onClick={() => void query.refetch()}>{t('Retry connection')}</button></section></main>;
   const updateField = (key: BrandingColorField, value: string) => change(key, value);
@@ -78,7 +120,18 @@ export function BrandingPage() {
       <form className="branding-form" onSubmit={submit}>
         <div className="branding-form-top"><div><span className="branding-step">01</span><h2>{t('Your program identity')}</h2></div><p>{t('Changes take effect across the workspace and participant learning after saving.')}</p></div>
         <label className="branding-field"><span>{t('Brand name')}</span><input value={form.brandName} onChange={event => change('brandName', event.target.value)} maxLength={80} required autoComplete="organization" data-testid="input-brand-name" /><small>{t('Shown in the platform navigation and public-facing participant surfaces.')}</small></label>
-        <label className="branding-field"><span>{t('Logo URL')} <em>{t('Optional')}</em></span><div className="branding-url"><Image size={16} /><input type="url" value={form.logoUrl || ''} onChange={event => change('logoUrl', event.target.value || null)} placeholder="https://" data-testid="input-brand-logo-url" /></div><small>{t('Use a publicly accessible image URL. Leave blank to use the brand initial.')}</small></label>
+        <div className="branding-field">
+          <label htmlFor="input-brand-logo-file"><span>{t('Upload logo')} <em>{t('Optional')}</em></span></label>
+          <div className="branding-logo-upload">
+            <input id="input-brand-logo-file" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void uploadLogo(event)} disabled={busy} data-testid="input-brand-logo-file" />
+            {uploadingLogo && <span role="status">{t('Uploading logo…')}</span>}
+          </div>
+          <small>{t('File requirements: JPEG, PNG, or WebP. Maximum file size: 5 MB.')}</small>
+          {form.logoUrl && <div className="branding-logo-actions"><button type="button" className="button button-quiet" disabled={busy} onClick={() => { change('logoUrl', null); setLogoUploadError(''); setLogoUploadMessage('Logo removed. Save branding to apply it.'); }} data-testid="button-remove-brand-logo"><Trash2 size={14} />{t('Remove logo')}</button></div>}
+          {logoUploadError && <span className="branding-upload-error" role="alert">{t(logoUploadError)}</span>}
+          {logoUploadMessage && <span className="branding-upload-success" role="status">{t(logoUploadMessage)}</span>}
+        </div>
+        <label className="branding-field"><span>{t('Logo URL')} <em>{t('Optional')}</em></span><div className="branding-url"><Image size={16} /><input type="text" value={form.logoUrl || ''} onChange={event => change('logoUrl', event.target.value || null)} placeholder="https://…" data-testid="input-brand-logo-url" /></div><small>{t('Use a publicly accessible HTTPS image URL instead of uploading a file.')}</small></label>
         <div className="branding-color-grid">
           {([
             ['primaryColor', 'Primary color', 'Choose primary color', 'Primary color hex value', 'Navigation, links and the main program identity.'],
@@ -105,7 +158,7 @@ export function BrandingPage() {
           '--preview-topbar-foreground': getAccessiblePanelForeground(form.topbarColor),
         } as CSSProperties} aria-label={t('Branding preview')}>
           <div className="branding-preview-shell">
-            <aside className="branding-preview-sidebar"><div className="branding-preview-brand">{form.logoUrl ? <img src={form.logoUrl} alt="" /> : <span className="branding-preview-mark">{form.brandName.slice(0, 1) || 'J'}</span>}<b>{form.brandName || t('Your brand name')}</b></div><span className="branding-preview-nav-item">{t('Overview')}</span><span className="branding-preview-nav-item">{t('Programs')}</span></aside>
+            <aside className="branding-preview-sidebar"><div className="branding-preview-brand">{(logoPreviewUrl || form.logoUrl) ? <img src={logoPreviewUrl || form.logoUrl || ''} alt="" /> : <span className="branding-preview-mark">{form.brandName.slice(0, 1) || 'J'}</span>}<b>{form.brandName || t('Your brand name')}</b></div><span className="branding-preview-nav-item">{t('Overview')}</span><span className="branding-preview-nav-item">{t('Programs')}</span></aside>
             <div className="branding-preview-main">
               <div className="branding-preview-topbar"><b>{t('Overview')}</b><span>{t('Admin')}</span></div>
               <div className="branding-preview-body"><span className="branding-preview-kicker">{t('YOUR COHORT / LEARNING')}</span><h3>{t('A clear path for what comes next.')}</h3><p>{t('Your program, your next step, and the people moving with you.')}</p><button type="button" tabIndex={-1}>{t('View learning path')} <Check size={13} /></button></div>
