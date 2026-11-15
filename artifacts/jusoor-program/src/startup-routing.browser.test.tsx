@@ -356,10 +356,11 @@ test('signed-in visitors reach their role workspace only after session confirmat
       return route.continue();
     });
     await participantSignInPage.goto(`${origin}${basePath}/participant`, { waitUntil: 'domcontentloaded' });
+    await participantSignInPage.waitForURL(url => url.pathname === `${basePath}/sign-in`);
     await participantSignInPage.locator('.auth-form-content').waitFor();
     assert.equal(await participantSignInPage.locator('.auth-form-content > h1').count(), 0, 'Participant sign-in must not duplicate its title outside Clerk.');
     assert.equal(await participantSignInPage.getByTestId('mock-clerk-sign-in').getAttribute('data-path'), `${basePath}/sign-in`);
-    assert.equal(await participantSignInPage.getByTestId('mock-clerk-sign-in').getAttribute('data-force-redirect-url'), `${basePath}/participant`);
+    assert.equal(new URL(participantSignInPage.url()).searchParams.get('redirect_url'), `${basePath}/participant`);
     await participantSignInPage.close();
 
     const signOutPage = await browser.newPage();

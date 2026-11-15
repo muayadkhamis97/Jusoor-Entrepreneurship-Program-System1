@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { SignIn, SignUp } from '@clerk/react';
 import { Shield } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, Redirect } from 'wouter';
 import { getDisplayBrandName, shouldShowBrandCaption, LanguageToggle, t, useAppLanguage } from './language';
 import { usePublicBranding } from './public-branding';
 
@@ -46,6 +46,12 @@ export function ClerkAuthPage({
     return () => observer.disconnect();
   }, [isSignIn]);
 
+  // Clerk's path router must mount at its configured /sign-in path.
+  // Rendering SignIn directly at /participant leaves its internal route empty.
+  if (participantRedirect) {
+    return <Redirect to={`/sign-in?redirect_url=${encodeURIComponent(`${basePath}/participant`)}`} replace />;
+  }
+
   return (
     <main className="auth-page auth-form-page">
       <Link href="/" className="auth-brand">
@@ -76,7 +82,6 @@ export function ClerkAuthPage({
               routing="path"
               path={`${basePath}/sign-in`}
               signUpUrl={`${basePath}/sign-up`}
-              forceRedirectUrl={participantRedirect ? `${basePath}/participant` : undefined}
             />
           ) : (
             <SignUp

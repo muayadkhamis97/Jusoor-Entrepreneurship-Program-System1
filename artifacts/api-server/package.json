@@ -11,8 +11,8 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@clerk/express": "^2.1.78",
-    "@clerk/shared": "^4.40.0",
+    "@clerk/express": "^2.1.90",
+    "@clerk/shared": "^4.45.1",
     "@google-cloud/storage": "^8.4.0",
     "@replit/connectors-sdk": "^0.4.3",
     "@workspace/api-zod": "workspace:*",

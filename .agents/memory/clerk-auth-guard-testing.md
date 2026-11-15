@@ -20,3 +20,9 @@ For programmatic browser checks, an invited synthetic staff row may need explici
 **Why:** A programmatic session showed the synthetic verified email in the browser, but the server-side invitation binding still did not establish staff access. Binding only the newly created test row to that session's user ID allowed the real database-backed guard to authorize the intended role.
 
 **How to apply:** Keep normal authentication and authorization unchanged. Provision a unique synthetic staff identity, obtain its signed-in user ID without logging tokens, and link only that fixture when automatic email binding is unavailable. Remove test fixtures afterward; never grant test access by changing real accounts or bypassing guards.
+
+Authentication component mocks must enforce path-routing compatibility, not only expose the configured path as a data attribute.
+
+**Why:** The real Clerk sign-in form rendered nothing when mounted at a participant URL while configured for the sign-in URL; the mocked component still rendered, so routing tests passed despite a blank real sign-in page.
+
+**How to apply:** Check the final browser URL against the component's configured path and confirm real SDK rendering with a signed-out screenshot after changing auth entry routes.
