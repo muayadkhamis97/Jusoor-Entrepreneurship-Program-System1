@@ -6,6 +6,7 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
+process.env.REPLIT_APP_URL ??= "https://entrep-system.replit.app";
 
 const {
   applicationsTable,
@@ -338,16 +339,16 @@ test("Admin invitation creates a 30-day program/business assignment and emails t
     ?.replace(/\r\n/g, "");
   assert.ok(encodedText);
   const decodedText = Buffer.from(encodedText, "base64").toString("utf8");
+  assert.match(decodedText, /Access your program: https:\/\/entrep-system\.replit\.app\/participant/);
   assert.match(decodedText, /Program: Spring Program\./);
   assert.match(decodedText, /Business: Northwind\./);
   // The invitation is valid for 30 days from "now", so derive the expected date instead of hardcoding it.
-  const expectedExpiry = new Date(result.expiresAt).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+  const expectedExpiry = new Date(result.expiresAt).toLocaleString("en-US", {
+    dateStyle: "long",
+    timeStyle: "short",
     timeZone: "UTC",
   });
-  assert.ok(decodedText.includes(`valid until ${expectedExpiry}.`), `expected "${expectedExpiry}" in: ${decodedText}`);
+  assert.ok(decodedText.includes(`valid until ${expectedExpiry} (GMT).`), `expected "${expectedExpiry}" in: ${decodedText}`);
 });
 
 test("a duplicate invitation reuses its record and does not send duplicate email", async () => {

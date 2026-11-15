@@ -21,7 +21,7 @@ import {
   getParticipantInvitationStatus,
   isParticipantInvitationExpired,
 } from "../lib/participantInvitations";
-import { sendParticipantInvitationEmail } from "../lib/participant-invitation-email";
+import { participantAccessUrl, sendParticipantInvitationEmail } from "../lib/participant-invitation-email";
 import { platformEmailFailureDiagnostics } from "../lib/platform-email";
 import { logger } from "../lib/logger";
 
@@ -83,6 +83,11 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
   const body = CreateParticipantInvitationBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const accessUrl = participantAccessUrl(process.env.REPLIT_APP_URL);
+  if (!accessUrl) {
+    res.status(503).json({ error: "The Program Hub invitation link is not configured." });
     return;
   }
   if (!(await invitationSchemaReady())) {
@@ -240,6 +245,7 @@ router.post("/staff/participant-invitations", requireCoordinator, async (req, re
       programName: program?.name ?? "",
       businessName: business.businessName,
       expiresAt: created.expiresAt,
+      accessUrl,
     });
   } catch (error) {
     (req.log ?? logger).error({
@@ -271,6 +277,11 @@ router.post("/staff/participant-invitations/:id/resend", requireCoordinator, asy
   const body = ResendParticipantInvitationBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  const accessUrl = participantAccessUrl(process.env.REPLIT_APP_URL);
+  if (!accessUrl) {
+    res.status(503).json({ error: "The Program Hub invitation link is not configured." });
     return;
   }
   if (!(await invitationSchemaReady())) {
@@ -347,6 +358,7 @@ router.post("/staff/participant-invitations/:id/resend", requireCoordinator, asy
       programName: result.record.programName,
       businessName: result.record.businessName,
       expiresAt: result.record.expiresAt,
+      accessUrl,
       resendRequestId: body.data.requestId,
     });
   } catch (error) {

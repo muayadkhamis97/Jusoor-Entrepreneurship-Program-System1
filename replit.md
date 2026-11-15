@@ -10,6 +10,7 @@ An operations and learning platform for Jusoor entrepreneurship cohorts, from ap
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Optional env: `REPLIT_APP_URL` — published app URL used in participant invitation links
 
 ## Stack
 

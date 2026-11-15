@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildParticipantInvitationEmail,
+  participantAccessUrl,
   sendParticipantInvitationEmail,
 } from "../src/lib/participant-invitation-email";
 
@@ -12,6 +13,7 @@ const input = {
   programName: "Spring <Launch>",
   businessName: "North & South",
   expiresAt: new Date("2026-11-16T12:00:00.000Z"),
+  accessUrl: "https://entrep-system.replit.app/participant",
 };
 
 test("participant invitation email names the recipient, assigned scope, and expiry", () => {
@@ -20,13 +22,23 @@ test("participant invitation email names the recipient, assigned scope, and expi
   assert.deepEqual(message.recipients, ["participant@example.test"]);
   assert.match(message.text, /Program: Spring <Launch>\./);
   assert.match(message.text, /Business: North & South\./);
-  assert.match(message.text, /November 16, 2026/);
+  assert.match(message.text, /November 16, 2026 at 12:00 PM \(GMT\)/);
+  assert.match(message.html, /November 16, 2026 at 12:00 PM \(GMT\)/);
   assert.match(message.text, /same verified email address/);
+  assert.match(message.text, /Access your program: https:\/\/entrep-system\.replit\.app\/participant/);
   assert.match(message.html, /Mona &lt;Founders&gt;/);
   assert.match(message.html, /Spring &lt;Launch&gt;/);
   assert.match(message.html, /North &amp; South/);
+  assert.match(message.html, /<a href="https:\/\/entrep-system\.replit\.app\/participant"[^>]*>Access your program<\/a>/);
   assert.doesNotMatch(message.html, /<Founders>/);
   assert.equal(message.idempotencyKey, "participant-invitation-42-1794830400000");
+});
+
+test("participant access links use the published app origin and reject unsafe URLs", async () => {
+  assert.equal(participantAccessUrl("https://entrep-system.replit.app"), "https://entrep-system.replit.app/participant");
+  assert.equal(participantAccessUrl("http://entrep-system.replit.app"), null);
+  assert.equal(participantAccessUrl("https://user:password@example.test"), null);
+  assert.equal(participantAccessUrl(undefined), null);
 });
 
 test("participant email is sent through the injected platform sender", async () => {

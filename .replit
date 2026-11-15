@@ -46,6 +46,7 @@ packages = ["gtk3", "alsa-lib", "atk", "cairo", "dbus", "gdk-pixbuf", "glib", "p
 [userenv]
 
 [userenv.shared]
+REPLIT_APP_URL = "https://entrep-system.replit.app"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-befaf295-567e-4226-890a-e22ad685e464"

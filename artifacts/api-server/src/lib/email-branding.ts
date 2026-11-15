@@ -94,7 +94,7 @@ function safeColor(value: string, fallback: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : fallback;
 }
 
-function contrastColor(hex: string): string {
+export function contrastColor(hex: string): string {
   const channels = hex.slice(1).match(/.{2}/g)?.map(channel => parseInt(channel, 16) / 255);
   if (!channels || channels.length !== 3) return "#ffffff";
   const [red, green, blue] = channels.map(channel =>
