@@ -365,10 +365,18 @@ function Overview({ coordinator = false }: { coordinator?: boolean }) {
   const query = useGetDashboard(); const dashboard = query.data;
   const stages = dashboard?.stageCounts || [];
   const max = Math.max(1, ...stages.map(stage => stage.count));
-  if (query.isLoading) return <><PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." /><LoadingState /></>;
-  if (query.isError || !dashboard) return <><PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." /><ErrorState retry={() => void query.refetch()} /></>;
+  const headingAction = coordinator ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button asChild variant="primary"><Link href="/applications"><FileText size={16} aria-hidden="true" /> {t('Review applications')}</Link></Button>
+      <Button asChild variant="secondary"><Link href="/businesses"><Plus size={16} aria-hidden="true" /> {t('Add a business')}</Link></Button>
+    </div>
+  ) : (
+    <Button asChild variant="primary"><Link href="/businesses"><Plus size={16} aria-hidden="true" /> {t('Add a business')}</Link></Button>
+  );
+  if (query.isLoading) return <><PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." action={headingAction} /><LoadingState /></>;
+  if (query.isError || !dashboard) return <><PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." action={headingAction} /><ErrorState retry={() => void query.refetch()} /></>;
   return <>
-    <PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." action={<Link href="/businesses" className="button button-primary"><Plus size={16} /> {t('Add a business')}</Link>} />
+    <PageHeading kicker="OPERATIONS / LIVE VIEW" title="Good work, moving." summary="A clear view of the founders, milestones and next moments in your program." action={headingAction} />
     <section className="metric-grid">
       <Metric label="Active programs" value={dashboard.programs} hint="Cohorts in motion" icon={Activity} trend="across formats" />
       <Metric label="Applications" value={dashboard.applications} hint="In the pipeline" icon={Users} accent="metric-coral" />
@@ -377,14 +385,14 @@ function Overview({ coordinator = false }: { coordinator?: boolean }) {
       <Metric label="Grants awarded" value={dashboard.grantsAwarded} hint={money(dashboard.totalGrantAmount) + ' committed'} icon={Trophy} accent="metric-coral" />
     </section>
     <div className="overview-grid">
-       <section className="panel stage-panel"><div className="panel-heading"><div><div className="eyebrow">{t('FOUNDER JOURNEY')}</div><h2 className="app-title">{t('Where the work is')}</h2></div><Link href="/businesses" className="text-link">{t('Open pipeline')} <ArrowRight size={14} /></Link></div>
+       <section className="panel stage-panel"><div className="panel-heading"><div><div className="eyebrow">{t('FOUNDER JOURNEY')}</div><h2 className="app-title">{t('Where the work is')}</h2></div><Button asChild variant="secondary" size="sm"><Link href="/businesses">{t('Open pipeline')} <ArrowRight size={14} aria-hidden="true" /></Link></Button></div>
         {stages.length ? <div className="stage-list">{businessStages.map((key, index) => {
           const entry = stages.find(item => item.stage === key); const count = entry?.count || 0;
            return <div className="stage-row" key={key}><span className="stage-number mono">{String(index + 1).padStart(2, '0')}</span><span className="stage-name">{t(stageNames[key])}</span><div className="stage-track"><div className={`stage-fill stage-fill-${index % 5}`} style={{ width: `${Math.max(count ? 8 : 0, count / max * 100)}%` }} /></div><span className="stage-count mono">{count}</span></div>;
         })}</div> : <EmptyState title="The journey starts here." body="Once founders enter the pipeline, their progress will appear across every stage." action={<Link href="/businesses" className="text-link">{t('Add your first business')} <ArrowRight size={14} /></Link>} />}
          <div className="journey-foot"><span><span className="live-dot" /> {t('THE FULL JOURNEY, AT A GLANCE')}</span><span>{dashboard.applications + dashboard.incubatorBusinesses} {t('founders tracked')}</span></div>
       </section>
-       <section className="panel upcoming-panel"><div className="panel-heading"><div><div className="eyebrow">{t('ON THE CALENDAR')}</div><h2 className="app-title">{t('Upcoming sessions')}</h2></div><Link href="/sessions" className="text-link">{t('All sessions')} <ArrowRight size={14} /></Link></div>
+       <section className="panel upcoming-panel"><div className="panel-heading"><div><div className="eyebrow">{t('ON THE CALENDAR')}</div><h2 className="app-title">{t('Upcoming sessions')}</h2></div><Button asChild variant="secondary" size="sm"><Link href="/sessions">{t('All sessions')} <ArrowRight size={14} aria-hidden="true" /></Link></Button></div>
         <div className="session-preview-list">{dashboard.upcomingSessions.length ? dashboard.upcomingSessions.slice(0, 5).map(session => {
           const hasZoom = session.deliveryMode !== 'in_person' && Boolean(session.zoomUrl);
            return <div className="session-preview" key={session.id}><div className="date-block"><b>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate.slice(0, 10)}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div><div className="session-info"><b>{session.title}</b><span>{display(session.type)} · {display(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.location ? ` · ${session.location}` : ''}</span></div>{hasZoom ? <a href={session.zoomUrl!} target="_blank" rel="noreferrer" className="session-join" aria-label={`${t('Join')} ${session.title} ${t('on Zoom')}`}><Video size={15} /></a> : <span className="session-join disabled" aria-label={session.deliveryMode === 'in_person' ? t('In-person session') : t('No Zoom link available')}><Video size={15} /></span>}</div>;

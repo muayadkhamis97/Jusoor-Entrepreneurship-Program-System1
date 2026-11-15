@@ -66,7 +66,38 @@ test('small fixed UI text and placeholders use readable contrast and minimum siz
   assert.doesNotMatch(indexCss, /--ui-readable-min|font-size:\s*max\(12px,\s*1em\)|font-size:\s*max\(var\(--ui-readable-min\)/);
   assert.match(indexCss, /::placeholder\s*\{\s*color:\s*hsl\(var\(--muted-foreground\)\);\s*opacity:\s*1/);
   assert.match(indexCss, /\.participant-entry-links a\s*\{[^}]*font-size:\s*var\(--type-body-min\)/);
+  assert.match(indexCss, /\.participant-entry-links a\.participant-session-join\s*\{[^}]*color:\s*hsl\(var\(--accent-foreground\)\)/);
   assert.match(analyticsCss, /\.ana-panel-foot\s*\{[^}]*font-size:\s*var\(--type-body-min\)/);
+});
+
+test('participants get a prominent Join session button only when a scheduled meeting link exists', () => {
+  assert.match(
+    intakeSurfaces,
+    /session\.zoomUrl && session\.status === 'scheduled' && <EditorialButton asChild variant="primary" size="md" className="participant-session-join min-h-11">/,
+  );
+  assert.match(
+    intakeSurfaces,
+    /<a href=\{session\.zoomUrl\} target="_blank" rel="noopener noreferrer"><Video size=\{16\} aria-hidden="true" \/> \{t\('Join session'\)\}<\/a>/,
+  );
+});
+
+test('Admin overview links directly to the admin-only applications queue', () => {
+  assert.match(
+    appSource,
+    /const headingAction = coordinator \? \([\s\S]*?<Button asChild variant="primary"><Link href="\/applications">[\s\S]*?t\('Review applications'\)/,
+  );
+  assert.match(appSource, /<Route path="\/applications" component=\{isAdmin \? ApplicationsReviewPage : NotFoundPage\} \/>/);
+});
+
+test('dashboard pipeline and session shortcuts use compact secondary link buttons', () => {
+  assert.match(
+    appSource,
+    /<Button asChild variant="secondary" size="sm"><Link href="\/businesses">\{t\('Open pipeline'\)\} <ArrowRight size=\{14\} aria-hidden="true" \/><\/Link><\/Button>/,
+  );
+  assert.match(
+    appSource,
+    /<Button asChild variant="secondary" size="sm"><Link href="\/sessions">\{t\('All sessions'\)\} <ArrowRight size=\{14\} aria-hidden="true" \/><\/Link><\/Button>/,
+  );
 });
 
 test('shared loading and error states announce updates to screen readers', () => {
