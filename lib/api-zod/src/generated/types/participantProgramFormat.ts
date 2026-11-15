@@ -12,4 +12,5 @@ export type ParticipantProgramFormat = typeof ParticipantProgramFormat[keyof typ
 export const ParticipantProgramFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;

@@ -669,6 +669,7 @@ export type ApplicationProgramFormat = typeof ApplicationProgramFormat[keyof typ
 export const ApplicationProgramFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;
 
 export interface ApplicationProgram {
@@ -1739,6 +1740,7 @@ export type ParticipantProgramFormat = typeof ParticipantProgramFormat[keyof typ
 export const ParticipantProgramFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;
 
 export interface ParticipantProgram {
@@ -3531,6 +3533,7 @@ export type ProgramFormat = typeof ProgramFormat[keyof typeof ProgramFormat];
 export const ProgramFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;
 
 export type ProgramStatus = typeof ProgramStatus[keyof typeof ProgramStatus];
@@ -3612,6 +3615,7 @@ export type ProgramInputFormat = typeof ProgramInputFormat[keyof typeof ProgramI
 export const ProgramInputFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;
 
 export type ProgramInputStatus = typeof ProgramInputStatus[keyof typeof ProgramInputStatus];
@@ -3656,6 +3660,7 @@ export type ProgramUpdateFormat = typeof ProgramUpdateFormat[keyof typeof Progra
 export const ProgramUpdateFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;
 
 export type ProgramUpdateStatus = typeof ProgramUpdateStatus[keyof typeof ProgramUpdateStatus];

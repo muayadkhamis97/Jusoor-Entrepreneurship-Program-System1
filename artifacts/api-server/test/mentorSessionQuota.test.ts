@@ -26,6 +26,17 @@ test("program creation and editing accept a non-negative per-business session ta
   assert.equal(UpdateProgramBody.safeParse({ mentorSessionsPerBusiness: -1 }).success, false);
 });
 
+test("program format schemas accept incubation alongside bootcamp and hackathon", () => {
+  for (const format of ["bootcamp", "hackathon", "incubation"] as const) {
+    assert.equal(CreateProgramBody.safeParse({
+      name: "Cohort",
+      format,
+      mentorSessionsPerBusiness: 0,
+    }).success, true);
+    assert.equal(UpdateProgramBody.safeParse({ format }).success, true);
+  }
+});
+
 test("additional sessions can only be requested after a configured target is reached", () => {
   assert.equal(additionalSessionRequestEligibility({
     reportedSessions: 0,

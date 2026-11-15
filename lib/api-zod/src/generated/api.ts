@@ -1323,7 +1323,7 @@ export const listProgramsResponseMentorSessionsPerBusinessMin = 0;
 export const ListProgramsResponseItem = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(listProgramsResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(listProgramsResponseEndDateRegExp).nullish(),
@@ -1349,7 +1349,7 @@ export const createProgramBodyMentorSessionsPerBusinessMin = 0;
 
 export const CreateProgramBody = zod.object({
   "name": zod.string().min(1),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(createProgramBodyStartDateRegExp).nullish(),
   "endDate": zod.string().regex(createProgramBodyEndDateRegExp).nullish(),
@@ -1368,7 +1368,7 @@ export const createProgramResponseMentorSessionsPerBusinessMin = 0;
 export const CreateProgramResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(createProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(createProgramResponseEndDateRegExp).nullish(),
@@ -1394,7 +1394,7 @@ export const updateProgramBodyMentorSessionsPerBusinessMin = 0;
 
 export const UpdateProgramBody = zod.object({
   "name": zod.string().min(1).optional(),
-  "format": zod.enum(['bootcamp', 'hackathon']).optional(),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']).optional(),
   "description": zod.string().nullish(),
   "startDate": zod.coerce.date().nullish(),
   "endDate": zod.coerce.date().nullish(),
@@ -1413,7 +1413,7 @@ export const updateProgramResponseMentorSessionsPerBusinessMin = 0;
 export const UpdateProgramResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(updateProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(updateProgramResponseEndDateRegExp).nullish(),
@@ -1482,7 +1482,7 @@ export const archiveProgramResponseMentorSessionsPerBusinessMin = 0;
 export const ArchiveProgramResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(archiveProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(archiveProgramResponseEndDateRegExp).nullish(),
@@ -1511,7 +1511,7 @@ export const restoreProgramResponseMentorSessionsPerBusinessMin = 0;
 export const RestoreProgramResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(restoreProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(restoreProgramResponseEndDateRegExp).nullish(),
@@ -1680,7 +1680,7 @@ export const listApplicationProgramsResponseApplicationDeadlineRegExp = new RegE
 export const ListApplicationProgramsResponseItem = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "applicationDeadline": zod.string().regex(listApplicationProgramsResponseApplicationDeadlineRegExp).nullish()
 })
@@ -2741,7 +2741,7 @@ export const GetParticipantDashboardResponse = zod.object({
   "program": zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullable(),
   "startDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemProgramStartDateRegExp).nullable(),
   "endDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemProgramEndDateRegExp).nullable()
@@ -6377,7 +6377,7 @@ export const getExternalProgramResponseMentorSessionsPerBusinessMin = 0;
 export const GetExternalProgramResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(getExternalProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(getExternalProgramResponseEndDateRegExp).nullish(),
@@ -6403,7 +6403,7 @@ export const updateExternalProgramBodyMentorSessionsPerBusinessMin = 0;
 
 export const UpdateExternalProgramBody = zod.object({
   "name": zod.string().min(1).optional(),
-  "format": zod.enum(['bootcamp', 'hackathon']).optional(),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']).optional(),
   "description": zod.string().nullish(),
   "startDate": zod.coerce.date().nullish(),
   "endDate": zod.coerce.date().nullish(),
@@ -6422,7 +6422,7 @@ export const updateExternalProgramResponseMentorSessionsPerBusinessMin = 0;
 export const UpdateExternalProgramResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
-  "format": zod.enum(['bootcamp', 'hackathon']),
+  "format": zod.enum(['bootcamp', 'hackathon', 'incubation']),
   "description": zod.string().nullish(),
   "startDate": zod.string().regex(updateExternalProgramResponseStartDateRegExp).nullish(),
   "endDate": zod.string().regex(updateExternalProgramResponseEndDateRegExp).nullish(),

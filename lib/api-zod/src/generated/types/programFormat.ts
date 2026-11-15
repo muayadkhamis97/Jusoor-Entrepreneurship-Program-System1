@@ -12,4 +12,5 @@ export type ProgramFormat = typeof ProgramFormat[keyof typeof ProgramFormat];
 export const ProgramFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;

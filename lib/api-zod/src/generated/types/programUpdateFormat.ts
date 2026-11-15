@@ -12,4 +12,5 @@ export type ProgramUpdateFormat = typeof ProgramUpdateFormat[keyof typeof Progra
 export const ProgramUpdateFormat = {
   bootcamp: 'bootcamp',
   hackathon: 'hackathon',
+  incubation: 'incubation',
 } as const;
