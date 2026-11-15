@@ -5,14 +5,14 @@ generated = []
 id = "9UdUolOHaIdIyvGbhJ4Y4"
 uri = "file://generated-artifacts/participant-journey/participant-overview-en-390.png"
 type = "image"
-title = "Participant journey — English overview"
-description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+title = "Demo participant — English phone"
+description = "Participant overview at 390px with demo data."
 logical_id = "69d36add-9b37-4aa1-b657-98b0a405f7dd"
-content_hash = "sha256:37b28b8f3429be98da326298aa3cb35d9a677dd808f7f2e13d0fcc65f34c21cf"
-size = 63647
-mtime_ms = 1794489029917
-storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/69d36add-9b37-4aa1-b657-98b0a405f7dd/72c7e0ce-954d-4f7f-9eea-affaccaeb16a"
-storage_version_token = "1794489064970185"
+content_hash = "sha256:61ba7bfc90e0f7a2b8b5a521778f5b74c52b1ee6b07b1b7c03b59f9416a826bd"
+size = 70714
+mtime_ms = 1794757891845
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/69d36add-9b37-4aa1-b657-98b0a405f7dd/b6da7ff9-e517-4a30-8468-531ed5b15f39"
+storage_version_token = "1794758098457607"
 content_type = "image/png"
 
 [[outputs]]
@@ -75,14 +75,14 @@ content_type = "image/png"
 id = "MJLc_IrMpiHSRbI7tRVhl"
 uri = "file://generated-artifacts/participant-journey/participant-overview-ar-390.png"
 type = "image"
-title = "Participant journey — Arabic overview"
-description = "390 × 844 mobile capture from the real participant app page, populated with synthetic demo records."
+title = "Demo participant — Arabic phone"
+description = "RTL participant overview at 390px with demo data."
 logical_id = "948a121a-4492-473a-ae34-890225752bbd"
-content_hash = "sha256:1bacf98ade8ae276bfa02ca703f8f20d6b653141e59eae442f77a5db6a1da91d"
-size = 61380
-mtime_ms = 1794489032765
-storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/948a121a-4492-473a-ae34-890225752bbd/24667381-1fa2-4eec-8beb-f80a4079259e"
-storage_version_token = "1794489071543355"
+content_hash = "sha256:42b4b3979f6b73740c16c8ce05825f05c64fc003d2a2faa507f262e7173fce12"
+size = 64489
+mtime_ms = 1794757905333
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/948a121a-4492-473a-ae34-890225752bbd/1b855f45-4e81-4126-bb3a-27fdbb696c9d"
+storage_version_token = "1794758100842568"
 content_type = "image/png"
 
 [[outputs]]
@@ -154,3 +154,101 @@ mtime_ms = 1794750305640
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/86997bed-6a8f-4e6d-a5ca-634d049e375f/07dc83ac-d281-4ec3-909b-f121b9f4a67e"
 storage_version_token = "1794750419647695"
 content_type = "text/html"
+
+[[outputs]]
+id = "k0Dc0poUH0VIDeBwSOROC"
+uri = "file://generated-artifacts/participant-journey/participant-overview-en-1280.png"
+type = "image"
+title = "Demo participant — English desktop"
+description = "Participant overview at 1280px with demo data."
+logical_id = "a8a4ec47-0f62-42f8-baeb-ad20c22e4303"
+content_hash = "sha256:acef0c7076a1e461e6a979322a6d1981ea4fc048aadf960541968672351109a2"
+size = 120001
+mtime_ms = 1794757891449
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/a8a4ec47-0f62-42f8-baeb-ad20c22e4303/f6367ed9-c14c-48de-83c2-69e0b65e73c8"
+storage_version_token = "1794758095967698"
+content_type = "image/png"
+
+[[outputs]]
+id = "NkKLXATpCEM4Zct7lnUal"
+uri = "file://generated-artifacts/participant-journey/participant-overview-ar-1280.png"
+type = "image"
+title = "Demo participant — Arabic desktop"
+description = "RTL participant overview at 1280px with demo data."
+logical_id = "3390f780-1fcf-4faa-8ef9-8f106c309cc0"
+content_hash = "sha256:ad4d7eaf7258ca595dc8663f99b0b09e052d0166f97e8674c3053a9ffa99abe0"
+size = 111611
+mtime_ms = 1794757904965
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/3390f780-1fcf-4faa-8ef9-8f106c309cc0/d367bdab-9d47-451e-bbd8-6278c1f4c59d"
+storage_version_token = "1794758097245297"
+content_type = "image/png"
+
+[[outputs]]
+id = "HZq4-kUZfNknUWTgRjXv5"
+uri = "file://generated-artifacts/participant-journey/participant-empty-no-data-en-1280.png"
+type = "image"
+title = "No-data participant — English desktop"
+description = "Compact empty participant journey at 1280px."
+logical_id = "974faeab-2428-4260-af80-a60454a73475"
+content_hash = "sha256:0242e5d8b0de8016d915ded50bb5d77e32c65537c86a35b25b22312d7d455283"
+size = 98487
+mtime_ms = 1794757920141
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/974faeab-2428-4260-af80-a60454a73475/7f2f9ba8-78b9-4503-84f4-faac6c59c7c8"
+storage_version_token = "1794758102140752"
+content_type = "image/png"
+
+[[outputs]]
+id = "FZy4f60Ri2sqcWym3ujdA"
+uri = "file://generated-artifacts/participant-journey/participant-empty-no-data-ar-1280.png"
+type = "image"
+title = "No-data participant — Arabic desktop"
+description = "Compact RTL empty participant journey at 1280px."
+logical_id = "868fa29d-3dc1-4f39-b9e2-e9670512fde6"
+content_hash = "sha256:0aa70781c98dc8f67f80770a2a7351364d6d9503c883d8d5e996364ba8945ea3"
+size = 97583
+mtime_ms = 1794757921153
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/868fa29d-3dc1-4f39-b9e2-e9670512fde6/b84390c5-7157-4ebc-9f1a-ffb890bfb733"
+storage_version_token = "1794758103405453"
+content_type = "image/png"
+
+[[outputs]]
+id = "Bu-9QXYofH499HsT8TVb3"
+uri = "file://generated-artifacts/participant-journey/participant-empty-no-data-en-390.png"
+type = "image"
+title = "No-data participant — English phone"
+description = "Compact empty participant journey at 390px."
+logical_id = "3b158b6d-c487-4659-8094-daedd468e5f5"
+content_hash = "sha256:0361aad7ae84705b247b89fcc412089eefc00bb00b392ffe9ddb1848ffdba070"
+size = 66836
+mtime_ms = 1794757920449
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/3b158b6d-c487-4659-8094-daedd468e5f5/c015a2a5-b590-41cf-9344-9ed4fd7bb75f"
+storage_version_token = "1794758104732105"
+content_type = "image/png"
+
+[[outputs]]
+id = "Jym6MSOVxhyEHJElK-ovd"
+uri = "file://generated-artifacts/participant-journey/participant-empty-no-data-ar-390.png"
+type = "image"
+title = "No-data participant — Arabic phone"
+description = "Compact RTL empty participant journey at 390px."
+logical_id = "4b5f3682-5d5b-449b-9e7c-0be6536d62d4"
+content_hash = "sha256:8174e95ff1844e981530197be037a37eb62fd0a8d46548c83467a717a6e92462"
+size = 63103
+mtime_ms = 1794757921481
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/4b5f3682-5d5b-449b-9e7c-0be6536d62d4/45f6edc7-ead0-4d14-a775-d770b3050b51"
+storage_version_token = "1794758106038942"
+content_type = "image/png"
+
+[[outputs]]
+id = "wqILTnpE6hRfdDYXDcAYg"
+uri = "file://generated-artifacts/participant-journey/participant-workbook-save-bar-en-390.png"
+type = "image"
+title = "Workbook save bar — phone"
+description = "Expanded founder workbook showing the pinned Save bar at 390px."
+logical_id = "e2089f27-6996-4845-8443-95e5b52b73c3"
+content_hash = "sha256:db8220db7d54a4139b862cea08d87814f431768fa5fc8a5cf12768b24c921cfb"
+size = 64748
+mtime_ms = 1794757922813
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/e2089f27-6996-4845-8443-95e5b52b73c3/18cee41e-108f-4735-b578-11b126048e70"
+storage_version_token = "1794758107354253"
+content_type = "image/png"
