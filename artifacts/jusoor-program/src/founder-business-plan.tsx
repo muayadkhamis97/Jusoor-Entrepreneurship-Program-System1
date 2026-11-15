@@ -63,11 +63,27 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
   const client = useQueryClient();
   const save = useSaveParticipantBusinessPlan();
   const [savedAt, setSavedAt] = useState<string | null>(plan.updatedAt);
+  const workbookAnchor = `participant-business-plan-workbook-${plan.applicationId}`;
+  const formId = `business-plan-form-${plan.applicationId}`;
+  const [isOpen, setIsOpen] = useState(() => {
+    const hasStarted = Object.values(valuesFromPlan(plan)).some(value => value.trim().length > 0);
+    const hash = typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.slice(1));
+    return hasStarted || hash === 'participant-business-plan-workbook' || hash === workbookAnchor;
+  });
   const form = useForm<PlanValues>({ defaultValues: valuesFromPlan(plan) });
   const filledCount = fields.filter(({ key }) => Boolean(form.watch(key)?.trim())).length;
   const progress = Math.round((filledCount / fields.length) * 100);
 
   useEffect(() => setSavedAt(plan.updatedAt), [plan.updatedAt]);
+
+  useEffect(() => {
+    const openFromHash = () => {
+      const hash = decodeURIComponent(window.location.hash.slice(1));
+      if (hash === 'participant-business-plan-workbook' || hash === workbookAnchor) setIsOpen(true);
+    };
+    window.addEventListener('hashchange', openFromHash);
+    return () => window.removeEventListener('hashchange', openFromHash);
+  }, [workbookAnchor]);
 
   const onSubmit = (data: PlanValues) => {
     save.mutate({ applicationId: plan.applicationId, data }, {
@@ -83,7 +99,7 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
     ? `${t('Last saved')} · ${new Date(savedAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`
     : t('Not saved yet');
 
-  return <article className="founder-plan-card" data-testid={`founder-business-plan-${plan.applicationId}`}>
+  return <article id={workbookAnchor} className="founder-plan-card" data-testid={`founder-business-plan-${plan.applicationId}`}>
     <header className="founder-plan-head">
       <div className="idea-business-mark" aria-hidden="true">{(plan.businessName || 'J').slice(0, 1).toUpperCase()}</div>
       <div className="idea-workbook-title">
@@ -91,41 +107,55 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
         <h3>{plan.businessName}</h3>
         <span>{t('Application')} · JSR-{String(plan.applicationId).padStart(5, '0')}</span>
       </div>
-      <div className="idea-private-tag"><LockKeyhole size={13} />{t('Private to you')}</div>
+      <div className="founder-plan-head-actions">
+        <div className="idea-private-tag"><LockKeyhole size={13} />{t('Private to you')}</div>
+        <button
+          type="button"
+          className="button button-outline idea-workbook-toggle"
+          aria-expanded={isOpen}
+          aria-controls={formId}
+          onClick={() => setIsOpen(open => !open)}
+          data-testid={`button-toggle-business-plan-${plan.applicationId}`}
+        >{isOpen ? t('Close workbook') : filledCount > 0 ? t('Continue') : t('Open')}</button>
+      </div>
     </header>
-    <div className="idea-progress-row">
-      <div className="idea-progress-copy"><span>{t('Your plan so far')}</span><b>{filledCount} {t('of')} 4 {t('sections started')}</b></div>
-      <div className="idea-progress-track" role="progressbar" aria-label={t('Business plan progress')} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+    <div className="idea-workbook-summary">
+      <div className="idea-progress-row">
+        <div className="idea-progress-copy"><span>{t('Your plan so far')}</span><b>{filledCount} {t('of')} 4 {t('steps started')}</b></div>
+        <div className="idea-progress-track" role="progressbar" aria-label={t('Business plan progress')} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+      </div>
     </div>
-    <Form {...form}>
-      <form className="founder-plan-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        {fields.map((field, index) => <section className="idea-step" key={field.key}>
-          <div className="idea-step-index">{String(index + 1).padStart(2, '0')}</div>
-          <div className="idea-step-content">
-            <div className="idea-step-kicker">{t(field.title)}</div>
-            <FormField control={form.control} name={field.key} render={({ field: control }) => <FormItem className="idea-form-item">
-              <FormLabel>{t(field.prompt)}</FormLabel>
-              <FormControl><textarea {...control} rows={field.rows} maxLength={field.key === 'outreachActions' || field.key === 'fulfillmentSteps' ? 5000 : 3000} placeholder={t(field.placeholder)} data-testid={`input-business-plan-${field.key}-${plan.applicationId}`} /></FormControl>
-              <small>{t(field.helper)}</small>
-            </FormItem>} />
-          </div>
-        </section>)}
-        <div className="idea-save-area">
-          <div className="idea-save-note">
-            <div className="idea-save-status" aria-live="polite" data-testid={`status-business-plan-save-${plan.applicationId}`}>
-              {save.isPending ? <><span className="idea-saving-pulse" />{t('Saving your plan…')}</>
-                : save.isError ? <><CircleAlert size={15} />{t('Your changes could not be saved. Please try again.')}</>
-                  : savedAt ? <><Check size={15} />{savedLabel}</>
-                    : <>{t('Your draft has not been saved yet.')}</>}
+    <div id={formId} className="founder-plan-form-panel" hidden={!isOpen} data-testid={`panel-business-plan-${plan.applicationId}`}>
+      <Form {...form}>
+        <form className="founder-plan-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+          {fields.map((field, index) => <section className="idea-step" key={field.key}>
+            <div className="idea-step-index">{String(index + 1).padStart(2, '0')}</div>
+            <div className="idea-step-content">
+              <div className="idea-step-kicker">{t(field.title)}</div>
+              <FormField control={form.control} name={field.key} render={({ field: control }) => <FormItem className="idea-form-item">
+                <FormLabel>{t(field.prompt)}</FormLabel>
+                <FormControl><textarea {...control} rows={field.rows} maxLength={field.key === 'outreachActions' || field.key === 'fulfillmentSteps' ? 5000 : 3000} placeholder={t(field.placeholder)} data-testid={`input-business-plan-${field.key}-${plan.applicationId}`} /></FormControl>
+                <small>{t(field.helper)}</small>
+              </FormItem>} />
             </div>
-            <span>{t('Save an incomplete draft whenever you are ready. Only you can see this plan.')}</span>
+          </section>)}
+          <div className="idea-save-area">
+            <div className="idea-save-note">
+              <div className="idea-save-status" aria-live="polite" data-testid={`status-business-plan-save-${plan.applicationId}`}>
+                {save.isPending ? <><span className="idea-saving-pulse" />{t('Saving your plan…')}</>
+                  : save.isError ? <><CircleAlert size={15} />{t('Your changes could not be saved. Please try again.')}</>
+                    : savedAt ? <><Check size={15} />{savedLabel}</>
+                      : <>{t('Your draft has not been saved yet.')}</>}
+              </div>
+              <span>{t('Save an incomplete draft whenever you are ready. Only you can see this plan.')}</span>
+            </div>
+            <button className="button button-primary idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-business-plan-${plan.applicationId}`}>
+              {save.isPending ? <><span className="idea-button-dots" />{t('Saving…')}</> : <><Save size={15} />{t('Save plan')}</>}
+            </button>
           </div>
-          <button className="button button-primary idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-business-plan-${plan.applicationId}`}>
-            {save.isPending ? <><span className="idea-button-dots" />{t('Saving…')}</> : <><Save size={15} />{t('Save plan')}</>}
-          </button>
-        </div>
-      </form>
-    </Form>
+        </form>
+      </Form>
+    </div>
   </article>;
 }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -296,71 +296,146 @@ export function ApplicationsReviewPage() {
   </>;
 }
 
-const participantPagePaths = {
-  '/participant': 'progress',
-  '/participant/team': 'team',
-  '/participant/updates': 'updates',
-  '/participant/learning': 'learning',
-} as const;
+const participantNavigationSections = [
+  { id: 'participant-next-action', label: 'Next action', acceptedOnly: false },
+  { id: 'participant-program-progress', label: 'Cohort', acceptedOnly: false },
+  { id: 'participant-updates', label: 'Updates & reminders', acceptedOnly: false },
+  { id: 'participant-sessions', label: 'What’s coming up', acceptedOnly: true },
+  { id: 'participant-mentoring', label: 'Mentoring', acceptedOnly: true },
+  { id: 'participant-learning', label: 'Learning', acceptedOnly: true },
+  { id: 'participant-founder-workbook', label: 'Founder workbook', acceptedOnly: true },
+  { id: 'participant-business-plan-workbook', label: 'Business plan workbook', acceptedOnly: true },
+  { id: 'participant-founder-support', label: 'Founder support', acceptedOnly: true },
+  { id: 'participant-assignments', label: 'Assignments', acceptedOnly: true },
+  { id: 'participant-business-team', label: 'Business team', acceptedOnly: true },
+] as const;
 
-type ParticipantPage = typeof participantPagePaths[keyof typeof participantPagePaths];
+function ParticipantSectionNavigation({ hasAcceptedEnrollment }: { hasAcceptedEnrollment: boolean }) {
+  const [activeId, setActiveId] = useState('participant-next-action');
+  const visibleSections = participantNavigationSections.filter(section => !section.acceptedOnly || hasAcceptedEnrollment);
+
+  useEffect(() => {
+    const sections = visibleSections
+      .map(({ id }) => document.getElementById(id))
+      .filter((element): element is HTMLElement => Boolean(element));
+    const updateActive = () => {
+      const marker = ((document.querySelector('.participant-section-nav') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 0) + 40;
+      const current = sections.filter(section => section.getBoundingClientRect().top <= marker).at(-1) ?? sections[0];
+      if (current) setActiveId(current.id);
+    };
+    let frame = 0;
+    const scheduleUpdate = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updateActive);
+    };
+    const observer = typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(scheduleUpdate, { rootMargin: '-90px 0px 0px 0px', threshold: 0 });
+    sections.forEach(section => observer?.observe(section));
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+    scheduleUpdate();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+    };
+  }, [hasAcceptedEnrollment]);
+
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    event.preventDefault();
+    const url = new URL(window.location.href);
+    url.hash = id;
+    window.history.pushState(null, '', url);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    setActiveId(id);
+    window.dispatchEvent(new Event('hashchange'));
+  };
+
+  return <nav className="participant-section-nav" aria-label={t('On this page')} data-testid="participant-section-nav">
+    <span className="participant-section-nav-label">{t('On this page')}</span>
+    <div className="participant-section-nav-links">
+      {visibleSections.map(section => <a
+        key={section.id}
+        href={`#${section.id}`}
+        aria-current={activeId === section.id ? 'location' : undefined}
+        data-testid={`link-${section.id}`}
+        onClick={event => handleClick(event, section.id)}
+      >{t(section.label)}</a>)}
+    </div>
+  </nav>;
+}
 
 export function ParticipantDashboardPage() {
   useAppLanguage();
   const { signOut } = useClerk();
-  const [location, setLocation] = useLocation();
   const query = useGetParticipantDashboard({ query: { queryKey: getGetParticipantDashboardQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 } });
   const profileQuery = useGetParticipantProfile({ query: { queryKey: getGetParticipantProfileQueryKey(), retry: false } });
   const { user } = useUser();
-  const participantPath = location.replace(/\/+$/, '') || '/participant';
-  const page: ParticipantPage = participantPagePaths[participantPath as keyof typeof participantPagePaths] || 'progress';
   const enrollments = query.data?.applications || [];
   const hasAcceptedEnrollment = enrollments.some(enrollment => enrollment.applicationStatus === 'accepted');
   const acceptedEnrollments = enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted');
   const nextAction = getParticipantNextAction(hasAcceptedEnrollment);
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
   useEffect(() => {
-    if (!participantPagePaths[participantPath as keyof typeof participantPagePaths]
-      || (page === 'team' && !query.isLoading && !query.isError && query.data && !hasAcceptedEnrollment)) {
-      setLocation('/participant');
-    }
-  }, [participantPath, page, query.isLoading, query.isError, query.data, hasAcceptedEnrollment, setLocation]);
+    if (query.isLoading || query.isError) return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    const frame = requestAnimationFrame(() => document.getElementById(decodeURIComponent(hash))?.scrollIntoView({ behavior: 'auto', block: 'start' }));
+    return () => cancelAnimationFrame(frame);
+  }, [query.isLoading, query.isError, query.data?.applications?.length]);
   return <div className="intake-page"><header className="intake-top"><ParticipantIntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Program hub')} <ArrowRight size={14} /></Link></div></header>
-    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your program updates, team, learning and progress are organized on separate pages.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/chat" data-testid="link-participant-chat">{t('Chat')}</Link><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
+    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('A clear view of your cohort, next steps, updates, and learning.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/chat" data-testid="link-participant-chat">{t('Chat')}</Link><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
         : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>
          : enrollments.length === 0 ? <><div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h1>{t('No program access linked yet.')}</h1><p>{t('This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div><ParticipantAnnouncements announcements={query.data?.announcements || []} /></>
-          : <>
-            <nav className="participant-section-index" aria-label={t('Participant pages')}>
-              <Link href="/participant" aria-current={page === 'progress' ? 'page' : undefined} data-testid="link-participant-page-progress">{t('Program progress')}</Link>
-              {hasAcceptedEnrollment && <Link href="/participant/team" aria-current={page === 'team' ? 'page' : undefined} data-testid="link-participant-page-team">{t('Business team')}</Link>}
-              <Link href="/participant/updates" aria-current={page === 'updates' ? 'page' : undefined} data-testid="link-participant-page-updates">{t('Program updates')}</Link>
-              <Link href="/participant/learning" aria-current={page === 'learning' ? 'page' : undefined} data-testid="link-participant-page-learning">{t('Learning')}</Link>
-            </nav>
-            {page === 'progress' && <>
-              <section className="participant-next-action" aria-labelledby="participant-next-action-title" data-testid="participant-page-progress">
-                <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span><h2 id="participant-next-action-title">{t(nextAction.titleKey)}</h2><p>{t(nextAction.descriptionKey)}</p></div>
-                <Link className="button button-primary" href={nextAction.href}>{t('Go to next action')} <ArrowRight size={15} /></Link>
-              </section>
-              <section className="participant-dashboard-section" aria-label={t('Program progress')}>
-                {enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} page="progress" />)}
-              </section>
-              {acceptedEnrollments.length > 0 && <>
-                <div className="participant-dashboard-section"><ParticipantIdeaValidation enrollments={acceptedEnrollments} /></div>
-                <div className="participant-dashboard-section"><ParticipantBusinessPlan enrollments={acceptedEnrollments} /></div>
-              </>}
-            </>}
-            {page === 'team' && <div className="participant-dashboard-section" data-testid="participant-page-team">
-              <ParticipantBusinessTeams />
-              {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} page="team" />)}
-            </div>}
-            {page === 'updates' && <div className="participant-dashboard-section" data-testid="participant-page-updates"><ParticipantAnnouncements announcements={query.data?.announcements || []} /></div>}
-            {page === 'learning' && <div className="participant-dashboard-section" data-testid="participant-page-learning">
-              <ParticipantLearningProgress />
-              <ParticipantProgramLearning />
-              {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} page="learning" />)}
-            </div>}
-          </>}
+           : <>
+             <ParticipantSectionNavigation hasAcceptedEnrollment={hasAcceptedEnrollment} />
+             <section id="participant-next-action" className="participant-anchor-section" aria-labelledby="participant-next-action-title" data-testid="participant-page-next-action">
+               <div className="participant-next-action">
+                 <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span><h2 id="participant-next-action-title">{t(nextAction.titleKey)}</h2><p>{t(nextAction.descriptionKey)}</p></div>
+                 <Link className="button button-primary" href={nextAction.href}>{t('Go to next action')} <ArrowRight size={15} /></Link>
+               </div>
+             </section>
+             <section id="participant-program-progress" className="participant-anchor-section participant-dashboard-section" aria-label={t('Your cohort')}>
+               {enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="cohort" />)}
+             </section>
+             <section id="participant-updates" className="participant-anchor-section participant-dashboard-section">
+               <ParticipantAnnouncements announcements={query.data?.announcements || []} />
+             </section>
+             {acceptedEnrollments.length > 0 && <>
+               <section id="participant-sessions" className="participant-anchor-section participant-dashboard-section">
+                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="sessions" />)}
+               </section>
+               <section id="participant-mentoring" className="participant-anchor-section participant-dashboard-section">
+                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="mentoring" />)}
+               </section>
+               <section id="participant-learning" className="participant-anchor-section participant-dashboard-section">
+                 <ParticipantLearningProgress />
+                 <ParticipantProgramLearning />
+               </section>
+               <section id="participant-founder-workbook" className="participant-anchor-section participant-dashboard-section">
+                 <ParticipantIdeaValidation enrollments={acceptedEnrollments} />
+               </section>
+               <section id="participant-business-plan-workbook" className="participant-anchor-section participant-dashboard-section">
+                 <ParticipantBusinessPlan enrollments={acceptedEnrollments} />
+               </section>
+               <section id="participant-founder-support" className="participant-anchor-section participant-dashboard-section">
+                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="support" />)}
+               </section>
+               <section id="participant-assignments" className="participant-anchor-section participant-dashboard-section">
+                 {acceptedEnrollments.map(enrollment => <ParticipantLearning key={enrollment.applicationId} enrollment={enrollment} />)}
+               </section>
+               <section id="participant-business-team" className="participant-anchor-section participant-dashboard-section">
+                 <ParticipantBusinessTeams />
+                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="team" />)}
+               </section>
+             </>}
+           </>}
     </main><footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
   </div>;
 }
@@ -416,32 +491,44 @@ function ParticipantProgramLearning() {
    </section>{activePackage && <Suspense fallback={<div className="modal-backdrop" role="presentation"><section className="modal-card" role="status">{t('Loading course package…')}</section></div>}><CoursePackagePlayer materialId={activePackage.id} title={activePackage.title} onClose={() => setActivePackage(null)} /></Suspense>}</>;
 }
 
-function EnrollmentCard({ enrollment, page }: { enrollment: ParticipantEnrollment; page: 'progress' | 'team' | 'learning' }) {
+type EnrollmentSection = 'cohort' | 'sessions' | 'mentoring' | 'support' | 'team';
+
+function EnrollmentCard({ enrollment, section }: { enrollment: ParticipantEnrollment; section: EnrollmentSection }) {
   const [calendarDate, setCalendarDate] = useState<string | null>(null);
   const scheduled = enrollment.sessions.filter(session => session.status === 'scheduled').sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
   const displayedSessions = calendarDate
     ? enrollment.sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate)
     : enrollment.sessions;
   const support = enrollment.support;
-  return <article data-testid={`card-participant-application-${enrollment.applicationId}`}>
-    {page === 'progress' && <>
-    <section className="participant-section"><div className="participant-section-head"><div><h2>{t('Your cohort')}</h2><p>{enrollment.enrollmentSource === 'admin_invitation' ? t('Participant access assigned') : t('Application received')} {dateText(enrollment.submittedAt)}</p></div><span className={`badge ${statusClass(enrollment.applicationStatus)}`} data-testid={`status-application-${enrollment.applicationId}`}><span />{statusWords[enrollment.applicationStatus] || word(enrollment.applicationStatus)}</span></div>
-      <div className="participant-program"><div><div className="eyebrow">{word(enrollment.program.format)} {t('COHORT')}</div><h3>{enrollment.program.name}</h3><p>{enrollment.program.description || t('Your founder journey starts here.')}</p>{enrollment.business && <div className="participant-stage"><span>{t('Current venture stage')}</span><b>{word(enrollment.business.stage)}</b></div>}</div><div className="program-window"><span>{t('PROGRAM WINDOW')}</span><b>{dateText(enrollment.program.startDate)} — {dateText(enrollment.program.endDate)}</b></div></div>
-    </section>
-    </>}
-    {page === 'team' && enrollment.applicationStatus === 'accepted' && <ParticipantPeerDirectory programId={enrollment.program.id} />}
-    {page === 'learning' && <>
-    <section className="participant-section"><div className="participant-section-head"><div><h2>{t('What’s coming up')}</h2><p>{t('Sessions planned for your cohort.')}</p></div><span className="badge badge-neutral">{scheduled.length} {t('upcoming')}</span></div>
-        <div className="participant-grid"><div className="participant-card"><h3>{t('Sessions')}</h3><SessionCalendar sessions={enrollment.sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />{enrollment.sessions.length === 0 ? <p className="session-info">{t('No sessions have been shared yet. Check back as your cohort schedule takes shape.')}</p> : !displayedSessions.length ? <p className="session-info">{t('No sessions are scheduled for this date. Choose another day or show all dates.')}</p> : displayedSessions.map(session => <div className="participant-entry" key={session.id} data-testid={`session-participant-${session.id}`}><div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div><div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <EditorialButton asChild variant="primary" size="md" className="participant-session-join min-h-11"><a href={session.zoomUrl} target="_blank" rel="noopener noreferrer"><Video size={16} aria-hidden="true" /> {t('Join session')}</a></EditorialButton>}</div><SessionRecordingPlayer url={session.recordingUrl} title={session.title} /><ParticipantSessionInteractions sessionId={session.id} programId={enrollment.program.id} businessName={enrollment.business?.businessName} /></div><span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span></div>)}</div>
-        <div className="participant-card"><h3>{t('Founder support')}</h3>{support.length === 0 ? <p className="session-info">{t('No support engagements are linked yet. Your admin will update this space as support is arranged.')}</p> : support.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.type === 'mentor' && item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> {t('Book mentoring session')}</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div></div>
-    </section>
-    <section className="participant-section" data-testid={`calendly-meetings-${enrollment.applicationId}`}>
-      <div className="participant-section-head"><div><h2>{t('Mentoring appointments')}</h2><p>{t('Bookings with your assigned mentor.')}</p></div></div>
-      <div className="participant-grid"><div className="participant-card"><h3>{t('Booked mentoring sessions')}</h3>{enrollment.calendlyMeetings.length + enrollment.googleCalendarMeetings.length === 0 ? <p className="session-info">{t('Confirmed, rescheduled and cancelled meetings booked with your assigned mentor will appear here.')}</p> : [...enrollment.calendlyMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Calendly' })), ...enrollment.googleCalendarMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Google Calendar' }))].sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime()).map(meeting => <div className="participant-entry" key={`${meeting.bookingProvider}-${meeting.id}`} data-testid={`meeting-participant-${meeting.bookingProvider}-${meeting.id}`}><div className="calendar-icon"><CalendarDays size={16} /></div><div className="participant-entry-copy"><b>{t(meeting.eventName)}</b><span>{meetingDateTime(meeting.startsAt, meeting.timezone)} – {meetingDateTime(meeting.endsAt, meeting.timezone)}</span><span>{meeting.bookingProvider}</span>{meeting.timezone && <span>{meeting.timezone}</span>}</div><span className={`badge ${statusClass(meeting.status)}`}>{word(meeting.status)}</span></div>)}</div></div>
-    </section>
-    <ParticipantLearning enrollment={enrollment} />
-    </>}
+  if (section === 'cohort') return <article className="participant-section participant-cohort-card" data-testid={`card-participant-application-${enrollment.applicationId}`}>
+    <div className="participant-section-head"><div><h2>{t('Your cohort')}</h2><p>{enrollment.enrollmentSource === 'admin_invitation' ? t('Participant access assigned') : t('Application received')} {dateText(enrollment.submittedAt)}</p></div><span className={`badge ${statusClass(enrollment.applicationStatus)}`} data-testid={`status-application-${enrollment.applicationId}`}><span />{statusWords[enrollment.applicationStatus] || word(enrollment.applicationStatus)}</span></div>
+    <div className="participant-program"><div><div className="eyebrow">{word(enrollment.program.format)} {t('COHORT')}</div><h3>{enrollment.program.name}</h3><p>{enrollment.program.description || t('Your founder journey starts here.')}</p>{enrollment.business && <div className="participant-stage"><span>{t('Current venture stage')}</span><b>{word(enrollment.business.stage)}</b></div>}</div><div className="program-window"><span>{t('PROGRAM WINDOW')}</span><b>{dateText(enrollment.program.startDate)} — {dateText(enrollment.program.endDate)}</b></div></div>
   </article>;
+
+  if (section === 'team') return <ParticipantPeerDirectory programId={enrollment.program.id} />;
+
+  if (section === 'sessions') return <section className="participant-section participant-sessions-section" data-testid={`participant-sessions-${enrollment.applicationId}`}>
+    <div className="participant-section-head"><div><h2>{t('What’s coming up')}</h2><p>{t('Sessions planned for your cohort.')}</p></div><span className="badge badge-neutral">{scheduled.length} {t('upcoming')}</span></div>
+    <div className="participant-grid"><div className="participant-card"><h3>{t('Sessions')}</h3><SessionCalendar sessions={enrollment.sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />{enrollment.sessions.length === 0 ? <p className="session-info">{t('No sessions have been shared yet. Check back as your cohort schedule takes shape.')}</p> : !displayedSessions.length ? <p className="session-info">{t('No sessions are scheduled for this date. Choose another day or show all dates.')}</p> : displayedSessions.map(session => <div className="participant-entry" key={session.id} data-testid={`session-participant-${session.id}`}><div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div><div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <EditorialButton asChild variant="primary" size="md" className="participant-session-join min-h-11"><a href={session.zoomUrl} target="_blank" rel="noopener noreferrer"><Video size={16} aria-hidden="true" /> {t('Join session')}</a></EditorialButton>}</div><SessionRecordingPlayer url={session.recordingUrl} title={session.title} /><ParticipantSessionInteractions sessionId={session.id} programId={enrollment.program.id} businessName={enrollment.business?.businessName} /></div><span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span></div>)}</div></div>
+  </section>;
+
+  if (section === 'mentoring') {
+    const meetings = [...enrollment.calendlyMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Calendly' })), ...enrollment.googleCalendarMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Google Calendar' }))].sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime());
+    const mentorSupport = support.filter(item => item.type === 'mentor');
+    return <section className="participant-section" data-testid={`calendly-meetings-${enrollment.applicationId}`}>
+      <div className="participant-section-head"><div><h2>{t('Mentoring appointments')}</h2><p>{t('Bookings with your assigned mentor.')}</p></div></div>
+      <div className="participant-grid">
+        <div className="participant-card"><h3>{t('Booked mentoring sessions')}</h3>{meetings.length === 0 ? <p className="session-info">{t('Confirmed, rescheduled and cancelled meetings booked with your assigned mentor will appear here.')}</p> : meetings.map(meeting => <div className="participant-entry" key={`${meeting.bookingProvider}-${meeting.id}`} data-testid={`meeting-participant-${meeting.bookingProvider}-${meeting.id}`}><div className="calendar-icon"><CalendarDays size={16} /></div><div className="participant-entry-copy"><b>{t(meeting.eventName)}</b><span>{meetingDateTime(meeting.startsAt, meeting.timezone)} – {meetingDateTime(meeting.endsAt, meeting.timezone)}</span><span>{meeting.bookingProvider}</span>{meeting.timezone && <span>{meeting.timezone}</span>}</div><span className={`badge ${statusClass(meeting.status)}`}>{word(meeting.status)}</span></div>)}</div>
+        <div className="participant-card"><h3>{t('Mentor support')}</h3>{mentorSupport.length ? mentorSupport.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> {t('Book mentoring session')}</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>) : <p className="session-info">{t('No mentor support is scheduled yet.')}</p>}</div>
+      </div>
+    </section>;
+  }
+
+  const founderSupport = support.filter(item => item.type !== 'mentor');
+  return <section className="participant-section" data-testid={`founder-support-${enrollment.applicationId}`}>
+    <div className="participant-section-head"><div><h2>{t('Founder support')}</h2><p>{t('Support arranged for your business.')}</p></div></div>
+    <div className="participant-card">{founderSupport.length === 0 ? <p className="session-info">{t('No support engagements are linked yet. Your admin will update this space as support is arranged.')}</p> : founderSupport.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span></div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div>
+  </section>;
 }
 
 function ParticipantLearning({ enrollment }: { enrollment: ParticipantEnrollment }) {

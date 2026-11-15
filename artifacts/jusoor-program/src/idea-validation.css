@@ -87,3 +87,14 @@ html[dir="rtl"] .idea-step-connector { transform:rotate(180deg); }
   .idea-error .button { margin-inline-start:54px; }
 }
 .idea-workbook-title>span{color:hsl(var(--sidebar-foreground))}
+.idea-workbook-head-actions,.founder-plan-head-actions{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-end;gap:8px}
+.idea-workbook-summary{display:flex;align-items:center;gap:14px;padding:11px 18px;border-block-end:1px solid hsl(var(--border))}
+.idea-workbook-summary .idea-progress-row{flex:1;min-width:0;margin:0;padding:0;border:0}
+.idea-workbook-toggle{min-height:40px;white-space:nowrap}
+.idea-workbook-form-panel[hidden],.founder-plan-form-panel[hidden]{display:none}
+@media(max-width:650px){
+  .idea-workbook-head-actions,.founder-plan-head-actions{flex-direction:row;align-items:center;gap:8px}
+  .idea-workbook-summary{align-items:stretch;flex-direction:column;padding:11px 13px}
+  .idea-workbook-summary .idea-progress-row{padding:0}
+  .idea-workbook-toggle{min-height:44px}
+}

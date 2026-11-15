@@ -90,6 +90,13 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
   const client = useQueryClient();
   const save = useSaveParticipantIdeaValidation();
   const [savedAt, setSavedAt] = useState<string | null>(workbook.updatedAt);
+  const workbookAnchor = `participant-founder-workbook-${workbook.applicationId}`;
+  const formId = `idea-workbook-form-${workbook.applicationId}`;
+  const [isOpen, setIsOpen] = useState(() => {
+    const hasStarted = Object.values(workbookValues(workbook)).some(value => value.trim().length > 0);
+    const hash = typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.slice(1));
+    return hasStarted || hash === 'participant-founder-workbook' || hash === workbookAnchor;
+  });
   const form = useForm<WorkbookValues>({ defaultValues: workbookValues(workbook) });
   const filledCount = fields.filter(({ key }) => Boolean(form.watch(key)?.trim())).length;
   const progress = Math.round((filledCount / fields.length) * 100);
@@ -97,6 +104,15 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
   useEffect(() => {
     setSavedAt(workbook.updatedAt);
   }, [workbook.updatedAt]);
+
+  useEffect(() => {
+    const openFromHash = () => {
+      const hash = decodeURIComponent(window.location.hash.slice(1));
+      if (hash === 'participant-founder-workbook' || hash === workbookAnchor) setIsOpen(true);
+    };
+    window.addEventListener('hashchange', openFromHash);
+    return () => window.removeEventListener('hashchange', openFromHash);
+  }, [workbookAnchor]);
 
   const onSubmit = (data: WorkbookValues) => {
     save.mutate({ applicationId: workbook.applicationId, data }, {
@@ -112,7 +128,7 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
     ? `${t('Last saved')} · ${new Date(savedAt).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`
     : t('Not saved yet');
 
-  return <article className="idea-workbook" data-testid={`idea-workbook-${workbook.applicationId}`}>
+  return <article id={workbookAnchor} className="idea-workbook" data-testid={`idea-workbook-${workbook.applicationId}`}>
     <header className="idea-workbook-head">
       <div className="idea-business-mark" aria-hidden="true">{(workbook.businessName || 'J').slice(0, 1).toUpperCase()}</div>
       <div className="idea-workbook-title">
@@ -120,54 +136,68 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
         <h3>{workbook.businessName}</h3>
         <span>{t('Application')} · JSR-{String(workbook.applicationId).padStart(5, '0')}</span>
       </div>
-      <div className="idea-private-tag"><LockKeyhole size={13} />{t('Private to you')}</div>
+      <div className="idea-workbook-head-actions">
+        <div className="idea-private-tag"><LockKeyhole size={13} />{t('Private to you')}</div>
+        <button
+          type="button"
+          className="button button-outline idea-workbook-toggle"
+          aria-expanded={isOpen}
+          aria-controls={formId}
+          onClick={() => setIsOpen(open => !open)}
+          data-testid={`button-toggle-idea-workbook-${workbook.applicationId}`}
+        >{isOpen ? t('Close workbook') : filledCount > 0 ? t('Continue') : t('Open')}</button>
+      </div>
     </header>
 
-    <div className="idea-progress-row">
-      <div className="idea-progress-copy"><span>{t('Your thinking so far')}</span><b>{filledCount} {t('of')} 6 {t('steps started')}</b></div>
-      <div className="idea-progress-track" role="progressbar" aria-label={t('Workbook progress')} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+    <div className="idea-workbook-summary">
+      <div className="idea-progress-row">
+        <div className="idea-progress-copy"><span>{t('Your thinking so far')}</span><b>{filledCount} {t('of')} 6 {t('steps started')}</b></div>
+        <div className="idea-progress-track" role="progressbar" aria-label={t('Workbook progress')} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+      </div>
     </div>
 
-    <Form {...form}>
-      <form className="idea-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
-        {fields.map((field, index) => <section className={`idea-step idea-step-${index + 1}`} key={field.key}>
-          <div className="idea-step-index">{String(index + 1).padStart(2, '0')}</div>
-          <div className="idea-step-content">
-            <div className="idea-step-kicker">{t(field.title)}</div>
-            <FormField control={form.control} name={field.key} render={({ field: control }) => <FormItem className="idea-form-item">
-              <FormLabel>{t(field.prompt)}</FormLabel>
-              <FormControl>
-                <textarea
-                  {...control}
-                  rows={field.rows}
-                  maxLength={field.key === 'customerSegment' || field.key === 'successSignal' ? 2000 : field.key === 'riskiestAssumption' ? 3000 : 5000}
-                  placeholder={t(field.placeholder)}
-                  data-testid={`input-idea-${field.key}-${workbook.applicationId}`}
-                />
-              </FormControl>
-              <small>{t(field.helper)}</small>
-              <FormMessage />
-            </FormItem>} />
-          </div>
-          {index < fields.length - 1 && <ArrowDown className="idea-step-connector" size={15} aria-hidden="true" />}
-        </section>)}
-
-        <div className="idea-save-area">
-          <div className="idea-save-note">
-            <div className="idea-save-status" aria-live="polite" data-testid={`status-idea-save-${workbook.applicationId}`}>
-              {save.isPending ? <><span className="idea-saving-pulse" />{t('Saving your workbook…')}</>
-                : save.isError ? <><CircleAlert size={15} />{t('Your changes could not be saved. Please try again.')}</>
-                  : savedAt ? <><Check size={15} />{savedLabel}</>
-                    : <>{t('Your draft has not been saved yet.')}</>}
+    <div id={formId} className="idea-workbook-form-panel" hidden={!isOpen} data-testid={`panel-idea-workbook-${workbook.applicationId}`}>
+      <Form {...form}>
+        <form className="idea-form" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+          {fields.map((field, index) => <section className={`idea-step idea-step-${index + 1}`} key={field.key}>
+            <div className="idea-step-index">{String(index + 1).padStart(2, '0')}</div>
+            <div className="idea-step-content">
+              <div className="idea-step-kicker">{t(field.title)}</div>
+              <FormField control={form.control} name={field.key} render={({ field: control }) => <FormItem className="idea-form-item">
+                <FormLabel>{t(field.prompt)}</FormLabel>
+                <FormControl>
+                  <textarea
+                    {...control}
+                    rows={field.rows}
+                    maxLength={field.key === 'customerSegment' || field.key === 'successSignal' ? 2000 : field.key === 'riskiestAssumption' ? 3000 : 5000}
+                    placeholder={t(field.placeholder)}
+                    data-testid={`input-idea-${field.key}-${workbook.applicationId}`}
+                  />
+                </FormControl>
+                <small>{t(field.helper)}</small>
+                <FormMessage />
+              </FormItem>} />
             </div>
-            <span>{t('Save an incomplete draft whenever you are ready. Only you can see this workbook.')}</span>
+            {index < fields.length - 1 && <ArrowDown className="idea-step-connector" size={15} aria-hidden="true" />}
+          </section>)}
+
+          <div className="idea-save-area">
+            <div className="idea-save-note">
+              <div className="idea-save-status" aria-live="polite" data-testid={`status-idea-save-${workbook.applicationId}`}>
+                {save.isPending ? <><span className="idea-saving-pulse" />{t('Saving your workbook…')}</>
+                  : save.isError ? <><CircleAlert size={15} />{t('Your changes could not be saved. Please try again.')}</>
+                    : savedAt ? <><Check size={15} />{savedLabel}</>
+                      : <>{t('Your draft has not been saved yet.')}</>}
+              </div>
+              <span>{t('Save an incomplete draft whenever you are ready. Only you can see this workbook.')}</span>
+            </div>
+            <button className="button button-primary idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-idea-${workbook.applicationId}`}>
+              {save.isPending ? <><span className="idea-button-dots" />{t('Saving…')}</> : <><Save size={15} />{t('Save draft')}</>}
+            </button>
           </div>
-          <button className="button button-primary idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-idea-${workbook.applicationId}`}>
-            {save.isPending ? <><span className="idea-button-dots" />{t('Saving…')}</> : <><Save size={15} />{t('Save draft')}</>}
-          </button>
-        </div>
-      </form>
-    </Form>
+        </form>
+      </Form>
+    </div>
   </article>;
 }
 

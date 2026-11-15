@@ -378,14 +378,18 @@ test('participant journey renders demo records at desktop and mobile widths in E
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto(`${origin}/participant?testSession=participant`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Welcome, Rana.' }).waitFor();
-    await page.getByTestId('participant-page-progress').waitFor();
-    assert.equal(await page.getByTestId('link-participant-page-progress').getAttribute('aria-current'), 'page');
+    await page.locator('#participant-next-action').waitFor();
+    await page.locator('#participant-program-progress').waitFor();
+    await page.locator('#participant-updates').waitFor();
+    await page.locator('#participant-sessions').waitFor();
+    await page.locator('#participant-mentoring').waitFor();
+    await page.locator('#participant-learning').waitFor();
+    await page.locator('#participant-founder-workbook').waitFor();
+    await page.locator('#participant-business-plan-workbook').waitFor();
+    await page.locator('#participant-founder-support').waitFor();
+    await page.locator('#participant-assignments').waitFor();
+    await page.locator('#participant-business-team').waitFor();
     assert.equal(await page.locator('.participant-next-action').count(), 1);
-    await page.setViewportSize({ width: 390, height: 844 });
-    const pageNavigation = page.locator('.participant-section-index');
-    assert.equal(await pageNavigation.locator('a').count(), 4);
-    assert.equal(await pageNavigation.evaluate(element => element.scrollWidth <= element.clientWidth), true, 'All participant page links should fit without horizontal scrolling on mobile.');
-    await page.setViewportSize({ width: 1280, height: 900 });
 
     const capture = async (label: string, locator?: string) => {
       for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
@@ -405,34 +409,85 @@ test('participant journey renders demo records at desktop and mobile widths in E
       }
     };
 
-    const pagePaths = {
-      progress: '/participant',
-      team: '/participant/team',
-      updates: '/participant/updates',
-      learning: '/participant/learning',
-    } as const;
-    const navigateToPage = async (pageName: keyof typeof pagePaths) => {
-      await page.getByTestId(`link-participant-page-${pageName}`).click();
-      await page.waitForFunction(expected => window.location.pathname === expected, pagePaths[pageName]);
-      await page.getByTestId(`participant-page-${pageName}`).waitFor();
-      assert.equal(await page.getByTestId(`link-participant-page-${pageName}`).getAttribute('aria-current'), 'page');
-      assert.equal(await page.locator('.participant-next-action').count(), pageName === 'progress' ? 1 : 0, 'The next-action card should only appear on Program progress.');
-      for (const otherPage of Object.keys(pagePaths).filter(other => other !== pageName)) {
-        assert.equal(await page.getByTestId(`participant-page-${otherPage}`).count(), 0, `${pageName} should not render the ${otherPage} page content.`);
-      }
-    };
-
     assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
     assert.equal(await page.evaluate(() => document.documentElement.dir), 'ltr');
     assert.equal(await page.evaluate(() => window.location.pathname), '/participant');
-    assert.equal(await page.getByTestId('participant-page-team').count(), 0);
-    assert.equal(await page.getByTestId('participant-page-updates').count(), 0);
-    assert.equal(await page.getByTestId('participant-page-learning').count(), 0);
+    const sectionIds = [
+      'participant-next-action',
+      'participant-program-progress',
+      'participant-updates',
+      'participant-sessions',
+      'participant-mentoring',
+      'participant-learning',
+      'participant-founder-workbook',
+      'participant-business-plan-workbook',
+      'participant-founder-support',
+      'participant-assignments',
+      'participant-business-team',
+    ];
+    const pageNavigation = page.getByTestId('participant-section-nav');
+    assert.equal(await pageNavigation.getAttribute('aria-label'), 'On this page');
+    assert.equal(await pageNavigation.locator('a').count(), sectionIds.length);
+    assert.equal(await page.getByTestId('link-participant-next-action').getAttribute('aria-current'), 'location', 'The first section should be active before scrolling.');
+    for (const id of sectionIds) {
+      assert.equal(await page.locator(`#${id}`).count(), 1, `${id} must preserve its in-page anchor.`);
+      assert.equal(await page.getByTestId(`link-${id}`).getAttribute('href'), `#${id}`);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await pageNavigation.locator('.participant-section-nav-links').evaluate(element => element.scrollWidth > element.clientWidth), true, 'The mobile section menu should remain a horizontally scrollable row.');
+    await page.setViewportSize({ width: 1280, height: 900 });
     await capture('overview');
 
-    await capture('workbook', '[data-testid="idea-workbook-2601"]');
-    await navigateToPage('team');
-    await capture('team', '[data-testid="participant-business-teams"]');
+    await page.getByTestId('link-participant-updates').click();
+    await page.waitForFunction(() => window.location.hash === '#participant-updates');
+    const updateLinkState = await page.getByTestId('link-participant-updates').evaluate(element => ({
+      current: element.getAttribute('aria-current'),
+      hash: window.location.hash,
+      targetTop: document.getElementById('participant-updates')?.getBoundingClientRect().top,
+      navBottom: document.querySelector('.participant-section-nav')?.getBoundingClientRect().bottom,
+      active: Array.from(document.querySelectorAll('.participant-section-nav a[aria-current="location"]')).map(link => link.getAttribute('data-testid')),
+    }));
+    assert.equal(updateLinkState.current, 'location', `The visible section link should be active after navigation: ${JSON.stringify(updateLinkState)}`);
+    await capture('updates', '#participant-updates');
+    await capture('sessions', '#participant-sessions');
+    await capture('mentoring', '#participant-mentoring');
+    await capture('learning', '#participant-learning');
+
+    const ideaToggle = page.getByTestId('button-toggle-idea-workbook-2601');
+    assert.equal(await ideaToggle.getAttribute('aria-expanded'), 'true', 'A workbook with saved steps starts expanded.');
+    await ideaToggle.click();
+    assert.equal(await ideaToggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.getByTestId('panel-idea-workbook-2601').isHidden(), true);
+    await capture('founder-workbook', '#participant-founder-workbook');
+    await ideaToggle.click();
+    const ideaFields = await page.getByTestId('panel-idea-workbook-2601').locator('textarea').evaluateAll(elements => elements.map(element => (element as HTMLTextAreaElement).dataset.testid));
+    assert.deepEqual(ideaFields, [
+      'input-idea-customerSegment-2601',
+      'input-idea-problemStatement-2601',
+      'input-idea-riskiestAssumption-2601',
+      'input-idea-mvpExperiment-2601',
+      'input-idea-successSignal-2601',
+      'input-idea-evidenceAndNextStep-2601',
+    ], 'Collapsing must preserve every founder-workbook field in its existing order.');
+
+    const planToggle = page.getByTestId('button-toggle-business-plan-2601');
+    assert.equal(await planToggle.getAttribute('aria-expanded'), 'true', 'A business plan with saved steps starts expanded.');
+    await planToggle.click();
+    assert.equal(await planToggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.getByTestId('panel-business-plan-2601').isHidden(), true);
+    await capture('business-plan', '#participant-business-plan-workbook');
+    await planToggle.click();
+    const planFields = await page.getByTestId('panel-business-plan-2601').locator('textarea').evaluateAll(elements => elements.map(element => (element as HTMLTextAreaElement).dataset.testid));
+    assert.deepEqual(planFields, [
+      'input-business-plan-acquisitionChannels-2601',
+      'input-business-plan-outreachActions-2601',
+      'input-business-plan-fulfillmentSteps-2601',
+      'input-business-plan-reviewSignals-2601',
+    ], 'Collapsing must preserve every business-plan field in its existing order.');
+
+    await capture('founder-support', '#participant-founder-support');
+    await capture('assignments', '#participant-assignments');
+    await capture('team', '#participant-business-team');
     const contactHelp = page.locator('.peer-directory-helper');
     const contactHelpId = await contactHelp.getAttribute('id');
     assert.ok(contactHelpId);
@@ -442,10 +497,7 @@ test('participant journey renders demo records at desktop and mobile widths in E
       assert.equal(await contactToggle.getAttribute('aria-describedby'), contactHelpId);
     }
 
-    await navigateToPage('updates');
     await page.getByTestId('participant-announcement-310').waitFor();
-    await capture('updates', '[data-testid="participant-announcement-310"]');
-    await navigateToPage('learning');
     await page.getByTestId('session-participant-501').waitFor();
     await page.getByTestId('participant-learning-progress').waitFor();
     await page.getByTestId('assignment-participant-901').waitFor();
@@ -475,7 +527,6 @@ test('participant journey renders demo records at desktop and mobile widths in E
     await capture('sessions', '[data-testid="session-participant-501"]');
     await capture('offline-study', '.offline-learning-note');
     await capture('support', '.participant-support-note');
-    await capture('learning', '[data-testid="participant-learning-progress"]');
 
     await page.getByTestId('button-language-toggle').click();
     await page.getByTestId('button-language-toggle').evaluate(element => (element as HTMLButtonElement).blur());
@@ -486,24 +537,24 @@ test('participant journey renders demo records at desktop and mobile widths in E
     assert.equal(await page.getByTestId('text-course-completion-27').innerText(), 'لا توجد وحدات مطلوبة بعد');
     assert.equal(await page.locator('.lp-live-explanation').innerText(), 'نحتسب الوقت عندما تكون هذه الصفحة ظاهرة وإحدى بطاقات التعلّم معروضة. ويمكن لمسؤولي البرنامج الاطلاع على إجمالي وقتك ومتوسطات المجموعة.');
     assert.equal((await page.locator('.participant-support-note').innerText()).replace(/\s+/g, ' ').trim(), 'هل تحتاج إلى دعم البرنامج؟ تواصل مع فريق البرنامج إذا احتجت إلى مساعدة خارج الجلسة.');
+    await capture('overview');
+    await capture('updates', '#participant-updates');
     await capture('sessions', '[data-testid="session-participant-501"]');
+    await capture('mentoring', '#participant-mentoring');
     await capture('offline-study', '.offline-learning-note');
     await capture('support', '.participant-support-note');
-    await capture('learning', '[data-testid="participant-learning-progress"]');
-    await navigateToPage('updates');
-    await page.getByTestId('participant-announcement-310').waitFor();
-    await capture('updates', '[data-testid="participant-announcement-310"]');
-    await navigateToPage('team');
+    await capture('learning', '#participant-learning');
+    await capture('founder-workbook', '#participant-founder-workbook');
+    await capture('business-plan', '#participant-business-plan-workbook');
+    await capture('founder-support', '#participant-founder-support');
+    await capture('assignments', '#participant-assignments');
+    await capture('team', '#participant-business-team');
     assert.equal(await contactHelp.innerText(), 'فعّل ظهورك في دليل المجموعة أولاً لمشاركة بيانات الاتصال.');
-    await capture('team', '[data-testid="participant-business-teams"]');
-    await navigateToPage('progress');
-    await capture('overview');
-    await capture('workbook', '[data-testid="idea-workbook-2601"]');
 
     assert.deepEqual(pageErrors, [], 'The participant journey should render without uncaught browser errors.');
     assert.ok(apiPaths.has('GET /api/auth/me'), 'The test must traverse the normal participant role-routing branch.');
     assert.ok(apiPaths.has('GET /api/participant/dashboard'), 'The demo participant dashboard should load through its normal API client.');
-    if (captureScreenshots) console.log(`Saved 32 participant screenshots under ${path.relative(workspaceRoot, screenshotDir)}.`);
+    if (captureScreenshots) console.log(`Saved participant journey screenshots under ${path.relative(workspaceRoot, screenshotDir)}.`);
     await page.close();
   } finally {
     await browser?.close();
