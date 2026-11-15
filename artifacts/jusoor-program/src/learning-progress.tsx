@@ -227,7 +227,7 @@ function ModuleProgressCard({ module, index, onToggle, pending }: { module: Cour
   </article>;
 }
 
-export function ParticipantLearningProgress() {
+export function ParticipantLearningProgress({ showHeading = true, showEmpty = true }: { showHeading?: boolean; showEmpty?: boolean } = {}) {
   useAppLanguage();
   const query = useGetParticipantLearningProgress({ query: { queryKey: getGetParticipantLearningProgressQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 } });
   const client = useQueryClient();
@@ -243,10 +243,10 @@ export function ParticipantLearningProgress() {
     });
   };
   return <section className="learning-space participant-learning-space" data-testid="participant-learning-progress">
-     <header className="lp-heading"><div><span className="lp-eyebrow">{t('ONLINE INCUBATION / YOUR PROGRESS')}</span><h2>{t('Learning, with momentum.')}</h2><p>{t('Your course progress, learning time and next deadlines across accepted programs.')}</p></div><div className="lp-live-group"><span className="lp-live"><i aria-hidden="true" />{t('ACTIVE TIME TRACKING')}</span><small className="lp-live-explanation">{t('We count time while this page is visible and a course card is in view. Program Admins can see your total and cohort averages.')}</small></div></header>
+     {showHeading && <header className="lp-heading"><div><span className="lp-eyebrow">{t('ONLINE INCUBATION / YOUR PROGRESS')}</span><h2>{t('Learning, with momentum.')}</h2><p>{t('Your course progress, learning time and next deadlines across accepted programs.')}</p></div><div className="lp-live-group"><span className="lp-live"><i aria-hidden="true" />{t('ACTIVE TIME TRACKING')}</span><small className="lp-live-explanation">{t('We count time while this page is visible and a course card is in view. Program Admins can see your total and cohort averages.')}</small></div></header>}
     {query.isLoading ? <div className="lp-skeleton-stack"><div /><div /><div /></div>
       : query.isError ? <div className="lp-state lp-error"><CircleAlert size={20} /><div><b>{t('Learning progress could not load.')}</b><span>{t('Your records are unchanged. Reconnect to try again.')}</span></div><button className="lp-button lp-button-outline" onClick={() => void query.refetch()} data-testid="button-retry-learning-progress"><RefreshCw size={14} />{t('Retry')}</button></div>
-      : !programs.length ? <div className="lp-state"><Sparkles size={20} /><div><b>{t('Your learning path is being prepared.')}</b><span>{t('Course progress appears here when you are accepted into a program.')}</span></div></div>
+      : !programs.length ? showEmpty ? <div className="lp-state"><Sparkles size={20} /><div><b>{t('Your learning path is being prepared.')}</b><span>{t('Course progress appears here when you are accepted into a program.')}</span></div></div> : null
       : programs.map(program => <ProgramProgress key={program.programId} program={program} onToggle={toggle} savingModule={savingModule} />)}
     {record.isError && <p className="lp-mutation-error" role="alert" data-testid="error-module-progress">{t('Progress could not be saved. Please try again.')}</p>}
   </section>;

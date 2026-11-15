@@ -6,6 +6,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetParticipantDashboardQueryKey, getListApplicationsQueryKey,
   getGetParticipantCoursesQueryKey, useGetParticipantCourses,
+  getGetParticipantLearningProgressQueryKey, useGetParticipantLearningProgress,
+  getGetParticipantIdeaValidationQueryKey, useGetParticipantIdeaValidation,
+  getGetParticipantBusinessPlansQueryKey, useGetParticipantBusinessPlans,
   getGetParticipantBusinessTeamsQueryKey, getListApplicationProgramsQueryKey, getGetParticipantProfileQueryKey, useGetParticipantProfile, useGetParticipantDashboard,
   useGetParticipantBusinessTeams,
   useListApplications, useListApplicationPrograms, useReviewApplication,
@@ -379,7 +382,28 @@ export function ParticipantDashboardPage() {
   const enrollments = query.data?.applications || [];
   const hasAcceptedEnrollment = enrollments.some(enrollment => enrollment.applicationStatus === 'accepted');
   const acceptedEnrollments = enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted');
-  const nextAction = getParticipantNextAction(hasAcceptedEnrollment);
+  const nextActionCoursesQuery = useGetParticipantCourses({ query: { queryKey: getGetParticipantCoursesQueryKey(), enabled: hasAcceptedEnrollment } });
+  const nextActionProgressQuery = useGetParticipantLearningProgress({ query: { queryKey: getGetParticipantLearningProgressQueryKey(), enabled: hasAcceptedEnrollment } });
+  const nextActionIdeaQuery = useGetParticipantIdeaValidation({ query: { queryKey: getGetParticipantIdeaValidationQueryKey(), enabled: hasAcceptedEnrollment } });
+  const nextActionPlanQuery = useGetParticipantBusinessPlans({ query: { queryKey: getGetParticipantBusinessPlansQueryKey(), enabled: hasAcceptedEnrollment } });
+  const nextAction = getParticipantNextAction({
+    enrollments,
+    courses: nextActionCoursesQuery.data,
+    learningProgress: nextActionProgressQuery.data,
+    ideaWorkbooks: nextActionIdeaQuery.data?.workbooks,
+    businessPlans: nextActionPlanQuery.data?.plans,
+  });
+  const nextActionSources = [nextActionCoursesQuery, nextActionProgressQuery, nextActionIdeaQuery, nextActionPlanQuery];
+  const nextActionError = hasAcceptedEnrollment && !nextAction && nextActionSources.some(source => source.isError);
+  const nextActionLoading = hasAcceptedEnrollment && !nextAction && nextActionSources.some(source => source.isLoading);
+  const retryNextActionSources = () => void Promise.all(nextActionSources.map(source => source.refetch()));
+  const learningNow = Date.now();
+  const hasAvailableCourseModule = (nextActionCoursesQuery.data?.programs || []).some(program => program.modules.some(module =>
+    !module.releaseAt || new Date(module.releaseAt).getTime() <= learningNow));
+  const hasProgressModules = (nextActionProgressQuery.data?.programs || []).some(program => program.modules.length > 0);
+  const hasAvailableLearningModules = hasAvailableCourseModule || hasProgressModules;
+  const learningQueriesPendingOrFailed = nextActionCoursesQuery.isLoading || nextActionCoursesQuery.isError ||
+    nextActionProgressQuery.isLoading || nextActionProgressQuery.isError;
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
   useEffect(() => {
     if (query.isLoading || query.isError) return;
@@ -397,8 +421,20 @@ export function ParticipantDashboardPage() {
              <ParticipantSectionNavigation hasAcceptedEnrollment={hasAcceptedEnrollment} />
              <section id="participant-next-action" className="participant-anchor-section" aria-labelledby="participant-next-action-title" data-testid="participant-page-next-action">
                <div className="participant-next-action">
-                 <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span><h2 id="participant-next-action-title">{t(nextAction.titleKey)}</h2><p>{t(nextAction.descriptionKey)}</p></div>
-                 <Link className="button button-primary" href={nextAction.href}>{t('Go to next action')} <ArrowRight size={15} /></Link>
+                 <div>
+                   <span className="eyebrow">{t('YOUR NEXT ACTION')}</span>
+                   <h2 id="participant-next-action-title">{nextAction ? t(nextAction.titleKey) : nextActionError ? t('Your next action could not be checked.') : t('Checking your next step…')}</h2>
+                   {nextAction
+                     ? <p>{t(nextAction.descriptionKey)}{nextAction.detail && <> <strong>{nextAction.detail}</strong></>}{nextAction.stepKey && <> <span>{t(nextAction.stepKey)}</span></>}{nextAction.date && <span className="participant-next-action-time"> · {t(nextAction.dateLabelKey || 'Date')}: {dateText(nextAction.date)}{nextAction.time ? ` · ${nextAction.time}` : ''}</span>}</p>
+                     : nextActionError
+                       ? <p role="alert">{t('We could not check assignments, sessions, learning or workbooks. Retry to find your next action.')}</p>
+                       : <p role="status" aria-live="polite">{t('Checking assignments, sessions, learning and workbooks…')}</p>}
+                 </div>
+                 {nextAction?.href && nextAction.buttonLabelKey
+                   ? <a className="button button-primary" href={nextAction.href}>{t(nextAction.buttonLabelKey)} <ArrowRight size={15} /></a>
+                   : nextActionError
+                     ? <button type="button" className="button button-outline" onClick={retryNextActionSources} data-testid="button-retry-next-action">{t('Retry')}</button>
+                     : null}
                </div>
              </section>
              <section id="participant-program-progress" className="participant-anchor-section participant-dashboard-section" aria-label={t('Your cohort')}>
@@ -415,8 +451,14 @@ export function ParticipantDashboardPage() {
                  {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="mentoring" />)}
                </section>
                <section id="participant-learning" className="participant-anchor-section participant-dashboard-section">
-                 <ParticipantLearningProgress />
-                 <ParticipantProgramLearning />
+                 <header className="participant-section-head participant-learning-hub-head">
+                   <div><span className="eyebrow">{t('ONLINE INCUBATION / YOUR PROGRESS')}</span><h2>{t('Learning')}</h2><p>{t('Your course progress, learning time and a guided sequence of released materials in one place.')}</p></div>
+                   <div className="lp-live-group"><span className="lp-live"><i aria-hidden="true" />{t('ACTIVE TIME TRACKING')}</span><small className="lp-live-explanation">{t('We count time while this page is visible and a course card is in view. Program Admins can see your total and cohort averages.')}</small></div>
+                 </header>
+                 <div className="offline-learning-note" role="note"><Download size={16} aria-hidden="true" /><div className="offline-learning-note-copy"><div className="offline-learning-note-title"><b>{t('Prepare materials for offline study')}</b></div><div className="offline-learning-note-body">{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</div></div></div>
+                 {hasAvailableLearningModules || learningQueriesPendingOrFailed
+                   ? <><ParticipantLearningProgress showHeading={false} showEmpty={false} /><ParticipantProgramLearning showHeading={false} showEmpty={false} showOfflineNote={false} /></>
+                   : <div className="participant-empty-line" data-testid="participant-learning-empty"><BookOpen size={17} aria-hidden="true" /><p>{t('No learning modules are available yet. Your cohort’s resources will appear here when released.')}</p></div>}
                </section>
                <section id="participant-founder-workbook" className="participant-anchor-section participant-dashboard-section">
                  <ParticipantIdeaValidation enrollments={acceptedEnrollments} />
@@ -463,23 +505,23 @@ function ParticipantBusinessTeams() {
 }
 
 const participantBasePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-function ParticipantProgramLearning() {
+function ParticipantProgramLearning({ showHeading = true, showEmpty = true, showOfflineNote = true }: { showHeading?: boolean; showEmpty?: boolean; showOfflineNote?: boolean } = {}) {
   useAppLanguage();
   const query = useGetParticipantCourses({ query: { queryKey: getGetParticipantCoursesQueryKey(), refetchOnWindowFocus: true } });
   const [activePackage, setActivePackage] = useState<{ id: number; title: string } | null>(null);
   const now = Date.now();
-  if (query.isLoading) return <section className="participant-section participant-course-section" data-testid="participant-courses-loading"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Loading your released learning path.')}</p></div></div><div className="loading-panel"><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div></section>;
-  if (query.isError) return <section className="participant-section participant-course-section"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div><div className="empty-panel error-panel" data-testid="error-participant-courses"><span className="empty-icon"><CircleAlert size={20} /></span><h3>{t('Your learning path couldn’t load.')}</h3><p>{t('Try reconnecting. Your cohort progress and materials remain private.')}</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant-courses">{t('Retry learning')}</button></div></section>;
+  if (query.isLoading) return <section className="participant-section participant-course-section" data-testid="participant-courses-loading">{showHeading && <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Loading your released learning path.')}</p></div></div>}<div className="loading-panel"><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div></section>;
+  if (query.isError) return <section className="participant-section participant-course-section">{showHeading && <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div>}<div className="empty-panel error-panel" data-testid="error-participant-courses"><span className="empty-icon"><CircleAlert size={20} /></span><h3>{t('Your learning path couldn’t load.')}</h3><p>{t('Try reconnecting. Your cohort progress and materials remain private.')}</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant-courses">{t('Retry learning')}</button></div></section>;
   const programs = query.data?.programs || [];
-   if (!programs.length) return <section className="participant-section participant-course-section" data-testid="empty-participant-courses"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div><div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h3>{t('Your learning path is being prepared.')}</h3><p>{t('Once released by your program team, modules and resources for your accepted cohort will appear here.')}</p></div></section>;
+   if (!programs.length) return showEmpty ? <section className="participant-section participant-course-section" data-testid="empty-participant-courses">{showHeading && <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div>}<div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h3>{t('Your learning path is being prepared.')}</h3><p>{t('Once released by your program team, modules and resources for your accepted cohort will appear here.')}</p></div></section> : null;
   return <><section className="participant-section participant-course-section" data-testid="participant-course-learning">
-     <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('A guided sequence of released modules and useful materials.')}</p></div><span className="badge badge-neutral">{programs.reduce((total, program) => total + program.modules.length, 0)} {t('released modules')}</span></div>
-      <div className="offline-learning-note" role="note"><Download size={16} aria-hidden="true" /><div className="offline-learning-note-copy"><div className="offline-learning-note-title"><b>{t('Prepare materials for offline study')}</b></div><div className="offline-learning-note-body">{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</div></div></div>
+     {showHeading && <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('A guided sequence of released modules and useful materials.')}</p></div><span className="badge badge-neutral">{programs.reduce((total, program) => total + program.modules.length, 0)} {t('released modules')}</span></div>}
+      {showOfflineNote && <div className="offline-learning-note" role="note"><Download size={16} aria-hidden="true" /><div className="offline-learning-note-copy"><div className="offline-learning-note-title"><b>{t('Prepare materials for offline study')}</b></div><div className="offline-learning-note-body">{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</div></div></div>}
      {programs.map(program => {
       const modules = program.modules.filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now).sort((a, b) => a.position - b.position);
       return <article className="participant-course-program" key={program.programId} data-testid={`participant-course-program-${program.programId}`}>
          <header className="participant-course-banner"><span className="participant-course-icon"><BookOpen size={17} /></span><div><h3>{program.programName}</h3><span>{modules.length} {t('learning')} {t(modules.length === 1 ? 'module' : 'modules')} {t('available')}</span></div></header>
-         {!modules.length ? <div className="empty-panel"><p>{t('Your next module will appear here when your cohort releases it.')}</p></div> : modules.map((module, index) => <section className="participant-course-module" key={module.id} data-testid={`participant-course-module-${module.id}`}><span className="participant-course-number">{String(index + 1).padStart(2, '0')}</span><div><h4>{module.title}</h4>{module.description && <p>{module.description}</p>}<div className="participant-course-items">{module.materials.map(material => {
+         {!modules.length ? <div className="empty-panel"><p>{t('Your next module will appear here when your cohort releases it.')}</p></div> : modules.map((module, index) => <section className="participant-course-module" id={`participant-course-module-${module.id}`} key={module.id} data-testid={`participant-course-module-${module.id}`}><span className="participant-course-number">{String(index + 1).padStart(2, '0')}</span><div><h4>{module.title}</h4>{module.description && <p>{module.description}</p>}<div className="participant-course-items">{module.materials.map(material => {
           const isUploadedFile = material.kind !== 'link' && material.kind !== 'scorm' && material.kind !== 'xapi' && Boolean(material.fileName);
           const href = material.kind === 'link' ? material.externalUrl || undefined : isUploadedFile ? `${participantBasePath}/api/participant/courses/materials/${material.id}/download` : undefined;
            const languageTag = material.language === 'ar' ? 'العربية' : 'English';
@@ -495,10 +537,6 @@ type EnrollmentSection = 'cohort' | 'sessions' | 'mentoring' | 'support' | 'team
 
 function EnrollmentCard({ enrollment, section }: { enrollment: ParticipantEnrollment; section: EnrollmentSection }) {
   const [calendarDate, setCalendarDate] = useState<string | null>(null);
-  const scheduled = enrollment.sessions.filter(session => session.status === 'scheduled').sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
-  const displayedSessions = calendarDate
-    ? enrollment.sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate)
-    : enrollment.sessions;
   const support = enrollment.support;
   if (section === 'cohort') return <article className="participant-section participant-cohort-card" data-testid={`card-participant-application-${enrollment.applicationId}`}>
     <div className="participant-section-head"><div><h2>{t('Your cohort')}</h2><p>{enrollment.enrollmentSource === 'admin_invitation' ? t('Participant access assigned') : t('Application received')} {dateText(enrollment.submittedAt)}</p></div><span className={`badge ${statusClass(enrollment.applicationStatus)}`} data-testid={`status-application-${enrollment.applicationId}`}><span />{statusWords[enrollment.applicationStatus] || word(enrollment.applicationStatus)}</span></div>
@@ -507,27 +545,63 @@ function EnrollmentCard({ enrollment, section }: { enrollment: ParticipantEnroll
 
   if (section === 'team') return <ParticipantPeerDirectory programId={enrollment.program.id} />;
 
-  if (section === 'sessions') return <section className="participant-section participant-sessions-section" data-testid={`participant-sessions-${enrollment.applicationId}`}>
-    <div className="participant-section-head"><div><h2>{t('What’s coming up')}</h2><p>{t('Sessions planned for your cohort.')}</p></div><span className="badge badge-neutral">{scheduled.length} {t('upcoming')}</span></div>
-    <div className="participant-grid"><div className="participant-card"><h3>{t('Sessions')}</h3><SessionCalendar sessions={enrollment.sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />{enrollment.sessions.length === 0 ? <p className="session-info">{t('No sessions have been shared yet. Check back as your cohort schedule takes shape.')}</p> : !displayedSessions.length ? <p className="session-info">{t('No sessions are scheduled for this date. Choose another day or show all dates.')}</p> : displayedSessions.map(session => <div className="participant-entry" key={session.id} data-testid={`session-participant-${session.id}`}><div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div><div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <EditorialButton asChild variant="primary" size="md" className="participant-session-join min-h-11"><a href={session.zoomUrl} target="_blank" rel="noopener noreferrer"><Video size={16} aria-hidden="true" /> {t('Join session')}</a></EditorialButton>}</div><SessionRecordingPlayer url={session.recordingUrl} title={session.title} /><ParticipantSessionInteractions sessionId={session.id} programId={enrollment.program.id} businessName={enrollment.business?.businessName} /></div><span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span></div>)}</div></div>
-  </section>;
+  if (section === 'sessions') return <ParticipantSessionsSection enrollment={enrollment} calendarDate={calendarDate} onSelectDate={setCalendarDate} />;
 
-  if (section === 'mentoring') {
-    const meetings = [...enrollment.calendlyMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Calendly' })), ...enrollment.googleCalendarMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Google Calendar' }))].sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime());
-    const mentorSupport = support.filter(item => item.type === 'mentor');
-    return <section className="participant-section" data-testid={`calendly-meetings-${enrollment.applicationId}`}>
-      <div className="participant-section-head"><div><h2>{t('Mentoring appointments')}</h2><p>{t('Bookings with your assigned mentor.')}</p></div></div>
-      <div className="participant-grid">
-        <div className="participant-card"><h3>{t('Booked mentoring sessions')}</h3>{meetings.length === 0 ? <p className="session-info">{t('Confirmed, rescheduled and cancelled meetings booked with your assigned mentor will appear here.')}</p> : meetings.map(meeting => <div className="participant-entry" key={`${meeting.bookingProvider}-${meeting.id}`} data-testid={`meeting-participant-${meeting.bookingProvider}-${meeting.id}`}><div className="calendar-icon"><CalendarDays size={16} /></div><div className="participant-entry-copy"><b>{t(meeting.eventName)}</b><span>{meetingDateTime(meeting.startsAt, meeting.timezone)} – {meetingDateTime(meeting.endsAt, meeting.timezone)}</span><span>{meeting.bookingProvider}</span>{meeting.timezone && <span>{meeting.timezone}</span>}</div><span className={`badge ${statusClass(meeting.status)}`}>{word(meeting.status)}</span></div>)}</div>
-        <div className="participant-card"><h3>{t('Mentor support')}</h3>{mentorSupport.length ? mentorSupport.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> {t('Book mentoring session')}</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>) : <p className="session-info">{t('No mentor support is scheduled yet.')}</p>}</div>
-      </div>
-    </section>;
-  }
+  if (section === 'mentoring') return <ParticipantMentoringSection enrollment={enrollment} />;
 
   const founderSupport = support.filter(item => item.type !== 'mentor');
   return <section className="participant-section" data-testid={`founder-support-${enrollment.applicationId}`}>
     <div className="participant-section-head"><div><h2>{t('Founder support')}</h2><p>{t('Support arranged for your business.')}</p></div></div>
-    <div className="participant-card">{founderSupport.length === 0 ? <p className="session-info">{t('No support engagements are linked yet. Your admin will update this space as support is arranged.')}</p> : founderSupport.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span></div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div>
+    <div className="participant-card">{founderSupport.length === 0
+      ? <div className="participant-empty-line" data-testid={`participant-founder-support-empty-${enrollment.applicationId}`}><Handshake size={17} aria-hidden="true" /><p>{t('No support engagements are linked yet. Your admin will update this space as support is arranged.')}</p></div>
+      : founderSupport.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span></div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div>
+  </section>;
+}
+
+function ParticipantSessionsSection({ enrollment, calendarDate, onSelectDate }: {
+  enrollment: ParticipantEnrollment;
+  calendarDate: string | null;
+  onSelectDate: (date: string | null) => void;
+}) {
+  const scheduled = enrollment.sessions.filter(session => session.status === 'scheduled').sort((left, right) => left.scheduledDate.localeCompare(right.scheduledDate));
+  const displayedSessions = calendarDate
+    ? enrollment.sessions.filter(session => session.scheduledDate.slice(0, 10) === calendarDate)
+    : enrollment.sessions;
+  return <section className="participant-section participant-sessions-section" data-testid={`participant-sessions-${enrollment.applicationId}`}>
+    <div className="participant-section-head"><div><h2>{t('What’s coming up')}</h2><p>{t('Sessions planned for your cohort.')}</p></div><span className="badge badge-neutral">{scheduled.length} {t('upcoming')}</span></div>
+    {enrollment.sessions.length === 0
+      ? <div className="participant-empty-line" data-testid={`participant-sessions-empty-${enrollment.applicationId}`}><CalendarDays size={17} aria-hidden="true" /><p>{t('No sessions yet. Your cohort schedule will appear here.')}</p></div>
+      : <div className="participant-grid"><div className="participant-card">
+        <h3>{t('Sessions')}</h3>
+        <SessionCalendar sessions={enrollment.sessions} selectedDate={calendarDate} onSelectDate={onSelectDate} />
+        {!displayedSessions.length
+          ? <p className="session-info">{t('No sessions are scheduled for this date. Choose another day or show all dates.')}</p>
+          : displayedSessions.map(session => <div className="participant-entry" id={`participant-session-${session.id}`} key={session.id} data-testid={`session-participant-${session.id}`}>
+            <div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div>
+            <div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <EditorialButton asChild variant="primary" size="md" className="participant-session-join min-h-11"><a href={session.zoomUrl} target="_blank" rel="noopener noreferrer"><Video size={16} aria-hidden="true" /> {t('Join session')}</a></EditorialButton>}</div><SessionRecordingPlayer url={session.recordingUrl} title={session.title} /><ParticipantSessionInteractions sessionId={session.id} programId={enrollment.program.id} businessName={enrollment.business?.businessName} /></div>
+            <span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span>
+          </div>)}
+      </div></div>}
+  </section>;
+}
+
+function ParticipantMentoringSection({ enrollment }: { enrollment: ParticipantEnrollment }) {
+  const meetings = [...enrollment.calendlyMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Calendly' })), ...enrollment.googleCalendarMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Google Calendar' }))]
+    .sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime());
+  const mentorSupport = enrollment.support.filter(item => item.type === 'mentor');
+  const bookingUrl = mentorSupport.find(item => item.mentorBookingUrl)?.mentorBookingUrl;
+  return <section className="participant-section" data-testid={`calendly-meetings-${enrollment.applicationId}`}>
+    <div className="participant-section-head"><div><h2>{t('Mentoring appointments')}</h2><p>{t('Bookings with your assigned mentor.')}</p></div></div>
+    {meetings.length === 0 && mentorSupport.length === 0
+      ? <div className="participant-card"><div className="participant-empty-line" data-testid={`participant-mentoring-empty-${enrollment.applicationId}`}><Handshake size={17} aria-hidden="true" /><p>{t('No mentoring sessions or mentor support are arranged yet.')}</p></div></div>
+      : <div className="participant-grid">
+        <div className="participant-card"><h3>{t('Booked mentoring sessions')}</h3>{meetings.length === 0
+          ? <div className="participant-empty-line"><CalendarDays size={17} aria-hidden="true" /><p>{t('No mentoring sessions are booked yet.')}</p>{bookingUrl && <a href={bookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={13} />{t('Book mentoring session')}</a>}</div>
+          : meetings.map(meeting => <div className="participant-entry" key={`${meeting.bookingProvider}-${meeting.id}`} data-testid={`meeting-participant-${meeting.bookingProvider}-${meeting.id}`}><div className="calendar-icon"><CalendarDays size={16} /></div><div className="participant-entry-copy"><b>{t(meeting.eventName)}</b><span>{meetingDateTime(meeting.startsAt, meeting.timezone)} – {meetingDateTime(meeting.endsAt, meeting.timezone)}</span><span>{meeting.bookingProvider}</span>{meeting.timezone && <span>{meeting.timezone}</span>}</div><span className={`badge ${statusClass(meeting.status)}`}>{word(meeting.status)}</span></div>)}</div>
+        <div className="participant-card"><h3>{t('Mentor support')}</h3>{mentorSupport.length
+          ? mentorSupport.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> {t('Book mentoring session')}</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)
+          : <div className="participant-empty-line"><Handshake size={17} aria-hidden="true" /><p>{t('No mentor support is scheduled yet.')}</p></div>}</div>
+      </div>}
   </section>;
 }
 
@@ -559,9 +633,9 @@ function ParticipantLearning({ enrollment }: { enrollment: ParticipantEnrollment
     ask.mutate({ data }, { onSuccess: () => { invalidate(); setQuestion(''); setFeedback('Your question has been sent to the training team.'); } });
   };
   return <section className="participant-section" data-testid={`participant-learning-${enrollment.applicationId}`}>
-    <div className="participant-section-head"><div><h2>{t('Learning & questions')}</h2><p>{t('Your assignment work and a direct channel to your trainer.')}</p></div><span className="badge badge-neutral">{enrollment.assignments.length} {t('assignments')}</span></div>
+    <div className="participant-section-head"><div><h2>{t('Assignments and trainer questions')}</h2><p>{t('Your assignment work and a direct channel to your trainer.')}</p></div><span className="badge badge-neutral">{enrollment.assignments.length} {t('assignments')}</span></div>
     <div className="participant-grid">
-      <div className="participant-card"><h3>{t('Assignments')}</h3>{enrollment.assignments.length === 0 ? <p className="session-info">{t('No text assignments have been shared yet. Your trainer will post them here.')}</p> : enrollment.assignments.map(assignment => <article className="participant-assignment" key={assignment.id} data-testid={`assignment-participant-${assignment.id}`}>
+      <div className="participant-card"><h3>{t('Assignments')}</h3>{enrollment.assignments.length === 0 ? <div className="participant-empty-line" data-testid={`participant-assignments-empty-${enrollment.applicationId}`}><FileText size={17} aria-hidden="true" /><p>{t('No assignments have been shared yet.')}</p></div> : enrollment.assignments.map(assignment => <article className="participant-assignment" id={`participant-assignment-${assignment.id}`} key={assignment.id} data-testid={`assignment-participant-${assignment.id}`}>
         <div className="assignment-heading"><div><b>{assignment.title}</b><span>{assignment.sessionTitle || t('Cohort work')} · {t('Due')} {dateText(assignment.dueDate)}</span></div><span className={`badge ${statusClass(assignment.status || 'requested')}`}><span />{word(assignment.status || 'not_started')}</span></div>
         <p>{assignment.instructions}</p>
         {assignment.answer && <div className="assignment-feedback"><b>{t('Your submitted answer')}</b><p>{assignment.answer}</p></div>}

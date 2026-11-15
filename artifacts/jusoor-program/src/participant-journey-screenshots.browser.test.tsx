@@ -213,6 +213,44 @@ const demoBusinessPlans = {
   }],
 } satisfies ParticipantBusinessPlansResponse;
 
+const noDataDashboard = {
+  ...demoDashboard,
+  announcements: [],
+  applications: demoDashboard.applications.map(application => ({
+    ...application,
+    sessions: [],
+    support: [],
+    assignments: [],
+    calendlyMeetings: [],
+    googleCalendarMeetings: [],
+    questions: [],
+  })),
+};
+
+const noDataIdeaValidation = {
+  workbooks: demoIdeaValidation.workbooks.map(workbook => ({
+    ...workbook,
+    customerSegment: '',
+    problemStatement: '',
+    riskiestAssumption: '',
+    mvpExperiment: '',
+    successSignal: '',
+    evidenceAndNextStep: '',
+    updatedAt: null,
+  })),
+} satisfies ParticipantIdeaValidationResponse;
+
+const noDataBusinessPlans = {
+  plans: demoBusinessPlans.plans.map(plan => ({
+    ...plan,
+    acquisitionChannels: '',
+    outreachActions: '',
+    fulfillmentSteps: '',
+    reviewSignals: '',
+    updatedAt: null,
+  })),
+} satisfies ParticipantBusinessPlansResponse;
+
 const demoLearningProgress = {
   programs: [{
     programId: 26,
@@ -317,6 +355,7 @@ test('participant journey renders demo records at desktop and mobile widths in E
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const apiPaths = new Set<string>();
+    let emptyParticipantMode = false;
     const demoBranding = {
       brandName: 'Jusoor Entrepreneurship Program',
       logoUrl: null,
@@ -347,21 +386,23 @@ test('participant journey renders demo records at desktop and mobile widths in E
         // This route remains a 403 just as it does for a participant in production.
         await route.fulfill(jsonResponse({ error: 'Participant account.' }, 403));
       } else if (url.pathname === '/api/participant/dashboard') {
-        await route.fulfill(jsonResponse(demoDashboard));
+        await route.fulfill(jsonResponse(emptyParticipantMode ? noDataDashboard : demoDashboard));
       } else if (url.pathname === '/api/participant/profile') {
         await route.fulfill(jsonResponse(demoProfile));
       } else if (url.pathname === '/api/participant/business-teams') {
-        await route.fulfill(jsonResponse(demoBusinessTeams));
+        await route.fulfill(jsonResponse(emptyParticipantMode ? [] : demoBusinessTeams));
       } else if (url.pathname === '/api/participant/programs/26/peers') {
-        await route.fulfill(jsonResponse(demoPeerDirectory));
+        await route.fulfill(jsonResponse(emptyParticipantMode ? { ...demoPeerDirectory, peers: [] } : demoPeerDirectory));
       } else if (url.pathname === '/api/participant/idea-validation') {
-        await route.fulfill(jsonResponse(demoIdeaValidation));
+        await route.fulfill(jsonResponse(emptyParticipantMode ? noDataIdeaValidation : demoIdeaValidation));
       } else if (url.pathname === '/api/participant/business-plans') {
-        await route.fulfill(jsonResponse(demoBusinessPlans));
+        await route.fulfill(jsonResponse(emptyParticipantMode ? noDataBusinessPlans : demoBusinessPlans));
       } else if (url.pathname === '/api/participant/courses/progress') {
-        await route.fulfill(jsonResponse(demoLearningProgress));
+        await route.fulfill(jsonResponse(emptyParticipantMode ? { programs: [] } : demoLearningProgress));
       } else if (url.pathname === '/api/participant/courses') {
-        await route.fulfill(jsonResponse(demoCourses));
+        await route.fulfill(jsonResponse(emptyParticipantMode
+          ? { programs: demoCourses.programs.map(program => ({ ...program, modules: [] })) }
+          : demoCourses));
       } else if (url.pathname.endsWith('/interactive-activities')) {
         await route.fulfill(jsonResponse({ activities: [] }));
       } else if (url.pathname.endsWith('/questions')) {
@@ -437,6 +478,12 @@ test('participant journey renders demo records at desktop and mobile widths in E
     assert.equal(await pageNavigation.locator('.participant-section-nav-links').evaluate(element => element.scrollWidth > element.clientWidth), true, 'The mobile section menu should remain a horizontally scrollable row.');
     await page.setViewportSize({ width: 1280, height: 900 });
     await capture('overview');
+    await page.getByRole('heading', { name: 'Complete your next assignment' }).waitFor();
+    const nextActionLink = page.getByRole('link', { name: 'Open assignment' });
+    assert.equal(await nextActionLink.getAttribute('href'), '#participant-assignment-901');
+    await nextActionLink.click();
+    await page.waitForFunction(() => window.location.hash === '#participant-assignment-901');
+    assert.equal(await page.locator('#participant-assignment-901').count(), 1, 'The next-action button should link to the exact assignment.');
 
     await page.getByTestId('link-participant-updates').click();
     await page.waitForFunction(() => window.location.hash === '#participant-updates');
@@ -550,6 +597,35 @@ test('participant journey renders demo records at desktop and mobile widths in E
     await capture('assignments', '#participant-assignments');
     await capture('team', '#participant-business-team');
     assert.equal(await contactHelp.innerText(), 'فعّل ظهورك في دليل المجموعة أولاً لمشاركة بيانات الاتصال.');
+
+    await page.getByTestId('button-language-toggle').click();
+    await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
+    emptyParticipantMode = true;
+    await page.goto(`${origin}/participant?testSession=participant`);
+    await page.getByTestId('participant-sessions-empty-2601').waitFor();
+    await page.getByTestId('participant-mentoring-empty-2601').waitFor();
+    await page.getByTestId('participant-assignments-empty-2601').waitFor();
+    await page.getByTestId('participant-learning-empty').waitFor();
+    await page.getByRole('heading', { name: 'Start step 1 of your workbook' }).waitFor();
+    assert.equal(await page.getByRole('link', { name: 'Start workbook step' }).getAttribute('href'), '#participant-founder-workbook-2601');
+    assert.equal(await page.getByTestId('button-toggle-idea-workbook-2601').getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.getByTestId('button-toggle-business-plan-2601').getAttribute('aria-expanded'), 'false');
+    await capture('empty-no-data');
+    const emptyHeightMobile = await page.evaluate(() => document.documentElement.scrollHeight);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const emptyHeightDesktop = await page.evaluate(() => document.documentElement.scrollHeight);
+    assert.ok(emptyHeightDesktop <= 5400, `The no-data desktop page should be at least 40% shorter than the supplied ~9,000px baseline (measured ${emptyHeightDesktop}px).`);
+    console.log('No-data page heights (English):', JSON.stringify({ desktop: emptyHeightDesktop, mobile: emptyHeightMobile }));
+
+    await page.getByTestId('button-language-toggle').click();
+    await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
+    assert.equal(await page.getByText('لا توجد جلسات بعد. سيظهر جدول مجموعتك هنا.', { exact: true }).count(), 1);
+    await capture('empty-no-data');
+    const emptyHeightMobileArabic = await page.evaluate(() => document.documentElement.scrollHeight);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const emptyHeightArabic = await page.evaluate(() => document.documentElement.scrollHeight);
+    assert.ok(emptyHeightArabic <= 5400, `The Arabic no-data page should remain at least 40% shorter than the supplied ~9,000px baseline (measured ${emptyHeightArabic}px).`);
+    console.log('No-data page heights (Arabic):', JSON.stringify({ desktop: emptyHeightArabic, mobile: emptyHeightMobileArabic }));
 
     assert.deepEqual(pageErrors, [], 'The participant journey should render without uncaught browser errors.');
     assert.ok(apiPaths.has('GET /api/auth/me'), 'The test must traverse the normal participant role-routing branch.');

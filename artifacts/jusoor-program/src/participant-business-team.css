@@ -187,6 +187,23 @@
 .participant-section-nav-links a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .participant-anchor-section { margin-block-end: 14px; scroll-margin-block-start: calc(88px + env(safe-area-inset-top, 0px)); }
 .participant-dashboard-section { display: grid; gap: 12px; }
+.participant-dashboard-section .participant-grid { align-items: start; }
+.participant-empty-line {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--muted) / .35);
+}
+.participant-empty-line > svg { flex: 0 0 auto; color: hsl(var(--primary)); }
+.participant-empty-line p { margin: 0; color: hsl(var(--muted-foreground)); font-size: var(--type-body-min); line-height: 1.45; }
+.participant-empty-line a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; margin-inline-start: auto; color: hsl(var(--primary)); font-size: var(--type-body-min); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.participant-learning-hub-head { align-items: flex-end; }
+.participant-learning-hub-head > div:first-child { max-width: 680px; }
+.participant-learning-hub-head .lp-live-group { max-width: 320px; }
+.participant-next-action-time { display: inline-block; margin-inline-start: 4px; color: hsl(var(--muted-foreground)); }
 .si-input-label { display: block; margin: 7px 0 4px; color: hsl(var(--foreground)); font-size: var(--type-body-min); font-weight: 700; }
 @media (max-width: 700px) {
   .participant-next-action { align-items: stretch; flex-direction: column; padding: 14px; }
@@ -197,6 +214,11 @@
   .participant-section-nav { gap: 7px; padding-inline: 8px; }
   .participant-section-nav-label { font-size: var(--type-caption-min); }
   .participant-section-nav-links a { padding-inline: 8px; }
+  .participant-empty-line { align-items: flex-start; flex-wrap: wrap; padding: 11px; }
+  .participant-empty-line p { flex: 1 1 180px; }
+  .participant-empty-line a { margin-inline-start: 28px; }
+  .participant-learning-hub-head { align-items: flex-start; }
+  .participant-learning-hub-head .lp-live-group { max-width: none; }
   .participant-business-teams { padding: 15px; }
   .participant-business-title { flex-direction: column; }
 }
