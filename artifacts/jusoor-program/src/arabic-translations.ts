@@ -1995,6 +1995,7 @@ export const arabicTranslations: Record<string, string> = {
   entries: 'إدخالات',
   entry: 'إدخال',
   'Discard unsaved changes?': 'هل تريد تجاهل التغييرات غير المحفوظة؟',
+  'You have unsaved workbook text. Leave without saving?': 'لديك نص غير محفوظ في دفتر العمل. هل تريد المغادرة دون حفظه؟',
   'Your changes have not been saved. Leave this editor and discard them?': 'لم تُحفظ تغييراتك. هل تريد مغادرة هذه النافذة وتجاهلها؟',
   'Keep editing': 'متابعة التحرير',
   'Discard changes': 'تجاهل التغييرات',

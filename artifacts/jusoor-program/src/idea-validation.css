@@ -28,8 +28,8 @@
 .idea-progress-row { display:grid; grid-template-columns:1fr minmax(120px,210px); gap:20px; align-items:center; padding:14px 20px 13px; border-bottom:1px solid hsl(var(--border) / .7); }
 .idea-progress-copy { display:flex; justify-content:space-between; gap:10px; color:hsl(var(--muted-foreground)); font-size:var(--type-body-min); }
 .idea-progress-copy b { color:hsl(var(--foreground)); font-weight:600; }
-.idea-progress-track { height:4px; overflow:hidden; background:hsl(var(--secondary)); border-radius:var(--radius); }
-.idea-progress-track span { display:block; height:100%; background:hsl(var(--primary)); border-radius:var(--radius); transition:width .25s ease; }
+.idea-progress-track { height:6px; overflow:hidden; background:hsl(var(--primary)); border-radius:var(--radius); }
+.idea-progress-track span { display:block; height:100%; background:hsl(var(--accent)); border-radius:var(--radius); transition:width .25s ease; }
 .idea-form { padding:5px 20px 19px; }
 .idea-step { position:relative; display:grid; grid-template-columns:31px minmax(0,1fr); gap:12px; padding:18px 5px 18px 0; }
 .idea-step-index { display:grid; place-items:center; width:28px; height:28px; border:1px solid hsl(var(--border)); border-radius:50%; color:hsl(var(--accent)); background:hsl(var(--background)); font:var(--type-caption-min) var(--app-font-mono); }
@@ -43,7 +43,7 @@
 .idea-form-item > small { max-width:700px; color:hsl(var(--muted-foreground)); font-size:var(--type-body-min); line-height:1.55; }
 .idea-form-item [data-slot="form-message"] { color:hsl(var(--destructive)); font-size:var(--type-body-min); }
 .idea-step-connector { position:absolute; z-index:1; bottom:-8px; inset-inline-start:7px; color:hsl(var(--border)); }
-.idea-save-area { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-top:7px; padding:15px 0 0; border-top:1px solid hsl(var(--border)); }
+.idea-save-area { position:sticky; inset-block-end:0; z-index:12; display:flex; align-items:center; justify-content:space-between; gap:18px; margin-block-start:7px; padding:12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); border-block-start:1px solid hsl(var(--border)); background:hsl(var(--card) / .98); box-shadow:0 -8px 18px hsl(var(--foreground) / .08); }
 .idea-save-note { display:grid; gap:5px; }
 .idea-save-status { display:flex; align-items:center; gap:6px; color:hsl(var(--primary)); font-size:var(--type-caption-min); font-weight:700; }
 .idea-save-status:has(svg.lucide-circle-alert) { color:hsl(var(--destructive)); }

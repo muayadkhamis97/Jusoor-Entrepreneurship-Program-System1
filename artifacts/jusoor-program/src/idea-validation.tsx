@@ -9,6 +9,7 @@ import {
 import type { ParticipantEnrollment, ParticipantIdeaValidationUpdate, ParticipantIdeaValidationWorkbook } from '@workspace/api-client-react';
 import { ArrowDown, ArrowRight, Check, CircleAlert, LockKeyhole, Save } from 'lucide-react';
 import { currentLanguage, t } from './language';
+import { setParticipantWorkbookDirty } from './participant-workbook-unsaved';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import './idea-validation.css';
 
@@ -98,8 +99,14 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
     return hasStarted || hash === 'participant-founder-workbook' || hash === workbookAnchor;
   });
   const form = useForm<WorkbookValues>({ defaultValues: workbookValues(workbook) });
+  const isDirty = form.formState.isDirty;
   const filledCount = fields.filter(({ key }) => Boolean(form.watch(key)?.trim())).length;
   const progress = Math.round((filledCount / fields.length) * 100);
+
+  useEffect(() => {
+    setParticipantWorkbookDirty(`idea-validation:${workbook.applicationId}`, isDirty);
+  }, [workbook.applicationId, isDirty]);
+  useEffect(() => () => setParticipantWorkbookDirty(`idea-validation:${workbook.applicationId}`, false), [workbook.applicationId]);
 
   useEffect(() => {
     setSavedAt(workbook.updatedAt);
@@ -152,7 +159,7 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
     <div className="idea-workbook-summary">
       <div className="idea-progress-row">
         <div className="idea-progress-copy"><span>{t('Your thinking so far')}</span><b>{filledCount} {t('of')} 6 {t('steps started')}</b></div>
-        <div className="idea-progress-track" role="progressbar" aria-label={t('Workbook progress')} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+        <div className="idea-progress-track" role="progressbar" aria-label={t('Workbook progress')} aria-valuetext={`${filledCount} ${t('of')} 6 ${t('steps started')}`} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
       </div>
     </div>
 
@@ -183,7 +190,7 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
 
           <div className="idea-save-area">
             <div className="idea-save-note">
-              <div className="idea-save-status" aria-live="polite" data-testid={`status-idea-save-${workbook.applicationId}`}>
+              <div className="idea-save-status" role="status" aria-live="polite" data-testid={`status-idea-save-${workbook.applicationId}`}>
                 {save.isPending ? <><span className="idea-saving-pulse" />{t('Saving your workbook…')}</>
                   : save.isError ? <><CircleAlert size={15} />{t('Your changes could not be saved. Please try again.')}</>
                     : savedAt ? <><Check size={15} />{savedLabel}</>

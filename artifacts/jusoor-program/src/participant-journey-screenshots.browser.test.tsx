@@ -308,6 +308,20 @@ const jsonResponse = (body: unknown, status = 200) => ({
   body: JSON.stringify(body),
 });
 
+function relativeLuminance(color: string) {
+  const values = color.match(/[\d.]+/g)?.slice(0, 3).map(Number) || [0, 0, 0];
+  const channels = values.map(value => {
+    const normalized = value / 255;
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(first: string, second: string) {
+  const values = [relativeLuminance(first), relativeLuminance(second)].sort((a, b) => b - a);
+  return values[0] === values[1] ? 1 : (values[0] + 0.05) / (values[1] + 0.05);
+}
+
 test('participant journey renders demo records at desktop and mobile widths in English and Arabic', { timeout: 120_000 }, async () => {
   const port = await unusedPort();
   const origin = `http://127.0.0.1:${port}`;
@@ -356,6 +370,7 @@ test('participant journey renders demo records at desktop and mobile widths in E
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const apiPaths = new Set<string>();
     let emptyParticipantMode = false;
+    let failNextWorkbookSave = false;
     const demoBranding = {
       brandName: 'Jusoor Entrepreneurship Program',
       logoUrl: null,
@@ -393,10 +408,24 @@ test('participant journey renders demo records at desktop and mobile widths in E
         await route.fulfill(jsonResponse(emptyParticipantMode ? [] : demoBusinessTeams));
       } else if (url.pathname === '/api/participant/programs/26/peers') {
         await route.fulfill(jsonResponse(emptyParticipantMode ? { ...demoPeerDirectory, peers: [] } : demoPeerDirectory));
-      } else if (url.pathname === '/api/participant/idea-validation') {
+      } else if (url.pathname === '/api/participant/idea-validation' && route.request().method() === 'GET') {
         await route.fulfill(jsonResponse(emptyParticipantMode ? noDataIdeaValidation : demoIdeaValidation));
-      } else if (url.pathname === '/api/participant/business-plans') {
+      } else if (url.pathname.startsWith('/api/participant/idea-validation/') && route.request().method() === 'PUT') {
+        if (failNextWorkbookSave) {
+          failNextWorkbookSave = false;
+          await route.fulfill(jsonResponse({ error: 'Temporary workbook save failure.' }, 503));
+        } else {
+          await route.fulfill(jsonResponse({ error: 'Unexpected workbook save request.' }, 500));
+        }
+      } else if (url.pathname === '/api/participant/business-plans' && route.request().method() === 'GET') {
         await route.fulfill(jsonResponse(emptyParticipantMode ? noDataBusinessPlans : demoBusinessPlans));
+      } else if (url.pathname.startsWith('/api/participant/business-plans/') && route.request().method() === 'PUT') {
+        if (failNextWorkbookSave) {
+          failNextWorkbookSave = false;
+          await route.fulfill(jsonResponse({ error: 'Temporary workbook save failure.' }, 503));
+        } else {
+          await route.fulfill(jsonResponse({ error: 'Unexpected business plan save request.' }, 500));
+        }
       } else if (url.pathname === '/api/participant/courses/progress') {
         await route.fulfill(jsonResponse(emptyParticipantMode ? { programs: [] } : demoLearningProgress));
       } else if (url.pathname === '/api/participant/courses') {
@@ -682,6 +711,25 @@ test('participant journey renders demo records at desktop and mobile widths in E
     const emptyHeightDesktop = await page.evaluate(() => document.documentElement.scrollHeight);
     assert.ok(emptyHeightDesktop <= 5400, `The no-data desktop page should be at least 40% shorter than the supplied ~9,000px baseline (measured ${emptyHeightDesktop}px).`);
     console.log('No-data page heights (English):', JSON.stringify({ desktop: emptyHeightDesktop, mobile: emptyHeightMobile }));
+    for (const [index, steps] of [6, 4].entries()) {
+      const progressBar = page.locator('.idea-progress-track').nth(index);
+      assert.equal(await progressBar.getAttribute('role'), 'progressbar');
+      assert.equal(await progressBar.getAttribute('aria-valuenow'), '0');
+      assert.equal(await progressBar.getAttribute('aria-valuemin'), '0');
+      assert.equal(await progressBar.getAttribute('aria-valuemax'), '100');
+      assert.equal(await progressBar.getAttribute('aria-valuetext'), `0 of ${steps} steps started`);
+      assert.equal((await page.locator('.idea-progress-copy b').nth(index).innerText()).trim(), `0 of ${steps} steps started`);
+    }
+    const progressColors = await page.locator('.idea-progress-track').evaluateAll(function (tracks) {
+      const colors: { track: string; card: string }[] = [];
+      for (const track of tracks) {
+        const card = track.closest('.idea-workbook, .founder-plan-card');
+        if (card) colors.push({ track: getComputedStyle(track).backgroundColor, card: getComputedStyle(card).backgroundColor });
+      }
+      return colors;
+    });
+    const progressContrasts = progressColors.map(colors => contrastRatio(colors.track, colors.card));
+    assert.ok(progressContrasts.length >= 2 && progressContrasts.every(ratio => ratio >= 3), `Workbook progress tracks must contrast with their cards at 3:1 or better: ${progressContrasts.join(', ')}`);
 
     await page.getByTestId('button-language-toggle').click();
     await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
@@ -692,6 +740,52 @@ test('participant journey renders demo records at desktop and mobile widths in E
     const emptyHeightArabic = await page.evaluate(() => document.documentElement.scrollHeight);
     assert.ok(emptyHeightArabic <= 5400, `The Arabic no-data page should remain at least 40% shorter than the supplied ~9,000px baseline (measured ${emptyHeightArabic}px).`);
     console.log('No-data page heights (Arabic):', JSON.stringify({ desktop: emptyHeightArabic, mobile: emptyHeightMobileArabic }));
+    const arabicProgressText = await page.locator('.idea-progress-track').first().getAttribute('aria-valuetext');
+    assert.ok(arabicProgressText && arabicProgressText !== '0 of 6 steps started', 'Workbook progress text must translate to Arabic.');
+
+    await page.getByTestId('button-language-toggle').click();
+    await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
+    await page.getByTestId('button-toggle-idea-workbook-2601').click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const firstWorkbookField = page.getByTestId('input-idea-customerSegment-2601');
+    await firstWorkbookField.fill('This text must remain after a failed save.');
+    const saveArea = page.locator('.idea-workbook-form-panel:not([hidden]) .idea-save-area').first();
+    assert.equal(await saveArea.evaluate(element => getComputedStyle(element).position), 'sticky');
+    assert.equal(await saveArea.locator('[role="status"]').count(), 1);
+    failNextWorkbookSave = true;
+    await page.getByTestId('button-save-idea-2601').click();
+    const saveStatus = page.getByTestId('status-idea-save-2601');
+    await saveStatus.getByText('Your changes could not be saved. Please try again.').waitFor();
+    assert.equal(await firstWorkbookField.inputValue(), 'This text must remain after a failed save.');
+    assert.equal(await saveStatus.getAttribute('role'), 'status');
+    await page.getByTestId('button-toggle-business-plan-2601').click();
+    const firstPlanField = page.getByTestId('input-business-plan-acquisitionChannels-2601');
+    await firstPlanField.fill('This plan text must remain after a failed save.');
+    const planSaveArea = page.locator('.founder-plan-form-panel:not([hidden]) .idea-save-area').first();
+    assert.equal(await planSaveArea.evaluate(element => getComputedStyle(element).position), 'sticky');
+    assert.equal(await planSaveArea.locator('[role="status"]').count(), 1);
+    failNextWorkbookSave = true;
+    await page.getByTestId('button-save-business-plan-2601').click();
+    const planSaveStatus = page.getByTestId('status-business-plan-save-2601');
+    await planSaveStatus.getByText('Your changes could not be saved. Please try again.').waitFor();
+    assert.equal(await firstPlanField.inputValue(), 'This plan text must remain after a failed save.');
+    assert.equal(await planSaveStatus.getAttribute('role'), 'status');
+    const beforeUnloadBlocked = await page.evaluate(() => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    assert.equal(beforeUnloadBlocked, true, 'Unsaved workbook text should trigger beforeunload protection.');
+    let exitPrompted = false;
+    page.once('dialog', async dialog => {
+      exitPrompted = true;
+      assert.equal(dialog.type(), 'confirm');
+      assert.match(dialog.message(), /unsaved workbook text/i);
+      await dialog.dismiss();
+    });
+    await page.getByRole('link', { name: 'Chat', exact: true }).click();
+    assert.equal(exitPrompted, true, 'In-app navigation should warn before leaving an unsaved workbook.');
+    assert.equal(new URL(page.url()).pathname, '/participant', 'Cancelling the warning should keep the participant page open.');
 
     assert.deepEqual(pageErrors, [], 'The participant journey should render without uncaught browser errors.');
     assert.ok(apiPaths.has('GET /api/auth/me'), 'The test must traverse the normal participant role-routing branch.');

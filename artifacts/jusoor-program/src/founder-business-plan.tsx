@@ -9,6 +9,7 @@ import {
 import type { ParticipantBusinessPlan, ParticipantBusinessPlanUpdate, ParticipantEnrollment } from '@workspace/api-client-react';
 import { ArrowRight, Check, CircleAlert, LockKeyhole, Save } from 'lucide-react';
 import { currentLanguage, t } from './language';
+import { setParticipantWorkbookDirty } from './participant-workbook-unsaved';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import './founder-business-plan.css';
 
@@ -71,8 +72,14 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
     return hasStarted || hash === 'participant-business-plan-workbook' || hash === workbookAnchor;
   });
   const form = useForm<PlanValues>({ defaultValues: valuesFromPlan(plan) });
+  const isDirty = form.formState.isDirty;
   const filledCount = fields.filter(({ key }) => Boolean(form.watch(key)?.trim())).length;
   const progress = Math.round((filledCount / fields.length) * 100);
+
+  useEffect(() => {
+    setParticipantWorkbookDirty(`business-plan:${plan.applicationId}`, isDirty);
+  }, [plan.applicationId, isDirty]);
+  useEffect(() => () => setParticipantWorkbookDirty(`business-plan:${plan.applicationId}`, false), [plan.applicationId]);
 
   useEffect(() => setSavedAt(plan.updatedAt), [plan.updatedAt]);
 
@@ -122,7 +129,7 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
     <div className="idea-workbook-summary">
       <div className="idea-progress-row">
         <div className="idea-progress-copy"><span>{t('Your plan so far')}</span><b>{filledCount} {t('of')} 4 {t('steps started')}</b></div>
-        <div className="idea-progress-track" role="progressbar" aria-label={t('Business plan progress')} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+        <div className="idea-progress-track" role="progressbar" aria-label={t('Business plan progress')} aria-valuetext={`${filledCount} ${t('of')} 4 ${t('steps started')}`} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
       </div>
     </div>
     <div id={formId} className="founder-plan-form-panel" hidden={!isOpen} data-testid={`panel-business-plan-${plan.applicationId}`}>
@@ -141,7 +148,7 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
           </section>)}
           <div className="idea-save-area">
             <div className="idea-save-note">
-              <div className="idea-save-status" aria-live="polite" data-testid={`status-business-plan-save-${plan.applicationId}`}>
+              <div className="idea-save-status" role="status" aria-live="polite" data-testid={`status-business-plan-save-${plan.applicationId}`}>
                 {save.isPending ? <><span className="idea-saving-pulse" />{t('Saving your plan…')}</>
                   : save.isError ? <><CircleAlert size={15} />{t('Your changes could not be saved. Please try again.')}</>
                     : savedAt ? <><Check size={15} />{savedLabel}</>
