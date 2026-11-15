@@ -23,12 +23,21 @@ test("announcement recipients are normalized and deduplicated across accepted ap
 });
 
 test("announcement emails escape user content and retain one stable key across retries", () => {
-  const message = announcementEmailContent({ id: 14, title: "Important\r\nUpdate", body: "<script>bad()</script>\n& details" }, "one@example.test");
+  const message = announcementEmailContent(
+    { id: 14, title: "Important\r\nUpdate", body: "<script>bad()</script>\n& details" },
+    "one@example.test",
+    "https://program.example.test/participant",
+    "#d98a46",
+  );
   assert.equal(message.idempotencyKey, "jusoor-announcement-14");
   assert.equal(message.subject, "Important Update");
   assert.match(message.html, /&lt;script&gt;/);
   assert.doesNotMatch(message.html, /<script>/);
+  assert.match(message.html, /href="https:\/\/program\.example\.test\/participant"/);
+  assert.match(message.html, /background-color:#d98a46;color:#17211f/);
+  assert.match(message.html, />View announcement<\/a>/);
   assert.match(message.text, /<script>bad\(\)<\/script>/);
+  assert.match(message.text, /View announcement: https:\/\/program\.example\.test\/participant/);
   assert.deepEqual(message.recipients, ["one@example.test"]);
 });
 

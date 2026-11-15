@@ -138,6 +138,25 @@ test('public application, judging, and certificate routes stay outside the works
         return;
       }
       if (url.pathname.startsWith('/api/')) {
+        if (url.pathname === '/api/branding') {
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              brandName: 'Founders Studio',
+              logoUrl: '/api/branding/logo/test-logo',
+              primaryColor: '#28665a',
+              accentColor: '#d98a46',
+            }),
+          });
+        }
+        if (url.pathname === '/api/branding/logo/test-logo') {
+          return route.fulfill({
+            status: 200,
+            contentType: 'image/svg+xml',
+            body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg>',
+          });
+        }
         if (url.pathname === '/api/public/application-programs' && returnClosedApplicationList) {
           return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
         }
@@ -163,7 +182,19 @@ test('public application, judging, and certificate routes stay outside the works
     assert.equal(await page.getByTestId('closed-application-prep-item-venture').count(), 1);
     assert.equal(await page.getByTestId('closed-application-prep-item-progress').count(), 1);
     assert.equal(await page.getByTestId('closed-application-prep-item-support').count(), 1);
+    assert.equal(await page.locator('.intake-brand b').textContent(), 'Founders Studio');
+    assert.equal(await page.locator('.intake-brand img').getAttribute('src'), '/api/branding/logo/test-logo');
+    assert.equal(
+      await page.locator('.intake-hero h1 em').evaluate(element => getComputedStyle(element).color),
+      'rgb(40, 103, 90)',
+      'The application page should use the saved primary color.',
+    );
     await page.getByRole('link', { name: 'Explore the program' }).waitFor();
+    assert.equal(
+      await page.getByRole('link', { name: 'Explore the program' }).evaluate(element => getComputedStyle(element).backgroundColor),
+      'rgb(217, 138, 69)',
+      'Primary actions should use the saved accent color.',
+    );
     await page.getByRole('link', { name: /Already applied\? Sign in to track progress/ }).waitFor();
     assertWorkspaceNotRequested('The closed application page');
 

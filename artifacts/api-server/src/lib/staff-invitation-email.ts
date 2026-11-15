@@ -1,6 +1,6 @@
 import type { PlatformEmail } from "./platform-email";
 import { sendPlatformEmail } from "./platform-email";
-import { loadProgramEmailBranding, visibleEmailBrandName } from "./email-branding";
+import { contrastColor, loadProgramEmailBranding, visibleEmailBrandName } from "./email-branding";
 
 export type StaffInvitationRole = "coordinator" | "staff" | "trainer" | "mentor" | "judge";
 
@@ -25,9 +25,15 @@ const roleLabels: Record<StaffInvitationRole, string> = {
   judge: "Judge",
 };
 
-export function buildStaffInvitationEmail(input: StaffInvitationEmailInput, brandName = "Program Hub"): PlatformEmail {
+export function buildStaffInvitationEmail(
+  input: StaffInvitationEmailInput,
+  brandName = "Program Hub",
+  accentColor = "#d98a46",
+): PlatformEmail {
   const brand = visibleEmailBrandName(brandName).replace(/\s+/g, " ");
   const roleLabel = roleLabels[input.role];
+  const buttonColor = /^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor.toLowerCase() : "#d98a46";
+  const buttonTextColor = contrastColor(buttonColor);
   const programNames = input.role === "coordinator" ? [] : input.programNames;
   const assignment = programNames.length
     ? `Assigned program${programNames.length === 1 ? "" : "s"}: ${programNames.join(", ")}.`
@@ -56,7 +62,7 @@ export function buildStaffInvitationEmail(input: StaffInvitationEmailInput, bran
     `<p><strong>Role:</strong> ${safeRole}</p>`,
     assignmentHtml,
     "<p>Create an account or sign in using this same verified email address to access the platform.</p>",
-    `<p><a href="${escapeHtml(SYSTEM_SIGN_IN_URL)}">Open the program system</a></p>`,
+    `<p style="margin:24px 0"><a href="${escapeHtml(SYSTEM_SIGN_IN_URL)}" style="display:inline-block;padding:12px 20px;border-radius:6px;background-color:${buttonColor};color:${buttonTextColor};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;line-height:1.4;text-align:center;text-decoration:none">Open the program system</a></p>`,
     "<p>If you have questions about your role or program access, reply to this email to contact the program team.</p>",
     "<p>If you were not expecting this invitation, you can ignore this email.</p>",
   ].join("");
@@ -78,7 +84,7 @@ export async function sendStaffInvitationEmail(
   loadBranding = loadProgramEmailBranding,
 ): Promise<void> {
   const branding = await loadBranding();
-  const message = buildStaffInvitationEmail(input, branding.brandName);
+  const message = buildStaffInvitationEmail(input, branding.brandName, branding.accentColor);
   if (send) await send(message);
   else await sendPlatformEmail(message, undefined, async () => branding);
 }

@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 const databaseAvailable = Boolean(process.env.TEST_DATABASE_URL);
 process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
+process.env.REPLIT_APP_URL = "https://program.example.test";
 const schema = await import("@workspace/db");
 const { db, pool } = schema;
 const { processAnnouncementEmails, announcementEmailStatuses } = await import("../src/lib/announcement-email");
@@ -18,7 +19,7 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
   const connection = await pool.connect();
   const tables = [
     "jusoor_program_announcements", "jusoor_announcement_email_requests", "jusoor_announcement_email_deliveries",
-    "jusoor_applications", "jusoor_programs", "jusoor_staff_members", "jusoor_staff_program_assignments", "jusoor_businesses",
+    "jusoor_applications", "jusoor_programs", "jusoor_program_branding", "jusoor_staff_members", "jusoor_staff_program_assignments", "jusoor_businesses",
     "jusoor_participant_business_memberships",
   ];
   const methods = ["select", "insert", "update", "delete", "transaction"] as const;
@@ -84,6 +85,12 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
         (4, 1, 'Other team', 'other-team@example.test', 'Two', 'Summary', 'Needs', 'accepted', 12),
         (5, 2, 'Duplicate', 'one@example.test', 'Other', 'Summary', 'Needs', 'accepted', 21);
     `);
+    await db.insert(schema.programBrandingTable).values({
+      id: 1,
+      brandName: "Test Program",
+      primaryColor: "#28665a",
+      accentColor: "#d98a46",
+    });
     const app = express();
     app.use(express.json());
     app.use((req, res, next) => {
@@ -111,7 +118,11 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       return result as { id: number; email: { state: string } };
     };
     const sent: string[] = [];
-    const send = async (message: { recipients: string[] }) => { sent.push(...message.recipients); };
+    const sentMessages: Array<{ recipients: string[]; text: string; html: string }> = [];
+    const send = async (message: { recipients: string[]; text: string; html: string }) => {
+      sent.push(...message.recipients);
+      sentMessages.push(message);
+    };
 
     await t.test("portal-only and legacy messages never gain email requests; future messages do not send early", async () => {
       const portal = await create({ notifyByEmail: false });
@@ -127,6 +138,8 @@ test("announcement email lifecycle uses isolated PostgreSQL tables and never sen
       const result = await create();
       await processAnnouncementEmails(send);
       assert.deepEqual([...sent].sort(), ["one@example.test", "two@example.test", "other-team@example.test"].sort());
+      assert.match(sentMessages[0].html, /href="https:\/\/program\.example\.test\/participant"/);
+      assert.match(sentMessages[0].text, /View announcement: https:\/\/program\.example\.test\/participant/);
       await processAnnouncementEmails(send);
       assert.equal(sent.length, 3);
       assert.equal((await announcementEmailStatuses([result.id])).get(result.id)?.sent, 3);

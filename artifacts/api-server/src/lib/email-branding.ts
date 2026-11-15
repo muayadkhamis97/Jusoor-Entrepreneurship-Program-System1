@@ -95,13 +95,20 @@ function safeColor(value: string, fallback: string): string {
 }
 
 export function contrastColor(hex: string): string {
-  const channels = hex.slice(1).match(/.{2}/g)?.map(channel => parseInt(channel, 16) / 255);
-  if (!channels || channels.length !== 3) return "#ffffff";
-  const [red, green, blue] = channels.map(channel =>
-    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
-  );
-  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-  return luminance > 0.42 ? "#17211f" : "#ffffff";
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return "#ffffff";
+  const luminance = (color: string) => {
+    const channels = color.slice(1).match(/.{2}/g)!.map(channel => parseInt(channel, 16) / 255);
+    const [red, green, blue] = channels.map(channel =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    );
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  };
+  const backgroundLuminance = luminance(hex);
+  const darkLuminance = luminance("#17211f");
+  const ratio = (foreground: number) =>
+    (Math.max(foreground, backgroundLuminance) + 0.05) /
+    (Math.min(foreground, backgroundLuminance) + 0.05);
+  return ratio(darkLuminance) >= ratio(1) ? "#17211f" : "#ffffff";
 }
 
 function firstCharacter(value: string): string {

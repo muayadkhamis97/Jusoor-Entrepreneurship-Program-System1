@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  contrastColor,
   renderBrandedEmailHtml,
   renderBrandedEmailText,
   visibleEmailBrandName,
@@ -13,6 +14,11 @@ const configuredBrand: ProgramEmailBranding = {
   primaryColor: "#163b52",
   accentColor: "#e1a447",
 };
+
+test("email action labels choose the higher-contrast text color", () => {
+  assert.equal(contrastColor("#d98a46"), "#17211f");
+  assert.equal(contrastColor("#183a51"), "#ffffff");
+});
 
 test("branded email uses the current name, hosted logo, and saved colors", () => {
   const html = renderBrandedEmailHtml("<p>Session reminder</p>", configuredBrand);

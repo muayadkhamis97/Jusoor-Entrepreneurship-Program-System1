@@ -16,6 +16,8 @@ import {
 import { logger } from "./logger";
 import { platformEmailFailureDiagnostics } from "./platform-email";
 import type { EmailDeliveryFailure } from "@workspace/api-zod";
+import { contrastColor, loadProgramEmailBranding } from "./email-branding";
+import { participantAccessUrl } from "./participant-invitation-email";
 
 type DeliveryCounts = {
   state: "not_requested" | "queued" | "processing" | "complete" | "needs_attention" | "paused" | "quota_paused" | "needs_reconnect" | "unavailable";
@@ -107,12 +109,20 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 }
 
-export function announcementEmailContent(announcement: { id: number; title: string; body: string }, email: string) {
+export function announcementEmailContent(
+  announcement: { id: number; title: string; body: string },
+  email: string,
+  accessUrl: string,
+  accentColor: string,
+) {
+  const buttonColor = /^#[0-9a-fA-F]{6}$/.test(accentColor) ? accentColor.toLowerCase() : "#28665a";
+  const buttonTextColor = contrastColor(buttonColor);
+  const safeAccessUrl = escapeHtml(accessUrl);
   return {
     recipients: [email],
     subject: announcement.title.replace(/[\r\n]+/g, " "),
-    text: `${announcement.title}\n\n${announcement.body}\n\nSign in to the program platform to view this announcement.`,
-    html: `<h2>${escapeHtml(announcement.title)}</h2><p>${escapeHtml(announcement.body).replace(/\r?\n/g, "<br>")}</p><p>Sign in to the program platform to view this announcement.</p>`,
+    text: `${announcement.title}\n\n${announcement.body}\n\nSign in to the program platform to view this announcement.\nView announcement: ${accessUrl}`,
+    html: `<h2>${escapeHtml(announcement.title)}</h2><p>${escapeHtml(announcement.body).replace(/\r?\n/g, "<br>")}</p><p>Sign in to the program platform to view this announcement.</p><p style="margin:24px 0"><a href="${safeAccessUrl}" style="display:inline-block;padding:12px 20px;border-radius:6px;background-color:${buttonColor};color:${buttonTextColor};font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;line-height:1.4;text-align:center;text-decoration:none">View announcement</a></p>`,
     idempotencyKey: `jusoor-announcement-${announcement.id}`,
   };
 }
@@ -337,6 +347,11 @@ export async function processAnnouncementEmails(
       lte(announcements.scheduledFor, sql`CURRENT_TIMESTAMP`),
     ))
     .orderBy(sql`${deliveries.attemptedAt} asc nulls first`).limit(50);
+  const accessUrl = pending.length ? participantAccessUrl(process.env.REPLIT_APP_URL) : null;
+  if (pending.length && !accessUrl) {
+    throw new Error("REPLIT_APP_URL must be a valid HTTPS origin to send announcement email.");
+  }
+  const emailBranding = pending.length ? await loadProgramEmailBranding() : null;
   for (const { delivery, announcement } of pending) {
     if (!await authorMaySend(announcement)) {
       await db.update(requests).set({
@@ -376,7 +391,12 @@ export async function processAnnouncementEmails(
     }
     let result: EmailSendResult;
     try {
-      result = await transport.send(announcementEmailContent(announcement, delivery.email));
+      result = await transport.send(announcementEmailContent(
+        announcement,
+        delivery.email,
+        accessUrl!,
+        emailBranding!.accentColor,
+      ));
     } catch (error) {
       // A transport that rejects unexpectedly may have already sent the message.
       result = { kind: "ambiguous", diagnostics: platformEmailFailureDiagnostics(error) };

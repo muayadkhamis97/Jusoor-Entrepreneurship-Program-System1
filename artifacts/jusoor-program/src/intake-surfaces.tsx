@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,8 +35,9 @@ import { ParticipantIdeaValidation } from './idea-validation';
 import { ParticipantBusinessPlan } from './founder-business-plan';
 import { ParticipantPeerDirectory } from './peer-directory';
 import { ParticipantAccountActions } from './participant-account-actions';
-import { getGetProgramBrandingQueryKey, useGetProgramBranding } from '@workspace/api-client-react';
+import { getGetProgramBrandingQueryKey, useGetProgramBranding, type GetProgramBrandingQueryResult } from '@workspace/api-client-react';
 import { getDisplayBrandName, shouldShowBrandCaption, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { getBrandingThemeTokens } from './branding-contrast';
 import { applicationSubmitErrorKey } from './application-errors';
 import { getParticipantNextAction } from './participant-dashboard-helpers';
 import {
@@ -95,15 +96,26 @@ function ApplicationFormMessage() {
   if (!message) return null;
   return <p id={formMessageId} className="text-[0.8rem] font-medium text-destructive">{t(message)}</p>;
 }
-function IntakeBrand() {
-  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
-  const brand = brandingQuery.data;
+type ProgramBranding = GetProgramBrandingQueryResult;
+
+function IntakeBrand({ brand }: { brand?: ProgramBranding }) {
   return <Link href="/" className="intake-brand" data-testid="link-program-home">{brand?.logoUrl ? <img className="intake-logo-image" src={brand.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(brand?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(brand?.brandName)}</b>{shouldShowBrandCaption(getDisplayBrandName(brand?.brandName)) && <small>{t('PROGRAM HUB')}</small>}</span></Link>;
+}
+
+function ParticipantIntakeBrand() {
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  return <IntakeBrand brand={brandingQuery.data} />;
 }
 
 function IntakeFrame({ children }: { children: React.ReactNode }) {
   useAppLanguage();
-  return <div className="intake-page"><header className="intake-top"><IntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/participant" className="text-link" data-testid="link-applicant-sign-in">{t('Applicant sign in')} <ArrowRight size={14} /></Link></div></header>{children}<footer className="intake-footer footer-brandless"><span>{t('BUILDING THE NEXT GENERATION OF BUSINESSES')}</span></footer></div>;
+  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
+  const brand = brandingQuery.data;
+  const themeStyle = useMemo(
+    () => getBrandingThemeTokens(brand?.primaryColor, brand?.accentColor) as CSSProperties,
+    [brand?.primaryColor, brand?.accentColor],
+  );
+  return <div className="intake-page" style={themeStyle}><header className="intake-top"><IntakeBrand brand={brand} /><div className="intake-header-actions"><LanguageToggle /><Link href="/participant" className="text-link" data-testid="link-applicant-sign-in">{t('Applicant sign in')} <ArrowRight size={14} /></Link></div></header>{children}<footer className="intake-footer footer-brandless"><span>{t('BUILDING THE NEXT GENERATION OF BUSINESSES')}</span></footer></div>;
 }
 
 function ProgramLoading() {
@@ -294,7 +306,7 @@ export function ParticipantDashboardPage() {
   const hasAcceptedEnrollment = enrollments.some(enrollment => enrollment.applicationStatus === 'accepted');
   const nextAction = getParticipantNextAction(hasAcceptedEnrollment);
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
-  return <div className="intake-page"><header className="intake-top"><IntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Program hub')} <ArrowRight size={14} /></Link></div></header>
+  return <div className="intake-page"><header className="intake-top"><ParticipantIntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Program hub')} <ArrowRight size={14} /></Link></div></header>
     <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your application status, upcoming sessions and support in one place.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/chat" data-testid="link-participant-chat">{t('Chat')}</Link><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
         : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>

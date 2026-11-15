@@ -19,7 +19,10 @@ test("builds a scoped invitation email with stable retry identity", () => {
   assert.match(message.text, /Assigned program: Spring founders\./);
   assert.match(message.text, /same verified email address/);
   assert.match(message.text, /Open the program system: https:\/\/entrep-system\.replit\.app\/sign-in/);
-  assert.match(message.html, /<a href="https:\/\/entrep-system\.replit\.app\/sign-in">Open the program system<\/a>/);
+  assert.match(
+    message.html,
+    /<a href="https:\/\/entrep-system\.replit\.app\/sign-in" style="[^"]*background-color:#d98a46;color:#17211f[^"]*">Open the program system<\/a>/,
+  );
   assert.equal(message.idempotencyKey, "staff-invitation-42");
 });
 
@@ -59,6 +62,7 @@ test("sends the constructed invitation through the injected sender", async () =>
   assert.equal(sent?.subject, "Future Founders: Your invitation to join the program team");
   assert.match(sent?.text ?? "", /The Future Founders program team has invited you/);
   assert.match(sent?.text ?? "", /Role: Mentor\./);
+  assert.match(sent?.html ?? "", /background-color:#d98a46;color:#17211f/);
 });
 
 test("staff invitation safely includes the current Unicode brand in subject and body", () => {
