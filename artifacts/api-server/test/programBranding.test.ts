@@ -243,3 +243,40 @@ test("PUT /branding rejects disallowed names before any write", async () => {
     restoreInsert();
   }
 });
+
+test("PUT /branding persists a null logo when an Admin removes it", async () => {
+  let insertedValues: Record<string, unknown> | undefined;
+  const restoreInsert = replaceDbMethod("insert", (() => ({
+    values(values: Record<string, unknown>) {
+      insertedValues = values;
+      return this;
+    },
+    onConflictDoUpdate() {
+      return this;
+    },
+    returning: async () => [{
+      brandName: "North Star",
+      logoUrl: null,
+      primaryColor: "#163b52",
+      accentColor: "#e1a447",
+      sidebarColor: "#112233",
+      topbarColor: "#334455",
+    }],
+  })) as (...args: never[]) => unknown);
+
+  try {
+    const response = await invoke(updateBranding, {
+      brandName: "North Star",
+      logoUrl: null,
+      primaryColor: "#163b52",
+      accentColor: "#e1a447",
+      sidebarColor: "#112233",
+      topbarColor: "#334455",
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal((response.body as { logoUrl: string | null }).logoUrl, null);
+    assert.equal(insertedValues?.logoUrl, null);
+  } finally {
+    restoreInsert();
+  }
+});

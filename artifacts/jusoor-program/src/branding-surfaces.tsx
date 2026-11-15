@@ -84,6 +84,26 @@ export function BrandingPage() {
       setUploadingLogo(false);
     }
   };
+  const removeLogo = () => {
+    if (!form.logoUrl || update.isPending) return;
+    const withoutLogo = { ...savedForm, logoUrl: null };
+    setLogoUploadError('');
+    setLogoUploadMessage('Removing logo…');
+    update.mutate({ data: withoutLogo }, {
+      onSuccess: () => {
+        setSavedForm(withoutLogo);
+        setForm(current => ({ ...current, logoUrl: null }));
+        setLogoPreviewUrl(null);
+        setSaved(false);
+        setLogoUploadMessage('Logo removed and saved.');
+        void client.invalidateQueries({ queryKey: getGetProgramBrandingQueryKey() });
+      },
+      onError: () => {
+        setLogoUploadMessage('');
+        setLogoUploadError('Logo could not be removed. Please try again.');
+      },
+    });
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const brandName = form.brandName.trim();
@@ -127,7 +147,7 @@ export function BrandingPage() {
             {uploadingLogo && <span role="status">{t('Uploading logo…')}</span>}
           </div>
           <small>{t('File requirements: JPEG, PNG, or WebP. Maximum file size: 5 MB.')}</small>
-          {form.logoUrl && <div className="branding-logo-actions"><button type="button" className="button button-quiet" disabled={busy} onClick={() => { change('logoUrl', null); setLogoUploadError(''); setLogoUploadMessage('Logo removed. Save branding to apply it.'); }} data-testid="button-remove-brand-logo"><Trash2 size={14} />{t('Remove logo')}</button></div>}
+          {form.logoUrl && <div className="branding-logo-actions"><button type="button" className="button button-quiet" disabled={busy} onClick={removeLogo} data-testid="button-remove-brand-logo">{update.isPending ? t('Removing logo…') : <><Trash2 size={14} />{t('Remove logo')}</>}</button></div>}
           {logoUploadError && <span className="branding-upload-error" role="alert">{t(logoUploadError)}</span>}
           {logoUploadMessage && <span className="branding-upload-success" role="status">{t(logoUploadMessage)}</span>}
         </div>
