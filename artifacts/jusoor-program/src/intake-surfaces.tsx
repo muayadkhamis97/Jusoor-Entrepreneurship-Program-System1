@@ -13,7 +13,7 @@ import {
 } from '@workspace/api-client-react';
 import type { ApplicationProgram, EntrepreneurApplication, EntrepreneurApplicationInput, ParticipantBusinessTeam, ParticipantEnrollment, ParticipantAssignment, ParticipantQuestion, TrainingAnswerInput, TrainingQuestionInput } from '@workspace/api-client-react';
 import { useClerk, useUser } from '@clerk/react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button as EditorialButton } from '@workspace/program-editorial/components/ui/button';
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
 import { Typography } from '@workspace/program-editorial/components/ui/typography';
@@ -296,43 +296,70 @@ export function ApplicationsReviewPage() {
   </>;
 }
 
+const participantPagePaths = {
+  '/participant': 'progress',
+  '/participant/team': 'team',
+  '/participant/updates': 'updates',
+  '/participant/learning': 'learning',
+} as const;
+
+type ParticipantPage = typeof participantPagePaths[keyof typeof participantPagePaths];
+
 export function ParticipantDashboardPage() {
   useAppLanguage();
   const { signOut } = useClerk();
+  const [location, setLocation] = useLocation();
   const query = useGetParticipantDashboard({ query: { queryKey: getGetParticipantDashboardQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 } });
   const profileQuery = useGetParticipantProfile({ query: { queryKey: getGetParticipantProfileQueryKey(), retry: false } });
   const { user } = useUser();
+  const participantPath = location.replace(/\/+$/, '') || '/participant';
+  const page: ParticipantPage = participantPagePaths[participantPath as keyof typeof participantPagePaths] || 'progress';
   const enrollments = query.data?.applications || [];
   const hasAcceptedEnrollment = enrollments.some(enrollment => enrollment.applicationStatus === 'accepted');
+  const acceptedEnrollments = enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted');
   const nextAction = getParticipantNextAction(hasAcceptedEnrollment);
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
+  useEffect(() => {
+    if (!participantPagePaths[participantPath as keyof typeof participantPagePaths]
+      || (page === 'team' && !query.isLoading && !query.isError && query.data && !hasAcceptedEnrollment)) {
+      setLocation('/participant');
+    }
+  }, [participantPath, page, query.isLoading, query.isError, query.data, hasAcceptedEnrollment, setLocation]);
   return <div className="intake-page"><header className="intake-top"><ParticipantIntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Program hub')} <ArrowRight size={14} /></Link></div></header>
-    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your application status, upcoming sessions and support in one place.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/chat" data-testid="link-participant-chat">{t('Chat')}</Link><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
+    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('Your program updates, team, learning and progress are organized on separate pages.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/chat" data-testid="link-participant-chat">{t('Chat')}</Link><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="role-chip">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} /></div></div>
       {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
         : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>
          : enrollments.length === 0 ? <><div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h1>{t('No program access linked yet.')}</h1><p>{t('This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div><ParticipantAnnouncements announcements={query.data?.announcements || []} /></>
           : <>
-            <section className="participant-next-action" aria-labelledby="participant-next-action-title">
-              <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span><h2 id="participant-next-action-title">{t(nextAction.titleKey)}</h2><p>{t(nextAction.descriptionKey)}</p></div>
-              <a className="button button-primary" href={nextAction.href}>{t('Go to next action')} <ArrowRight size={15} /></a>
-            </section>
-            <nav className="participant-section-index" aria-label={t('Your dashboard sections')}>
-              <a href="#participant-program-progress">{t('Program progress')}</a>
-              {hasAcceptedEnrollment && <a href="#participant-business-team">{t('Business team')}</a>}
-              <a href="#participant-updates">{t('Program updates')}</a>
-              <a href="#participant-learning">{t('Learning')}</a>
+            <nav className="participant-section-index" aria-label={t('Participant pages')}>
+              <Link href="/participant" aria-current={page === 'progress' ? 'page' : undefined} data-testid="link-participant-page-progress">{t('Program progress')}</Link>
+              {hasAcceptedEnrollment && <Link href="/participant/team" aria-current={page === 'team' ? 'page' : undefined} data-testid="link-participant-page-team">{t('Business team')}</Link>}
+              <Link href="/participant/updates" aria-current={page === 'updates' ? 'page' : undefined} data-testid="link-participant-page-updates">{t('Program updates')}</Link>
+              <Link href="/participant/learning" aria-current={page === 'learning' ? 'page' : undefined} data-testid="link-participant-page-learning">{t('Learning')}</Link>
             </nav>
-            <section id="participant-program-progress" className="participant-dashboard-section" aria-label={t('Program progress')}>
-              {enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} />)}
-            </section>
-            {hasAcceptedEnrollment && <div id="participant-business-team" className="participant-dashboard-section"><ParticipantBusinessTeams /></div>}
-            <div id="participant-updates" className="participant-dashboard-section"><ParticipantAnnouncements announcements={query.data?.announcements || []} /></div>
-            <div className="participant-dashboard-section"><ParticipantIdeaValidation enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /></div>
-            <div className="participant-dashboard-section"><ParticipantBusinessPlan enrollments={enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted')} /></div>
-            <section id="participant-learning" className="participant-dashboard-section" aria-label={t('Learning')}>
+            {page === 'progress' && <>
+              <section className="participant-next-action" aria-labelledby="participant-next-action-title" data-testid="participant-page-progress">
+                <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span><h2 id="participant-next-action-title">{t(nextAction.titleKey)}</h2><p>{t(nextAction.descriptionKey)}</p></div>
+                <Link className="button button-primary" href={nextAction.href}>{t('Go to next action')} <ArrowRight size={15} /></Link>
+              </section>
+              <section className="participant-dashboard-section" aria-label={t('Program progress')}>
+                {enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} page="progress" />)}
+              </section>
+              {acceptedEnrollments.length > 0 && <>
+                <div className="participant-dashboard-section"><ParticipantIdeaValidation enrollments={acceptedEnrollments} /></div>
+                <div className="participant-dashboard-section"><ParticipantBusinessPlan enrollments={acceptedEnrollments} /></div>
+              </>}
+            </>}
+            {page === 'team' && <div className="participant-dashboard-section" data-testid="participant-page-team">
+              <ParticipantBusinessTeams />
+              {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} page="team" />)}
+            </div>}
+            {page === 'updates' && <div className="participant-dashboard-section" data-testid="participant-page-updates"><ParticipantAnnouncements announcements={query.data?.announcements || []} /></div>}
+            {page === 'learning' && <div className="participant-dashboard-section" data-testid="participant-page-learning">
               <ParticipantLearningProgress />
               <ParticipantProgramLearning />
-            </section>
+              {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} page="learning" />)}
+            </div>}
           </>}
     </main><footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
   </div>;
@@ -372,7 +399,7 @@ function ParticipantProgramLearning() {
    if (!programs.length) return <section className="participant-section participant-course-section" data-testid="empty-participant-courses"><div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your accepted cohort learning materials.')}</p></div></div><div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h3>{t('Your learning path is being prepared.')}</h3><p>{t('Once released by your program team, modules and resources for your accepted cohort will appear here.')}</p></div></section>;
   return <><section className="participant-section participant-course-section" data-testid="participant-course-learning">
      <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('A guided sequence of released modules and useful materials.')}</p></div><span className="badge badge-neutral">{programs.reduce((total, program) => total + program.modules.length, 0)} {t('released modules')}</span></div>
-     <div className="offline-learning-note" role="note"><Download size={16} /><div><b>{t('Prepare materials for offline study')}</b><span>{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</span></div></div>
+      <div className="offline-learning-note" role="note"><Download size={16} aria-hidden="true" /><div className="offline-learning-note-copy"><div className="offline-learning-note-title"><b>{t('Prepare materials for offline study')}</b></div><div className="offline-learning-note-body">{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</div></div></div>
      {programs.map(program => {
       const modules = program.modules.filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now).sort((a, b) => a.position - b.position);
       return <article className="participant-course-program" key={program.programId} data-testid={`participant-course-program-${program.programId}`}>
@@ -389,7 +416,7 @@ function ParticipantProgramLearning() {
    </section>{activePackage && <Suspense fallback={<div className="modal-backdrop" role="presentation"><section className="modal-card" role="status">{t('Loading course package…')}</section></div>}><CoursePackagePlayer materialId={activePackage.id} title={activePackage.title} onClose={() => setActivePackage(null)} /></Suspense>}</>;
 }
 
-function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {
+function EnrollmentCard({ enrollment, page }: { enrollment: ParticipantEnrollment; page: 'progress' | 'team' | 'learning' }) {
   const [calendarDate, setCalendarDate] = useState<string | null>(null);
   const scheduled = enrollment.sessions.filter(session => session.status === 'scheduled').sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
   const displayedSessions = calendarDate
@@ -397,10 +424,13 @@ function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {
     : enrollment.sessions;
   const support = enrollment.support;
   return <article data-testid={`card-participant-application-${enrollment.applicationId}`}>
+    {page === 'progress' && <>
     <section className="participant-section"><div className="participant-section-head"><div><h2>{t('Your cohort')}</h2><p>{enrollment.enrollmentSource === 'admin_invitation' ? t('Participant access assigned') : t('Application received')} {dateText(enrollment.submittedAt)}</p></div><span className={`badge ${statusClass(enrollment.applicationStatus)}`} data-testid={`status-application-${enrollment.applicationId}`}><span />{statusWords[enrollment.applicationStatus] || word(enrollment.applicationStatus)}</span></div>
       <div className="participant-program"><div><div className="eyebrow">{word(enrollment.program.format)} {t('COHORT')}</div><h3>{enrollment.program.name}</h3><p>{enrollment.program.description || t('Your founder journey starts here.')}</p>{enrollment.business && <div className="participant-stage"><span>{t('Current venture stage')}</span><b>{word(enrollment.business.stage)}</b></div>}</div><div className="program-window"><span>{t('PROGRAM WINDOW')}</span><b>{dateText(enrollment.program.startDate)} — {dateText(enrollment.program.endDate)}</b></div></div>
     </section>
-    {enrollment.applicationStatus === 'accepted' && <ParticipantPeerDirectory programId={enrollment.program.id} />}
+    </>}
+    {page === 'team' && enrollment.applicationStatus === 'accepted' && <ParticipantPeerDirectory programId={enrollment.program.id} />}
+    {page === 'learning' && <>
     <section className="participant-section"><div className="participant-section-head"><div><h2>{t('What’s coming up')}</h2><p>{t('Sessions planned for your cohort.')}</p></div><span className="badge badge-neutral">{scheduled.length} {t('upcoming')}</span></div>
         <div className="participant-grid"><div className="participant-card"><h3>{t('Sessions')}</h3><SessionCalendar sessions={enrollment.sessions} selectedDate={calendarDate} onSelectDate={setCalendarDate} />{enrollment.sessions.length === 0 ? <p className="session-info">{t('No sessions have been shared yet. Check back as your cohort schedule takes shape.')}</p> : !displayedSessions.length ? <p className="session-info">{t('No sessions are scheduled for this date. Choose another day or show all dates.')}</p> : displayedSessions.map(session => <div className="participant-entry" key={session.id} data-testid={`session-participant-${session.id}`}><div className="date-block"><b>{new Date(`${session.scheduledDate}T12:00:00`).getDate()}</b><span>{new Date(`${session.scheduledDate}T12:00:00`).toLocaleDateString(currentLanguage() === 'ar' ? 'ar-JO' : 'en', { month: 'short' }).toUpperCase()}</span></div><div className="participant-entry-copy"><b>{session.title}</b><span>{word(session.type)} · {word(session.deliveryMode)}{session.startTime ? ` · ${session.startTime}` : ''}{session.facilitator ? ` · ${session.facilitator}` : ''}</span>{session.location && <span><MapPin size={11} /> {session.location}</span>}<div className="participant-entry-links">{session.zoomUrl && session.status === 'scheduled' && <EditorialButton asChild variant="primary" size="md" className="participant-session-join min-h-11"><a href={session.zoomUrl} target="_blank" rel="noopener noreferrer"><Video size={16} aria-hidden="true" /> {t('Join session')}</a></EditorialButton>}</div><SessionRecordingPlayer url={session.recordingUrl} title={session.title} /><ParticipantSessionInteractions sessionId={session.id} programId={enrollment.program.id} businessName={enrollment.business?.businessName} /></div><span className={`badge ${statusClass(session.status)}`}>{word(session.status)}</span></div>)}</div>
         <div className="participant-card"><h3>{t('Founder support')}</h3>{support.length === 0 ? <p className="session-info">{t('No support engagements are linked yet. Your admin will update this space as support is arranged.')}</p> : support.map(item => <div className="participant-entry" key={item.id} data-testid={`support-participant-${item.id}`}><div className="calendar-icon"><Handshake size={16} /></div><div className="participant-entry-copy"><b>{item.topic}</b><span>{word(item.type)} {t('with')} {item.provider}{item.scheduledDate ? ` · ${dateText(item.scheduledDate)}` : ''}</span>{item.type === 'mentor' && item.mentorBookingUrl && <div className="participant-entry-links"><a href={item.mentorBookingUrl} target="_blank" rel="noreferrer"><CalendarDays size={12} /> {t('Book mentoring session')}</a></div>}</div><span className={`badge ${statusClass(item.status)}`}>{word(item.status)}</span></div>)}</div></div>
@@ -410,6 +440,7 @@ function EnrollmentCard({ enrollment }: { enrollment: ParticipantEnrollment }) {
       <div className="participant-grid"><div className="participant-card"><h3>{t('Booked mentoring sessions')}</h3>{enrollment.calendlyMeetings.length + enrollment.googleCalendarMeetings.length === 0 ? <p className="session-info">{t('Confirmed, rescheduled and cancelled meetings booked with your assigned mentor will appear here.')}</p> : [...enrollment.calendlyMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Calendly' })), ...enrollment.googleCalendarMeetings.map(meeting => ({ ...meeting, bookingProvider: 'Google Calendar' }))].sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime()).map(meeting => <div className="participant-entry" key={`${meeting.bookingProvider}-${meeting.id}`} data-testid={`meeting-participant-${meeting.bookingProvider}-${meeting.id}`}><div className="calendar-icon"><CalendarDays size={16} /></div><div className="participant-entry-copy"><b>{t(meeting.eventName)}</b><span>{meetingDateTime(meeting.startsAt, meeting.timezone)} – {meetingDateTime(meeting.endsAt, meeting.timezone)}</span><span>{meeting.bookingProvider}</span>{meeting.timezone && <span>{meeting.timezone}</span>}</div><span className={`badge ${statusClass(meeting.status)}`}>{word(meeting.status)}</span></div>)}</div></div>
     </section>
     <ParticipantLearning enrollment={enrollment} />
+    </>}
   </article>;
 }
 
@@ -454,6 +485,6 @@ function ParticipantLearning({ enrollment }: { enrollment: ParticipantEnrollment
         <form className="participant-question-form" onSubmit={askQuestion}><label htmlFor={`question-context-${enrollment.applicationId}`}>{t('Related to')}</label><select id={`question-context-${enrollment.applicationId}`} value={context} onChange={event => setContext(event.target.value)} data-testid={`select-question-context-${enrollment.applicationId}`}><option value="">{t('General cohort question')}</option>{enrollment.sessions.map(session => <option key={`session-${session.id}`} value={`session:${session.id}`}>{session.title}</option>)}{enrollment.assignments.map(item => <option key={`assignment-${item.id}`} value={`assignment:${item.id}`}>{item.title}</option>)}</select><label htmlFor={`question-text-${enrollment.applicationId}`}>{t('Your question')}</label><textarea id={`question-text-${enrollment.applicationId}`} value={question} onChange={event => setQuestion(event.target.value)} minLength={5} maxLength={3000} required rows={3} placeholder={t('What would you like your trainer to clarify?')} data-testid={`input-participant-question-${enrollment.applicationId}`} /><button className="button button-primary" disabled={ask.isPending} data-testid={`button-ask-trainer-${enrollment.applicationId}`}>{ask.isPending ? t('Sending…') : t('Send question')}</button>{feedback && <span className="role-success" role="status">{t(feedback)}</span>}{ask.isError && <span className="form-error" role="alert">{t('Your question was not sent. Please try again.')}</span>}</form>
       </div>
     </div>
-    <div className="participant-support-note"><Handshake size={15} /><span><b>{t('Need program support?')}</b> {t('Your cohort support engagements and provider updates appear in Founder support above. Contact the program team if you need help outside a session.')}</span></div>
+     <div className="participant-support-note" role="note"><Handshake size={15} aria-hidden="true" /><span><b>{t('Need program support?')}</b> {t('Contact the program team if you need help outside a session.')}</span></div>
   </section>;
 }

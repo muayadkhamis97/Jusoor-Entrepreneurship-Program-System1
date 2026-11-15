@@ -178,3 +178,6 @@ button, input, select, textarea { font: inherit; }
 @media(max-width:600px) { .intake-header-actions .text-link { padding-inline:2px; }.intake-header-actions .text-link svg { display:none; } }
 @media(max-width:420px) { .intake-top { flex-wrap:wrap; row-gap:4px; }.intake-top .intake-brand { flex:1 1 100%; }.intake-top .intake-header-actions { flex:1 1 100%; justify-content:space-between; } }
 .participant-entry-links a.participant-session-join { color:hsl(var(--accent-foreground)); font-weight:600; gap:calc(var(--spacing) * 2); text-decoration:none; }
+.participant-program .eyebrow,.participant-stage b { color:hsl(var(--sidebar-primary)); }
+.participant-program .eyebrow { text-transform:uppercase; }
+.participant-program p,.participant-stage span,.program-window span { color:hsl(var(--sidebar-foreground)); }

@@ -140,3 +140,17 @@ mtime_ms = 1794489034089
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/9f2cf00c-d36d-4e22-9de4-dfc471eb7497/f3fb6cab-210d-4325-8fd0-207fcc9669de"
 storage_version_token = "1794489077296635"
 content_type = "image/png"
+
+[[outputs]]
+id = "WXtmX_JUNC35XnVuY6m-S"
+uri = "file://generated-artifacts/participant-journey/index.html"
+type = "html"
+title = "Participant pages: screenshot gallery"
+description = "Updated self-contained gallery of 32 demo-participant screenshots across the four routes, desktop/mobile widths, and English/Arabic."
+logical_id = "86997bed-6a8f-4e6d-a5ca-634d049e375f"
+content_hash = "sha256:11c8167581dbdf92f614a55e43d25a93c257a59166466fe3470db374a15a524a"
+size = 3253799
+mtime_ms = 1794750305640
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/86997bed-6a8f-4e6d-a5ca-634d049e375f/07dc83ac-d281-4ec3-909b-f121b9f4a67e"
+storage_version_token = "1794750419647695"
+content_type = "text/html"

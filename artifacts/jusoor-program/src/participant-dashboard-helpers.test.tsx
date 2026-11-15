@@ -4,14 +4,14 @@ import { getParticipantNextAction, participantSignInInstructions } from './parti
 
 test('participant dashboard next action leads accepted founders to learning and others to their application', () => {
   assert.deepEqual(getParticipantNextAction(true), {
-    href: '#participant-learning',
+    href: '/participant/learning',
     titleKey: 'Continue with your program learning',
-    descriptionKey: 'Your learning materials and upcoming sessions are available below.',
+    descriptionKey: 'Your learning materials and upcoming sessions are on the Learning page.',
   });
   assert.deepEqual(getParticipantNextAction(false), {
-    href: '#participant-program-progress',
+    href: '/participant',
     titleKey: 'Check your application progress',
-    descriptionKey: 'Your application status and program updates are gathered below.',
+    descriptionKey: 'Your application status is on the Program progress page.',
   });
 });
 

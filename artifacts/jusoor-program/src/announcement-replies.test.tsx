@@ -51,7 +51,8 @@ test('participants can start a private reply in the right program context', () =
   assert.match(html, /Cohort One/);
   assert.match(html, /Only you and your program team/);
   assert.match(html, /Reply privately/);
-  assert.match(html, /Start a private reply/);
+  assert.doesNotMatch(html, /Start a private reply/);
+  assert.doesNotMatch(html, /status-conversation-101/);
 });
 
 test('reply states distinguish waiting, seen and staff response', () => {

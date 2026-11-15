@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetParticipantPeerDirectoryQueryKey,
@@ -20,6 +20,7 @@ const hiddenPreferences: ParticipantPeerDirectoryPreferences = {
 };
 
 export function ParticipantPeerDirectory({ programId }: { programId: number }) {
+  const contactHelpId = `peer-directory-contact-help-${useId()}`;
   const queryClient = useQueryClient();
   const query = useGetParticipantPeerDirectory(programId, {
     query: {
@@ -86,6 +87,7 @@ export function ParticipantPeerDirectory({ programId }: { programId: number }) {
                   type="checkbox"
                   checked={preferences.shareEmail}
                   disabled={!preferences.isListed}
+                  aria-describedby={!preferences.isListed ? contactHelpId : undefined}
                   onChange={event => setPreferences(current => ({ ...current, shareEmail: event.target.checked }))}
                   data-testid={`checkbox-peer-email-${programId}`}
                 />
@@ -96,11 +98,13 @@ export function ParticipantPeerDirectory({ programId }: { programId: number }) {
                   type="checkbox"
                   checked={preferences.sharePhone}
                   disabled={!preferences.isListed}
+                  aria-describedby={!preferences.isListed ? contactHelpId : undefined}
                   onChange={event => setPreferences(current => ({ ...current, sharePhone: event.target.checked }))}
                   data-testid={`checkbox-peer-phone-${programId}`}
                 />
                 <span>{t('Share my phone with peers')}</span>
               </label>
+              {!preferences.isListed && <p id={contactHelpId} className="peer-directory-helper">{t('Turn on directory listing first to share your contact details.')}</p>}
               <div className="peer-directory-actions">
                 <button className="button button-primary" type="submit" disabled={save.isPending} data-testid={`button-save-peer-preferences-${programId}`}>
                   {save.isPending ? t('Saving preferences…') : t('Save directory preferences')}

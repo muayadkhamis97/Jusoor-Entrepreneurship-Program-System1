@@ -16,3 +16,4 @@
 .peer-directory-contact{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px}
 .peer-directory-contact a{display:inline-flex;align-items:center;gap:5px;color:hsl(var(--primary));font-size:var(--type-body-min);text-decoration:none}
 @media(max-width:600px){.peer-directory-person{align-items:flex-start;flex-direction:column;gap:9px}.peer-directory-contact{justify-content:flex-start}}
+.peer-directory-helper{grid-column:1/-1;flex-basis:100%;margin:0;color:hsl(var(--muted-foreground));font-size:var(--type-caption-min);line-height:1.45;text-align:start}

@@ -131,7 +131,7 @@ function ConversationList(props: Shared) {
           ? [conversation.businessName, conversation.programName].filter(Boolean).join(' · ')
           : conversation.businessName ?? '';
         const status = conversation.unreadCount > 0 ? `${conversation.unreadCount} ${t('unread')}`
-          : !last ? t(viewer === 'participant' ? 'Start a private reply' : 'No messages')
+          : !last ? viewer === 'participant' ? null : t('No messages')
           : last.sender === (viewer === 'staff' ? 'staff' : 'participant') ? t(last.readAt ? 'Seen' : 'Awaiting reply') : t('Replied');
         const panelId = `reply-panel-${announcementId}-${conversation.applicationId}`;
         return <li key={conversation.applicationId} className="rounded-md border border-border bg-card p-3" data-testid={`conversation-${announcementId}-${conversation.applicationId}`}>
@@ -141,7 +141,7 @@ function ConversationList(props: Shared) {
               {subtitle && <small className="block text-caption text-muted-foreground">{subtitle}</small>}
             </div>
             <div className="flex items-center gap-2">
-              <span className={`badge ${conversation.unreadCount ? 'badge-warm' : 'badge-neutral'}`} data-testid={`status-conversation-${conversation.applicationId}`}>{status}</span>
+               {status && <span className={`badge ${conversation.unreadCount ? 'badge-warm' : 'badge-neutral'}`} data-testid={`status-conversation-${conversation.applicationId}`}>{status}</span>}
               <Button variant="pill" aria-expanded={isOpen} aria-controls={panelId} onClick={() => setOpen(isOpen ? null : conversation.applicationId)} data-testid={`button-toggle-conversation-${conversation.applicationId}`}>
                 {t(isOpen ? 'Close conversation' : conversation.messages.length ? 'Open conversation' : 'Reply privately')}
               </Button>

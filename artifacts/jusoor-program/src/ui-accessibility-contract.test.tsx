@@ -9,6 +9,8 @@ const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8'
 const languageCss = readFileSync(new URL('./language.css', import.meta.url), 'utf8');
 const analyticsCss = readFileSync(new URL('./analytics.css', import.meta.url), 'utf8');
 const roleAccessCss = readFileSync(new URL('./role-access.css', import.meta.url), 'utf8');
+const roleWorkspaceCss = readFileSync(new URL('./role-workspace.css', import.meta.url), 'utf8');
+const ideaValidationCss = readFileSync(new URL('./idea-validation.css', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const teamAssignments = readFileSync(new URL('./team-assignments.tsx', import.meta.url), 'utf8');
 const roleAccess = readFileSync(new URL('./role-access.tsx', import.meta.url), 'utf8');
@@ -36,6 +38,25 @@ test('default muted text meets 4.5:1 contrast on background and card', () => {
   const foreground = hexToRgb(tokens.color.light.mutedForeground);
   assert.ok(contrast(foreground, hexToRgb(tokens.color.light.background)) >= 4.5);
   assert.ok(contrast(foreground, hexToRgb(tokens.color.light.card)) >= 4.5);
+});
+
+test('participant dark panels and workbook headers meet high-contrast token pairings', () => {
+  for (const palette of [tokens.color.light, tokens.color.dark]) {
+    const panel = hexToRgb(palette.sidebar);
+    assert.ok(contrast(hexToRgb(palette.sidebarForeground), panel) >= 7, 'Participant supporting text must reach 7:1 on the dark panel.');
+    assert.ok(contrast(hexToRgb(palette.sidebarPrimary), panel) >= 7, 'Cohort eyebrows and workbook labels must reach 7:1 on the dark panel.');
+    assert.ok(contrast(hexToRgb(palette.mutedForeground), hexToRgb(palette.muted)) >= 4.5, 'Support copy must stay readable on its neutral surface.');
+    assert.ok(contrast(hexToRgb(palette.chart5), hexToRgb(palette.muted)) >= 3, 'The purple support icon must remain distinguishable on its neutral surface.');
+  }
+
+  assert.match(indexCss, /\.participant-program\s*\{[^}]*background:hsl\(var\(--sidebar\)\)/);
+  assert.match(indexCss, /\.participant-program p,.participant-stage span,.program-window span \{ color:hsl\(var\(--sidebar-foreground\)\); \}/);
+  assert.match(indexCss, /\.participant-stage b \{ color:hsl\(var\(--sidebar-primary\)\); \}/);
+  assert.match(indexCss, /\.participant-program \.eyebrow \{ text-transform:uppercase; \}/);
+  assert.match(ideaValidationCss, /\.idea-workbook-head\s*\{[^}]*background:hsl\(var\(--sidebar\)\)/);
+  assert.match(ideaValidationCss, /\.idea-workbook-title>span\{color:hsl\(var\(--sidebar-foreground\)\)\}/);
+  assert.match(roleWorkspaceCss, /\.participant-support-note\{border:1px solid hsl\(var\(--border\)\);background:hsl\(var\(--muted\)\)\}/);
+  assert.match(roleWorkspaceCss, /\.participant-support-note>svg\{color:hsl\(var\(--chart-5\)\)\}/);
 });
 
 test('functional controls retain mobile text sizing and reduced-motion support', () => {

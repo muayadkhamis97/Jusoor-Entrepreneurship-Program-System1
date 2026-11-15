@@ -233,11 +233,35 @@ const demoLearningProgress = {
     }],
     quizzes: [],
     certificate: null,
+  }, {
+    programId: 27,
+    programName: 'Jusoor Growth Lab 2026 · Optional track',
+    completedRequiredModules: 0,
+    totalRequiredModules: 0,
+    completionPercent: 0,
+    activeSeconds: 0,
+    lastActivityAt: null,
+    modules: [],
+    quizzes: [],
+    certificate: null,
   }],
 } satisfies ParticipantLearningProgress;
 
 const demoCourses = {
-  programs: [],
+  programs: [{
+    programId: 26,
+    programName: 'Jusoor Growth Lab 2026',
+    modules: [{
+      id: 130,
+      title: 'Course guide',
+      description: 'A brief introduction to the learning materials.',
+      position: 1,
+      releaseAt: null,
+      dueAt: null,
+      isRequired: true,
+      materials: [],
+    }],
+  }],
 } satisfies ParticipantCourses;
 
 const jsonResponse = (body: unknown, status = 200) => ({
@@ -246,7 +270,7 @@ const jsonResponse = (body: unknown, status = 200) => ({
   body: JSON.stringify(body),
 });
 
-test('participant journey renders demo records and captures English and Arabic at 390px', { timeout: 120_000 }, async () => {
+test('participant journey renders demo records at desktop and mobile widths in English and Arabic', { timeout: 120_000 }, async () => {
   const port = await unusedPort();
   const origin = `http://127.0.0.1:${port}`;
   const priorPort = process.env.PORT;
@@ -287,9 +311,8 @@ test('participant journey renders demo records and captures English and Arabic a
 
     if (captureScreenshots) mkdirSync(screenshotDir, { recursive: true });
     const page = await browser.newPage({
-      viewport: { width: 390, height: 844 },
+      viewport: { width: 1280, height: 900 },
       deviceScaleFactor: 1,
-      isMobile: true,
       hasTouch: true,
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -355,32 +378,103 @@ test('participant journey renders demo records and captures English and Arabic a
     page.on('pageerror', error => pageErrors.push(error.message));
     await page.goto(`${origin}/participant?testSession=participant`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('heading', { name: 'Welcome, Rana.' }).waitFor();
-    await page.getByTestId('session-participant-501').waitFor();
-    await page.getByTestId('participant-business-teams').waitFor();
-    await page.getByTestId('participant-announcement-310').waitFor();
-    await page.getByTestId('participant-learning-progress').waitFor();
-    await page.getByTestId('assignment-participant-901').waitFor();
+    await page.getByTestId('participant-page-progress').waitFor();
+    assert.equal(await page.getByTestId('link-participant-page-progress').getAttribute('aria-current'), 'page');
+    assert.equal(await page.locator('.participant-next-action').count(), 1);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const pageNavigation = page.locator('.participant-section-index');
+    assert.equal(await pageNavigation.locator('a').count(), 4);
+    assert.equal(await pageNavigation.evaluate(element => element.scrollWidth <= element.clientWidth), true, 'All participant page links should fit without horizontal scrolling on mobile.');
+    await page.setViewportSize({ width: 1280, height: 900 });
 
     const capture = async (label: string, locator?: string) => {
-      if (locator) await page.locator(locator).scrollIntoViewIfNeeded();
-      await page.mouse.move(389, 843);
-      await page.waitForTimeout(180);
-      const viewportWidth = await page.evaluate(() => window.innerWidth);
-      const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-      assert.ok(documentWidth <= viewportWidth, `${label}: page overflows horizontally (${documentWidth}px > ${viewportWidth}px).`);
-      if (captureScreenshots) {
-        const locale = await page.evaluate(() => document.documentElement.lang);
-        const fileName = `participant-${label}-${locale}-390.png`;
-        await page.screenshot({ path: path.join(screenshotDir, fileName) });
+      for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport);
+        if (locator) await page.locator(locator).scrollIntoViewIfNeeded();
+        else await page.evaluate(() => window.scrollTo(0, 0));
+        await page.mouse.move(viewport.width - 1, viewport.height - 1);
+        await page.waitForTimeout(180);
+        const viewportWidth = await page.evaluate(() => window.innerWidth);
+        const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+        assert.ok(documentWidth <= viewportWidth, `${label}: page overflows horizontally (${documentWidth}px > ${viewportWidth}px).`);
+        if (captureScreenshots) {
+          const locale = await page.evaluate(() => document.documentElement.lang);
+          const fileName = `participant-${label}-${locale}-${viewport.width}.png`;
+          await page.screenshot({ path: path.join(screenshotDir, fileName) });
+        }
+      }
+    };
+
+    const pagePaths = {
+      progress: '/participant',
+      team: '/participant/team',
+      updates: '/participant/updates',
+      learning: '/participant/learning',
+    } as const;
+    const navigateToPage = async (pageName: keyof typeof pagePaths) => {
+      await page.getByTestId(`link-participant-page-${pageName}`).click();
+      await page.waitForFunction(expected => window.location.pathname === expected, pagePaths[pageName]);
+      await page.getByTestId(`participant-page-${pageName}`).waitFor();
+      assert.equal(await page.getByTestId(`link-participant-page-${pageName}`).getAttribute('aria-current'), 'page');
+      assert.equal(await page.locator('.participant-next-action').count(), pageName === 'progress' ? 1 : 0, 'The next-action card should only appear on Program progress.');
+      for (const otherPage of Object.keys(pagePaths).filter(other => other !== pageName)) {
+        assert.equal(await page.getByTestId(`participant-page-${otherPage}`).count(), 0, `${pageName} should not render the ${otherPage} page content.`);
       }
     };
 
     assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
     assert.equal(await page.evaluate(() => document.documentElement.dir), 'ltr');
+    assert.equal(await page.evaluate(() => window.location.pathname), '/participant');
+    assert.equal(await page.getByTestId('participant-page-team').count(), 0);
+    assert.equal(await page.getByTestId('participant-page-updates').count(), 0);
+    assert.equal(await page.getByTestId('participant-page-learning').count(), 0);
     await capture('overview');
-    await capture('sessions', '[data-testid="session-participant-501"]');
+
+    await capture('workbook', '[data-testid="idea-workbook-2601"]');
+    await navigateToPage('team');
     await capture('team', '[data-testid="participant-business-teams"]');
+    const contactHelp = page.locator('.peer-directory-helper');
+    const contactHelpId = await contactHelp.getAttribute('id');
+    assert.ok(contactHelpId);
+    for (const id of ['checkbox-peer-email-26', 'checkbox-peer-phone-26']) {
+      const contactToggle = page.getByTestId(id);
+      assert.equal(await contactToggle.isDisabled(), true);
+      assert.equal(await contactToggle.getAttribute('aria-describedby'), contactHelpId);
+    }
+
+    await navigateToPage('updates');
+    await page.getByTestId('participant-announcement-310').waitFor();
     await capture('updates', '[data-testid="participant-announcement-310"]');
+    await navigateToPage('learning');
+    await page.getByTestId('session-participant-501').waitFor();
+    await page.getByTestId('participant-learning-progress').waitFor();
+    await page.getByTestId('assignment-participant-901').waitFor();
+    await page.locator('.offline-learning-note').waitFor();
+    await page.locator('.lp-live-explanation').waitFor();
+
+    const offlineNote = page.locator('.offline-learning-note');
+    const noteStructure = await offlineNote.evaluate(element => ({
+      icon: element.children[0]?.tagName,
+      title: element.querySelector('.offline-learning-note-title > b')?.textContent?.trim(),
+      body: element.querySelector('.offline-learning-note-body')?.textContent?.trim(),
+      titleTop: element.querySelector('.offline-learning-note-title')?.getBoundingClientRect().top,
+      bodyTop: element.querySelector('.offline-learning-note-body')?.getBoundingClientRect().top,
+    }));
+    assert.equal(noteStructure.icon, 'svg', 'The offline note icon should lead the separate title and body.');
+    assert.ok(noteStructure.title);
+    assert.ok(noteStructure.body);
+    assert.ok(noteStructure.bodyTop! > noteStructure.titleTop!, 'The offline-study explanation should begin below its title.');
+    assert.equal(await page.getByTestId('text-course-completion-27').innerText(), 'No required modules yet');
+    assert.equal(await page.getByTestId('progress-course-27').count(), 0, 'A program with no required modules should not show a progress bar.');
+    assert.equal(await page.getByText('No required modules yet', { exact: true }).count(), 2, 'Both course progress and certificate pathway explain the empty requirement.');
+    assert.equal(await page.getByTestId('progress-course-26').getAttribute('aria-valuenow'), '33');
+    assert.equal(await page.getByTestId('progress-course-26').getAttribute('aria-valuemin'), '0');
+    assert.equal(await page.getByTestId('progress-course-26').getAttribute('aria-valuemax'), '100');
+    assert.equal(await page.locator('.lp-live-explanation').innerText(), 'We count time while this page is visible and a course card is in view. Program Admins can see your total and cohort averages.');
+    assert.equal((await page.locator('.participant-support-note').innerText()).replace(/\s+/g, ' ').trim(), 'Need program support? Contact the program team if you need help outside a session.');
+    await capture('sessions', '[data-testid="session-participant-501"]');
+    await capture('offline-study', '.offline-learning-note');
+    await capture('support', '.participant-support-note');
     await capture('learning', '[data-testid="participant-learning-progress"]');
 
     await page.getByTestId('button-language-toggle').click();
@@ -389,16 +483,27 @@ test('participant journey renders demo records and captures English and Arabic a
     await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
     await page.waitForFunction(() => /[\u0600-\u06FF]/.test(document.body.innerText));
     assert.equal(await page.getByTestId('button-language-toggle').locator('.language-toggle-mark').textContent(), 'EN');
-    await capture('overview');
+    assert.equal(await page.getByTestId('text-course-completion-27').innerText(), 'لا توجد وحدات مطلوبة بعد');
+    assert.equal(await page.locator('.lp-live-explanation').innerText(), 'نحتسب الوقت عندما تكون هذه الصفحة ظاهرة وإحدى بطاقات التعلّم معروضة. ويمكن لمسؤولي البرنامج الاطلاع على إجمالي وقتك ومتوسطات المجموعة.');
+    assert.equal((await page.locator('.participant-support-note').innerText()).replace(/\s+/g, ' ').trim(), 'هل تحتاج إلى دعم البرنامج؟ تواصل مع فريق البرنامج إذا احتجت إلى مساعدة خارج الجلسة.');
     await capture('sessions', '[data-testid="session-participant-501"]');
-    await capture('team', '[data-testid="participant-business-teams"]');
-    await capture('updates', '[data-testid="participant-announcement-310"]');
+    await capture('offline-study', '.offline-learning-note');
+    await capture('support', '.participant-support-note');
     await capture('learning', '[data-testid="participant-learning-progress"]');
+    await navigateToPage('updates');
+    await page.getByTestId('participant-announcement-310').waitFor();
+    await capture('updates', '[data-testid="participant-announcement-310"]');
+    await navigateToPage('team');
+    assert.equal(await contactHelp.innerText(), 'فعّل ظهورك في دليل المجموعة أولاً لمشاركة بيانات الاتصال.');
+    await capture('team', '[data-testid="participant-business-teams"]');
+    await navigateToPage('progress');
+    await capture('overview');
+    await capture('workbook', '[data-testid="idea-workbook-2601"]');
 
     assert.deepEqual(pageErrors, [], 'The participant journey should render without uncaught browser errors.');
     assert.ok(apiPaths.has('GET /api/auth/me'), 'The test must traverse the normal participant role-routing branch.');
     assert.ok(apiPaths.has('GET /api/participant/dashboard'), 'The demo participant dashboard should load through its normal API client.');
-    if (captureScreenshots) console.log(`Saved 10 participant screenshots under ${path.relative(workspaceRoot, screenshotDir)}.`);
+    if (captureScreenshots) console.log(`Saved 32 participant screenshots under ${path.relative(workspaceRoot, screenshotDir)}.`);
     await page.close();
   } finally {
     await browser?.close();

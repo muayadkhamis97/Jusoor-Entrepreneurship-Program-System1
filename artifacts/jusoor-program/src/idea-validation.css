@@ -86,3 +86,4 @@ html[dir="rtl"] .idea-step-connector { transform:rotate(180deg); }
   .idea-empty { align-items:flex-start; flex-wrap:wrap; padding:16px; }
   .idea-error .button { margin-inline-start:54px; }
 }
+.idea-workbook-title>span{color:hsl(var(--sidebar-foreground))}

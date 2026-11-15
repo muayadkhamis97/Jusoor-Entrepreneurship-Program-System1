@@ -132,3 +132,6 @@ html[lang="ar"] .role-workspace :is(.role-form-grid .field, .role-inline-note, .
   .meeting-report-print-record dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
   .meeting-report-print-record footer{margin-top:2mm;color:hsl(var(--muted-foreground));font-size:9pt}
 }
+.participant-support-note{border:1px solid hsl(var(--border));background:hsl(var(--muted))}
+.participant-support-note>svg{color:hsl(var(--chart-5))}
+.participant-support-note>span{color:hsl(var(--muted-foreground))}

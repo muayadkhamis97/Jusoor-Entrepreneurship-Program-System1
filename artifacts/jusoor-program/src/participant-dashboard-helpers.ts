@@ -5,14 +5,14 @@ export function getParticipantNextAction(hasAcceptedEnrollment: boolean): {
 } {
   return hasAcceptedEnrollment
     ? {
-        href: '#participant-learning',
+        href: '/participant/learning',
         titleKey: 'Continue with your program learning',
-        descriptionKey: 'Your learning materials and upcoming sessions are available below.',
+        descriptionKey: 'Your learning materials and upcoming sessions are on the Learning page.',
       }
     : {
-        href: '#participant-program-progress',
+        href: '/participant',
         titleKey: 'Check your application progress',
-        descriptionKey: 'Your application status and program updates are gathered below.',
+        descriptionKey: 'Your application status is on the Program progress page.',
       };
 }
 
