@@ -750,8 +750,15 @@ test('participant journey renders demo records at desktop and mobile widths in E
     const firstWorkbookField = page.getByTestId('input-idea-customerSegment-2601');
     await firstWorkbookField.fill('This text must remain after a failed save.');
     const saveArea = page.locator('.idea-workbook-form-panel:not([hidden]) .idea-save-area').first();
-    assert.equal(await saveArea.evaluate(element => getComputedStyle(element).position), 'sticky');
+    assert.equal(await saveArea.evaluate(element => getComputedStyle(element).position), 'fixed');
+    const saveAreaBounds = await saveArea.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height, viewportHeight: window.innerHeight };
+    });
+    assert.ok(saveAreaBounds.height > 0 && saveAreaBounds.bottom <= saveAreaBounds.viewportHeight + 1 && saveAreaBounds.bottom > saveAreaBounds.viewportHeight - 220,
+      `The open workbook save bar should remain at the viewport bottom: ${JSON.stringify(saveAreaBounds)}`);
     assert.equal(await saveArea.locator('[role="status"]').count(), 1);
+    await capture('workbook-save-bar', '[data-testid="input-idea-customerSegment-2601"]');
     failNextWorkbookSave = true;
     await page.getByTestId('button-save-idea-2601').click();
     const saveStatus = page.getByTestId('status-idea-save-2601');
@@ -762,7 +769,13 @@ test('participant journey renders demo records at desktop and mobile widths in E
     const firstPlanField = page.getByTestId('input-business-plan-acquisitionChannels-2601');
     await firstPlanField.fill('This plan text must remain after a failed save.');
     const planSaveArea = page.locator('.founder-plan-form-panel:not([hidden]) .idea-save-area').first();
-    assert.equal(await planSaveArea.evaluate(element => getComputedStyle(element).position), 'sticky');
+    assert.equal(await planSaveArea.evaluate(element => getComputedStyle(element).position), 'fixed');
+    const planSaveAreaBounds = await planSaveArea.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height, viewportHeight: window.innerHeight };
+    });
+    assert.ok(planSaveAreaBounds.height > 0 && planSaveAreaBounds.bottom <= planSaveAreaBounds.viewportHeight + 1 && planSaveAreaBounds.bottom > planSaveAreaBounds.viewportHeight - 220,
+      `The open business-plan save bar should remain at the viewport bottom: ${JSON.stringify(planSaveAreaBounds)}`);
     assert.equal(await planSaveArea.locator('[role="status"]').count(), 1);
     failNextWorkbookSave = true;
     await page.getByTestId('button-save-business-plan-2601').click();

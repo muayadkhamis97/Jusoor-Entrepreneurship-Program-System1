@@ -6,6 +6,11 @@
 .founder-plan-form .idea-step { padding-top:17px; padding-bottom:17px; }
 @media(max-width:650px) {
   .founder-plan-section { margin-top:33px; }
-  .founder-plan-head { padding:13px; }
+  .founder-plan-head { display:grid; grid-template-columns:43px minmax(0,1fr); align-items:start; min-height:0; gap:10px; padding:13px; }
+  .founder-plan-head .idea-business-mark { grid-row:1 / span 2; }
+  .founder-plan-head .idea-workbook-title,.founder-plan-head-actions { grid-column:2; min-width:0; }
+  .founder-plan-head-actions { flex-direction:row; align-items:center; justify-content:flex-start; flex-wrap:wrap; }
+  .founder-plan-head .idea-workbook-program,.founder-plan-head .idea-workbook-title>span { overflow-wrap:anywhere; }
+  .founder-plan-head .idea-workbook-title h3 { white-space:normal; overflow-wrap:anywhere; }
   .founder-plan-form { padding:3px 13px 15px; }
 }

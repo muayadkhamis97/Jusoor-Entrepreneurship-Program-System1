@@ -92,7 +92,15 @@ html[dir="rtl"] .idea-step-connector { transform:rotate(180deg); }
 .idea-workbook-summary .idea-progress-row{flex:1;min-width:0;margin:0;padding:0;border:0}
 .idea-workbook-toggle{min-height:40px;white-space:nowrap}
 .idea-workbook-form-panel[hidden],.founder-plan-form-panel[hidden]{display:none}
+.idea-workbook:focus-within .idea-save-area,.founder-plan-card:focus-within .idea-save-area{position:fixed;inset-inline:0;inset-block-end:0;max-width:1180px;margin-inline:auto;padding-inline:16px}
+.idea-workbook:focus-within .idea-form,.founder-plan-card:focus-within .founder-plan-form{padding-block-end:calc(120px + env(safe-area-inset-bottom, 0px))}
 @media(max-width:650px){
+  .idea-workbook-head{display:grid;grid-template-columns:43px minmax(0,1fr);align-items:start;min-height:0;gap:10px}
+  .idea-workbook-head .idea-business-mark{grid-row:1/span 2}
+  .idea-workbook-head .idea-workbook-title,.idea-workbook-head-actions{grid-column:2;min-width:0}
+  .idea-workbook-head-actions{justify-content:flex-start;flex-wrap:wrap}
+  .idea-workbook-program,.idea-workbook-title>span{overflow-wrap:anywhere}
+  .idea-workbook-title h3{white-space:normal;overflow-wrap:anywhere}
   .idea-workbook-head-actions,.founder-plan-head-actions{flex-direction:row;align-items:center;gap:8px}
   .idea-workbook-summary{align-items:stretch;flex-direction:column;padding:11px 13px}
   .idea-workbook-summary .idea-progress-row{padding:0}
