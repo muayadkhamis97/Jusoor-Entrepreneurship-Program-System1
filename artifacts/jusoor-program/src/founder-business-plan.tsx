@@ -149,7 +149,7 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
               </div>
               <span>{t('Save an incomplete draft whenever you are ready. Only you can see this plan.')}</span>
             </div>
-            <button className="button button-primary idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-business-plan-${plan.applicationId}`}>
+            <button className="button button-primary participant-primary-action idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-business-plan-${plan.applicationId}`}>
               {save.isPending ? <><span className="idea-button-dots" />{t('Saving…')}</> : <><Save size={15} />{t('Save plan')}</>}
             </button>
           </div>

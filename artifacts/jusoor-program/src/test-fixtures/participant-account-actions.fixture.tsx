@@ -22,7 +22,7 @@ function ParticipantAccountActionsFixture() {
     <main className="participant-wrap">
       <h1>Participant account actions</h1>
       {signedIn ? (
-        <ParticipantAccountActions signOut={signOut} />
+        <ParticipantAccountActions signOut={signOut} name="Sample Participant" />
       ) : (
         <section aria-label="Signed-out fixture">
           <p role="status">Signed out</p>

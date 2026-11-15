@@ -106,7 +106,7 @@ export function ParticipantPeerDirectory({ programId }: { programId: number }) {
               </label>
               {!preferences.isListed && <p id={contactHelpId} className="peer-directory-helper">{t('Turn on directory listing first to share your contact details.')}</p>}
               <div className="peer-directory-actions">
-                <button className="button button-primary" type="submit" disabled={save.isPending} data-testid={`button-save-peer-preferences-${programId}`}>
+                <button className="button button-primary participant-secondary-action" type="submit" disabled={save.isPending} data-testid={`button-save-peer-preferences-${programId}`}>
                   {save.isPending ? t('Saving preferences…') : t('Save directory preferences')}
                 </button>
                 {feedback && <span role="status" className="role-success">{feedback}</span>}

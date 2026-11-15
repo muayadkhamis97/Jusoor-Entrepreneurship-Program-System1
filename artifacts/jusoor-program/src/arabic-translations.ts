@@ -2293,6 +2293,7 @@ export const arabicTranslations: Record<string, string> = {
   'No mentoring sessions are booked yet.': 'لم تُحجز جلسات إرشاد بعد.',
   'No assignments have been shared yet.': 'لم تُشارك مهام بعد.',
   'Assignments and trainer questions': 'المهام وأسئلة المدرب',
+  'Account menu': 'قائمة الحساب',
   'Write your response here. Text only.': 'اكتب إجابتك هنا. النص فقط.',
   'Your founder journey starts here.': 'تبدأ رحلتك الريادية من هنا.',
   'Your answer was not saved. Try again.': 'لم تُحفظ إجابتك. حاول مرة أخرى.',

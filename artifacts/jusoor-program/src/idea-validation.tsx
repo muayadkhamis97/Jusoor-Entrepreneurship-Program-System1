@@ -191,7 +191,7 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
               </div>
               <span>{t('Save an incomplete draft whenever you are ready. Only you can see this workbook.')}</span>
             </div>
-            <button className="button button-primary idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-idea-${workbook.applicationId}`}>
+            <button className="button button-primary participant-primary-action idea-save-button" type="submit" disabled={save.isPending} data-testid={`button-save-idea-${workbook.applicationId}`}>
               {save.isPending ? <><span className="idea-button-dots" />{t('Saving…')}</> : <><Save size={15} />{t('Save draft')}</>}
             </button>
           </div>

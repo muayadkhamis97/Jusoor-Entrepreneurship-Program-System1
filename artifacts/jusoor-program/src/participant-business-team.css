@@ -204,6 +204,24 @@
 .participant-learning-hub-head > div:first-child { max-width: 680px; }
 .participant-learning-hub-head .lp-live-group { max-width: 320px; }
 .participant-next-action-time { display: inline-block; margin-inline-start: 4px; color: hsl(var(--muted-foreground)); }
+.participant-header-actions .button-outline { color: hsl(var(--primary)); border-color: hsl(var(--primary) / .42); }
+.participant-role-label { color: hsl(var(--primary)); font: 700 var(--type-caption-min) var(--app-font-mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.participant-account-actions { position: relative; display: inline-flex; align-items: center; }
+.participant-account-menu-trigger { display: inline-flex; min-width: 42px; min-height: 42px; align-items: center; justify-content: center; gap: 4px; padding: 4px 7px; border: 1px solid hsl(var(--primary) / .32); border-radius: 999px; background: hsl(var(--card)); color: hsl(var(--primary)); cursor: pointer; }
+.participant-account-menu-trigger > span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 999px; background: hsl(var(--primary) / .1); font-weight: 700; }
+.participant-account-menu-trigger:focus-visible, .participant-account-menu [role="menuitem"]:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.participant-account-menu { position: absolute; inset-block-start: calc(100% + 6px); inset-inline-end: 0; z-index: 80; display: grid; min-width: 190px; gap: 3px; padding: 6px; border: 1px solid hsl(var(--border)); border-radius: var(--radius); background: hsl(var(--card)); box-shadow: 0 12px 32px hsl(var(--foreground) / .14); }
+.participant-account-menu[hidden] { display: none; }
+.participant-account-menu [role="menuitem"] { display: flex; width: 100%; min-height: 42px; align-items: center; gap: 9px; padding-inline: 10px; border: 0; border-radius: calc(var(--radius) - 3px); background: transparent; color: hsl(var(--foreground)); font-size: var(--type-body-min); text-align: start; cursor: pointer; }
+.participant-account-menu [role="menuitem"]:hover { background: hsl(var(--muted)); }
+.participant-anchor-section .participant-primary-action,
+.participant-anchor-section .participant-question-form .button-primary { border: 1px solid hsl(var(--accent)); background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+.participant-anchor-section .button-primary:not(.participant-primary-action) { border: 1px solid hsl(var(--primary) / .5); background: transparent; color: hsl(var(--primary)); box-shadow: none; }
+.participant-anchor-section .button-primary:not(.participant-primary-action):hover { background: hsl(var(--primary) / .06); }
+.participant-anchor-section .participant-secondary-action,
+.participant-anchor-section .participant-session-join { border: 1px solid hsl(var(--primary) / .5); background: transparent; color: hsl(var(--primary)); }
+.participant-anchor-section .participant-secondary-action:hover,
+.participant-anchor-section .participant-session-join:hover { background: hsl(var(--primary) / .06); }
 .si-input-label { display: block; margin: 7px 0 4px; color: hsl(var(--foreground)); font-size: var(--type-body-min); font-weight: 700; }
 @media (max-width: 700px) {
   .participant-next-action { align-items: stretch; flex-direction: column; padding: 14px; }

@@ -474,6 +474,72 @@ test('participant journey renders demo records at desktop and mobile widths in E
       assert.equal(await page.locator(`#${id}`).count(), 1, `${id} must preserve its in-page anchor.`);
       assert.equal(await page.getByTestId(`link-${id}`).getAttribute('href'), `#${id}`);
     }
+    const accountMenuButton = page.getByTestId('button-participant-account-menu');
+    assert.equal(await accountMenuButton.getAttribute('aria-haspopup'), 'menu');
+    assert.equal(await accountMenuButton.getAttribute('aria-expanded'), 'false');
+    assert.equal(await accountMenuButton.locator('span').textContent(), 'R');
+    assert.equal(await page.locator('.participant-header-actions a').count(), 2, 'Only Chat and Edit profile should remain as header links.');
+    assert.equal(await page.locator('.participant-role-label').count(), 1);
+    assert.equal(await page.locator('.participant-role-label').evaluate(element => element.classList.contains('role-chip')), false);
+    await accountMenuButton.press('ArrowUp');
+    const switchAccountItem = page.getByTestId('button-participant-switch-account');
+    await switchAccountItem.waitFor({ state: 'visible' });
+    assert.equal(await switchAccountItem.evaluate(element => document.activeElement === element), true, 'Arrow Up should open the menu on its last item.');
+    await page.keyboard.press('ArrowDown');
+    const signOutItem = page.getByTestId('button-participant-sign-out');
+    assert.equal(await signOutItem.evaluate(element => document.activeElement === element), true, 'Arrow Down should move to the next menu item.');
+    await page.keyboard.press('Escape');
+    assert.equal(await accountMenuButton.getAttribute('aria-expanded'), 'false');
+    assert.equal(await accountMenuButton.evaluate(element => document.activeElement === element), true, 'Escape should return focus to the account button.');
+
+    const sectionPrimaryCounts = await page.locator('.participant-anchor-section').evaluateAll(sections => sections.map(section => ({
+      id: section.id,
+      count: section.querySelectorAll('.participant-primary-action').length,
+    })));
+    assert.ok(sectionPrimaryCounts.every(section => section.count <= 1), `A participant section must not have multiple primary actions: ${JSON.stringify(sectionPrimaryCounts)}`);
+    const renderedPrimaryCounts = await page.locator('.participant-anchor-section').evaluateAll(sections => {
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = 'hsl(var(--accent))';
+      document.body.append(probe);
+      const accentColor = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return sections.map(section => ({
+        id: section.id,
+        count: Array.from(section.querySelectorAll('button, a.button, [role="button"]')).filter(element => {
+          const style = getComputedStyle(element);
+          return style.display !== 'none' && style.visibility !== 'hidden' && style.backgroundColor === accentColor;
+        }).length,
+      }));
+    });
+    assert.ok(renderedPrimaryCounts.every(section => section.count <= 1), `A participant section must not render multiple accent-colored buttons: ${JSON.stringify(renderedPrimaryCounts)}`);
+    for (const id of ['participant-next-action', 'participant-founder-workbook', 'participant-business-plan-workbook', 'participant-assignments']) {
+      const section = sectionPrimaryCounts.find(item => item.id === id);
+      assert.equal(section?.count, 1, `${id} should keep its one main action.`);
+      const renderedSection = renderedPrimaryCounts.find(item => item.id === id);
+      assert.equal(renderedSection?.count, 1, `${id} should render one accent-colored main action.`);
+    }
+    const actionColors = await page.locator('.participant-primary-action').first().evaluate(element => {
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = 'hsl(var(--accent))';
+      document.body.append(probe);
+      const expected = getComputedStyle(probe).backgroundColor;
+      const actual = getComputedStyle(element).backgroundColor;
+      probe.remove();
+      return { expected, actual };
+    });
+    assert.equal(actionColors.actual, actionColors.expected, 'Main participant actions should use the accent token.');
+    const directorySaveColors = await page.getByTestId('button-save-peer-preferences-26').evaluate(element => {
+      const probe = document.createElement('span');
+      probe.style.color = 'hsl(var(--primary))';
+      document.body.append(probe);
+      const expectedText = getComputedStyle(probe).color;
+      probe.remove();
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, text: style.color, expectedText };
+    });
+    assert.equal(directorySaveColors.background, 'rgba(0, 0, 0, 0)', 'Directory preferences should be a transparent secondary button.');
+    assert.equal(directorySaveColors.text, directorySaveColors.expectedText, 'Secondary actions should use the primary purple token.');
+
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await pageNavigation.locator('.participant-section-nav-links').evaluate(element => element.scrollWidth > element.clientWidth), true, 'The mobile section menu should remain a horizontally scrollable row.');
     await page.setViewportSize({ width: 1280, height: 900 });

@@ -59,7 +59,7 @@ export function ParticipantProfilePage() {
 
   if (query.isLoading) return <ParticipantProfileLayout><ProfileLoading /></ParticipantProfileLayout>;
   if (!query.data) return <ParticipantProfileLayout><ProfileLoadError retry={() => void query.refetch()} participant /></ParticipantProfileLayout>;
-  return <ParticipantProfileLayout><ProfileForm
+  return <ParticipantProfileLayout name={query.data.displayName}><ProfileForm
     profile={query.data}
     pageTitle="Your profile"
     pageDescription="Edit profile details. Your sign-in email and program application remain unchanged."
@@ -299,7 +299,7 @@ function ProfileLoadError({ retry, participant = false, admin = false }: { retry
   </section>;
 }
 
-function ParticipantProfileLayout({ children }: { children: ReactNode }) {
+function ParticipantProfileLayout({ children, name = 'User' }: { children: ReactNode; name?: string }) {
   const { signOut } = useClerk();
   return <div className="intake-page profile-intake">
     <header className="intake-top profile-intake-top">
@@ -307,7 +307,7 @@ function ParticipantProfileLayout({ children }: { children: ReactNode }) {
       <div className="intake-header-actions"><LanguageToggle /><Link className="text-link" href="/participant" data-testid="link-profile-back-participant">{t('Back to your progress')}</Link></div>
     </header>
     <main className="participant-wrap profile-participant-wrap">
-      <div className="participant-profile-account"><ParticipantAccountActions signOut={signOut} /></div>
+      <div className="participant-profile-account"><ParticipantAccountActions signOut={signOut} name={name} /></div>
       {children}
     </main>
     <footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
