@@ -1,4 +1,7 @@
 export const arabicTranslations: Record<string, string> = {
+  'This local time does not exist in the selected program time zone because clocks move forward. Choose another start time before saving.': 'هذا الوقت المحلي غير موجود في المنطقة الزمنية للبرنامج بسبب تقديم الساعة. اختر وقت بدء آخر قبل الحفظ.',
+  'This local time occurs twice in the selected program time zone because clocks move back. Choose a start time that occurs only once before saving.': 'يتكرر هذا الوقت المحلي مرتين في المنطقة الزمنية للبرنامج بسبب تأخير الساعة. اختر وقت بدء يحدث مرة واحدة فقط قبل الحفظ.',
+  'The program time zone could not be checked. Ask an Admin to correct the time zone before saving.': 'تعذر التحقق من المنطقة الزمنية للبرنامج. اطلب من المسؤول تصحيح المنطقة الزمنية قبل الحفظ.',
   'All-program message — reply access only.': 'رسالة لجميع البرامج — الصلاحية للرد فقط.',
   'No accepted participants matched this audience at publication. No emails were sent.': 'لم يكن هناك مشاركون مقبولون ضمن هذا الجمهور عند النشر. لم تُرسَل أي رسائل بريد.',
   'Email paused: the author no longer has access to this active program. An Admin must review their access.': 'أُوقف البريد مؤقتاً: لم يعد لدى الناشر صلاحية لهذا البرنامج النشط. يجب على المسؤول مراجعة صلاحياته.',

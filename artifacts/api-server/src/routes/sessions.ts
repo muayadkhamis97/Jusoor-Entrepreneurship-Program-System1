@@ -13,6 +13,7 @@ import {
 import {
   db,
   programAnnouncementsTable,
+  programsTable,
   sessionsTable,
   staffMembersTable,
   zoomRecordingAlertsTable,
@@ -23,6 +24,7 @@ import { activeProgramIdsFor } from "../lib/programScope";
 import { queueProgramGoogleSheetsSnapshot } from "../lib/googleSheetsSync";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { hasProgramStaffRole } from "../lib/programStaffRoles";
+import { getSessionTimeIssue } from "../lib/session-time";
 
 const router: IRouter = Router();
 
@@ -84,6 +86,26 @@ router.post("/sessions", async (req, res): Promise<void> => {
   }
   if (programId !== null && !activeProgramIds.includes(programId)) {
     res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
+  const [program] = programId === null
+    ? []
+    : await db.select({ timeZone: programsTable.timeZone })
+      .from(programsTable)
+      .where(eq(programsTable.id, programId))
+      .limit(1);
+  const timeZone = program?.timeZone || "Asia/Amman";
+  const timeIssue = parsed.data.startTime
+    ? getSessionTimeIssue(parsed.data.scheduledDate, parsed.data.startTime, timeZone)
+    : null;
+  if (timeIssue) {
+    res.status(400).json({
+      error: timeIssue === "nonexistent"
+        ? `This local time does not exist in ${timeZone} because clocks move forward. Choose another start time before saving.`
+        : timeIssue === "repeated"
+          ? `This local time occurs twice in ${timeZone} because clocks move back. Choose a start time that occurs only once before saving.`
+          : `The program time zone (${timeZone}) could not be checked. Ask an Admin to correct the time zone before saving.`,
+    });
     return;
   }
   if (parsed.data.trainerStaffId !== undefined && parsed.data.trainerStaffId !== null) {
@@ -148,6 +170,26 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
     ? staff.role !== "coordinator"
     : !activeProgramIds.includes(nextProgramId)) {
     res.status(404).json({ error: "Program not found or not assigned." });
+    return;
+  }
+  const [program] = nextProgramId === null
+    ? []
+    : await db.select({ timeZone: programsTable.timeZone })
+      .from(programsTable)
+      .where(eq(programsTable.id, nextProgramId))
+      .limit(1);
+  const timeZone = program?.timeZone || "Asia/Amman";
+  const nextDate = body.data.scheduledDate ?? scopeSession.scheduledDate;
+  const nextTime = body.data.startTime === undefined ? scopeSession.startTime : body.data.startTime;
+  const timeIssue = nextTime ? getSessionTimeIssue(nextDate, nextTime, timeZone) : null;
+  if (timeIssue) {
+    res.status(400).json({
+      error: timeIssue === "nonexistent"
+        ? `This local time does not exist in ${timeZone} because clocks move forward. Choose another start time before saving.`
+        : timeIssue === "repeated"
+          ? `This local time occurs twice in ${timeZone} because clocks move back. Choose a start time that occurs only once before saving.`
+          : `The program time zone (${timeZone}) could not be checked. Ask an Admin to correct the time zone before saving.`,
+    });
     return;
   }
   if (body.data.trainerStaffId !== undefined && body.data.trainerStaffId !== null) {

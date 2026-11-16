@@ -7,7 +7,7 @@ import './session-recording.css';
 import './program-controls.css';
 import { PublicLanding } from './public-landing';
 import { getBrandingThemeTokens, getPanelSurfaceColors } from './branding-contrast';
-import { sessionProgramField } from './session-form-requirements';
+import { getSessionTimeIssue, sessionProgramField, sessionTimeIssueMessage } from './session-form-requirements';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
 import { AnnouncementEmailPauseAlert } from './announcement-email-pause-alert';
@@ -254,13 +254,15 @@ function FieldControl({ field, value, onChange, autoFocus = false }: { field: Fi
   return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
 
-function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error, submitLabel }: {
+function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error, submitLabel, validateValues }: {
   title: string; description?: string; fields: Field[]; initial?: Values; loading?: boolean;
   onClose: () => void; onSubmit: (values: Values) => void; error?: string; submitLabel?: string;
+  validateValues?: (values: Values) => string | undefined;
 }) {
   useAppLanguage();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? ''])));
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const validationError = validateValues?.(values);
   const initialValues = Object.fromEntries(fields.map(field => [field.name, initial?.[field.name] ?? '']));
   const dirty = JSON.stringify(values) !== JSON.stringify(initialValues);
   const requestClose = () => {
@@ -271,7 +273,7 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
   return <>
     <AccessibleDialogSurface className="modal-card" labelledBy="dialog-title" describedBy={description ? 'dialog-description' : error ? 'dialog-error' : undefined} initialFocusSelector="[data-dialog-autofocus]" onClose={requestClose} closeOnEscape={!dirty && !loading} closeOnOutsideInteraction={!dirty && !loading} onDismissAttempt={() => { if (dirty && !loading) setConfirmDiscard(true); }}>
       <div className="modal-head"><div><div className="eyebrow">{t('PROGRAM HUB / RECORD')}</div><h2 id="dialog-title" className="app-title">{t(title)}</h2>{description && <p id="dialog-description">{t(description)}</p>}</div><button className="icon-button" aria-label={t('Close dialog')} onClick={requestClose} disabled={loading} data-testid="button-close-dialog"><X size={18} /></button></div>
-      <form onSubmit={e => { e.preventDefault(); onSubmit(values); }} className="modal-form">
+      <form onSubmit={e => { e.preventDefault(); if (!validationError) onSubmit(values); }} className="modal-form">
         {fields.some(field => field.required) && <small className="field-hint form-required-note" role="note">{t('Fields marked * are required.')}</small>}
         <div className="form-grid">{fields.map((field, index) => {
           const label = <span id={`field-label-${field.name}`}>{t(field.label)}{field.required && <i aria-hidden="true"> *</i>}</span>;
@@ -281,8 +283,9 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
             ? <div key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}</div>
             : <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}</label>;
         })}</div>
+        {validationError && <div className="form-error" role="alert" data-testid="session-time-warning"><CircleAlert size={16} />{t(validationError)}</div>}
         {error && <div id="dialog-error" className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
-        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={requestClose} disabled={loading} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t(submitLabel ?? 'Save record')}</>}</button></div>
+        <div className="modal-actions"><button type="button" className="button button-quiet" onClick={requestClose} disabled={loading} data-testid="button-cancel">{t('Cancel')}</button><button className="button button-primary" type="submit" disabled={loading || Boolean(validationError)} data-testid="button-save">{loading ? t('Saving…') : <><Check size={16} /> {t(submitLabel ?? 'Save record')}</>}</button></div>
       </form>
     </AccessibleDialogSurface>
     {confirmDiscard && <UnsavedChangesDialog onKeepEditing={() => setConfirmDiscard(false)} onDiscard={() => { setConfirmDiscard(false); onClose(); }} />}
@@ -723,6 +726,12 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
     if (editing) update.mutate({ id: editing.id, data: data as SessionUpdate }, { onSuccess: done });
     else create.mutate({ data }, { onSuccess: done });
   };
+  const validateSessionTime = (values: Values) => {
+    if (!values.scheduledDate || !values.startTime) return undefined;
+    const timeZone = programsQuery.data?.find(program => String(program.id) === values.programId)?.timeZone || 'Asia/Amman';
+    const issue = getSessionTimeIssue(values.scheduledDate, values.startTime, timeZone);
+    return issue ? sessionTimeIssueMessage(issue) : undefined;
+  };
   const removeRecord = () => deleting && remove.mutate({ id: deleting.id }, {
     onSuccess: () => {
       invalidate(client, [getListSessionsQueryKey(), getGetDashboardQueryKey()]);
@@ -976,6 +985,7 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
       loading={create.isPending || update.isPending}
       onClose={() => setEditing(undefined)}
       onSubmit={save}
+      validateValues={validateSessionTime}
       error={(create.error || update.error) ? 'Could not save this session. Check required details.' : undefined}
     />}
     {deleting && <ConfirmDialog item={deleting.title} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}
