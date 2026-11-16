@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetParticipantDashboardQueryKey,
   getListParticipantAnnouncementRepliesQueryKey, getListStaffAnnouncementRepliesQueryKey,
   useListParticipantAnnouncementReplies, useListStaffAnnouncementReplies,
   useReadParticipantAnnouncementReplies, useReadStaffAnnouncementReplies,
@@ -62,10 +63,17 @@ function ParticipantReplies({ announcementId }: { announcementId: number }) {
     retry={() => void query.refetch()}
     sendingId={send.isPending ? send.variables?.applicationId ?? null : null}
     send={(applicationId, body, cb) => send.mutate({ id: announcementId, applicationId, data: { body } }, {
-      onSuccess: () => { cb.onSuccess(); void client.invalidateQueries({ queryKey }); }, onError: cb.onError,
+      onSuccess: () => {
+        cb.onSuccess();
+        void client.invalidateQueries({ queryKey });
+        void client.invalidateQueries({ queryKey: getGetParticipantDashboardQueryKey() });
+      }, onError: cb.onError,
     })}
     markRead={(applicationId, throughId, onError) => read.mutate({ id: announcementId, applicationId, data: { throughId } }, {
-      onSuccess: () => void client.invalidateQueries({ queryKey }), onError,
+      onSuccess: () => {
+        void client.invalidateQueries({ queryKey });
+        void client.invalidateQueries({ queryKey: getGetParticipantDashboardQueryKey() });
+      }, onError,
     })}
   />;
 }

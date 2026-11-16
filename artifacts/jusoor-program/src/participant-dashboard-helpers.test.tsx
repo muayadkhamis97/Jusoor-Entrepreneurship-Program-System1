@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ParticipantEnrollment } from '@workspace/api-client-react';
 import { getParticipantNextAction, participantSignInInstructions } from './participant-dashboard-helpers';
+import { loadArabicTranslations, translate } from './language';
+
+await loadArabicTranslations();
 
 const now = new Date(2026, 10, 15, 10, 0);
 const noLowerPriorityWork = {
@@ -71,6 +74,46 @@ test('participant next action selects a session only when it starts within 24 ho
   assert.equal(action?.href, '#participant-session-22');
   assert.equal(action?.titleKey, 'Prepare for your upcoming session');
   assert.equal(action?.time, localDateTime(4).time);
+});
+
+test('unread updates needing a reply come after sessions and before learning modules', () => {
+  const announcements = [
+    { id: 72, title: 'Older update', scheduledFor: '2026-11-14T10:00:00Z', readAt: null, needsReply: true },
+    { id: 73, title: 'Latest update', scheduledFor: '2026-11-15T10:00:00Z', readAt: null, needsReply: true },
+    { id: 74, title: 'Already read', scheduledFor: '2026-11-15T11:00:00Z', readAt: '2026-11-15T12:00:00Z', needsReply: true },
+    { id: 75, title: 'No reply needed', scheduledFor: '2026-11-15T13:00:00Z', readAt: null, needsReply: false },
+  ] as NonNullable<Parameters<typeof getParticipantNextAction>[0]['announcements']>;
+  const action = getParticipantNextAction({
+    enrollments: [enrollment()],
+    announcements,
+    ...noLowerPriorityWork,
+    now,
+  });
+  assert.equal(action?.href, '#participant-announcement-73');
+  assert.equal(action?.titleKey, 'Reply to a program update');
+  assert.equal(action?.buttonLabelKey, 'Open update');
+  assert.equal(action?.detail, 'Latest update');
+  assert.equal(translate(action?.titleKey || '', 'ar'), 'الرد على تحديث البرنامج');
+  assert.equal(translate(action?.buttonLabelKey || '', 'ar'), 'فتح التحديث');
+  assert.equal(translate(action?.descriptionKey || '', 'ar'), 'نحتاج إلى ردك على هذا التحديث غير المقروء:');
+});
+
+test('an upcoming session remains ahead of an unread update needing a reply', () => {
+  const sessionTime = localDateTime(2);
+  const action = getParticipantNextAction({
+    enrollments: [enrollment({
+      sessions: [{
+        id: 22, title: 'Soon session', status: 'scheduled', scheduledDate: sessionTime.date, startTime: sessionTime.time,
+      } as ParticipantEnrollment['sessions'][number]],
+    })],
+    announcements: [{
+      id: 73, title: 'Please reply', scheduledFor: '2026-11-15T10:00:00Z', readAt: null, needsReply: true,
+    }] as NonNullable<Parameters<typeof getParticipantNextAction>[0]['announcements']>,
+    ...noLowerPriorityWork,
+    now,
+  });
+  assert.equal(action?.href, '#participant-session-22');
+  assert.equal(action?.titleKey, 'Prepare for your upcoming session');
 });
 
 test('participant next action selects the next released and incomplete learning module', () => {

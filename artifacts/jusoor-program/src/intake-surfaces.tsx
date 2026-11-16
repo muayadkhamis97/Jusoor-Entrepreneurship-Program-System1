@@ -388,6 +388,7 @@ export function ParticipantDashboardPage() {
   const nextActionPlanQuery = useGetParticipantBusinessPlans({ query: { queryKey: getGetParticipantBusinessPlansQueryKey(), enabled: hasAcceptedEnrollment } });
   const nextAction = getParticipantNextAction({
     enrollments,
+    announcements: query.data?.announcements,
     courses: nextActionCoursesQuery.data,
     learningProgress: nextActionProgressQuery.data,
     ideaWorkbooks: nextActionIdeaQuery.data?.workbooks,

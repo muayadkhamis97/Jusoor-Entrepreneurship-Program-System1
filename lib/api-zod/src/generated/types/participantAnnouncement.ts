@@ -35,4 +35,5 @@ export interface ParticipantAnnouncement {
   createdAt: Date;
   /** @nullable */
   readAt: Date | null;
+  needsReply: boolean;
 }

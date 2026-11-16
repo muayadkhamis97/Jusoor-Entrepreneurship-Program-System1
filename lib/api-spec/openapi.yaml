@@ -6153,7 +6153,8 @@ components:
         scheduledFor: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
         readAt: { type: ["string", "null"], format: date-time }
-      required: [id, programId, programName, businessId, businessName, sessionId, sessionTitle, sessionDate, recordingUrl, kind, title, body, scheduledFor, createdAt, readAt]
+        needsReply: { type: boolean }
+      required: [id, programId, programName, businessId, businessName, sessionId, sessionTitle, sessionDate, recordingUrl, kind, title, body, scheduledFor, createdAt, readAt, needsReply]
     ParticipantDashboard:
       type: object
       properties:

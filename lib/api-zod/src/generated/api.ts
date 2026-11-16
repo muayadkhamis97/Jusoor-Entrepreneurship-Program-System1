@@ -2829,7 +2829,8 @@ export const GetParticipantDashboardResponse = zod.object({
   "body": zod.string(),
   "scheduledFor": zod.coerce.date(),
   "createdAt": zod.coerce.date(),
-  "readAt": zod.coerce.date().nullable()
+  "readAt": zod.coerce.date().nullable(),
+  "needsReply": zod.boolean()
 }))
 })
 

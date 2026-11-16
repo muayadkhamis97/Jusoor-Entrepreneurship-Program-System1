@@ -143,6 +143,7 @@ const demoDashboard = {
     scheduledFor: '2026-11-12T08:00:00.000Z',
     createdAt: '2026-11-12T08:00:00.000Z',
     readAt: null,
+    needsReply: false,
   }],
 } satisfies ParticipantDashboard;
 

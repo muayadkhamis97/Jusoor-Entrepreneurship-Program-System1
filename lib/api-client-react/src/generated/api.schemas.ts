@@ -2079,6 +2079,7 @@ export interface ParticipantAnnouncement {
   createdAt: string;
   /** @nullable */
   readAt: string | null;
+  needsReply: boolean;
 }
 
 export interface ParticipantDashboard {

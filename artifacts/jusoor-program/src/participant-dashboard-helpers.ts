@@ -4,6 +4,7 @@ import type {
   ParticipantEnrollment,
   ParticipantIdeaValidationWorkbook,
   ParticipantLearningProgress,
+  ParticipantAnnouncement,
 } from '@workspace/api-client-react';
 
 export interface ParticipantNextAction {
@@ -38,6 +39,7 @@ export function getParticipantNextAction({
   learningProgress,
   ideaWorkbooks,
   businessPlans,
+  announcements,
   now = new Date(),
 }: {
   enrollments: ParticipantEnrollment[];
@@ -45,6 +47,7 @@ export function getParticipantNextAction({
   learningProgress?: ParticipantLearningProgress;
   ideaWorkbooks?: ParticipantIdeaValidationWorkbook[];
   businessPlans?: ParticipantBusinessPlan[];
+  announcements?: ParticipantAnnouncement[];
   now?: Date;
 }): ParticipantNextAction | null {
   const accepted = enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted');
@@ -92,7 +95,19 @@ export function getParticipantNextAction({
     };
   }
 
-  // The current announcement payload has no field identifying updates that require a reply.
+  const updateNeedingReply = [...(announcements || [])]
+    .filter(announcement => announcement.needsReply && !announcement.readAt)
+    .sort((left, right) => right.scheduledFor.localeCompare(left.scheduledFor))[0];
+  if (updateNeedingReply) {
+    return {
+      href: `#participant-announcement-${updateNeedingReply.id}`,
+      titleKey: 'Reply to a program update',
+      buttonLabelKey: 'Open update',
+      descriptionKey: 'Your reply is needed for this unread update:',
+      detail: updateNeedingReply.title,
+    };
+  }
+
   if (!courses || !learningProgress || !ideaWorkbooks || !businessPlans) return null;
 
   const completedModules = new Set(learningProgress.programs.flatMap(program => program.modules)
@@ -152,7 +167,7 @@ export function getParticipantNextAction({
     href: null,
     titleKey: 'You’re all caught up',
     buttonLabelKey: null,
-    descriptionKey: 'There are no due assignments, upcoming sessions, released modules, or unfinished workbook steps right now.',
+    descriptionKey: 'There are no due assignments, upcoming sessions, unread updates needing a reply, released modules, or unfinished workbook steps right now.',
   };
 }
 

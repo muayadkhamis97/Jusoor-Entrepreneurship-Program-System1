@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import {
   AskTrainingQuestionBody,
@@ -28,6 +28,7 @@ import {
 } from "@workspace/api-zod";
 import {
   announcementReceiptsTable,
+  announcementRepliesTable,
   applicationsTable,
   businessesTable,
   calendlyMeetingsTable,
@@ -227,6 +228,100 @@ async function listParticipantAnnouncementRows(
       announcement: { ...row.announcement, businessId: null },
       businessName: null,
     }));
+  }
+}
+
+async function listParticipantReplyNeededAnnouncementIds(
+  userId: string,
+  announcementIds: number[],
+): Promise<Set<number>> {
+  if (!announcementIds.length) return new Set();
+
+  const queryReplies = async (
+    useMemberships: boolean,
+    useBusinessScope: boolean,
+  ): Promise<Array<{
+    announcementId: number;
+    applicationId: number;
+    replyId: number;
+    sender: "participant" | "staff";
+    readAt: Date | null;
+  }>> => {
+    const conditions = [
+      inArray(announcementRepliesTable.announcementId, announcementIds),
+      eq(applicationsTable.clerkUserId, userId),
+      eq(applicationsTable.status, "accepted"),
+      isNull(programsTable.archivedAt),
+      or(
+        isNull(programAnnouncementsTable.programId),
+        eq(programAnnouncementsTable.programId, applicationsTable.programId),
+      ),
+    ];
+    if (useBusinessScope) {
+      conditions.push(useMemberships
+        ? or(
+          isNull(programAnnouncementsTable.businessId),
+          eq(programAnnouncementsTable.businessId, businessesTable.id),
+        )!
+        : or(
+          isNull(programAnnouncementsTable.businessId),
+          eq(programAnnouncementsTable.businessId, applicationsTable.businessId),
+        )!);
+    }
+
+    const selection = db.selectDistinct({
+      announcementId: announcementRepliesTable.announcementId,
+      applicationId: announcementRepliesTable.applicationId,
+      replyId: announcementRepliesTable.id,
+      sender: announcementRepliesTable.sender,
+      readAt: announcementRepliesTable.readAt,
+    }).from(announcementRepliesTable)
+      .innerJoin(applicationsTable, eq(announcementRepliesTable.applicationId, applicationsTable.id))
+      .innerJoin(programsTable, eq(applicationsTable.programId, programsTable.id))
+      .innerJoin(programAnnouncementsTable, eq(announcementRepliesTable.announcementId, programAnnouncementsTable.id));
+
+    if (useMemberships) {
+      const rows = await selection
+        .leftJoin(participantBusinessMembershipsTable,
+          eq(participantBusinessMembershipsTable.applicationId, applicationsTable.id))
+        .leftJoin(businessesTable, and(
+          eq(businessesTable.programId, applicationsTable.programId),
+          eq(businessesTable.id, sql`coalesce(${applicationsTable.businessId}, ${participantBusinessMembershipsTable.businessId})`),
+        ))
+        .where(and(...conditions));
+      return rows;
+    }
+
+    const rows = await selection.where(and(...conditions));
+    return rows;
+  };
+
+  const getReplyNeededIds = (replies: Awaited<ReturnType<typeof queryReplies>>): Set<number> => {
+    const latestByThread = new Map<string, (typeof replies)[number]>();
+    for (const reply of replies.sort((left, right) => right.replyId - left.replyId)) {
+      const thread = `${reply.announcementId}:${reply.applicationId}`;
+      if (!latestByThread.has(thread)) latestByThread.set(thread, reply);
+    }
+    return new Set([...latestByThread.values()]
+      .filter(reply => reply.sender === "staff" && reply.readAt === null)
+      .map(reply => reply.announcementId));
+  };
+
+  try {
+    return getReplyNeededIds(await queryReplies(true, true));
+  } catch (error) {
+    if (isMissingBusinessMembershipTable(error)) {
+      try {
+        return getReplyNeededIds(await queryReplies(false, true));
+      } catch (fallbackError) {
+        if (!isMissingAnnouncementBusinessColumn(fallbackError)) throw fallbackError;
+        return getReplyNeededIds(await queryReplies(false, false));
+      }
+    }
+    if (isMissingAnnouncementBusinessColumn(error)) {
+      return getReplyNeededIds(await queryReplies(true, false));
+    }
+    throw error;
   }
 }
 
@@ -858,6 +953,10 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
         : null,
     );
   });
+  const replyNeededAnnouncementIds = await listParticipantReplyNeededAnnouncementIds(
+    participant.userId,
+    activeAnnouncementRows.map(row => row.announcement.id),
+  );
 
   const sessions = programIds.length
     ? await db.select({
@@ -1053,6 +1152,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     scheduledFor: announcement.scheduledFor,
     createdAt: announcement.createdAt,
     readAt,
+    needsReply: replyNeededAnnouncementIds.has(announcement.id),
     sessionId,
     sessionTitle: sessionId === null ? null : sessionTitle,
     sessionDate: sessionId === null ? null : sessionDate,
