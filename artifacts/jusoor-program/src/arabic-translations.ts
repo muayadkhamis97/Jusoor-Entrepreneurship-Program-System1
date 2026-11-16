@@ -1787,6 +1787,8 @@ export const arabicTranslations: Record<string, string> = {
   'Recent changes across all programs': 'أحدث التغييرات في جميع البرامج',
   'Scheduled date': 'التاريخ المحدد',
   'Score (0–100)': 'الدرجة (0–100)',
+  'Session dates and times use this time zone.': 'تُعرض تواريخ الجلسات وأوقاتها وفق هذه المنطقة الزمنية.',
+  'Session time zone': 'المنطقة الزمنية للجلسات',
   'Session title': 'عنوان الجلسة',
   'Session type': 'نوع الجلسة',
   'Show active programs': 'عرض البرامج النشطة',

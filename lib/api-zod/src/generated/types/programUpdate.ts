@@ -20,6 +20,11 @@ export interface ProgramUpdate {
   endDate?: Date | null;
   /** @nullable */
   applicationDeadline?: Date | null;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone?: string;
   /** @minimum 0 */
   mentorSessionsPerBusiness?: number;
   status?: ProgramUpdateStatus;

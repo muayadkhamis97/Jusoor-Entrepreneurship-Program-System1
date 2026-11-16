@@ -1813,6 +1813,11 @@ export interface ParticipantProgram {
      * @pattern ^\d{4}-\d{2}-\d{2}$
      */
   endDate: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone: string;
 }
 
 export type ParticipantSessionStatus = typeof ParticipantSessionStatus[keyof typeof ParticipantSessionStatus];
@@ -3623,6 +3628,11 @@ export interface Program {
      * @pattern ^\d{4}-\d{2}-\d{2}$
      */
   applicationDeadline?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone: string;
   /** @minimum 0 */
   mentorSessionsPerBusiness: number;
   status: ProgramStatus;
@@ -3705,6 +3715,11 @@ export interface ProgramInput {
      * @pattern ^\d{4}-\d{2}-\d{2}$
      */
   applicationDeadline?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone?: string;
   /** @minimum 0 */
   mentorSessionsPerBusiness: number;
   status?: ProgramInputStatus;
@@ -3741,6 +3756,11 @@ export interface ProgramUpdate {
   endDate?: string | null;
   /** @nullable */
   applicationDeadline?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  timeZone?: string;
   /** @minimum 0 */
   mentorSessionsPerBusiness?: number;
   status?: ProgramUpdateStatus;

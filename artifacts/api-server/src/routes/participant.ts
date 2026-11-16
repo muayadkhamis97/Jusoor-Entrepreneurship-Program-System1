@@ -65,7 +65,6 @@ import {
 } from "../lib/announcement-targeting";
 
 const router: IRouter = Router();
-const participantSessionTimeZone = "Asia/Amman";
 
 const isUndefinedRelation = (error: unknown): boolean =>
   Boolean(error && typeof error === "object" && "code" in error && error.code === "42P01");
@@ -1083,6 +1082,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
       description: program.description,
       startDate: program.startDate,
       endDate: program.endDate,
+      timeZone: program.timeZone,
     },
     business: business ? {
       id: business.id,
@@ -1093,7 +1093,7 @@ router.get("/dashboard", async (_req, res): Promise<void> => {
     sessions: application.status === "accepted" && business
       ? sessions.filter((session) => session.programId === application.programId).map(({ programId: _programId, ...session }) => ({
         ...session,
-        timeZone: participantSessionTimeZone,
+        timeZone: program.timeZone,
       }))
       : [],
     support: application.status === "accepted" && business

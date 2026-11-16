@@ -152,7 +152,7 @@ export function getParticipantNextAction({
     .filter(session => session.status === 'scheduled' && session.startTime)
     .map(session => ({
       session,
-      startsAt: sessionDateTime(session.scheduledDate, session.startTime || '', (session as ParticipantEnrollment['sessions'][number] & { timeZone: string }).timeZone),
+      startsAt: sessionDateTime(session.scheduledDate, session.startTime || '', session.timeZone),
     }))
     .filter(({ startsAt }) => startsAt.getTime() >= now.getTime() && startsAt.getTime() <= now.getTime() + 24 * 60 * 60 * 1000)
     .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime())[0];

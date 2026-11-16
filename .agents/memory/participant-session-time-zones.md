@@ -3,8 +3,8 @@ name: Participant session time zones
 description: The current program-wide time zone assumption for sessions returned to participants.
 ---
 
-Until time zones are configurable per program, treat session `scheduledDate` and `startTime` values as Asia/Amman wall-clock time and include that IANA zone explicitly in participant session API responses. Convert those values to instants with zone-aware logic; do not interpret them in the participant's browser zone.
+Treat session `scheduledDate` and `startTime` values as wall-clock time in the program's saved IANA time zone. Programs default to `Asia/Amman` for existing and newly created records unless a coordinator chooses another zone. Include the zone explicitly in participant session API responses and convert wall-clock values to instants with zone-aware logic; do not interpret them in the participant's browser zone.
 
-**Why:** Session records store a calendar date and clock time without an offset, while the program already uses Asia/Amman for program-wide calendar operations.
+**Why:** Session records store a calendar date and clock time without an offset, so their program's zone is needed to identify the correct instant.
 
-**How to apply:** If per-program time-zone settings are introduced, use the selected program's IANA zone for session API responses and participant timing checks rather than retaining this fixed default.
+**How to apply:** Use the program's configured zone for participant session API responses and timing checks. Validate user-supplied values as real IANA zones, and keep `Asia/Amman` as the backward-compatible default.

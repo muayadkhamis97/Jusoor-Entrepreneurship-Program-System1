@@ -25,7 +25,7 @@ import '../program-controls.css';
 const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
 const created = '2026-10-01T09:00:00Z';
 const seed = new URLSearchParams(location.search).get('seed');
-const programs: Program[] = [{ id: 11, name: 'Sample program', format: 'bootcamp', mentorSessionsPerBusiness: 0, status: 'active', archivedAt: null, createdAt: created }];
+const programs: Program[] = [{ id: 11, name: 'Sample program', format: 'bootcamp', timeZone: 'Asia/Amman', mentorSessionsPerBusiness: 0, status: 'active', archivedAt: null, createdAt: created }];
 const business = (id: number, businessName: string): Business => ({ id, programId: 11, businessName, founderName: 'Sample founder', email: `founder${id}@example.test`, stage: 'pitch', createdAt: created });
 const forms: JudgingFormSummary[] = seed === 'draft'
   ? [{ id: 501, programId: 11, programName: 'Sample program', title: 'Sample demo day form', status: 'draft', responseCount: 0, publishedAt: null }]

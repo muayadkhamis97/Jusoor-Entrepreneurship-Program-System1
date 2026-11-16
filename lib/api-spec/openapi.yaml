@@ -6025,7 +6025,8 @@ components:
         description: { type: ["string", "null"] }
         startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
-      required: [id, name, format, description, startDate, endDate]
+        timeZone: { type: string, minLength: 1, maxLength: 100 }
+      required: [id, name, format, description, startDate, endDate, timeZone]
     ParticipantSession:
       type: object
       properties:
@@ -7206,11 +7207,12 @@ components:
         startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        timeZone: { type: string, minLength: 1, maxLength: 100 }
         mentorSessionsPerBusiness: { type: integer, minimum: 0 }
         status: { type: string, enum: [planning, outreach, active, completed] }
         archivedAt: { type: ["string", "null"], format: date-time }
         createdAt: { type: string, format: date-time }
-      required: [id, name, format, mentorSessionsPerBusiness, status, archivedAt, createdAt]
+      required: [id, name, format, timeZone, mentorSessionsPerBusiness, status, archivedAt, createdAt]
     ProgramLifecycleEvent:
       type: object
       properties:
@@ -7238,6 +7240,7 @@ components:
         startDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         endDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
         applicationDeadline: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        timeZone: { type: string, minLength: 1, maxLength: 100 }
         mentorSessionsPerBusiness: { type: integer, minimum: 0 }
         status: { type: string, enum: [planning, outreach, active, completed] }
       required: [name, format, mentorSessionsPerBusiness]
@@ -7250,6 +7253,7 @@ components:
         startDate: { type: ["string", "null"], format: date }
         endDate: { type: ["string", "null"], format: date }
         applicationDeadline: { type: ["string", "null"], format: date }
+        timeZone: { type: string, minLength: 1, maxLength: 100 }
         mentorSessionsPerBusiness: { type: integer, minimum: 0 }
         status: { type: string, enum: [planning, outreach, active, completed] }
     Business:

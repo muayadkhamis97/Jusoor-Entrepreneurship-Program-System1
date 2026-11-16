@@ -19,6 +19,7 @@ import {
 } from "@workspace/api-zod";
 import { db, programLifecycleEventsTable, programsTable, staffMembersTable } from "@workspace/db";
 import { requireCoordinator, type StaffAccess } from "../middlewares/staffAccess";
+import { isValidProgramTimeZone } from "../lib/program-time-zone";
 
 const router: IRouter = Router();
 
@@ -97,6 +98,10 @@ router.post("/programs", requireCoordinator, async (req, res): Promise<void> => 
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.timeZone !== undefined && !isValidProgramTimeZone(parsed.data.timeZone)) {
+    res.status(400).json({ error: "Choose a valid IANA time zone." });
+    return;
+  }
   const [program] = await db.insert(programsTable).values(parsed.data).returning();
   res.status(201).json(CreateProgramResponse.parse(program));
 });
@@ -106,6 +111,10 @@ router.patch("/programs/:id", requireCoordinator, async (req, res): Promise<void
   const body = UpdateProgramBody.safeParse(req.body);
   if (!params.success || !body.success) {
     res.status(400).json({ error: params.error?.message ?? body.error?.message });
+    return;
+  }
+  if (body.data.timeZone !== undefined && !isValidProgramTimeZone(body.data.timeZone)) {
+    res.status(400).json({ error: "Choose a valid IANA time zone." });
     return;
   }
   const values = {

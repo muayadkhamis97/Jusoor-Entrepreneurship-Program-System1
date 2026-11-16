@@ -11,6 +11,7 @@ export const programsTable = pgTable("jusoor_programs", {
   startDate: date("start_date", { mode: "string" }),
   endDate: date("end_date", { mode: "string" }),
   applicationDeadline: date("application_deadline", { mode: "string" }),
+  timeZone: text("time_zone").notNull().default("Asia/Amman"),
   mentorSessionsPerBusiness: integer("mentor_sessions_per_business").notNull().default(0),
   status: text("status").notNull().default("outreach"),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
