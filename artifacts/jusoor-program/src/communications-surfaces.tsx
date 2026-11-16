@@ -1,5 +1,5 @@
 import { currentLanguage, t, useAppLanguage } from './language';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetParticipantDashboardQueryKey, getGetRecordingNoticeReceiptsQueryKey, getListAnnouncementsQueryKey, getListProgramsQueryKey, useCreateAnnouncement, useDeleteAnnouncement, useGetRecordingNoticeReceipts, useListAnnouncements, useListBusinesses, useListPrograms, useMarkAnnouncementRead } from '@workspace/api-client-react';
 import type { Announcement, AnnouncementInput, ParticipantAnnouncement } from '@workspace/api-client-react';
@@ -184,8 +184,20 @@ export function ParticipantAnnouncements({ announcements }: { announcements: Par
   const markRead = useMarkAnnouncementRead();
   const client = useQueryClient();
   const [openRecordingId, setOpenRecordingId] = useState<number | null>(null);
-  const published = announcements.filter(item => new Date(item.scheduledFor).getTime() <= Date.now()).sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
+  const published = useMemo(
+    () => announcements.filter(item => new Date(item.scheduledFor).getTime() <= Date.now()).sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor)),
+    [announcements],
+  );
+  const search = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+  const rawAnnouncementId = Number(search?.get('announcementId'));
+  const rawApplicationId = Number(search?.get('applicationId'));
+  const targetAnnouncementId = Number.isSafeInteger(rawAnnouncementId) && rawAnnouncementId > 0 ? rawAnnouncementId : null;
+  const targetApplicationId = Number.isSafeInteger(rawApplicationId) && rawApplicationId > 0 ? rawApplicationId : undefined;
   const unread = published.filter(item => !item.readAt).length;
+  useEffect(() => {
+    if (targetAnnouncementId === null || !published.some(item => item.id === targetAnnouncementId)) return;
+    document.getElementById(`participant-announcement-${targetAnnouncementId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [published, targetAnnouncementId]);
   const readOne = (item: ParticipantAnnouncement) => {
     if (item.readAt || markRead.isPending) return;
     markRead.mutate({ id: item.id }, { onSuccess: () => {
@@ -209,7 +221,11 @@ export function ParticipantAnnouncements({ announcements }: { announcements: Par
             </button>
             {openRecordingId === item.id && <SessionRecordingPlayer url={item.recordingUrl} title={item.sessionTitle} />}
           </div>}
-          <AnnouncementReplies announcementId={item.id} viewer="participant" />
+          <AnnouncementReplies
+            announcementId={item.id}
+            viewer="participant"
+            initialOpenApplicationId={item.id === targetAnnouncementId ? targetApplicationId : undefined}
+          />
         </div>
         {item.readAt ? <span className="read-indicator"><Check size={14} /> {t('Read')}</span> : <button type="button" className="button button-quiet mark-read-button" onClick={() => readOne(item)} disabled={markRead.isPending} data-testid={`button-mark-announcement-read-${item.id}`}>{markRead.isPending ? t('Saving…') : t('Mark as read')}</button>}
       </article>)}</div>}

@@ -6,13 +6,16 @@ import {
 } from "@workspace/db";
 import {
   ListParticipantAnnouncementRepliesParams, ListParticipantAnnouncementRepliesResponse,
+  ListStaffAnnouncementRepliesResponse,
   SendParticipantAnnouncementReplyParams, SendParticipantAnnouncementReplyBody,
-  SendParticipantAnnouncementReplyResponse, ReadParticipantAnnouncementRepliesBody,
+  SendParticipantAnnouncementReplyResponse, SendStaffAnnouncementReplyResponse,
+  ReadParticipantAnnouncementRepliesBody,
 } from "@workspace/api-zod";
 import type { ParticipantAccess } from "../middlewares/participantAccess";
 import type { StaffAccess } from "../middlewares/staffAccess";
 import { activeProgramIdsFor } from "../lib/programScope";
 import { isCurrentRecordingNotice } from "../lib/participant-recording-notices";
+import { sendStaffReplyNotification } from "../lib/announcement-reply-email";
 
 type Actor = { kind: "participant"; participant: ParticipantAccess } | { kind: "staff"; staff: StaffAccess };
 
@@ -41,6 +44,7 @@ async function eligibleApplications(announcementId: number, actor: Actor, applic
   }
   const rows = await db.select({
     applicationId: applicationsTable.id,
+    participantEmail: applicationsTable.email,
     programName: programsTable.name,
     participantName: applicationsTable.founderName,
     businessName: businessesTable.businessName,
@@ -98,12 +102,21 @@ export function createAnnouncementRepliesRouter(kind: Actor["kind"]): IRouter {
     const conversations = applications.map(application => {
       const replies = messages.filter(message => message.applicationId === application.applicationId);
       return {
-        ...application,
+        applicationId: application.applicationId,
+        programName: application.programName,
+        participantName: application.participantName,
+        businessName: application.businessName,
         unreadCount: replies.filter(message => message.sender !== kind && message.readAt === null).length,
-        messages: replies,
+        messages: kind === "staff"
+          ? replies.map(({ id, sender, body, createdAt, readAt, emailNotificationStatus, emailNotificationFailureKind }) => ({
+            id, sender, body, createdAt, readAt, emailNotificationStatus, emailNotificationFailureKind,
+          }))
+          : replies.map(({ id, sender, body, createdAt, readAt }) => ({ id, sender, body, createdAt, readAt })),
       };
     }).filter(conversation => kind === "participant" || conversation.messages.length > 0);
-    res.json(ListParticipantAnnouncementRepliesResponse.parse(conversations));
+    res.json(kind === "staff"
+      ? ListStaffAnnouncementRepliesResponse.parse(conversations)
+      : ListParticipantAnnouncementRepliesResponse.parse(conversations));
   });
 
   router.post("/:id/replies/:applicationId", async (req, res): Promise<void> => {
@@ -128,7 +141,37 @@ export function createAnnouncementRepliesRouter(kind: Actor["kind"]): IRouter {
       sender: kind, staffId: kind === "staff" ? (res.locals.staff as StaffAccess).id : null,
       body: input.data.body.trim(),
     }).returning();
-    res.status(201).json(SendParticipantAnnouncementReplyResponse.parse(reply));
+    if (kind === "participant") {
+      res.status(201).json(SendParticipantAnnouncementReplyResponse.parse(reply));
+      return;
+    }
+
+    const application = applications[0];
+    const notification = await sendStaffReplyNotification({
+      replyId: reply.id,
+      announcementId: params.data.id,
+      applicationId: application.applicationId,
+      participantEmail: application.participantEmail,
+      participantName: application.participantName,
+      programName: application.programName,
+    }, process.env.REPLIT_APP_URL);
+    const [savedReply] = await db.update(announcementRepliesTable).set({
+      emailNotificationStatus: notification.status,
+      emailNotificationFailureKind: notification.failureKind,
+    }).where(eq(announcementRepliesTable.id, reply.id)).returning();
+    if (notification.status !== "sent") {
+      req.log.warn({
+        replyId: reply.id,
+        applicationId: application.applicationId,
+        notificationStatus: notification.status,
+        failureKind: notification.failureKind,
+      }, "Private reply email notification was not confirmed");
+    }
+    res.status(201).json(SendStaffAnnouncementReplyResponse.parse(savedReply ?? {
+      ...reply,
+      emailNotificationStatus: notification.status,
+      emailNotificationFailureKind: notification.failureKind,
+    }));
   });
 
   router.post("/:id/replies/:applicationId/read", async (req, res): Promise<void> => {

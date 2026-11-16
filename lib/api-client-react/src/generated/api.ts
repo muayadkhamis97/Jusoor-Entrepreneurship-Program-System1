@@ -231,6 +231,8 @@ import type {
   SessionInteractiveActivityUpdateInput,
   SessionQuestionsResponse,
   SessionUpdate,
+  StaffAnnouncementConversation,
+  StaffAnnouncementReply,
   StaffAssignmentAuditHistory,
   StaffAssignmentHistoryClearResult,
   StaffInput,
@@ -375,9 +377,9 @@ export const getListStaffAnnouncementRepliesUrl = (id: number,) => {
   return `/api/communications/${id}/replies`
 }
 
-export const listStaffAnnouncementReplies = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementConversation[]> => {
+export const listStaffAnnouncementReplies = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<StaffAnnouncementConversation[]> => {
 
-  return customFetch<AnnouncementConversation[]>(getListStaffAnnouncementRepliesUrl(id),
+  return customFetch<StaffAnnouncementConversation[]>(getListStaffAnnouncementRepliesUrl(id),
   {
     ...options,
     method: 'GET'
@@ -534,7 +536,7 @@ export const getSendStaffAnnouncementReplyUrl = (id: number,
 
 export const sendStaffAnnouncementReply = async (id: number,
     applicationId: number,
-    announcementReplyInput: AnnouncementReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<AnnouncementReply> => {
+    announcementReplyInput: AnnouncementReplyInput, options?: Parameters<typeof customFetch>[1]): Promise<StaffAnnouncementReply> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -550,7 +552,7 @@ export const sendStaffAnnouncementReply = async (id: number,
     }
     return headers;
   };
-return customFetch<AnnouncementReply>(getSendStaffAnnouncementReplyUrl(id,applicationId),
+return customFetch<StaffAnnouncementReply>(getSendStaffAnnouncementReplyUrl(id,applicationId),
   {
     ...options,
     method: 'POST',

@@ -7,7 +7,7 @@ import {
   useReadParticipantAnnouncementReplies, useReadStaffAnnouncementReplies,
   useSendParticipantAnnouncementReply, useSendStaffAnnouncementReply,
 } from '@workspace/api-client-react';
-import type { AnnouncementConversation } from '@workspace/api-client-react';
+import type { AnnouncementConversation, StaffAnnouncementConversation } from '@workspace/api-client-react';
 import { Button } from '@workspace/program-editorial/components/ui/button';
 import { AlertCircle, Check, CheckCheck, Lock, MessageSquareReply } from 'lucide-react';
 import { currentLanguage, t, useAppLanguage } from './language';
@@ -19,7 +19,8 @@ const fmt = (value: string) => new Date(value).toLocaleString(currentLanguage() 
 type Shared = {
   announcementId: number;
   viewer: Viewer;
-  conversations: AnnouncementConversation[] | undefined;
+  conversations: (AnnouncementConversation | StaffAnnouncementConversation)[] | undefined;
+  initialOpenApplicationId?: number;
   isLoading: boolean;
   isError: boolean;
   refreshedAt: number;
@@ -29,18 +30,22 @@ type Shared = {
   markRead: (applicationId: number, throughId: number, onError: () => void) => void;
 };
 
-export function AnnouncementReplies({ announcementId, viewer }: { announcementId: number; viewer: Viewer }) {
-  return viewer === 'staff' ? <StaffReplies announcementId={announcementId} /> : <ParticipantReplies announcementId={announcementId} />;
+export function AnnouncementReplies({ announcementId, viewer, initialOpenApplicationId }: {
+  announcementId: number; viewer: Viewer; initialOpenApplicationId?: number;
+}) {
+  return viewer === 'staff'
+    ? <StaffReplies announcementId={announcementId} initialOpenApplicationId={initialOpenApplicationId} />
+    : <ParticipantReplies announcementId={announcementId} initialOpenApplicationId={initialOpenApplicationId} />;
 }
 
-function StaffReplies({ announcementId }: { announcementId: number }) {
+function StaffReplies({ announcementId, initialOpenApplicationId }: { announcementId: number; initialOpenApplicationId?: number }) {
   const client = useQueryClient();
   const queryKey = getListStaffAnnouncementRepliesQueryKey(announcementId);
   const query = useListStaffAnnouncementReplies(announcementId, { query: { queryKey, refetchInterval: POLL_MS } });
   const send = useSendStaffAnnouncementReply();
   const read = useReadStaffAnnouncementReplies();
   return <ConversationList
-    announcementId={announcementId} viewer="staff" conversations={query.data} isLoading={query.isLoading} isError={query.isError} refreshedAt={query.dataUpdatedAt}
+    announcementId={announcementId} viewer="staff" conversations={query.data} initialOpenApplicationId={initialOpenApplicationId} isLoading={query.isLoading} isError={query.isError} refreshedAt={query.dataUpdatedAt}
     retry={() => void query.refetch()}
     sendingId={send.isPending ? send.variables?.applicationId ?? null : null}
     send={(applicationId, body, cb) => send.mutate({ id: announcementId, applicationId, data: { body } }, {
@@ -52,14 +57,14 @@ function StaffReplies({ announcementId }: { announcementId: number }) {
   />;
 }
 
-function ParticipantReplies({ announcementId }: { announcementId: number }) {
+function ParticipantReplies({ announcementId, initialOpenApplicationId }: { announcementId: number; initialOpenApplicationId?: number }) {
   const client = useQueryClient();
   const queryKey = getListParticipantAnnouncementRepliesQueryKey(announcementId);
   const query = useListParticipantAnnouncementReplies(announcementId, { query: { queryKey, refetchInterval: POLL_MS } });
   const send = useSendParticipantAnnouncementReply();
   const read = useReadParticipantAnnouncementReplies();
   return <ConversationList
-    announcementId={announcementId} viewer="participant" conversations={query.data} isLoading={query.isLoading} isError={query.isError} refreshedAt={query.dataUpdatedAt}
+    announcementId={announcementId} viewer="participant" conversations={query.data} initialOpenApplicationId={initialOpenApplicationId} isLoading={query.isLoading} isError={query.isError} refreshedAt={query.dataUpdatedAt}
     retry={() => void query.refetch()}
     sendingId={send.isPending ? send.variables?.applicationId ?? null : null}
     send={(applicationId, body, cb) => send.mutate({ id: announcementId, applicationId, data: { body } }, {
@@ -81,7 +86,7 @@ function ParticipantReplies({ announcementId }: { announcementId: number }) {
 function ConversationList(props: Shared) {
   useAppLanguage();
   const { announcementId, viewer, conversations, isLoading, isError, retry } = props;
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(props.initialOpenApplicationId ?? null);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [sendError, setSendError] = useState<number | null>(null);
   const [sentId, setSentId] = useState<number | null>(null);
@@ -89,6 +94,13 @@ function ConversationList(props: Shared) {
   const requestedThrough = useRef<Record<number, number>>({});
   const markReadRef = useRef(props.markRead);
   markReadRef.current = props.markRead;
+
+  useEffect(() => {
+    const target = props.initialOpenApplicationId;
+    if (target !== undefined && conversations?.some(conversation => conversation.applicationId === target)) {
+      setOpen(target);
+    }
+  }, [props.initialOpenApplicationId, conversations]);
 
   const openConversation = conversations?.find(item => item.applicationId === open);
   const incoming = viewer === 'staff' ? 'participant' : 'staff';
@@ -166,6 +178,12 @@ function ConversationList(props: Shared) {
                     {own && <span className="inline-flex items-center gap-1">{message.readAt ? <><CheckCheck size={12} />{t('Seen')}</> : <><Check size={12} />{t('Sent')}</>}</span>}
                   </div>
                   <p className="m-0 whitespace-pre-wrap break-words">{message.body}</p>
+                  {viewer === 'staff' && message.sender === 'staff' && 'emailNotificationStatus' in message &&
+                    message.emailNotificationStatus === 'failed' && <p className="mt-2 text-caption text-destructive" role="status" data-testid={`reply-email-status-${message.id}`}>{t('The reply is saved, but its email notification could not be sent. Contact the participant in the portal.')}</p>}
+                  {viewer === 'staff' && message.sender === 'staff' && 'emailNotificationStatus' in message &&
+                    message.emailNotificationStatus === 'uncertain' && <p className="mt-2 text-caption text-destructive" role="status" data-testid={`reply-email-status-${message.id}`}>{t('Email delivery could not be confirmed. Check Gmail Sent before taking further action.')}</p>}
+                  {viewer === 'staff' && message.sender === 'staff' && 'emailNotificationStatus' in message &&
+                    message.emailNotificationStatus === 'sent' && <p className="mt-2 text-caption text-muted-foreground" role="status" data-testid={`reply-email-status-${message.id}`}>{t('Email notification accepted by Gmail.')}</p>}
                 </li>;
               })}
             </ol> : <p className="m-0 text-sm text-muted-foreground">{t('No messages yet. Write the first private reply.')}</p>}

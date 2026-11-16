@@ -50,7 +50,9 @@ export const ListStaffAnnouncementRepliesResponseItem = zod.object({
   "sender": zod.enum(['participant', 'staff']),
   "body": zod.string(),
   "createdAt": zod.coerce.date(),
-  "readAt": zod.coerce.date().nullable()
+  "readAt": zod.coerce.date().nullable(),
+  "emailNotificationStatus": zod.enum(['not_sent', 'sent', 'failed', 'uncertain']),
+  "emailNotificationFailureKind": zod.union([zod.literal('quota'),zod.literal('needs_reconnect'),zod.literal('invalid_recipient'),zod.literal('transient'),zod.literal('ambiguous'),zod.literal(null)]).nullable()
 }))
 })
 export const ListStaffAnnouncementRepliesResponse = zod.array(ListStaffAnnouncementRepliesResponseItem)
@@ -104,7 +106,9 @@ export const SendStaffAnnouncementReplyResponse = zod.object({
   "sender": zod.enum(['participant', 'staff']),
   "body": zod.string(),
   "createdAt": zod.coerce.date(),
-  "readAt": zod.coerce.date().nullable()
+  "readAt": zod.coerce.date().nullable(),
+  "emailNotificationStatus": zod.enum(['not_sent', 'sent', 'failed', 'uncertain']),
+  "emailNotificationFailureKind": zod.union([zod.literal('quota'),zod.literal('needs_reconnect'),zod.literal('invalid_recipient'),zod.literal('transient'),zod.literal('ambiguous'),zod.literal(null)]).nullable()
 })
 
 

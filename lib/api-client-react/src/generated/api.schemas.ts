@@ -35,6 +35,50 @@ export interface AnnouncementReply {
   readAt: string | null;
 }
 
+export type StaffAnnouncementReplySender = typeof StaffAnnouncementReplySender[keyof typeof StaffAnnouncementReplySender];
+
+
+export const StaffAnnouncementReplySender = {
+  participant: 'participant',
+  staff: 'staff',
+} as const;
+
+export type StaffAnnouncementReplyEmailNotificationStatus = typeof StaffAnnouncementReplyEmailNotificationStatus[keyof typeof StaffAnnouncementReplyEmailNotificationStatus];
+
+
+export const StaffAnnouncementReplyEmailNotificationStatus = {
+  not_sent: 'not_sent',
+  sent: 'sent',
+  failed: 'failed',
+  uncertain: 'uncertain',
+} as const;
+
+/**
+ * @nullable
+ */
+export type StaffAnnouncementReplyEmailNotificationFailureKind = typeof StaffAnnouncementReplyEmailNotificationFailureKind[keyof typeof StaffAnnouncementReplyEmailNotificationFailureKind] | null;
+
+
+export const StaffAnnouncementReplyEmailNotificationFailureKind = {
+  quota: 'quota',
+  needs_reconnect: 'needs_reconnect',
+  invalid_recipient: 'invalid_recipient',
+  transient: 'transient',
+  ambiguous: 'ambiguous',
+} as const;
+
+export interface StaffAnnouncementReply {
+  id: number;
+  sender: StaffAnnouncementReplySender;
+  body: string;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+  emailNotificationStatus: StaffAnnouncementReplyEmailNotificationStatus;
+  /** @nullable */
+  emailNotificationFailureKind: StaffAnnouncementReplyEmailNotificationFailureKind;
+}
+
 export interface AnnouncementConversation {
   applicationId: number;
   programName: string;
@@ -43,6 +87,16 @@ export interface AnnouncementConversation {
   businessName: string | null;
   unreadCount: number;
   messages: AnnouncementReply[];
+}
+
+export interface StaffAnnouncementConversation {
+  applicationId: number;
+  programName: string;
+  participantName: string;
+  /** @nullable */
+  businessName: string | null;
+  unreadCount: number;
+  messages: StaffAnnouncementReply[];
 }
 
 export type ProgramGoogleSheetsStatusStatus = typeof ProgramGoogleSheetsStatusStatus[keyof typeof ProgramGoogleSheetsStatusStatus];
