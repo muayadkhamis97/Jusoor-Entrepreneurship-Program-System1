@@ -93,11 +93,7 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
   const [savedAt, setSavedAt] = useState<string | null>(workbook.updatedAt);
   const workbookAnchor = `participant-founder-workbook-${workbook.applicationId}`;
   const formId = `idea-workbook-form-${workbook.applicationId}`;
-  const [isOpen, setIsOpen] = useState(() => {
-    const hasStarted = Object.values(workbookValues(workbook)).some(value => value.trim().length > 0);
-    const hash = typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.slice(1));
-    return hasStarted || hash === 'participant-founder-workbook' || hash === workbookAnchor;
-  });
+  const isOpen = true;
   const form = useForm<WorkbookValues>({ defaultValues: workbookValues(workbook) });
   const isDirty = form.formState.isDirty;
   const filledCount = fields.filter(({ key }) => Boolean(form.watch(key)?.trim())).length;
@@ -111,15 +107,6 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
   useEffect(() => {
     setSavedAt(workbook.updatedAt);
   }, [workbook.updatedAt]);
-
-  useEffect(() => {
-    const openFromHash = () => {
-      const hash = decodeURIComponent(window.location.hash.slice(1));
-      if (hash === 'participant-founder-workbook' || hash === workbookAnchor) setIsOpen(true);
-    };
-    window.addEventListener('hashchange', openFromHash);
-    return () => window.removeEventListener('hashchange', openFromHash);
-  }, [workbookAnchor]);
 
   const onSubmit = (data: WorkbookValues) => {
     save.mutate({ applicationId: workbook.applicationId, data }, {
@@ -145,14 +132,6 @@ function WorkbookCard({ workbook }: { workbook: ParticipantIdeaValidationWorkboo
       </div>
       <div className="idea-workbook-head-actions">
         <div className="idea-private-tag"><LockKeyhole size={13} />{t('Private to you')}</div>
-        <button
-          type="button"
-          className="button button-outline idea-workbook-toggle"
-          aria-expanded={isOpen}
-          aria-controls={formId}
-          onClick={() => setIsOpen(open => !open)}
-          data-testid={`button-toggle-idea-workbook-${workbook.applicationId}`}
-        >{isOpen ? t('Close workbook') : filledCount > 0 ? t('Continue') : t('Open')}</button>
       </div>
     </header>
 

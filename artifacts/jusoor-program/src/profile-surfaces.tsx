@@ -1,6 +1,5 @@
 import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useClerk } from '@clerk/react';
 import {
   getGetOwnProfileQueryKey,
   getListUserProfilesQueryKey,
@@ -17,9 +16,8 @@ import {
 } from '@workspace/api-client-react';
 import type { UserProfile, UserProfileUpdate } from '@workspace/api-client-react';
 import { Camera, CircleAlert, LoaderCircle, Search, ShieldCheck, UserRound } from 'lucide-react';
-import { Link } from 'wouter';
-import { LanguageToggle, t, useAppLanguage } from './language';
-import { ParticipantAccountActions } from './participant-account-actions';
+import { Link, useLocation } from 'wouter';
+import { t, useAppLanguage } from './language';
 import './profile-surfaces.css';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -36,7 +34,7 @@ export function OwnProfilePage() {
   if (!query.data) return <ProfileLoadError retry={() => void query.refetch()} />;
   return <ProfileForm
     profile={query.data}
-    pageTitle="Your profile"
+    pageTitle="My profile"
     pageDescription="Edit profile details. Your sign-in email and access roles are managed separately."
     onUploadPhoto={async file => {
       const signed = await upload.mutateAsync({ data: { contentType: file.type, size: file.size } });
@@ -52,18 +50,20 @@ export function OwnProfilePage() {
 
 export function ParticipantProfilePage() {
   useAppLanguage();
+  const [path] = useLocation();
   const client = useQueryClient();
   const query = useGetParticipantProfile({ query: { queryKey: getGetParticipantProfileQueryKey() } });
   const update = useUpdateParticipantProfile();
   const upload = useCreateParticipantProfilePhotoUploadUrl();
 
-  if (query.isLoading) return <ParticipantProfileLayout><ProfileLoading /></ParticipantProfileLayout>;
-  if (!query.data) return <ParticipantProfileLayout><ProfileLoadError retry={() => void query.refetch()} participant /></ParticipantProfileLayout>;
-  return <ParticipantProfileLayout name={query.data.displayName}><ProfileForm
+  if (query.isLoading) return <ParticipantProfileLayout><ProfileLoading participant routePath={path} /></ParticipantProfileLayout>;
+  if (!query.data) return <ParticipantProfileLayout><ProfileLoadError retry={() => void query.refetch()} participant routePath={path} /></ParticipantProfileLayout>;
+  return <ParticipantProfileLayout><ProfileForm
     profile={query.data}
-    pageTitle="Your profile"
+    pageTitle="My profile"
     pageDescription="Edit profile details. Your sign-in email and program application remain unchanged."
     participant
+    routePath={path}
     onUploadPhoto={async file => {
       const signed = await upload.mutateAsync({ data: { contentType: file.type, size: file.size } });
       await putPhoto(signed.uploadUrl, file);
@@ -157,6 +157,7 @@ function ProfileForm({
   pageDescription,
   participant = false,
   admin = false,
+  routePath,
   onUploadPhoto,
   onSave,
 }: {
@@ -165,6 +166,7 @@ function ProfileForm({
   pageDescription: string;
   participant?: boolean;
   admin?: boolean;
+  routePath?: string;
   onUploadPhoto: (file: File) => Promise<string>;
   onSave: (values: UserProfileUpdate) => Promise<void>;
 }) {
@@ -180,6 +182,12 @@ function ProfileForm({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!participant || !routePath) return;
+    const frame = window.requestAnimationFrame(() => document.getElementById(`${inputId}-title`)?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [inputId, participant, routePath]);
 
   useEffect(() => {
     if (!photoFile) {
@@ -245,7 +253,7 @@ function ProfileForm({
 
   return <section className={`profile-form-content ${participant ? 'is-participant' : ''}`} aria-labelledby={`${inputId}-title`}>
     <header className="profile-form-heading">
-      <div><div className="eyebrow">{t(admin ? 'ADMIN / PROFILE DETAILS' : participant ? 'PARTICIPANT / PROFILE' : 'YOUR ACCOUNT')}</div><h2 id={`${inputId}-title`}>{t(pageTitle)}</h2><p>{t(pageDescription)}</p></div>
+      <div><div className="eyebrow">{t(admin ? 'ADMIN / PROFILE DETAILS' : participant ? 'PARTICIPANT / PROFILE' : 'YOUR ACCOUNT')}</div>{participant ? <h1 id={`${inputId}-title`} tabIndex={-1} data-participant-route-heading={routePath}>{t(pageTitle)}</h1> : <h2 id={`${inputId}-title`}>{t(pageTitle)}</h2>}<p>{t(pageDescription)}</p></div>
       {admin && <span className="profile-type-badge">{accountTypeLabel(profile.accountType)}</span>}
     </header>
     <form className="profile-form" onSubmit={event => void submit(event)}>
@@ -287,30 +295,39 @@ function ProfileAvatar({ profile, size }: { profile: Pick<UserProfile, 'displayN
   </span>;
 }
 
-function ProfileLoading() {
-  return <div className="profile-page"><div className="loading-panel" aria-label={t('Loading profile')}><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /></div></div>;
+function ProfileLoading({ participant = false, routePath }: { participant?: boolean; routePath?: string }) {
+  useEffect(() => {
+    if (!participant || !routePath) return;
+    const frame = window.requestAnimationFrame(() => focusParticipantRouteHeading(routePath));
+    return () => window.cancelAnimationFrame(frame);
+  }, [participant, routePath]);
+  return <div className="profile-page">{participant && <header className="profile-heading"><div><div className="eyebrow">{t('PARTICIPANT / PROFILE')}</div><h1 tabIndex={-1} data-participant-route-heading={routePath}>{t('My profile')}</h1></div></header>}<div className="loading-panel" aria-label={t('Loading profile')}><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /></div></div>;
 }
 
-function ProfileLoadError({ retry, participant = false, admin = false }: { retry: () => void; participant?: boolean; admin?: boolean }) {
+function ProfileLoadError({ retry, participant = false, admin = false, routePath }: { retry: () => void; participant?: boolean; admin?: boolean; routePath?: string }) {
+  useEffect(() => {
+    if (!participant || !routePath) return;
+    const frame = window.requestAnimationFrame(() => focusParticipantRouteHeading(routePath));
+    return () => window.cancelAnimationFrame(frame);
+  }, [participant, routePath]);
   return <section className="profile-page page-enter">
-    <header className="profile-heading"><div><div className="eyebrow">{t(admin ? 'ADMIN / USER ACCESS' : participant ? 'PARTICIPANT / PROFILE' : 'YOUR ACCOUNT')}</div><h1>{t(admin ? 'Manage profiles' : 'Your profile')}</h1><p>{t('Profile could not be loaded.')}</p></div></header>
+    <header className="profile-heading"><div><div className="eyebrow">{t(admin ? 'ADMIN / USER ACCESS' : participant ? 'PARTICIPANT / PROFILE' : 'YOUR ACCOUNT')}</div><h1 {...(participant ? { tabIndex: -1, 'data-participant-route-heading': routePath } : {})}>{t(admin ? 'Manage profiles' : participant ? 'My profile' : 'Your profile')}</h1><p>{t('Profile could not be loaded.')}</p></div></header>
     <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={20} /></span><h3>{t('Profile details are unavailable right now.')}</h3><p>{t('Check your connection and try again. Your account access and application records are unchanged.')}</p><button type="button" className="button button-outline" onClick={retry}>{t('Retry')}</button></div>
     <Link href={participant ? '/participant' : '/'} className="profile-back-link">{t('Back to the program workspace')}</Link>
   </section>;
 }
 
-function ParticipantProfileLayout({ children, name = 'User' }: { children: ReactNode; name?: string }) {
-  const { signOut } = useClerk();
+function focusParticipantRouteHeading(routePath: string) {
+  [...document.querySelectorAll<HTMLElement>('[data-participant-route-heading]')]
+    .find(element => element.dataset.participantRouteHeading === routePath)
+    ?.focus();
+}
+
+function ParticipantProfileLayout({ children }: { children: ReactNode }) {
   return <div className="intake-page profile-intake">
-    <header className="intake-top profile-intake-top">
-      <Link href="/participant" className="profile-intake-brand"><b>{t('Program Hub')}</b><small>{t('PROGRAM HUB')}</small></Link>
-      <div className="intake-header-actions"><LanguageToggle /><Link className="text-link" href="/participant" data-testid="link-profile-back-participant">{t('Back to your progress')}</Link></div>
-    </header>
-    <main className="participant-wrap profile-participant-wrap">
-      <div className="participant-profile-account"><ParticipantAccountActions signOut={signOut} name={name} /></div>
+    <div className="participant-wrap profile-participant-wrap">
       {children}
-    </main>
-    <footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
+    </div>
   </div>;
 }
 

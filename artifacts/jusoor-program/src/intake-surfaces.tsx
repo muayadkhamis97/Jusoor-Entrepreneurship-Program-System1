@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +15,7 @@ import {
   useSubmitApplication, useSubmitTrainingAnswer, useAskTrainingQuestion,
 } from '@workspace/api-client-react';
 import type { ApplicationProgram, EntrepreneurApplication, EntrepreneurApplicationInput, ParticipantBusinessTeam, ParticipantEnrollment, ParticipantAssignment, ParticipantQuestion, TrainingAnswerInput, TrainingQuestionInput } from '@workspace/api-client-react';
-import { useClerk, useUser } from '@clerk/react';
+import { useUser } from '@clerk/react';
 import { Link, useLocation } from 'wouter';
 import { Button as EditorialButton } from '@workspace/program-editorial/components/ui/button';
 import { PaperSurface } from '@workspace/program-editorial/components/ui/paper-surface';
@@ -27,9 +27,11 @@ import { SessionRecordingPlayer } from './session-recording-player';
 import {
   ArrowRight, CalendarDays, Check, CircleAlert, Clock3, ExternalLink,
   FileText, Handshake, MapPin, ShieldCheck, Video, BookOpen, Download, ExternalLink as ExternalLinkIcon, Play, Users,
+  MessageSquareText,
 } from 'lucide-react';
 import './course-learning.css';
 import './participant-business-team.css';
+import './participant-routes.css';
 import { CourseDiscussion } from './course-discussion';
 import { ParticipantSessionInteractions } from './session-interactions';
 import { ParticipantModuleQuizzes } from './course-quizzes';
@@ -37,7 +39,6 @@ import { ParticipantLearningProgress } from './learning-progress';
 import { ParticipantIdeaValidation } from './idea-validation';
 import { ParticipantBusinessPlan } from './founder-business-plan';
 import { ParticipantPeerDirectory } from './peer-directory';
-import { ParticipantAccountActions } from './participant-account-actions';
 import { getGetProgramBrandingQueryKey, useGetProgramBranding, type GetProgramBrandingQueryResult } from '@workspace/api-client-react';
 import { getDisplayBrandName, shouldShowBrandCaption, LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
 import { getBrandingThemeTokens } from './branding-contrast';
@@ -103,11 +104,6 @@ type ProgramBranding = GetProgramBrandingQueryResult;
 
 function IntakeBrand({ brand }: { brand?: ProgramBranding }) {
   return <Link href="/" className="intake-brand" data-testid="link-program-home">{brand?.logoUrl ? <img className="intake-logo-image" src={brand.logoUrl} alt="" /> : <span className="brand-mark">{getDisplayBrandName(brand?.brandName).slice(0, 1)}</span>}<span><b>{getDisplayBrandName(brand?.brandName)}</b>{shouldShowBrandCaption(getDisplayBrandName(brand?.brandName)) && <small>{t('PROGRAM HUB')}</small>}</span></Link>;
-}
-
-function ParticipantIntakeBrand() {
-  const brandingQuery = useGetProgramBranding({ query: { queryKey: getGetProgramBrandingQueryKey() } });
-  return <IntakeBrand brand={brandingQuery.data} />;
 }
 
 function IntakeFrame({ children }: { children: React.ReactNode }) {
@@ -299,187 +295,171 @@ export function ApplicationsReviewPage() {
   </>;
 }
 
-const participantNavigationSections = [
-  { id: 'participant-next-action', label: 'Next action', acceptedOnly: false },
-  { id: 'participant-program-progress', label: 'Cohort', acceptedOnly: false },
-  { id: 'participant-updates', label: 'Updates & reminders', acceptedOnly: false },
-  { id: 'participant-sessions', label: 'What’s coming up', acceptedOnly: true },
-  { id: 'participant-mentoring', label: 'Mentoring', acceptedOnly: true },
-  { id: 'participant-learning', label: 'Learning', acceptedOnly: true },
-  { id: 'participant-founder-workbook', label: 'Founder workbook', acceptedOnly: true },
-  { id: 'participant-business-plan-workbook', label: 'Business plan workbook', acceptedOnly: true },
-  { id: 'participant-founder-support', label: 'Founder support', acceptedOnly: true },
-  { id: 'participant-assignments', label: 'Assignments', acceptedOnly: true },
-  { id: 'participant-business-team', label: 'Business team', acceptedOnly: true },
-] as const;
-
-function ParticipantSectionNavigation({ hasAcceptedEnrollment }: { hasAcceptedEnrollment: boolean }) {
-  const [activeId, setActiveId] = useState('participant-next-action');
-  const visibleSections = participantNavigationSections.filter(section => !section.acceptedOnly || hasAcceptedEnrollment);
-
-  useEffect(() => {
-    const sections = visibleSections
-      .map(({ id }) => document.getElementById(id))
-      .filter((element): element is HTMLElement => Boolean(element));
-    const updateActive = () => {
-      const marker = ((document.querySelector('.participant-section-nav') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 0) + 40;
-      const current = sections.filter(section => section.getBoundingClientRect().top <= marker).at(-1) ?? sections[0];
-      if (current) setActiveId(current.id);
-    };
-    let frame = 0;
-    const scheduleUpdate = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(updateActive);
-    };
-    const observer = typeof IntersectionObserver === 'undefined'
-      ? null
-      : new IntersectionObserver(scheduleUpdate, { rootMargin: '-90px 0px 0px 0px', threshold: 0 });
-    sections.forEach(section => observer?.observe(section));
-    window.addEventListener('scroll', scheduleUpdate, { passive: true });
-    window.addEventListener('resize', scheduleUpdate);
-    scheduleUpdate();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener('scroll', scheduleUpdate);
-      window.removeEventListener('resize', scheduleUpdate);
-    };
-  }, [hasAcceptedEnrollment]);
-
-  const handleClick = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-    const target = document.getElementById(id);
-    if (!target) return;
-    event.preventDefault();
-    const url = new URL(window.location.href);
-    url.hash = id;
-    window.history.pushState(null, '', url);
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-    setActiveId(id);
-    window.dispatchEvent(new Event('hashchange'));
-  };
-
-  return <nav className="participant-section-nav" aria-label={t('On this page')} data-testid="participant-section-nav">
-    <span className="participant-section-nav-label">{t('On this page')}</span>
-    <div className="participant-section-nav-links">
-      {visibleSections.map(section => <a
-        key={section.id}
-        href={`#${section.id}`}
-        aria-current={activeId === section.id ? 'location' : undefined}
-        data-testid={`link-${section.id}`}
-        onClick={event => handleClick(event, section.id)}
-      >{t(section.label)}</a>)}
-    </div>
-  </nav>;
-}
-
 export function ParticipantDashboardPage() {
   useAppLanguage();
-  const { signOut } = useClerk();
+  const [path] = useLocation();
   const query = useGetParticipantDashboard({ query: { queryKey: getGetParticipantDashboardQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 } });
   const profileQuery = useGetParticipantProfile({ query: { queryKey: getGetParticipantProfileQueryKey(), retry: false } });
   const { user } = useUser();
   const enrollments = query.data?.applications || [];
-  const hasAcceptedEnrollment = enrollments.some(enrollment => enrollment.applicationStatus === 'accepted');
   const acceptedEnrollments = enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted');
-  const nextActionCoursesQuery = useGetParticipantCourses({ query: { queryKey: getGetParticipantCoursesQueryKey(), enabled: hasAcceptedEnrollment } });
-  const nextActionProgressQuery = useGetParticipantLearningProgress({ query: { queryKey: getGetParticipantLearningProgressQueryKey(), enabled: hasAcceptedEnrollment } });
-  const nextActionIdeaQuery = useGetParticipantIdeaValidation({ query: { queryKey: getGetParticipantIdeaValidationQueryKey(), enabled: hasAcceptedEnrollment } });
-  const nextActionPlanQuery = useGetParticipantBusinessPlans({ query: { queryKey: getGetParticipantBusinessPlansQueryKey(), enabled: hasAcceptedEnrollment } });
+  const hasAcceptedEnrollment = acceptedEnrollments.length > 0;
+  const progressQuery = useGetParticipantLearningProgress({ query: { queryKey: getGetParticipantLearningProgressQueryKey(), enabled: hasAcceptedEnrollment } });
+  const ideaQuery = useGetParticipantIdeaValidation({ query: { queryKey: getGetParticipantIdeaValidationQueryKey(), enabled: hasAcceptedEnrollment } });
+  const planQuery = useGetParticipantBusinessPlans({ query: { queryKey: getGetParticipantBusinessPlansQueryKey(), enabled: hasAcceptedEnrollment } });
   const nextAction = getParticipantNextAction({
     enrollments,
     announcements: query.data?.announcements,
-    courses: nextActionCoursesQuery.data,
-    learningProgress: nextActionProgressQuery.data,
-    ideaWorkbooks: nextActionIdeaQuery.data?.workbooks,
-    businessPlans: nextActionPlanQuery.data?.plans,
+    ideaWorkbooks: ideaQuery.data?.workbooks,
+    businessPlans: planQuery.data?.plans,
   });
-  const nextActionSources = [nextActionCoursesQuery, nextActionProgressQuery, nextActionIdeaQuery, nextActionPlanQuery];
-  const nextActionError = hasAcceptedEnrollment && !nextAction && nextActionSources.some(source => source.isError);
-  const nextActionLoading = hasAcceptedEnrollment && !nextAction && nextActionSources.some(source => source.isLoading);
-  const retryNextActionSources = () => void Promise.all(nextActionSources.map(source => source.refetch()));
-  const learningNow = Date.now();
-  const hasAvailableCourseModule = (nextActionCoursesQuery.data?.programs || []).some(program => program.modules.some(module =>
-    !module.releaseAt || new Date(module.releaseAt).getTime() <= learningNow));
-  const hasProgressModules = (nextActionProgressQuery.data?.programs || []).some(program => program.modules.length > 0);
-  const hasAvailableLearningModules = hasAvailableCourseModule || hasProgressModules;
-  const learningQueriesPendingOrFailed = nextActionCoursesQuery.isLoading || nextActionCoursesQuery.isError ||
-    nextActionProgressQuery.isLoading || nextActionProgressQuery.isError;
+  const nextActionError = hasAcceptedEnrollment && !nextAction && (ideaQuery.isError || planQuery.isError);
+  const nextActionLoading = hasAcceptedEnrollment && !nextAction && (ideaQuery.isLoading || planQuery.isLoading);
   const name = profileQuery.data?.displayName || user?.firstName || user?.fullName || 'Founder';
-  useEffect(() => {
-    if (query.isLoading || query.isError) return;
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-    const frame = requestAnimationFrame(() => document.getElementById(decodeURIComponent(hash))?.scrollIntoView({ behavior: 'auto', block: 'start' }));
-    return () => cancelAnimationFrame(frame);
-  }, [query.isLoading, query.isError, query.data?.applications?.length]);
-  return <div className="intake-page"><header className="intake-top"><ParticipantIntakeBrand /><div className="intake-header-actions"><LanguageToggle /><Link href="/" className="text-link" data-testid="link-participant-sign-out-home">{t('Program hub')} <ArrowRight size={14} /></Link></div></header>
-    <main className="participant-wrap page-enter"><div className="participant-header"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('A clear view of your cohort, next steps, updates, and learning.')}</p></div><div className="participant-header-actions"><Link className="button button-outline" href="/participant/chat" data-testid="link-participant-chat">{t('Chat')}</Link><Link className="button button-outline" href="/participant/profile" data-testid="link-participant-profile">{t('Edit profile')}</Link><span className="participant-role-label">{t('PARTICIPANT')}</span><ParticipantAccountActions signOut={signOut} name={name} /></div></div>
-      {query.isLoading ? <div className="loading-panel"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
-        : query.isError ? <div className="empty-panel error-panel"><span className="empty-icon"><CircleAlert size={22} /></span><h3>{t('Your progress view isn’t available just yet.')}</h3><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><div className="auth-actions"><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button><Link className="button button-primary" href="/sign-in" data-testid="link-participant-sign-in">{t('Sign in again')}</Link></div></div>
-         : enrollments.length === 0 ? <><div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h1>{t('No program access linked yet.')}</h1><p>{t('This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div><ParticipantAnnouncements announcements={query.data?.announcements || []} /></>
-           : <>
-             <ParticipantSectionNavigation hasAcceptedEnrollment={hasAcceptedEnrollment} />
-             <section id="participant-next-action" className="participant-anchor-section" aria-labelledby="participant-next-action-title" data-testid="participant-page-next-action">
-               <div className="participant-next-action">
-                 <div>
-                   <span className="eyebrow">{t('YOUR NEXT ACTION')}</span>
-                   <h2 id="participant-next-action-title">{nextAction ? t(nextAction.titleKey) : nextActionError ? t('Your next action could not be checked.') : t('Checking your next step…')}</h2>
-                   {nextAction
-                     ? <p>{t(nextAction.descriptionKey)}{nextAction.detail && <> <strong>{nextAction.detail}</strong></>}{nextAction.stepKey && <> <span>{t(nextAction.stepKey)}</span></>}{nextAction.date && <span className="participant-next-action-time"> · {t(nextAction.dateLabelKey || 'Date')}: {dateText(nextAction.date)}{nextAction.time ? ` · ${nextAction.time}` : ''}</span>}</p>
-                     : nextActionError
-                       ? <p role="alert">{t('We could not check assignments, sessions, learning or workbooks. Retry to find your next action.')}</p>
-                       : <p role="status" aria-live="polite">{t('Checking assignments, sessions, learning and workbooks…')}</p>}
-                 </div>
-                 {nextAction?.href && nextAction.buttonLabelKey
-                 ? <a className="button button-primary participant-primary-action" href={nextAction.href}>{t(nextAction.buttonLabelKey)} <ArrowRight size={15} /></a>
-                   : nextActionError
-                     ? <button type="button" className="button button-outline" onClick={retryNextActionSources} data-testid="button-retry-next-action">{t('Retry')}</button>
-                     : null}
-               </div>
-             </section>
-             <section id="participant-program-progress" className="participant-anchor-section participant-dashboard-section" aria-label={t('Your cohort')}>
-               {enrollments.map((enrollment: ParticipantEnrollment) => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="cohort" />)}
-             </section>
-             <section id="participant-updates" className="participant-anchor-section participant-dashboard-section">
-               <ParticipantAnnouncements announcements={query.data?.announcements || []} />
-             </section>
-             {acceptedEnrollments.length > 0 && <>
-               <section id="participant-sessions" className="participant-anchor-section participant-dashboard-section">
-                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="sessions" />)}
-               </section>
-               <section id="participant-mentoring" className="participant-anchor-section participant-dashboard-section">
-                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="mentoring" />)}
-               </section>
-               <section id="participant-learning" className="participant-anchor-section participant-dashboard-section">
-                 <header className="participant-section-head participant-learning-hub-head">
-                   <div><span className="eyebrow">{t('ONLINE INCUBATION / YOUR PROGRESS')}</span><h2>{t('Learning')}</h2><p>{t('Your course progress, learning time and a guided sequence of released materials in one place.')}</p></div>
-                   <div className="lp-live-group"><span className="lp-live"><i aria-hidden="true" />{t('ACTIVE TIME TRACKING')}</span><small className="lp-live-explanation">{t('We count time while this page is visible and a course card is in view. Program Admins can see your total and cohort averages.')}</small></div>
-                 </header>
-                 <div className="offline-learning-note" role="note"><Download size={16} aria-hidden="true" /><div className="offline-learning-note-copy"><div className="offline-learning-note-title"><b>{t('Prepare materials for offline study')}</b></div><div className="offline-learning-note-body">{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</div></div></div>
-                 {hasAvailableLearningModules || learningQueriesPendingOrFailed
-                   ? <><ParticipantLearningProgress showHeading={false} showEmpty={false} /><ParticipantProgramLearning showHeading={false} showEmpty={false} showOfflineNote={false} /></>
-                   : <div className="participant-empty-line" data-testid="participant-learning-empty"><BookOpen size={17} aria-hidden="true" /><p>{t('No learning modules are available yet. Your cohort’s resources will appear here when released.')}</p></div>}
-               </section>
-               <section id="participant-founder-workbook" className="participant-anchor-section participant-dashboard-section">
-                 <ParticipantIdeaValidation enrollments={acceptedEnrollments} />
-               </section>
-               <section id="participant-business-plan-workbook" className="participant-anchor-section participant-dashboard-section">
-                 <ParticipantBusinessPlan enrollments={acceptedEnrollments} />
-               </section>
-               <section id="participant-founder-support" className="participant-anchor-section participant-dashboard-section">
-                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="support" />)}
-               </section>
-               <section id="participant-assignments" className="participant-anchor-section participant-dashboard-section">
-                 {acceptedEnrollments.map(enrollment => <ParticipantLearning key={enrollment.applicationId} enrollment={enrollment} />)}
-               </section>
-               <section id="participant-business-team" className="participant-anchor-section participant-dashboard-section">
-                 <ParticipantBusinessTeams />
-                 {acceptedEnrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="team" />)}
-               </section>
-             </>}
-           </>}
-    </main><footer className="intake-footer footer-brandless"><span>{t('YOUR PROGRESS IS PRIVATE TO YOU')}</span></footer>
+  const updates = (query.data?.announcements || []).filter(item => new Date(item.scheduledFor).getTime() <= Date.now()).sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor));
+  const activeLearning = progressQuery.data?.programs || [];
+  const nextSession = acceptedEnrollments.flatMap(item => item.sessions).filter(item => item.status === 'scheduled').sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || (a.startTime || '').localeCompare(b.startTime || ''))[0];
+  const workbookTotal = (ideaQuery.data?.workbooks || []).filter(item => acceptedEnrollments.some(enrollment => enrollment.applicationId === item.applicationId)).reduce((sum, workbook) => sum + ['customerSegment', 'problemStatement', 'riskiestAssumption', 'mvpExperiment', 'successSignal', 'evidenceAndNextStep'].filter(key => typeof workbook[key as keyof typeof workbook] === 'string' && String(workbook[key as keyof typeof workbook]).trim()).length, 0)
+    + (planQuery.data?.plans || []).filter(item => acceptedEnrollments.some(enrollment => enrollment.applicationId === item.applicationId)).reduce((sum, plan) => sum + ['acquisitionChannels', 'outreachActions', 'fulfillmentSteps', 'reviewSignals'].filter(key => typeof plan[key as keyof typeof plan] === 'string' && String(plan[key as keyof typeof plan]).trim()).length, 0);
+  const workbookSteps = acceptedEnrollments.length * 10;
+  const learningCompleted = activeLearning.reduce((sum, item) => sum + item.completedRequiredModules, 0);
+  const learningTotal = activeLearning.reduce((sum, item) => sum + item.totalRequiredModules, 0);
+  const loading = query.isLoading || profileQuery.isLoading;
+  return <div className="participant-wrap page-enter">
+     <header className="participant-home-heading"><div><div className="eyebrow">{t('YOUR PROGRAM JOURNEY / PRIVATE VIEW')}</div><h1 tabIndex={-1} data-participant-route-heading={path}>{t('Welcome,')} {name.split(' ')[0]}.</h1><p>{t('A clear view of your cohort, next steps, updates, and learning.')}</p></div></header>
+    {loading ? <div className="loading-panel" role="status" aria-busy="true"><div className="skeleton skeleton-wide" /><div className="skeleton-grid"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton skeleton-table" /></div>
+      : query.isError ? <div className="empty-panel error-panel" role="alert"><span className="empty-icon"><CircleAlert size={22} /></span><h2>{t('Your progress view isn’t available just yet.')}</h2><p>{t('Check that you’re signed in with the same verified email used on your application or invitation. Your records remain private.')}</p><button className="button button-outline" onClick={() => void query.refetch()} data-testid="button-retry-participant">{t('Retry connection')}</button></div>
+      : <>
+        <section id="participant-next-action" className="participant-home-next-action" aria-labelledby="participant-next-action-title" data-testid="participant-page-next-action">
+          <div><span className="eyebrow">{t('YOUR NEXT ACTION')}</span>
+            <h2 id="participant-next-action-title">{nextAction ? t(nextAction.titleKey) : nextActionError ? t('Your next action could not be checked.') : nextActionLoading ? t('Checking your next step…') : t('You’re all caught up')}</h2>
+            <p>{nextAction ? <>{t(nextAction.descriptionKey)}{nextAction.detail && <> <strong>{nextAction.detail}</strong></>}{nextAction.stepKey && <> · {t(nextAction.stepKey)}</>}{nextAction.date && <> · {t(nextAction.dateLabelKey || 'Date')}: {dateText(nextAction.date)}{nextAction.time ? ` · ${nextAction.time}` : ''}</>}</> : nextActionError ? t('We could not check your workbooks. Retry to find your next action.') : t('There are no due assignments, upcoming sessions, unread updates needing a reply, or unfinished workbook steps right now.')}</p>
+          </div>
+          {nextAction?.href && nextAction.buttonLabelKey && <Link className="button button-primary participant-primary-action" href={nextAction.href}>{t(nextAction.buttonLabelKey)} <ArrowRight size={15} /></Link>}
+          {nextActionError && <button type="button" className="button button-outline" onClick={() => { void Promise.all([ideaQuery.refetch(), planQuery.refetch()]); }} data-testid="button-retry-next-action">{t('Retry')}</button>}
+        </section>
+        <section className="participant-summary-grid" aria-label={t('Program summary')}>
+          <article className="participant-summary-tile"><span>{t('Next session')}</span><strong>{nextSession?.title || t('No session scheduled')}</strong><small>{nextSession ? `${dateText(nextSession.scheduledDate)}${nextSession.startTime ? ` · ${nextSession.startTime}` : ''} · ${(nextSession as typeof nextSession & { timeZone: string }).timeZone}` : t('Your cohort schedule will appear here.')}</small></article>
+          <article className="participant-summary-tile"><span>{t('Unread updates')}</span><strong>{updates.filter(item => !item.readAt).length}</strong><small>{t('Updates from your program team')}</small></article>
+          <article className="participant-summary-tile"><span>{t('Workbook progress')}</span><strong>{ideaQuery.isLoading || planQuery.isLoading ? '—' : `${workbookTotal} / ${workbookSteps}`}</strong><small>{t('Founder and business-plan steps started')}</small></article>
+          <article className="participant-summary-tile"><span>{t('Learning progress')}</span><strong>{progressQuery.isLoading ? '—' : learningTotal ? `${Math.round(learningCompleted / learningTotal * 100)}%` : t('Not available yet')}</strong><small>{learningTotal ? `${learningCompleted} ${t('of')} ${learningTotal} ${t('required modules')}` : t('No learning modules available yet')}</small></article>
+        </section>
+        <section id="participant-program-progress" className="participant-home-cohorts">
+          {enrollments.length ? enrollments.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="cohort" />)
+            : <div className="intake-success"><span className="intake-success-mark"><ShieldCheck size={24} /></span><div className="eyebrow">{t('PRIVATE FOUNDER VIEW')}</div><h2>{t('No program access linked yet.')}</h2><p>{t('This account does not have a program application or invitation associated with it. Sign in using the same verified email you used when applying or the email Admin invited, or start an application to a current cohort.')}</p><Link href="/apply" className="button button-primary" data-testid="link-start-application">{t('Explore open programs')} <ArrowRight size={15} /></Link></div>}
+        </section>
+        <section className="participant-home-updates">
+          <div className="participant-section-head"><div><h2>{t('Latest updates')}</h2><p>{t('The latest notes from your program team.')}</p></div><Link href="/participant/updates" className="participant-text-link">{t('See all updates')} <ArrowRight size={14} /></Link></div>
+          {query.data?.announcements?.length ? <div className="participant-home-update-list">{updates.slice(0, 2).map(item => <article key={item.id} className="participant-home-update" data-testid={`participant-home-update-${item.id}`}><span className={`badge ${item.readAt ? 'badge-neutral' : 'badge-warm'}`}>{item.readAt ? t('Read') : t('Unread')}</span><div><h3>{item.title}</h3><p>{item.body}</p><small>{item.programName || t('Program update')} · {dateText(item.scheduledFor)}</small></div></article>)}</div> : <div className="participant-empty-line"><MessageSquareText size={17} /><p>{t('No announcements just yet.')}</p></div>}
+        </section>
+      </>}
+   </div>;
+}
+
+function ParticipantRouteHeading({ title, summary, kicker = 'YOUR PROGRAM JOURNEY / PRIVATE VIEW' }: { title: string; summary: string; kicker?: string }) {
+  const [path] = useLocation();
+  return <header className="participant-page-heading"><div className="eyebrow">{t(kicker)}</div><h1 tabIndex={-1} data-participant-route-heading={path.split('#')[0]}>{t(title)}</h1><p>{t(summary)}</p></header>;
+}
+
+function useParticipantEnrollments() {
+  return useGetParticipantDashboard({ query: { queryKey: getGetParticipantDashboardQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 } });
+}
+
+function ParticipantPageError({ retry }: { retry: () => void }) {
+  return <div className="empty-panel error-panel" role="alert"><span className="empty-icon"><CircleAlert size={20} /></span><h2>{t('Your program view could not load.')}</h2><p>{t('Your records are safe. Try connecting again.')}</p><button className="button button-outline" onClick={retry}>{t('Retry connection')}</button></div>;
+}
+
+export function ParticipantUpdatesPage() {
+  const query = useParticipantEnrollments();
+  const announcements = query.data?.announcements || [];
+  return <div className="participant-wrap participant-route-page page-enter">
+    <ParticipantRouteHeading title="Updates" summary="Important notes from your cohort, gathered here." />
+    {query.isLoading ? <div className="loading-panel" role="status" aria-busy="true"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
+      : query.isError ? <ParticipantPageError retry={() => void query.refetch()} />
+        : <><section id="participant-updates" className="participant-route-section"><ParticipantAnnouncements announcements={announcements} /></section>
+          <div className="participant-support-note" role="note"><Handshake size={15} aria-hidden="true" /><span><b>{t('Need program support?')}</b> {t('Contact the program team if you need help outside a session.')}</span></div>
+        </>}
+  </div>;
+}
+
+export function ParticipantSchedulePage() {
+  const query = useParticipantEnrollments();
+  const accepted = (query.data?.applications || []).filter(enrollment => enrollment.applicationStatus === 'accepted');
+  return <div className="participant-wrap participant-route-page page-enter">
+    <ParticipantRouteHeading title="Schedule" summary="Sessions planned for your cohort, with mentoring appointments alongside them." />
+    {query.isLoading ? <div className="loading-panel" role="status" aria-busy="true"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
+      : query.isError ? <ParticipantPageError retry={() => void query.refetch()} />
+        : !accepted.length ? <div id="participant-sessions" className="empty-panel"><span className="empty-icon"><CalendarDays size={20} /></span><h2>{t('Your schedule is being prepared.')}</h2><p>{t('Sessions and mentoring will appear here when you are accepted into a program.')}</p></div>
+          : <div className="participant-route-stack">
+            <section id="participant-sessions" className="participant-route-section"><div className="participant-route-section-title"><h2>{t('Sessions')}</h2><p>{t('Sessions planned for your cohort.')}</p></div>{accepted.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="sessions" />)}</section>
+            <section id="participant-mentoring" className="participant-route-section"><div className="participant-route-section-title"><h2>{t('Mentoring')}</h2><p>{t('Bookings with your assigned mentor.')}</p></div>{accepted.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="mentoring" />)}</section>
+          </div>}
+  </div>;
+}
+
+export function ParticipantLearningPage() {
+  const query = useParticipantEnrollments();
+  const accepted = (query.data?.applications || []).filter(enrollment => enrollment.applicationStatus === 'accepted');
+  return <div className="participant-wrap participant-route-page page-enter">
+    <ParticipantRouteHeading title="Learning" summary="Program learning, assignments, and a direct channel to ask your trainer." />
+    {query.isLoading ? <div className="loading-panel" role="status" aria-busy="true"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /><div className="skeleton skeleton-table" /></div>
+      : query.isError ? <ParticipantPageError retry={() => void query.refetch()} />
+        : !accepted.length ? <div id="participant-learning" className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h2>{t('Your learning path is being prepared.')}</h2><p>{t('Course progress appears here when you are accepted into a program.')}</p></div>
+          : <div className="participant-route-stack">
+            <section id="participant-learning" className="participant-route-section">
+              <div className="participant-section-head"><div><h2>{t('Program learning')}</h2><p>{t('Your course progress, learning time and a guided sequence of released materials in one place.')}</p></div></div>
+              <div className="offline-learning-note" role="note"><Download size={16} aria-hidden="true" /><div className="offline-learning-note-copy"><div className="offline-learning-note-title"><b>{t('Prepare materials for offline study')}</b></div><div className="offline-learning-note-body">{t('Uploaded files can be saved on a device. External links and interactive SCORM or xAPI packages require internet access; interactive lessons do not run offline.')}</div></div></div>
+              <ParticipantLearningProgress />
+              <ParticipantProgramLearning />
+            </section>
+            <section id="participant-assignments" className="participant-route-section"><div className="participant-route-section-title"><h2>{t('Assignments and trainer questions')}</h2><p>{t('Your assignment work and a direct channel to your trainer.')}</p></div>{accepted.map(enrollment => <ParticipantLearning key={enrollment.applicationId} enrollment={enrollment} />)}</section>
+          </div>}
+  </div>;
+}
+
+export function ParticipantWorkbooksPage() {
+  const query = useParticipantEnrollments();
+  const [path, setPath] = useLocation();
+  const accepted = (query.data?.applications || []).filter(enrollment => enrollment.applicationStatus === 'accepted');
+  const isPlan = path.endsWith('/plan');
+  const tabs = [
+    { href: '/participant/workbooks/idea', label: 'Founder workbook' },
+    { href: '/participant/workbooks/plan', label: 'Business plan' },
+  ];
+  const moveTab = (event: React.KeyboardEvent<HTMLAnchorElement>, index: number) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    setPath(tabs[next].href);
+    requestAnimationFrame(() => document.getElementById(`participant-workbook-tab-${next}`)?.focus());
+  };
+  return <div className="participant-wrap participant-route-page page-enter">
+    <ParticipantRouteHeading title="Workbooks" summary="Private, practical workbooks to help you test your idea and plan your next business steps." />
+    <div className="participant-workbook-tabs" role="tablist" aria-label={t('Founder workbooks')}>
+      {tabs.map((tab, index) => <Link key={tab.href} id={`participant-workbook-tab-${index}`} href={tab.href} role="tab" aria-selected={isPlan === (index === 1)} aria-controls="participant-workbook-panel" tabIndex={isPlan === (index === 1) ? 0 : -1} onKeyDown={event => moveTab(event, index)}>{t(tab.label)}</Link>)}
+    </div>
+    {query.isLoading ? <div className="loading-panel" role="status" aria-busy="true"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /></div>
+      : query.isError ? <ParticipantPageError retry={() => void query.refetch()} />
+        : <section id="participant-workbook-panel" role="tabpanel" aria-labelledby={`participant-workbook-tab-${isPlan ? 1 : 0}`} className="participant-route-section">
+          {!accepted.length ? <div className="empty-panel"><span className="empty-icon"><BookOpen size={20} /></span><h2>{t('Your workbook is being prepared.')}</h2><p>{t('A private workbook will appear here for each accepted program.')}</p></div>
+            : isPlan ? <div id="participant-business-plan-workbook"><ParticipantBusinessPlan enrollments={accepted} /></div> : <div id="participant-founder-workbook"><ParticipantIdeaValidation enrollments={accepted} /></div>}
+        </section>}
+  </div>;
+}
+
+export function ParticipantTeamPage() {
+  const query = useParticipantEnrollments();
+  const accepted = (query.data?.applications || []).filter(enrollment => enrollment.applicationStatus === 'accepted');
+  return <div className="participant-wrap participant-route-page page-enter">
+    <ParticipantRouteHeading title="My team" summary="Your business team, founder support, and a peer directory for your cohort." />
+    {query.isLoading ? <div className="loading-panel" role="status" aria-busy="true"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-table" /></div>
+      : query.isError ? <ParticipantPageError retry={() => void query.refetch()} />
+        : !accepted.length ? <div id="participant-business-team" className="empty-panel"><span className="empty-icon"><Users size={20} /></span><h2>{t('Your team is being prepared.')}</h2><p>{t('Your business team and founder community will appear here when you are accepted into a program.')}</p></div>
+          : <div className="participant-route-stack">
+            <section id="participant-business-team" className="participant-route-section"><div className="participant-route-section-title"><h2>{t('Business team')}</h2><p>{t('Your business and the people building it with you.')}</p></div><ParticipantBusinessTeams /></section>
+            <section id="participant-founder-support" className="participant-route-section"><div className="participant-route-section-title"><h2>{t('Founder support')}</h2><p>{t('Support arranged for your business.')}</p></div>{accepted.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="support" />)}</section>
+            <section className="participant-route-section"><div className="participant-route-section-title"><h2>{t('Founder peer directory')}</h2><p>{t('Meet founders who opted in to connect with your cohort.')}</p></div>{accepted.map(enrollment => <EnrollmentCard key={enrollment.applicationId} enrollment={enrollment} section="team" />)}</section>
+          </div>}
   </div>;
 }
 

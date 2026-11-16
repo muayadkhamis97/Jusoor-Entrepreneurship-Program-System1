@@ -55,9 +55,10 @@ test('participant account actions are visible, keyboard-accessible, responsive a
     await page.goto(`${origin}/src/test-fixtures/participant-account-actions.html`, { waitUntil: 'domcontentloaded' });
 
     const accountControls = page.getByTestId('participant-account-actions');
-    const signOutButton = page.getByRole('button', { name: 'Sign out', exact: true });
-    const switchAccountButton = page.getByRole('button', { name: 'Switch account', exact: true });
+    const signOutButton = page.getByRole('menuitem', { name: 'Sign out', exact: true });
+    const switchAccountButton = page.getByRole('menuitem', { name: 'Switch account', exact: true });
     await accountControls.waitFor();
+    await page.getByTestId('button-participant-account-menu').click();
     assert.equal(await signOutButton.isVisible(), true);
     assert.equal(await switchAccountButton.isVisible(), true);
 
@@ -77,6 +78,7 @@ test('participant account actions are visible, keyboard-accessible, responsive a
     assert.equal(await accountControls.count(), 0, 'The participant account action should not remain visible after the synthetic signed-out state.');
 
     await page.getByRole('button', { name: 'Restore synthetic session' }).click();
+    await page.getByTestId('button-participant-account-menu').click();
     await switchAccountButton.focus();
     await page.keyboard.press('Enter');
     await redirectTarget.waitFor();
@@ -84,9 +86,11 @@ test('participant account actions are visible, keyboard-accessible, responsive a
 
     await page.getByRole('button', { name: 'Restore synthetic session' }).click();
     await page.getByRole('button', { name: 'Fail the next sign-out' }).click();
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByTestId('button-participant-account-menu').click();
+    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
     await page.getByRole('alert').getByText('Sign out failed. Please try again.').waitFor();
-    assert.equal(await page.getByRole('button', { name: 'Sign out', exact: true }).isEnabled(), true, 'A failed sign-out must allow retry.');
+    await page.getByTestId('button-participant-account-menu').click();
+    assert.equal(await page.getByRole('menuitem', { name: 'Sign out', exact: true }).isEnabled(), true, 'A failed sign-out must allow retry.');
   } finally {
     if (browser) await browser.close();
     if (vite) await vite.close();

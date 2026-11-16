@@ -22,7 +22,7 @@
 .profile-editor-empty p{margin:0}
 .profile-form-content{min-width:0}
 .profile-form-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px}
-.profile-form-heading h2{margin:6px 0;font-size:21px;line-height:1.2}
+.profile-form-heading h1,.profile-form-heading h2{margin:6px 0;font-size:var(--ph-title);line-height:1.25}
 .profile-form-heading p{max-width:680px;margin:0;color:hsl(var(--muted-foreground));font-size:var(--type-body-min);line-height:1.55}
 .profile-photo-row{display:flex;align-items:center;gap:15px;padding:16px;margin-bottom:20px;border:1px solid hsl(var(--border) / .75);border-radius:var(--radius);background:hsl(var(--background) / .5)}
 .profile-avatar-image{display:grid;flex:none;place-items:center;overflow:hidden;border-radius:50%;background:hsl(var(--primary) / .11);color:hsl(var(--primary));font-weight:700}

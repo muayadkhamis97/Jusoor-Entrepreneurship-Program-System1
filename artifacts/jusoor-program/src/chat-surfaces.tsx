@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import {
   getListChatMessagesQueryKey, getListChatTargetsQueryKey, getListChatThreadsQueryKey, listChatMessages,
   useCreateChatThread, useListChatMessages, useListChatTargets, useListChatThreads, useMarkChatRead, useSendChatMessage,
@@ -15,7 +15,7 @@ import {
   highestMessageId, mergeMessages, olderCursor, shouldMarkRead, updateDraft,
   type ChatActor, type ChatDraftMap, type ChatKind, type ChatSendStateMap,
 } from './chat-helpers';
-import { LanguageToggle, currentLanguage, t, useAppLanguage } from './language';
+import { currentLanguage, t, useAppLanguage } from './language';
 import './chat.css';
 
 const timeLabel = (value: string) => new Date(value).toLocaleString(currentLanguage() === 'ar' ? 'ar-JO' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -188,6 +188,7 @@ function Conversation({ actor, thread, draft, onDraftChange, sendStatus, onSend,
 
 export function ChatWorkspace({ actor }: { actor: ChatActor }) {
   useAppLanguage();
+  const [path] = useLocation();
   const client = useQueryClient();
   const threadsQuery = useListChatThreads(actor, { query: { queryKey: getListChatThreadsQueryKey(actor), refetchInterval: CHAT_POLL_INTERVAL_MS, refetchIntervalInBackground: false } });
   const send = useSendChatMessage();
@@ -222,8 +223,9 @@ export function ChatWorkspace({ actor }: { actor: ChatActor }) {
   }, [actor, client]);
 
   const showList = !active && !creating;
-  return <main className="chat-page">
-    <div className="page-heading"><div><Typography as="p" variant="label" tone="accent">{t(actor === 'staff' ? 'PROGRAM TEAM / PRIVATE CHAT' : 'YOUR PROGRAM TEAM / PRIVATE CHAT')}</Typography><Typography as="h1" variant="heading" className="app-title">{t('Chat')}</Typography><Typography variant="body">{t(actor === 'staff' ? 'Practical support conversations with participants and business teams in your programs.' : 'Ask your program team for practical support, or talk with your business team.')}</Typography></div></div>
+  const ChatMain = actor === 'participant' ? 'div' : 'main';
+  return <ChatMain className="chat-page">
+    <div className="page-heading"><div><Typography as="p" variant="label" tone="accent">{t(actor === 'staff' ? 'PROGRAM TEAM / PRIVATE CHAT' : 'YOUR PROGRAM TEAM / PRIVATE CHAT')}</Typography><Typography as="h1" variant="heading" className="app-title" {...(actor === 'participant' ? { tabIndex: -1, 'data-participant-route-heading': path.split('#')[0] } : {})}>{t('Chat')}</Typography><Typography variant="body">{t(actor === 'staff' ? 'Practical support conversations with participants and business teams in your programs.' : 'Ask your program team for practical support, or talk with your business team.')}</Typography></div></div>
     <PaperSurface variant="panel" className={`chat-workspace ${showList ? 'show-list' : 'show-detail'}`}>
       <aside className="chat-sidebar" aria-label={t('Conversations')}>
         <div className="chat-sidebar-head"><Typography as="h2" variant="label">{t('Conversations')}</Typography><Button variant="pill" type="button" onClick={() => { setCreating(true); setActiveId(null); }} data-testid="button-new-chat"><Plus size={14} aria-hidden="true" /> {t('New chat')}</Button></div>
@@ -245,12 +247,12 @@ export function ChatWorkspace({ actor }: { actor: ChatActor }) {
           : <div className="empty-panel chat-state chat-placeholder"><span className="empty-icon"><MessagesSquare size={20} /></span><h3>{t('Choose a conversation')}</h3><p>{t('Each conversation shows exactly who can read it.')}</p></div>}
       </div>
     </PaperSurface>
-  </main>;
+  </ChatMain>;
 }
 
 export function ParticipantChatPage() {
   useAppLanguage();
-  return <div className="intake-page"><header className="intake-top"><Link href="/participant" className="text-link" data-testid="link-participant-dashboard"><ArrowLeft size={14} className="chat-flip" aria-hidden="true" /> {t('Back to dashboard')}</Link><div className="intake-header-actions"><LanguageToggle /></div></header>
+  return <div className="intake-page participant-chat-page">
     <div className="participant-wrap page-enter"><ChatWorkspace actor="participant" /></div>
   </div>;
 }

@@ -414,6 +414,7 @@ test('signed-in visitors reach their role workspace only after session confirmat
       return route.continue();
     });
     await signOutPage.goto(`${origin}${basePath}/participant?testSession=participant`, { waitUntil: 'domcontentloaded' });
+    await signOutPage.getByTestId('button-participant-account-menu').click();
     await signOutPage.getByTestId('button-participant-sign-out').waitFor();
     await signOutPage.getByTestId('button-participant-sign-out').click();
     await signOutPage.waitForFunction(path => window.location.pathname === path, `${basePath}/`);

@@ -124,7 +124,7 @@ export function getParticipantNextAction({
   const accepted = enrollments.filter(enrollment => enrollment.applicationStatus === 'accepted');
   if (!accepted.length) {
     return enrollments.length > 0 ? {
-      href: '#participant-program-progress',
+      href: '/participant#participant-program-progress',
       titleKey: 'Check your application progress',
       buttonLabelKey: 'View application status',
       descriptionKey: 'Your application status is shown in your cohort section.',
@@ -137,7 +137,7 @@ export function getParticipantNextAction({
     .sort((left, right) => (left.dueDate || '').localeCompare(right.dueDate || ''))[0];
   if (assignment) {
     return {
-      href: `#participant-assignment-${assignment.id}`,
+      href: `/participant/learning#participant-assignment-${assignment.id}`,
       titleKey: 'Complete your next assignment',
       buttonLabelKey: 'Open assignment',
       descriptionKey: 'Your earliest outstanding assignment:',
@@ -152,13 +152,13 @@ export function getParticipantNextAction({
     .filter(session => session.status === 'scheduled' && session.startTime)
     .map(session => ({
       session,
-      startsAt: sessionDateTime(session.scheduledDate, session.startTime || '', session.timeZone),
+      startsAt: sessionDateTime(session.scheduledDate, session.startTime || '', (session as ParticipantEnrollment['sessions'][number] & { timeZone: string }).timeZone),
     }))
     .filter(({ startsAt }) => startsAt.getTime() >= now.getTime() && startsAt.getTime() <= now.getTime() + 24 * 60 * 60 * 1000)
     .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime())[0];
   if (nextSession) {
     return {
-      href: `#participant-session-${nextSession.session.id}`,
+      href: `/participant/schedule#participant-session-${nextSession.session.id}`,
       titleKey: 'Prepare for your upcoming session',
       buttonLabelKey: 'View session',
       descriptionKey: 'Your next cohort session starts within 24 hours:',
@@ -169,12 +169,12 @@ export function getParticipantNextAction({
     };
   }
 
-  const updateNeedingReply = [...(announcements || [])]
+  const updateNeedingReply = [...((announcements || []) as (ParticipantAnnouncement & { needsReply: boolean })[])]
     .filter(announcement => announcement.needsReply && !announcement.readAt)
     .sort((left, right) => right.scheduledFor.localeCompare(left.scheduledFor))[0];
   if (updateNeedingReply) {
     return {
-      href: `#participant-announcement-${updateNeedingReply.id}`,
+      href: `/participant/updates#participant-announcement-${updateNeedingReply.id}`,
       titleKey: 'Reply to a program update',
       buttonLabelKey: 'Open update',
       descriptionKey: 'Your reply is needed for this unread update:',
@@ -182,39 +182,39 @@ export function getParticipantNextAction({
     };
   }
 
-  if (!courses || !learningProgress || !ideaWorkbooks || !businessPlans) return null;
-
-  const completedModules = new Set(learningProgress.programs.flatMap(program => program.modules)
-    .filter(module => module.completionStatus === 'completed')
-    .map(module => module.moduleId));
-  const availableModules = courses.programs.flatMap((program, programIndex) => program.modules.map(module => ({
-    ...module,
-    programIndex,
-  })))
-    .filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now.getTime())
-    .filter(module => !completedModules.has(module.id))
-    .sort((left, right) => left.programIndex - right.programIndex || left.position - right.position);
-  const nextModule = availableModules[0];
-  if (nextModule) {
-    return {
-      href: `#participant-course-module-${nextModule.id}`,
-      titleKey: 'Continue your next learning module',
-      buttonLabelKey: 'Open learning module',
-      descriptionKey: 'Your next available module is:',
-      detail: nextModule.title,
-      date: nextModule.dueAt || undefined,
-      dateLabelKey: 'Due',
-    };
+  if (courses && learningProgress) {
+    const completedModules = new Set(learningProgress.programs.flatMap(program => program.modules)
+      .filter(module => module.completionStatus === 'completed')
+      .map(module => module.moduleId));
+    const availableModules = courses.programs.flatMap((program, programIndex) => program.modules.map(module => ({
+      ...module,
+      programIndex,
+    })))
+      .filter(module => !module.releaseAt || new Date(module.releaseAt).getTime() <= now.getTime())
+      .filter(module => !completedModules.has(module.id))
+      .sort((left, right) => left.programIndex - right.programIndex || left.position - right.position);
+    const nextModule = availableModules[0];
+    if (nextModule) {
+      return {
+        href: `/participant/learning#participant-course-module-${nextModule.id}`,
+        titleKey: 'Continue your next learning module',
+        buttonLabelKey: 'Open learning module',
+        descriptionKey: 'Your next available module is:',
+        detail: nextModule.title,
+        date: nextModule.dueAt || undefined,
+        dateLabelKey: 'Due',
+      };
+    }
   }
 
-  const unfinishedIdea = ideaWorkbooks.map(workbook => ({
+  const unfinishedIdea = (ideaWorkbooks || []).map(workbook => ({
     workbook,
     firstUnstarted: ideaStepKeys.findIndex(key => !workbook[key].trim()),
   })).find(item => item.firstUnstarted >= 0);
   if (unfinishedIdea) {
     const stepNumber = unfinishedIdea.firstUnstarted + 1;
     return {
-      href: `#participant-founder-workbook-${unfinishedIdea.workbook.applicationId}`,
+      href: `/participant/workbooks/idea#participant-founder-workbook-${unfinishedIdea.workbook.applicationId}`,
       titleKey: stepNumber === 1 ? 'Start step 1 of your workbook' : 'Continue your founder workbook',
       buttonLabelKey: stepNumber === 1 ? 'Start workbook step' : 'Continue workbook',
       descriptionKey: 'Continue with your founder workbook:',
@@ -222,14 +222,14 @@ export function getParticipantNextAction({
     };
   }
 
-  const unfinishedPlan = businessPlans.map(plan => ({
+  const unfinishedPlan = (businessPlans || []).map(plan => ({
     plan,
     firstUnstarted: planStepKeys.findIndex(key => !plan[key].trim()),
   })).find(item => item.firstUnstarted >= 0);
   if (unfinishedPlan) {
     const stepNumber = unfinishedPlan.firstUnstarted + 1;
     return {
-      href: `#participant-business-plan-workbook-${unfinishedPlan.plan.applicationId}`,
+      href: `/participant/workbooks/plan#participant-business-plan-workbook-${unfinishedPlan.plan.applicationId}`,
       titleKey: stepNumber === 1 ? 'Start step 1 of your business plan' : 'Continue your business plan',
       buttonLabelKey: stepNumber === 1 ? 'Start business plan step' : 'Continue workbook',
       descriptionKey: 'Continue with your business plan:',
@@ -237,6 +237,7 @@ export function getParticipantNextAction({
     };
   }
 
+  if (!ideaWorkbooks || !businessPlans) return null;
   return {
     href: null,
     titleKey: 'You’re all caught up',

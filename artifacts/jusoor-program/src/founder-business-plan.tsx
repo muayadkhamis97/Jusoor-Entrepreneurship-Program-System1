@@ -66,11 +66,7 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
   const [savedAt, setSavedAt] = useState<string | null>(plan.updatedAt);
   const workbookAnchor = `participant-business-plan-workbook-${plan.applicationId}`;
   const formId = `business-plan-form-${plan.applicationId}`;
-  const [isOpen, setIsOpen] = useState(() => {
-    const hasStarted = Object.values(valuesFromPlan(plan)).some(value => value.trim().length > 0);
-    const hash = typeof window === 'undefined' ? '' : decodeURIComponent(window.location.hash.slice(1));
-    return hasStarted || hash === 'participant-business-plan-workbook' || hash === workbookAnchor;
-  });
+  const isOpen = true;
   const form = useForm<PlanValues>({ defaultValues: valuesFromPlan(plan) });
   const isDirty = form.formState.isDirty;
   const filledCount = fields.filter(({ key }) => Boolean(form.watch(key)?.trim())).length;
@@ -82,15 +78,6 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
   useEffect(() => () => setParticipantWorkbookDirty(`business-plan:${plan.applicationId}`, false), [plan.applicationId]);
 
   useEffect(() => setSavedAt(plan.updatedAt), [plan.updatedAt]);
-
-  useEffect(() => {
-    const openFromHash = () => {
-      const hash = decodeURIComponent(window.location.hash.slice(1));
-      if (hash === 'participant-business-plan-workbook' || hash === workbookAnchor) setIsOpen(true);
-    };
-    window.addEventListener('hashchange', openFromHash);
-    return () => window.removeEventListener('hashchange', openFromHash);
-  }, [workbookAnchor]);
 
   const onSubmit = (data: PlanValues) => {
     save.mutate({ applicationId: plan.applicationId, data }, {
@@ -116,14 +103,6 @@ function BusinessPlanCard({ plan }: { plan: ParticipantBusinessPlan }) {
       </div>
       <div className="founder-plan-head-actions">
         <div className="idea-private-tag"><LockKeyhole size={13} />{t('Private to you')}</div>
-        <button
-          type="button"
-          className="button button-outline idea-workbook-toggle"
-          aria-expanded={isOpen}
-          aria-controls={formId}
-          onClick={() => setIsOpen(open => !open)}
-          data-testid={`button-toggle-business-plan-${plan.applicationId}`}
-        >{isOpen ? t('Close workbook') : filledCount > 0 ? t('Continue') : t('Open')}</button>
       </div>
     </header>
     <div className="idea-workbook-summary">

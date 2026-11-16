@@ -64,7 +64,13 @@ import { downloadProgramLifecycleCsv } from './program-lifecycle-export';
 
 const ApplicationsReviewPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplicationsReviewPage })));
 const ApplyPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ApplyPage })));
-const ParticipantDashboardPage = lazy(() => import('./intake-surfaces').then(module => ({ default: module.ParticipantDashboardPage })));
+const ParticipantLayout = lazy(() => import('./participant-layout').then(module => ({ default: module.ParticipantLayout })));
+const ParticipantDashboardPage = lazy(() => import('./participant-home-page').then(module => ({ default: module.ParticipantDashboardPage })));
+const ParticipantUpdatesPage = lazy(() => import('./participant-updates-page').then(module => ({ default: module.ParticipantUpdatesPage })));
+const ParticipantSchedulePage = lazy(() => import('./participant-schedule-page').then(module => ({ default: module.ParticipantSchedulePage })));
+const ParticipantLearningPage = lazy(() => import('./participant-learning-page').then(module => ({ default: module.ParticipantLearningPage })));
+const ParticipantWorkbooksPage = lazy(() => import('./participant-workbooks-page').then(module => ({ default: module.ParticipantWorkbooksPage })));
+const ParticipantTeamPage = lazy(() => import('./participant-team-page').then(module => ({ default: module.ParticipantTeamPage })));
 const CourseManagementPage = lazy(() => import('./course-surfaces').then(module => ({ default: module.CourseManagementPage })));
 const JudgeDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.JudgeDashboardPage })));
 const MentorDashboardPage = lazy(() => import('./role-surfaces').then(module => ({ default: module.MentorDashboardPage })));
@@ -1738,9 +1744,15 @@ function AuthenticatedWorkspace() {
     const status = (staffQuery.error as { status?: number } | null)?.status;
     if (location.startsWith('/participant') && status === 403) {
       const participantPath = location.replace(/\/+$/, '');
-      if (participantPath === '/participant/profile') return <ParticipantProfilePage />;
-      if (participantPath === '/participant/chat') return <ParticipantChatPage />;
-      return <ParticipantDashboardPage />;
+      const participantPage = participantPath === '/participant/profile' ? <ParticipantProfilePage />
+        : participantPath === '/participant/chat' ? <ParticipantChatPage />
+          : participantPath === '/participant/updates' ? <ParticipantUpdatesPage />
+            : participantPath === '/participant/schedule' ? <ParticipantSchedulePage />
+              : participantPath === '/participant/learning' ? <ParticipantLearningPage />
+                : participantPath === '/participant/workbooks' || participantPath === '/participant/workbooks/idea' || participantPath === '/participant/workbooks/plan' ? <ParticipantWorkbooksPage />
+                  : participantPath === '/participant/team' ? <ParticipantTeamPage />
+                    : <ParticipantDashboardPage />;
+      return <ParticipantLayout>{participantPage}</ParticipantLayout>;
     }
     if (status === 403) return <AccessDenied retry={() => void staffQuery.refetch()} />;
     return <AccessCheckFailed sessionExpired={status === 401} retry={() => void staffQuery.refetch()} />;

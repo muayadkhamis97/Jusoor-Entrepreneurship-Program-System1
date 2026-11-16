@@ -252,3 +252,17 @@ mtime_ms = 1794757922813
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/e2089f27-6996-4845-8443-95e5b52b73c3/18cee41e-108f-4735-b578-11b126048e70"
 storage_version_token = "1794758107354253"
 content_type = "image/png"
+
+[[outputs]]
+id = "e8U_Rfk7FAFlIPKtRM_aM"
+uri = "file://generated-artifacts/participant-journey/gallery.html"
+type = "html"
+title = "Participant page screenshots"
+description = "Thirty-six demo-participant screenshots: nine routes in English and Arabic at desktop and mobile sizes."
+logical_id = "b703dffd-4fdf-4f0e-a48b-f472b0aab7f2"
+content_hash = "sha256:2f0886f269f958818d07cb8afcd5a6a58bc7337f5060fc0a2c28474cbbb5e311"
+size = 3782026
+mtime_ms = 1794839763580
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:11d51799-1d28-44b8-8126-f4740d656bdd/b703dffd-4fdf-4f0e-a48b-f472b0aab7f2/8b657358-4e61-4e8b-be8e-a966aab6df35"
+storage_version_token = "1794839773931937"
+content_type = "text/html"

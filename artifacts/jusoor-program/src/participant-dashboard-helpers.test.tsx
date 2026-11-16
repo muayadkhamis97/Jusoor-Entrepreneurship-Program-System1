@@ -33,12 +33,12 @@ test('participant next action prioritizes the earliest outstanding assignment', 
       ] as ParticipantEnrollment['assignments'],
       sessions: [{
         id: 20, title: 'Soon session', status: 'scheduled', scheduledDate: '2026-11-15', startTime: '13:00', timeZone: 'Asia/Amman',
-      } as ParticipantEnrollment['sessions'][number]],
+      } as unknown as ParticipantEnrollment['sessions'][number]],
     })],
     ...noLowerPriorityWork,
     now,
   });
-  assert.equal(action?.href, '#participant-assignment-12');
+  assert.equal(action?.href, '/participant/learning#participant-assignment-12');
   assert.equal(action?.titleKey, 'Complete your next assignment');
   assert.equal(action?.buttonLabelKey, 'Open assignment');
   assert.equal(action?.detail, 'Sooner');
@@ -53,7 +53,7 @@ test('participant next action selects a session only when it starts within 24 ho
     scheduledDate,
     startTime,
     timeZone,
-  } as ParticipantEnrollment['sessions'][number]);
+  } as unknown as ParticipantEnrollment['sessions'][number]);
   const action = getParticipantNextAction({
     enrollments: [enrollment({ sessions: [
       session(21, '2026-11-16', '14:00', 'Asia/Amman'),
@@ -62,7 +62,7 @@ test('participant next action selects a session only when it starts within 24 ho
     ...noLowerPriorityWork,
     now,
   });
-  assert.equal(action?.href, '#participant-session-22');
+  assert.equal(action?.href, '/participant/schedule#participant-session-22');
   assert.equal(action?.titleKey, 'Prepare for your upcoming session');
   assert.equal(action?.time, '14:00');
 });
@@ -76,11 +76,11 @@ test('upcoming session checks use each session zone rather than the participant 
       scheduledDate: '2026-11-15',
       startTime: '04:00',
       timeZone: 'America/Los_Angeles',
-    } as ParticipantEnrollment['sessions'][number]] })],
+    } as unknown as ParticipantEnrollment['sessions'][number]] })],
     ...noLowerPriorityWork,
     now: new Date('2026-11-15T10:00:00.000Z'),
   });
-  assert.equal(action?.href, '#participant-session-23');
+  assert.equal(action?.href, '/participant/schedule#participant-session-23');
 });
 
 test('upcoming session checks account for daylight-saving offset changes', () => {
@@ -91,35 +91,35 @@ test('upcoming session checks account for daylight-saving offset changes', () =>
     scheduledDate,
     startTime,
     timeZone: 'America/New_York',
-  } as ParticipantEnrollment['sessions'][number]);
+  } as unknown as ParticipantEnrollment['sessions'][number]);
 
   const beforeSpringForward = getParticipantNextAction({
     enrollments: [enrollment({ sessions: [session(24, '2026-03-08', '01:30')] })],
     ...noLowerPriorityWork,
     now: new Date('2026-03-08T05:00:00.000Z'),
   });
-  assert.equal(beforeSpringForward?.href, '#participant-session-24');
+  assert.equal(beforeSpringForward?.href, '/participant/schedule#participant-session-24');
 
   const afterSpringForward = getParticipantNextAction({
     enrollments: [enrollment({ sessions: [session(25, '2026-03-08', '03:30')] })],
     ...noLowerPriorityWork,
     now: new Date('2026-03-08T07:00:00.000Z'),
   });
-  assert.equal(afterSpringForward?.href, '#participant-session-25');
+  assert.equal(afterSpringForward?.href, '/participant/schedule#participant-session-25');
 
   const nonexistentSpringTime = getParticipantNextAction({
     enrollments: [enrollment({ sessions: [session(26, '2026-03-08', '02:30')] })],
     ...noLowerPriorityWork,
     now: new Date('2026-03-08T06:00:00.000Z'),
   });
-  assert.notEqual(nonexistentSpringTime?.href, '#participant-session-26');
+  assert.notEqual(nonexistentSpringTime?.href, '/participant/schedule#participant-session-26');
 
   const repeatedFallTime = getParticipantNextAction({
     enrollments: [enrollment({ sessions: [session(27, '2026-11-01', '01:30')] })],
     ...noLowerPriorityWork,
     now: new Date('2026-11-01T05:45:00.000Z'),
   });
-  assert.notEqual(repeatedFallTime?.href, '#participant-session-27');
+  assert.notEqual(repeatedFallTime?.href, '/participant/schedule#participant-session-27');
 });
 
 test('unread updates needing a reply come after sessions and before learning modules', () => {
@@ -128,14 +128,14 @@ test('unread updates needing a reply come after sessions and before learning mod
     { id: 73, title: 'Latest update', scheduledFor: '2026-11-15T10:00:00Z', readAt: null, needsReply: true },
     { id: 74, title: 'Already read', scheduledFor: '2026-11-15T11:00:00Z', readAt: '2026-11-15T12:00:00Z', needsReply: true },
     { id: 75, title: 'No reply needed', scheduledFor: '2026-11-15T13:00:00Z', readAt: null, needsReply: false },
-  ] as NonNullable<Parameters<typeof getParticipantNextAction>[0]['announcements']>;
+  ] as unknown as NonNullable<Parameters<typeof getParticipantNextAction>[0]['announcements']>;
   const action = getParticipantNextAction({
     enrollments: [enrollment()],
     announcements,
     ...noLowerPriorityWork,
     now,
   });
-  assert.equal(action?.href, '#participant-announcement-73');
+  assert.equal(action?.href, '/participant/updates#participant-announcement-73');
   assert.equal(action?.titleKey, 'Reply to a program update');
   assert.equal(action?.buttonLabelKey, 'Open update');
   assert.equal(action?.detail, 'Latest update');
@@ -149,15 +149,15 @@ test('an upcoming session remains ahead of an unread update needing a reply', ()
     enrollments: [enrollment({
       sessions: [{
         id: 22, title: 'Soon session', status: 'scheduled', scheduledDate: '2026-11-15', startTime: '13:00', timeZone: 'Asia/Amman',
-      } as ParticipantEnrollment['sessions'][number]],
+      } as unknown as ParticipantEnrollment['sessions'][number]],
     })],
     announcements: [{
       id: 73, title: 'Please reply', scheduledFor: '2026-11-15T10:00:00Z', readAt: null, needsReply: true,
-    }] as NonNullable<Parameters<typeof getParticipantNextAction>[0]['announcements']>,
+    }] as unknown as NonNullable<Parameters<typeof getParticipantNextAction>[0]['announcements']>,
     ...noLowerPriorityWork,
     now,
   });
-  assert.equal(action?.href, '#participant-session-22');
+  assert.equal(action?.href, '/participant/schedule#participant-session-22');
   assert.equal(action?.titleKey, 'Prepare for your upcoming session');
 });
 
@@ -176,7 +176,7 @@ test('participant next action selects the next released and incomplete learning 
     businessPlans: [],
     now,
   });
-  assert.equal(action?.href, '#participant-course-module-32');
+  assert.equal(action?.href, '/participant/learning#participant-course-module-32');
   assert.equal(action?.detail, 'Next module');
 });
 
@@ -195,7 +195,7 @@ test('participant next action starts at the first unstarted founder-workbook ste
     }] as NonNullable<Parameters<typeof getParticipantNextAction>[0]['ideaWorkbooks']>,
     now,
   });
-  assert.equal(action?.href, '#participant-founder-workbook-26');
+  assert.equal(action?.href, '/participant/workbooks/idea#participant-founder-workbook-26');
   assert.equal(action?.titleKey, 'Start step 1 of your workbook');
   assert.equal(action?.stepKey, 'Step 1 of 6');
 });
@@ -232,7 +232,7 @@ test('unaccepted participants are directed to their application progress', () =>
     enrollments: [enrollment({ applicationStatus: 'pending' as unknown as ParticipantEnrollment['applicationStatus'] })],
     now,
   });
-  assert.equal(action?.href, '#participant-program-progress');
+  assert.equal(action?.href, '/participant#participant-program-progress');
   assert.equal(action?.buttonLabelKey, 'View application status');
 });
 
