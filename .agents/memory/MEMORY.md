@@ -41,3 +41,4 @@
 - [Program Google Sheets](program-google-sheets.md) — Each program has its own workbook; show status and link only to Admins and staff assigned to that active program.
 - [Workspace content-width breakpoints](workspace-layout-breakpoints.md) — Base staff-page layouts on width remaining beside the persistent sidebar, and keep important action labels grouped.
 - [Browser layout measurement](browser-layout-measurement.md) — Check painted geometry and identify controls in multi-selector style measurements.
+- [Clean pnpm dedupe checks](pnpm-clean-dedupe-checks.md) — Reinstall from the frozen lockfile before using `.pnpm` directory counts to prove dependency deduplication.
