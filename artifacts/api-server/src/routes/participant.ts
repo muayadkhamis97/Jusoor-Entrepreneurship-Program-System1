@@ -232,7 +232,7 @@ async function listParticipantAnnouncementRows(
   }
 }
 
-async function listParticipantReplyNeededAnnouncementIds(
+export async function listParticipantReplyNeededAnnouncementIds(
   userId: string,
   announcementIds: number[],
 ): Promise<Set<number>> {

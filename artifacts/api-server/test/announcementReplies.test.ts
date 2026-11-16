@@ -10,13 +10,16 @@ process.env.DATABASE_URL ??= "postgres://test:test@127.0.0.1:5432/test";
 process.env.NODE_ENV = "test";
 const { db, pool } = await import("@workspace/db");
 const { createAnnouncementRepliesRouter } = await import("../src/routes/announcementReplies");
+const { listParticipantReplyNeededAnnouncementIds } = await import("../src/routes/participant");
 const { default: communicationsRouter } = await import("../src/routes/communications");
+const { getParticipantNextAction } = await import("../../jusoor-program/src/participant-dashboard-helpers");
 
 describe("private announcement reply API", { skip: !databaseAvailable }, () => {
   let client: Awaited<ReturnType<typeof pool.connect>>;
   let server: Server;
   let origin: string;
-  const originals = ["select", "insert", "update", "delete"].map(key => [key, Object.getOwnPropertyDescriptor(db, key)] as const);
+  const originals = ["select", "selectDistinct", "insert", "update", "delete"]
+    .map(key => [key, Object.getOwnPropertyDescriptor(db, key)] as const);
   before(async () => {
     client = await pool.connect();
     await client.query("BEGIN");
@@ -69,7 +72,7 @@ describe("private announcement reply API", { skip: !databaseAvailable }, () => {
       .replace("CREATE TABLE IF NOT EXISTS", "CREATE TEMP TABLE");
     await client.query(migration);
     const isolated = drizzle(client);
-    for (const key of ["select", "insert", "update", "delete"] as const) {
+    for (const key of ["select", "selectDistinct", "insert", "update", "delete"] as const) {
       Object.defineProperty(db, key, { configurable: true, value: isolated[key].bind(isolated) });
     }
     const app = express();
@@ -174,6 +177,64 @@ describe("private announcement reply API", { skip: !databaseAvailable }, () => {
     const teammate = await conversations("two", 2);
     assert.deepEqual(teammate.map(row => row.applicationId), [102]);
     assert.equal(teammate[0].messages.length, 1);
+  });
+
+  test("reply-needed status follows current business membership, not a former private thread", async () => {
+    await client.query(`
+      INSERT INTO jusoor_announcement_replies(announcement_id, application_id, sender, staff_id, body)
+      VALUES (2,106,'staff',7,'Reply from the former business');
+      INSERT INTO jusoor_program_announcements(id,program_id,business_id,title)
+      VALUES (10,11,202,'Current business update');
+    `);
+    try {
+      const beforeTransfer = await listParticipantReplyNeededAnnouncementIds("member", [2]);
+      assert.deepEqual([...beforeTransfer], [2], "the participant needs to reply while still assigned to business 201");
+
+      await client.query("UPDATE jusoor_participant_business_memberships SET business_id=202 WHERE application_id=106");
+      const afterTransfer = await listParticipantReplyNeededAnnouncementIds("member", [2, 10]);
+      assert.deepEqual([...afterTransfer], [], "a former business thread must not remain reply-needed");
+
+      const currentAnnouncements = [{
+        id: 10,
+        title: "Current business update",
+        scheduledFor: "2026-11-15T10:00:00.000Z",
+        readAt: null,
+        needsReply: afterTransfer.has(10),
+      }] as NonNullable<Parameters<typeof getParticipantNextAction>[0]["announcements"]>;
+      const enrollment = {
+        applicationStatus: "accepted",
+        assignments: [],
+        sessions: [],
+      } as NonNullable<Parameters<typeof getParticipantNextAction>[0]["enrollments"]>[number];
+      assert.equal(getParticipantNextAction({
+        enrollments: [enrollment],
+        announcements: currentAnnouncements,
+        now: new Date("2026-11-15T12:00:00.000Z"),
+      }), null, "the inaccessible reply must not become the participant's next action");
+
+      await client.query(`
+        INSERT INTO jusoor_announcement_replies(announcement_id, application_id, sender, staff_id, body)
+        VALUES (10,106,'staff',7,'Reply from the current business');
+      `);
+      const currentReplyNeeded = await listParticipantReplyNeededAnnouncementIds("member", [2, 10]);
+      assert.deepEqual([...currentReplyNeeded], [10], "a reply in the current business remains visible");
+      const nextAction = getParticipantNextAction({
+        enrollments: [enrollment],
+        announcements: [{
+          ...currentAnnouncements[0],
+          needsReply: currentReplyNeeded.has(10),
+        }],
+        now: new Date("2026-11-15T12:00:00.000Z"),
+      });
+      assert.equal(nextAction?.href, "#participant-announcement-10");
+    } finally {
+      await client.query(`
+        DELETE FROM jusoor_announcement_replies
+        WHERE application_id=106 AND body IN ('Reply from the former business','Reply from the current business');
+        DELETE FROM jusoor_program_announcements WHERE id=10;
+        UPDATE jusoor_participant_business_memberships SET business_id=201 WHERE application_id=106;
+      `);
+    }
   });
 
   test("staff responses and read receipts are private, bounded and persistent", async () => {
