@@ -3,6 +3,7 @@
 - [Provider disconnect safety](provider-disconnect-safety.md) — Preserve connections on provider refusal; clear locally on timeout, while recording that revocation is unconfirmed.
 - [Zoom attendance matching](zoom-attendance.md) — Match only a unique report email to a business; leave missing or ambiguous attendees for staff review.
 - [Date-only API fields](date-only-api-fields.md) — Keep calendar dates as `YYYY-MM-DD` strings; generated Zod schemas coerce OpenAPI `format: date` values into `Date`.
+- [Participant session time zones](participant-session-time-zones.md) — Interpret session date and clock values in Asia/Amman until programs can configure their own zones.
 - [Jusoor analytics tracking](analytics-tracking.md) — Coordinators need attendance records and customizable impact KPIs, with missing data kept distinct from zero.
 - [Grant ledger](grant-ledger.md) — Keep demo-day awards linked to an append-only USD receipt ledger; use correction reversals, not deletion.
 - [Jusoor role boundaries](jusoor-role-access.md) — Keep coordinator administration separate from trainer, mentor, judge, and participant assignment-scoped data.

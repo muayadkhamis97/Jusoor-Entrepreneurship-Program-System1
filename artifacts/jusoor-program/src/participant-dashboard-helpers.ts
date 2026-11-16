@@ -29,8 +29,79 @@ const ideaStepKeys = [
 ] as const;
 const planStepKeys = ['acquisitionChannels', 'outreachActions', 'fulfillmentSteps', 'reviewSignals'] as const;
 
-function localDateTime(date: string, time: string): Date {
-  return new Date(`${date}T${time}:00`);
+function sessionDateTime(date: string, time: string, timeZone: string): Date {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const timeMatch = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!dateMatch || !timeMatch) return new Date(Number.NaN);
+
+  const target = {
+    year: Number(dateMatch[1]),
+    month: Number(dateMatch[2]),
+    day: Number(dateMatch[3]),
+    hour: Number(timeMatch[1]),
+    minute: Number(timeMatch[2]),
+    second: 0,
+  };
+  const targetAsUtc = Date.UTC(
+    target.year,
+    target.month - 1,
+    target.day,
+    target.hour,
+    target.minute,
+  );
+  const normalizedTarget = new Date(targetAsUtc);
+  if (
+    normalizedTarget.getUTCFullYear() !== target.year
+    || normalizedTarget.getUTCMonth() + 1 !== target.month
+    || normalizedTarget.getUTCDate() !== target.day
+  ) return new Date(Number.NaN);
+
+  const formatter = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const partsAt = (instant: number) => Object.fromEntries(
+    formatter.formatToParts(new Date(instant))
+      .filter(part => part.type !== 'literal')
+      .map(part => [part.type, Number(part.value)]),
+  );
+  const sameWallTime = (parts: Record<string, number>) =>
+    parts.year === target.year
+    && parts.month === target.month
+    && parts.day === target.day
+    && parts.hour === target.hour
+    && parts.minute === target.minute
+    && parts.second === target.second;
+
+  // Sample both sides of the target to capture either offset when DST changes.
+  const offsets = new Set<number>();
+  for (let hours = -36; hours <= 36; hours += 6) {
+    const sample = targetAsUtc + hours * 60 * 60 * 1000;
+    const parts = partsAt(sample);
+    const representedAsUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    offsets.add(representedAsUtc - sample);
+  }
+
+  const candidates = [...offsets]
+    .map(offset => targetAsUtc - offset)
+    .filter(instant => sameWallTime(partsAt(instant)))
+    .sort((left, right) => left - right);
+  // A missing wall time during the spring-forward gap has no matching instant.
+  // For the repeated fall-back hour, choose the earlier occurrence.
+  return new Date(candidates[0] ?? Number.NaN);
 }
 
 export function getParticipantNextAction({
@@ -79,7 +150,10 @@ export function getParticipantNextAction({
   const nextSession = accepted
     .flatMap(enrollment => enrollment.sessions)
     .filter(session => session.status === 'scheduled' && session.startTime)
-    .map(session => ({ session, startsAt: localDateTime(session.scheduledDate, session.startTime || '') }))
+    .map(session => ({
+      session,
+      startsAt: sessionDateTime(session.scheduledDate, session.startTime || '', session.timeZone),
+    }))
     .filter(({ startsAt }) => startsAt.getTime() >= now.getTime() && startsAt.getTime() <= now.getTime() + 24 * 60 * 60 * 1000)
     .sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime())[0];
   if (nextSession) {

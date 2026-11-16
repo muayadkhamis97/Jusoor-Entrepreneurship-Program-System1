@@ -1799,6 +1799,7 @@ export interface ParticipantSession {
   scheduledDate: string;
   /** @nullable */
   startTime: string | null;
+  timeZone: string;
   /**
      * @minimum 15
      * @maximum 480

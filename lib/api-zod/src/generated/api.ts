@@ -2758,6 +2758,7 @@ export const GetParticipantDashboardResponse = zod.object({
   "type": zod.enum(['bootcamp', 'hackathon', 'training', 'pitch_day', 'demo_day', 'other']),
   "scheduledDate": zod.string().regex(getParticipantDashboardResponseApplicationsItemSessionsItemScheduledDateRegExp),
   "startTime": zod.string().nullable(),
+  "timeZone": zod.string(),
   "durationMinutes": zod.int().min(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMin).max(getParticipantDashboardResponseApplicationsItemSessionsItemDurationMinutesMax).optional(),
   "facilitator": zod.string().nullable(),
   "deliveryMode": zod.enum(['online', 'in_person', 'hybrid']),

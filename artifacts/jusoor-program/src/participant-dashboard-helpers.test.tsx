@@ -6,7 +6,7 @@ import { loadArabicTranslations, translate } from './language';
 
 await loadArabicTranslations();
 
-const now = new Date(2026, 10, 15, 10, 0);
+const now = new Date('2026-11-15T10:00:00.000Z');
 const noLowerPriorityWork = {
   courses: { programs: [] },
   learningProgress: { programs: [] },
@@ -23,17 +23,7 @@ function enrollment(overrides: Partial<ParticipantEnrollment> = {}): Participant
   } as unknown as ParticipantEnrollment;
 }
 
-function localDateTime(hoursFromNow: number): { date: string; time: string } {
-  const value = new Date(now.getTime() + hoursFromNow * 60 * 60 * 1000);
-  const pad = (number: number) => String(number).padStart(2, '0');
-  return {
-    date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
-    time: `${pad(value.getHours())}:${pad(value.getMinutes())}`,
-  };
-}
-
 test('participant next action prioritizes the earliest outstanding assignment', () => {
-  const sessionTime = localDateTime(2);
   const action = getParticipantNextAction({
     enrollments: [enrollment({
       assignments: [
@@ -42,7 +32,7 @@ test('participant next action prioritizes the earliest outstanding assignment', 
         { id: 13, title: 'Already submitted', dueDate: '2026-11-16', status: 'submitted', submittedAt: '2026-11-14T10:00:00Z' },
       ] as ParticipantEnrollment['assignments'],
       sessions: [{
-        id: 20, title: 'Soon session', status: 'scheduled', scheduledDate: sessionTime.date, startTime: sessionTime.time,
+        id: 20, title: 'Soon session', status: 'scheduled', scheduledDate: '2026-11-15', startTime: '13:00', timeZone: 'Asia/Amman',
       } as ParticipantEnrollment['sessions'][number]],
     })],
     ...noLowerPriorityWork,
@@ -56,24 +46,80 @@ test('participant next action prioritizes the earliest outstanding assignment', 
 });
 
 test('participant next action selects a session only when it starts within 24 hours', () => {
-  const session = (id: number, hours: number) => {
-    const time = localDateTime(hours);
-    return {
+  const session = (id: number, scheduledDate: string, startTime: string, timeZone: string) => ({
     id,
     title: `Session ${id}`,
     status: 'scheduled',
-    scheduledDate: time.date,
-    startTime: time.time,
-  } as ParticipantEnrollment['sessions'][number];
-  };
+    scheduledDate,
+    startTime,
+    timeZone,
+  } as ParticipantEnrollment['sessions'][number]);
   const action = getParticipantNextAction({
-    enrollments: [enrollment({ sessions: [session(21, 30), session(22, 4)] })],
+    enrollments: [enrollment({ sessions: [
+      session(21, '2026-11-16', '14:00', 'Asia/Amman'),
+      session(22, '2026-11-15', '14:00', 'Asia/Amman'),
+    ] })],
     ...noLowerPriorityWork,
     now,
   });
   assert.equal(action?.href, '#participant-session-22');
   assert.equal(action?.titleKey, 'Prepare for your upcoming session');
-  assert.equal(action?.time, localDateTime(4).time);
+  assert.equal(action?.time, '14:00');
+});
+
+test('upcoming session checks use each session zone rather than the participant browser zone', () => {
+  const action = getParticipantNextAction({
+    enrollments: [enrollment({ sessions: [{
+      id: 23,
+      title: 'Pacific session',
+      status: 'scheduled',
+      scheduledDate: '2026-11-15',
+      startTime: '04:00',
+      timeZone: 'America/Los_Angeles',
+    } as ParticipantEnrollment['sessions'][number]] })],
+    ...noLowerPriorityWork,
+    now: new Date('2026-11-15T10:00:00.000Z'),
+  });
+  assert.equal(action?.href, '#participant-session-23');
+});
+
+test('upcoming session checks account for daylight-saving offset changes', () => {
+  const session = (id: number, scheduledDate: string, startTime: string) => ({
+    id,
+    title: `Session ${id}`,
+    status: 'scheduled',
+    scheduledDate,
+    startTime,
+    timeZone: 'America/New_York',
+  } as ParticipantEnrollment['sessions'][number]);
+
+  const beforeSpringForward = getParticipantNextAction({
+    enrollments: [enrollment({ sessions: [session(24, '2026-03-08', '01:30')] })],
+    ...noLowerPriorityWork,
+    now: new Date('2026-03-08T05:00:00.000Z'),
+  });
+  assert.equal(beforeSpringForward?.href, '#participant-session-24');
+
+  const afterSpringForward = getParticipantNextAction({
+    enrollments: [enrollment({ sessions: [session(25, '2026-03-08', '03:30')] })],
+    ...noLowerPriorityWork,
+    now: new Date('2026-03-08T07:00:00.000Z'),
+  });
+  assert.equal(afterSpringForward?.href, '#participant-session-25');
+
+  const nonexistentSpringTime = getParticipantNextAction({
+    enrollments: [enrollment({ sessions: [session(26, '2026-03-08', '02:30')] })],
+    ...noLowerPriorityWork,
+    now: new Date('2026-03-08T06:00:00.000Z'),
+  });
+  assert.notEqual(nonexistentSpringTime?.href, '#participant-session-26');
+
+  const repeatedFallTime = getParticipantNextAction({
+    enrollments: [enrollment({ sessions: [session(27, '2026-11-01', '01:30')] })],
+    ...noLowerPriorityWork,
+    now: new Date('2026-11-01T05:45:00.000Z'),
+  });
+  assert.notEqual(repeatedFallTime?.href, '#participant-session-27');
 });
 
 test('unread updates needing a reply come after sessions and before learning modules', () => {
@@ -99,11 +145,10 @@ test('unread updates needing a reply come after sessions and before learning mod
 });
 
 test('an upcoming session remains ahead of an unread update needing a reply', () => {
-  const sessionTime = localDateTime(2);
   const action = getParticipantNextAction({
     enrollments: [enrollment({
       sessions: [{
-        id: 22, title: 'Soon session', status: 'scheduled', scheduledDate: sessionTime.date, startTime: sessionTime.time,
+        id: 22, title: 'Soon session', status: 'scheduled', scheduledDate: '2026-11-15', startTime: '13:00', timeZone: 'Asia/Amman',
       } as ParticipantEnrollment['sessions'][number]],
     })],
     announcements: [{
