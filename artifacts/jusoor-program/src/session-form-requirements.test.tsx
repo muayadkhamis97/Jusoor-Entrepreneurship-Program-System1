@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { loadArabicTranslations, translate } from './language';
-import { getSessionTimeIssue, sessionProgramField, sessionTimeIssueMessage } from './session-form-requirements';
+import { getSessionProgramTimeZone, getSessionTimeIssue, sessionProgramField, sessionTimeIssueMessage } from './session-form-requirements';
 
 const programs = [
   { id: 4, name: 'Growth Lab' },
@@ -26,6 +27,26 @@ test('Admin may leave the cohort blank to schedule a session for all cohorts', (
   assert.equal(field.hint, undefined);
 });
 
+test('session editor displays the selected program time zone beside the date', () => {
+  const app = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+
+  assert.match(app, /renderFieldSupplement=\{\(field, values\) => field\.name === 'scheduledDate'/);
+  assert.match(app, /getSessionProgramTimeZone\(programsQuery\.data \|\| \[\], values\.programId\)/);
+  assert.match(app, /data-testid="session-program-timezone"/);
+});
+
+test('session time zone display follows the selected program and legacy default', () => {
+  const programs = [
+    { id: 4, timeZone: 'America/New_York' },
+    { id: 9, timeZone: 'Europe/London' },
+  ];
+
+  assert.equal(getSessionProgramTimeZone(programs, '4'), 'America/New_York');
+  assert.equal(getSessionProgramTimeZone(programs, '9'), 'Europe/London');
+  assert.equal(getSessionProgramTimeZone(programs, ''), 'Asia/Amman');
+  assert.equal(getSessionProgramTimeZone([{ id: 4, timeZone: null }], '4'), 'Asia/Amman');
+});
+
 test('session scheduling detects local times skipped by spring-forward', () => {
   const issue = getSessionTimeIssue('2026-03-08', '02:30', 'America/New_York');
 
@@ -44,6 +65,7 @@ test('session scheduling detects local times repeated by fall-back', () => {
 test('daylight-saving scheduling warnings are translated into Arabic', async () => {
   await loadArabicTranslations();
 
+  assert.notEqual(translate('Session time zone', 'ar'), 'Session time zone');
   for (const issue of ['nonexistent', 'repeated', 'invalid-time-zone'] as const) {
     const message = sessionTimeIssueMessage(issue);
     assert.notEqual(translate(message, 'ar'), message);

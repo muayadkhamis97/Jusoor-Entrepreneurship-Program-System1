@@ -7,7 +7,7 @@ import './session-recording.css';
 import './program-controls.css';
 import { PublicLanding } from './public-landing';
 import { getBrandingThemeTokens, getPanelSurfaceColors } from './branding-contrast';
-import { getSessionTimeIssue, sessionProgramField, sessionTimeIssueMessage } from './session-form-requirements';
+import { getSessionProgramTimeZone, getSessionTimeIssue, sessionProgramField, sessionTimeIssueMessage } from './session-form-requirements';
 import { selectedOptionValues, updateMultiSelectValue } from './program-multiselect';
 import { BusinessParticipantsDialog } from './business-participants-dialog';
 import { AnnouncementEmailPauseAlert } from './announcement-email-pause-alert';
@@ -254,10 +254,11 @@ function FieldControl({ field, value, onChange, autoFocus = false }: { field: Fi
   return <input {...common} type={field.kind || 'text'} min={field.min ?? (field.kind === 'number' ? '0' : undefined)} max={field.max} step={field.step} className="form-control" />;
 }
 
-function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error, submitLabel, validateValues }: {
+function FormDialog({ title, description, fields, initial, loading, onClose, onSubmit, error, submitLabel, validateValues, renderFieldSupplement }: {
   title: string; description?: string; fields: Field[]; initial?: Values; loading?: boolean;
   onClose: () => void; onSubmit: (values: Values) => void; error?: string; submitLabel?: string;
   validateValues?: (values: Values) => string | undefined;
+  renderFieldSupplement?: (field: Field, values: Values) => ReactNode;
 }) {
   useAppLanguage();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(fields.map(f => [f.name, initial?.[f.name] ?? ''])));
@@ -279,9 +280,10 @@ function FormDialog({ title, description, fields, initial, loading, onClose, onS
           const label = <span id={`field-label-${field.name}`}>{t(field.label)}{field.required && <i aria-hidden="true"> *</i>}</span>;
           const control = <FieldControl field={{ ...field, placeholder: field.placeholder ? t(field.placeholder) : undefined, options: field.options?.map(option => ({ ...option, label: t(option.label) })) }} autoFocus={index === 0} value={values[field.name] || ''} onChange={value => setValues(previous => ({ ...previous, [field.name]: value }))} />;
           const hint = field.hint && <small className="field-hint">{t(field.hint)}</small>;
+          const supplement = renderFieldSupplement?.(field, values);
           return field.kind === 'multiselect'
-            ? <div key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}</div>
-            : <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}</label>;
+            ? <div key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}{supplement}</div>
+            : <label key={field.name} className={`field ${field.wide ? 'field-wide' : ''}`}>{label}{control}{hint}{supplement}</label>;
         })}</div>
         {validationError && <div className="form-error" role="alert" data-testid="session-time-warning"><CircleAlert size={16} />{t(validationError)}</div>}
         {error && <div id="dialog-error" className="form-error" role="alert"><CircleAlert size={16} />{t(error)}</div>}
@@ -728,7 +730,7 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
   };
   const validateSessionTime = (values: Values) => {
     if (!values.scheduledDate || !values.startTime) return undefined;
-    const timeZone = programsQuery.data?.find(program => String(program.id) === values.programId)?.timeZone || 'Asia/Amman';
+    const timeZone = getSessionProgramTimeZone(programsQuery.data || [], values.programId);
     const issue = getSessionTimeIssue(values.scheduledDate, values.startTime, timeZone);
     return issue ? sessionTimeIssueMessage(issue) : undefined;
   };
@@ -986,6 +988,11 @@ function SessionsPage({ coordinator = false, staffId, trainerView = false }: { c
       onClose={() => setEditing(undefined)}
       onSubmit={save}
       validateValues={validateSessionTime}
+      renderFieldSupplement={(field, values) => field.name === 'scheduledDate' && (
+        <small className="field-hint" role="note" data-testid="session-program-timezone">
+          {t('Session time zone')}: {getSessionProgramTimeZone(programsQuery.data || [], values.programId)}
+        </small>
+      )}
       error={(create.error || update.error) ? 'Could not save this session. Check required details.' : undefined}
     />}
     {deleting && <ConfirmDialog item={deleting.title} onCancel={() => setDeleting(null)} onConfirm={removeRecord} loading={remove.isPending} />}

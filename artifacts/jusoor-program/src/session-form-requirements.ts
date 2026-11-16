@@ -1,9 +1,17 @@
 type SessionProgramOption = {
   id: number;
   name: string;
+  timeZone?: string | null;
 };
 
 export type SessionTimeIssue = 'nonexistent' | 'repeated' | 'invalid-time-zone';
+
+export function getSessionProgramTimeZone(
+  programs: readonly Pick<SessionProgramOption, 'id' | 'timeZone'>[],
+  programId: string,
+): string {
+  return programs.find(program => String(program.id) === programId)?.timeZone || 'Asia/Amman';
+}
 
 export function getSessionTimeIssue(date: string, time: string, timeZone: string): SessionTimeIssue | null {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
